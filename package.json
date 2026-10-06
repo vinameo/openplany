@@ -1,0 +1,37 @@
+{
+  "name": "OpenPlany",
+  "version": "1.0.0",
+  "description": "Open-source project management tool to track issues",
+  "main": "index.js",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "clean": "turbo clean && rimraf node_modules",
+    "format": "prettier --write ."
+  },
+  "keywords": [
+    "open-source",
+    "openplany",
+    "project management"
+  ],
+  "author": "Kai Tran",
+  "license": "MIT",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "12.6.0",
+      "onFail": "download"
+    }
+  },
+  "packageManager": "pnpm@12.6.0",
+  "type": "module",
+  "devDependencies": {
+    "prettier": "^3.0.0",
+    "rimraf": "^6.0.0",
+    "turbo": "^2.0.0",
+    "typescript": "^5.0.0"
+  }
+}

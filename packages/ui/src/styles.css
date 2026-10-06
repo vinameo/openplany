@@ -1,0 +1,25 @@
+@import "@mantine/core/styles.css";
+
+:root {
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--mantine-color-gray-0);
+}
+
+[data-mantine-color-scheme="dark"] body {
+  background: var(--mantine-color-dark-8);
+}
+
+* {
+  box-sizing: border-box;
+}

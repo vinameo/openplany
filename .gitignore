@@ -1,0 +1,17 @@
+node_modules
+.pnpm-store
+
+dist
+coverage
+.turbo
+
+.env
+.env.*
+!.env.example
+
+apps/*/node_modules
+packages/*/node_modules
+
+apps/web/.vite
+apps/web/dist
+apps/api/dist

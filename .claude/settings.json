@@ -1,0 +1,13 @@
+{
+  "enabledPlugins": {
+    "code-review@claude-plugins-official": true,
+    "frontend-design@claude-plugins-official": true,
+    "skill-creator@claude-plugins-official": true,
+    "evon@evondevkit": true,
+    "backend-tools@claudekit-skills": true,
+    "web-dev-tools@claudekit-skills": true,
+    "vercel@claude-plugins-official": true,
+    "agentic-bundle-business-analyst@agentic-awesome-skills": true,
+    "databases-on-aws@claude-plugins-official": true
+  }
+}
