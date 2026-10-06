@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import App from "./App";
 
 describe("App", () => {
-  it("renders the platform heading and API check button", () => {
+  it("renders the sign in screen", () => {
     render(
       <AppUiProvider>
         <App />
@@ -12,10 +12,7 @@ describe("App", () => {
     );
 
     expect(
-      screen.getByRole("heading", { name: "OpenPlany Platform" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Check NestJS API" }),
+      screen.getByRole("heading", { name: "Sign in to OpenPlany" }),
     ).toBeInTheDocument();
   });
 });

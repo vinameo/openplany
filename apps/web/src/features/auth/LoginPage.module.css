@@ -1,0 +1,170 @@
+.page {
+  /* Secondary text/placeholder grey: 4.9:1 on white (Mantine dimmed is only 3.3:1). */
+  --login-muted: #707070;
+
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
+  background: var(--mantine-color-gray-0);
+}
+
+/* Single card on an empty page: no border, no shadow; the page/card contrast is enough. */
+.card {
+  width: 100%;
+  max-width: 448px;
+  padding: 40px;
+  border-radius: 16px;
+  background: var(--mantine-color-white);
+
+  @media (max-width: 480px) {
+    padding: 32px 20px;
+  }
+}
+
+.mark {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 24px;
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--mantine-color-text);
+}
+
+.subtitle {
+  margin-top: 4px;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--login-muted);
+  text-wrap: pretty;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-top: 32px;
+}
+
+/* Block (not Mantine's inline-block) so the label starts at the field top, level with the link. */
+.label {
+  display: block;
+  width: fit-content;
+  margin-bottom: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  color: var(--mantine-color-text);
+  cursor: pointer;
+}
+
+.required {
+  color: var(--mantine-color-red-8);
+}
+
+/* 48px controls are 12px radius; focus = primary border + soft 2px ring. */
+.input {
+  height: 48px;
+  min-height: 48px;
+  padding-inline: 16px;
+  border-color: var(--mantine-color-gray-3);
+  border-radius: 12px;
+  background: var(--mantine-color-white);
+  font-size: 16px;
+  color: var(--mantine-color-text);
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+
+  &::placeholder {
+    color: var(--login-muted);
+  }
+
+  &:focus,
+  &:focus-within {
+    border-color: var(--mantine-primary-color-filled);
+    box-shadow: 0 0 0 2px
+      color-mix(in srgb, var(--mantine-primary-color-filled) 15%, transparent);
+  }
+
+  @media (min-width: 48em) {
+    font-size: 14px;
+  }
+}
+
+/* PasswordInput's `input` is a wrapper around the real <input>; padding lives on innerInput. */
+.passwordBox {
+  padding: 0;
+}
+
+.innerInput {
+  height: 100%;
+  padding-inline: 16px 48px;
+  font-size: inherit;
+
+  &::placeholder {
+    color: var(--login-muted);
+  }
+}
+
+.section {
+  width: 48px;
+}
+
+.visibilityToggle {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+  border-radius: 8px;
+  color: var(--login-muted);
+
+  &:hover {
+    color: var(--mantine-color-text);
+    background: var(--mantine-color-gray-1);
+  }
+}
+
+.passwordField {
+  position: relative;
+}
+
+.forgotLink {
+  position: absolute;
+  top: 0;
+  right: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--mantine-color-text);
+
+  /* Widen the tap target to ~32px without moving the text. */
+  &::before {
+    content: "";
+    position: absolute;
+    inset: -5px -6px;
+  }
+
+  &:focus-visible {
+    outline: none;
+    text-decoration: underline;
+  }
+}
+
+.formError {
+  font-size: 14px;
+  color: var(--mantine-color-red-8);
+}
+
+.submit {
+  height: 48px;
+  margin-top: 8px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 500;
+}
