@@ -1,0 +1,20 @@
+**/node_modules
+**/dist
+**/coverage
+**/.turbo
+**/.vite
+**/*.tsbuildinfo
+.pnpm-store
+
+# Secrets never go into the build context
+**/.env
+**/.env.*
+!**/.env.example
+
+.git
+.github
+.claude
+.vscode
+.idea
+**/.DS_Store
+**/*.log

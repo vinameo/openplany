@@ -20,7 +20,9 @@ Open-source project management tool for tracking issues. This is a **pnpm + Turb
 | Build/orchestration | Turborepo                                                  | 2.x               |
 | Language        | TypeScript (strict)                                            | 6.x (apps), 5.x (`@repo/ui`) |
 | Backend         | NestJS + Express, class-validator/class-transformer            | 12.x              |
-| Database        | PostgreSQL + TypeORM **or** Prisma — **not chosen yet**        | —                 |
+| Database        | PostgreSQL + TypeORM (`@nestjs/typeorm`, `pg`)                 | 17 / 1.x          |
+| Cache           | Redis (container only — no Nest client yet)                    | 8                 |
+| Config          | `@nestjs/config` (dotenv) + class-validator env validation     | —                 |
 | Frontend        | React + Vite + Mantine UI                                      | 19 / 8 / 9        |
 | Testing         | Vitest (API: unit + e2e with Supertest; web/ui: jsdom + React Testing Library) | 4.x (api), 5.x (web/ui) |
 | Linting         | oxlint (API with `--type-aware`, ui), ESLint flat config (web) | —                 |
@@ -58,7 +60,7 @@ OpenPlany/
 - **Strict TypeScript, no `any`.** Use `unknown` + narrowing, generics, or Zod-inferred types. No `@ts-ignore`; use `@ts-expect-error` with a reason only as a last resort.
 - **Never swallow errors.** Every `catch` must rethrow, map to a typed/HTTP error, or log with context. No empty `catch {}`; no floating promises.
 - **Never hardcode secrets.** Read config from environment variables.
-- **Don't add a database ORM (TypeORM/Prisma) or new major dependency without asking first.**
+- **Don't add a new major dependency without asking first.**
 
 ## 3. Commands Reference
 
@@ -109,14 +111,25 @@ pnpm --filter @repo/web add @repo/ui@workspace:* # internal package
 pnpm add -Dw prettier                           # root-level tooling only
 ```
 
-### Docker (planned)
-
-No Dockerfile or compose file exists yet. Target commands once added:
+### Docker
 
 ```bash
-docker compose up -d postgres                    # local database
-docker build -f apps/api/Dockerfile -t openplany-api .
-docker build -f apps/web/Dockerfile -t openplany-web .
+docker compose up -d postgres redis              # backing services for `pnpm dev`
+docker compose up -d --build                     # full stack incl. API (runs migrations on boot)
+docker build -f apps/api/Dockerfile -t openplany-api .   # always from the repo root
+```
+
+No web Dockerfile yet.
+
+### Database migrations (TypeORM)
+
+The CLI runs against compiled JS (`dist/database/dataSource.js`), so each script builds first.
+
+```bash
+pnpm --filter @repo/api migration:generate src/database/migrations/AddIssues  # diff entities → migration
+pnpm --filter @repo/api migration:create src/database/migrations/SeedFoo      # empty migration
+pnpm --filter @repo/api migration:run
+pnpm --filter @repo/api migration:revert
 ```
 
 ## 4. Code Style & Conventions
@@ -197,7 +210,9 @@ export class CreateIssueDto {
 
 ### Database (planned)
 
-- PostgreSQL. ORM (TypeORM or Prisma) is **not decided** — ask before introducing one.
+- PostgreSQL + TypeORM. `src/database/dataSourceOptions.ts` is shared by `DatabaseModule` (Nest) and `dataSource.ts` (CLI).
+- Entities: `*.entity.ts` in their feature module, registered with `TypeOrmModule.forFeature()` (`autoLoadEntities` is on).
+- Config is validated at startup by `src/config/env.validation.ts` — add new env vars there and to `.env.example`.
 - **Repository pattern:** services talk to repositories, never to the ORM client directly from controllers.
 - **Migrations only:** every schema change ships as a migration. Never use `synchronize: true` / `db push` outside throwaway local DBs.
 - **Transactions:** wrap multi-write operations in a transaction; keep transactions short and free of external HTTP calls.
@@ -219,6 +234,7 @@ export class CreateIssueDto {
 - **Naming:** `describe('IssueService')` → `describe('create')` → `it('throws ConflictException when title already exists')`. Describe behavior, not implementation.
 - Each test is independent: no shared mutable state, no reliance on order.
 - ⚠️ E2E tests build the app via `Test.createTestingModule`, so `main.ts` setup (global `/api` prefix, `ValidationPipe`, CORS) is **not** applied unless you apply it in the test too.
+- ⚠️ `AppModule` connects to PostgreSQL, so e2e tests need `docker compose up -d postgres` and `apps/api/.env`.
 
 ## 7. Common Pitfalls
 
@@ -281,13 +297,14 @@ All three must pass. Run `pnpm format` if Prettier reports changes.
 nvm use                     # Node 24 from .nvmrc
 corepack enable             # lets packageManager pin pnpm@12.6.0
 pnpm install
-cp apps/api/.env.example apps/api/.env   # once .env.example exists
+cp apps/api/.env.example apps/api/.env
+docker compose up -d postgres redis
 pnpm dev
 ```
 
 - API: http://localhost:3000/api — Web: http://localhost:5173
 
-### Environment variables (`apps/api/.env.example`, planned)
+### Environment variables (`apps/api/.env.example`)
 
 ```dotenv
 NODE_ENV=development
@@ -298,16 +315,18 @@ JWT_SECRET=change-me
 LOG_LEVEL=debug
 ```
 
+`REDIS_URL=redis://localhost:6379`, `DB_LOGGING`, `DB_MIGRATIONS_RUN` are also supported. A root `.env.example` holds optional docker-compose overrides.
+
 Web variables must be prefixed `VITE_` to reach client code — and are public, so never put secrets in them.
 
-### Database (planned)
+### Database
 
-Run PostgreSQL locally via Docker (`docker compose up -d postgres`) once the compose file exists, then run migrations with the chosen ORM's CLI through `pnpm --filter @repo/api …`.
+Run PostgreSQL + Redis via `docker compose up -d postgres redis`, then `pnpm --filter @repo/api migration:run`.
 
 ## 10. Deployment
 
-- **Docker (planned):** one multi-stage image per app, built from the repo root so the workspace is available. Use `turbo prune @repo/api --docker` to produce a minimal build context.
-- **API runtime:** `pnpm --filter @repo/api build` then `node dist/main` (`start:prod`).
+- **Docker:** one multi-stage image per app (`apps/api/Dockerfile` exists), built from the repo root so the workspace is available. Use `turbo prune @repo/api --docker` to produce a minimal build context.
+- **API runtime:** `pnpm --filter @repo/api build` then `node dist/main.js` (`start:prod`).
 - **Web:** `pnpm --filter @repo/web build` outputs static files to `apps/web/dist` — serve from a CDN/static host and route `/api` to the API.
 - **Environment-specific config:** all config comes from env vars; never branch on hostnames. Use `.env` locally and the platform's secret store in staging/production. CORS origin must come from env before deploying.
 - **Health check:** `GET /api/health` → `{ status: 'ok', service: 'api', timestamp }`. Use it for container/load-balancer probes.
