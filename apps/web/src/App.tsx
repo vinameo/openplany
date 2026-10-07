@@ -1,7 +1,15 @@
-import { LoginPage } from "./features/auth/LoginPage";
+import { useState } from "react";
+import { createBrowserRouter } from "react-router";
+import { RouterProvider } from "react-router/dom";
+import { AuthProvider } from "./features/auth/AuthProvider";
+import { appRoutes } from "./routes";
 
-function App() {
-  return <LoginPage />;
+export function App() {
+  const [router] = useState(() => createBrowserRouter(appRoutes));
+
+  return (
+    <AuthProvider>
+      <RouterProvider router={router} />
+    </AuthProvider>
+  );
 }
-
-export default App;

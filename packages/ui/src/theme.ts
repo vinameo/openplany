@@ -19,7 +19,7 @@ const brand: MantineColorsTuple = [
 export const theme = createTheme({
   primaryColor: 'brand',
   primaryShade: {
-    light: 6,
+    light: 7,
     dark: 5
   },
   colors: {

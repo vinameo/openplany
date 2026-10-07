@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "postgres-mcp": {
+      "type": "stdio",
+      "command": "pnpm",
+      "args": ["dlx", "@microsoft/postgres-mcp@0.2.0", "run", "--no-telemetry"],
+      "env": {
+        "POSTGRES_MCP_QUERY_TIMEOUT_MS": "540000"
+      },
+      "timeout": 90000
+    }
+  }
+}

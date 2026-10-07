@@ -1,0 +1,50 @@
+.page {
+  /* Secondary text/placeholder grey: 4.9:1 on white (Mantine dimmed is only 3.3:1). */
+  --auth-muted: #707070;
+
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
+  background: var(--mantine-color-gray-0);
+}
+
+/* Single card on an empty page: no border, no shadow; the page/card contrast is enough. */
+.card {
+  width: 100%;
+  max-width: 448px;
+  padding: 40px;
+  border-radius: 16px;
+  background: var(--mantine-color-white);
+
+  @media (max-width: 480px) {
+    padding: 32px 20px;
+  }
+}
+
+.mark {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 24px;
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--mantine-color-text);
+}
+
+.subtitle {
+  margin-top: 4px;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--auth-muted);
+  text-wrap: pretty;
+}
+
+.body {
+  margin-top: 32px;
+}

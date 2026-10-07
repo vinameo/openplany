@@ -16,7 +16,7 @@ services:
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - ./.data/postgres-data:/var/lib/postgresql/data
+      - ./data/postgres-data:/var/lib/postgresql/data
     healthcheck:
       test:
         ["CMD-SHELL", 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
@@ -31,7 +31,7 @@ services:
     ports:
       - "${REDIS_PORT:-6379}:6379"
     volumes:
-      - ./.data/redis-data:/data
+      - ./data/redis-data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -52,6 +52,11 @@ services:
       DB_MIGRATIONS_RUN: "true"
       DB_LOGGING: "false"
       REDIS_URL: redis://redis:6379
+      # Local stack only: set a real secret in the root .env for anything shared.
+      AUTH_HMAC_SECRET: ${AUTH_HMAC_SECRET:-local-dev-only-hmac-secret-not-for-production}
+      # Served over plain http://localhost by this stack.
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
     ports:
       - "${API_PORT:-3000}:3000"
     depends_on:

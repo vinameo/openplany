@@ -6,6 +6,7 @@ import {
   IsString,
   Max,
   Min,
+  MinLength,
   validateSync,
 } from 'class-validator';
 
@@ -49,6 +50,27 @@ export class EnvironmentVariables {
 
   @IsString()
   REDIS_URL: string;
+
+  // Keys the HMAC of emails stored in login_attempts.email_hash.
+  @IsString()
+  @MinLength(32)
+  AUTH_HMAC_SECRET: string;
+
+  @Transform(toBoolean)
+  @IsBoolean()
+  SESSION_COOKIE_SECURE: boolean = true;
+
+  @IsInt()
+  @Min(1)
+  SESSION_TTL_DAYS: number = 7;
+
+  @IsInt()
+  @Min(1)
+  SESSION_ABSOLUTE_TTL_DAYS: number = 30;
+
+  // Express 'trust proxy': 'false', 'true', a hop count, or a list of subnets.
+  @IsString()
+  TRUST_PROXY: string = 'false';
 }
 
 export function validateEnv(

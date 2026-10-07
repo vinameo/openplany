@@ -1,0 +1,13 @@
+.text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--auth-muted);
+}
+
+.action {
+  height: 48px;
+  margin-top: 28px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 500;
+}

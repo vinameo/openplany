@@ -23,7 +23,8 @@ Open-source project management tool for tracking issues. This is a **pnpm + Turb
 | Database        | PostgreSQL + TypeORM (`@nestjs/typeorm`, `pg`)                 | 17 / 1.x          |
 | Cache           | Redis (container only — no Nest client yet)                    | 8                 |
 | Config          | `@nestjs/config` (dotenv) + class-validator env validation     | —                 |
-| Frontend        | React + Vite + Mantine UI                                      | 19 / 8 / 9        |
+| Frontend        | React + Vite + Mantine UI + react-router                       | 19 / 8 / 9 / 8    |
+| Auth            | Opaque session cookie, argon2id via `node:crypto` (Node 24+), `helmet`, `cookie-parser` | — |
 | Testing         | Vitest (API: unit + e2e with Supertest; web/ui: jsdom + React Testing Library) | 4.x (api), 5.x (web/ui) |
 | Linting         | oxlint (API with `--type-aware`, ui), ESLint flat config (web) | —                 |
 
@@ -130,6 +131,7 @@ pnpm --filter @repo/api migration:generate src/database/migrations/AddIssues  # 
 pnpm --filter @repo/api migration:create src/database/migrations/SeedFoo      # empty migration
 pnpm --filter @repo/api migration:run
 pnpm --filter @repo/api migration:revert
+pnpm --filter @repo/api user:create an@openplany.dev "An Nguyen"  # dev user; password read from stdin
 ```
 
 ## 4. Code Style & Conventions
@@ -190,7 +192,7 @@ export class CreateIssueDto {
 - **OWASP Top 10 checklist:**
   - Authorize every endpoint (guards); check resource ownership, not just authentication.
   - Validate and whitelist all input; use parameterized queries only.
-  - Keep CORS restricted (currently `http://localhost:5173`) — make it env-driven before deploying.
+  - Keep CORS restricted: origins come from `CORS_ORIGIN`; the global `OriginGuard` rejects state-changing requests from any other `Origin`.
   - Rate-limit auth and write endpoints; add security headers (Helmet).
   - Never log secrets, tokens, or personal data.
   - Keep dependencies patched (`pnpm audit`).
@@ -234,7 +236,8 @@ export class CreateIssueDto {
 - **Naming:** `describe('IssueService')` → `describe('create')` → `it('throws ConflictException when title already exists')`. Describe behavior, not implementation.
 - Each test is independent: no shared mutable state, no reliance on order.
 - ⚠️ E2E tests build the app via `Test.createTestingModule`, so `main.ts` setup (global `/api` prefix, `ValidationPipe`, CORS) is **not** applied unless you apply it in the test too.
-- ⚠️ `AppModule` connects to PostgreSQL, so e2e tests need `docker compose up -d postgres` and `apps/api/.env`.
+- ⚠️ `AppModule` connects to PostgreSQL, so e2e tests need `docker compose up -d postgres` and `apps/api/.env`. They run against `<db>_test` (created and migrated by `test/e2eGlobalSetup.ts`) and truncate it between tests — never the dev database. Build the app with `createE2eApp()`, which applies `configureApp()` like `main.ts`.
+- ⚠️ API tests need **Node 24** (`crypto.argon2`); on Node 22 the password hasher fails.
 
 ## 7. Common Pitfalls
 
@@ -315,7 +318,7 @@ JWT_SECRET=change-me
 LOG_LEVEL=debug
 ```
 
-`REDIS_URL=redis://localhost:6379`, `DB_LOGGING`, `DB_MIGRATIONS_RUN` are also supported. A root `.env.example` holds optional docker-compose overrides.
+`REDIS_URL=redis://localhost:6379`, `DB_LOGGING`, `DB_MIGRATIONS_RUN` are also supported, plus auth settings: `AUTH_HMAC_SECRET` (≥ 32 chars, keys `login_attempts.email_hash`), `SESSION_COOKIE_SECURE`, `SESSION_TTL_DAYS`, `SESSION_ABSOLUTE_TTL_DAYS`, `TRUST_PROXY`. A root `.env.example` holds optional docker-compose overrides.
 
 Web variables must be prefixed `VITE_` to reach client code — and are public, so never put secrets in them.
 

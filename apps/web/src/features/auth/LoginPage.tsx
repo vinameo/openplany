@@ -1,14 +1,8 @@
-import { useState, type FormEvent } from "react";
-import {
-  Anchor,
-  Button,
-  Image,
-  PasswordInput,
-  Text,
-  TextInput,
-  Title,
-} from "@mantine/core";
-import markUrl from "../../assets/openplany-mark.png";
+import { useRef, useState, type FormEvent } from "react";
+import { Anchor, Button, PasswordInput, Text, TextInput } from "@mantine/core";
+import { ApiRequestError, GENERIC_SIGN_IN_ERROR } from "./api/authApi";
+import { AuthLayout } from "./AuthLayout";
+import { formatCountdown, useCountdown } from "./useCountdown";
 import classes from "./LoginPage.module.css";
 
 export interface LoginValues {
@@ -18,19 +12,16 @@ export interface LoginValues {
 
 interface LoginPageProps {
   /**
-   * Wire the real sign-in call here. Defaults to a ~1s simulated request.
-   * Reject with an Error to show its message above the button.
+   * Performs the sign-in. Reject with an ApiRequestError to get field errors,
+   * the 429 countdown and password reset; any other Error shows its message.
    */
-  onSubmit?: (values: LoginValues) => Promise<void>;
+  onSubmit: (values: LoginValues) => Promise<void>;
   forgotPasswordHref?: string;
 }
 
-const SIMULATED_DELAY_MS = 1000;
-
-function simulateSignIn(): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, SIMULATED_DELAY_MS);
-  });
+interface FieldErrors {
+  email?: string;
+  password?: string;
 }
 
 const inputClassNames = {
@@ -39,18 +30,59 @@ const inputClassNames = {
   input: classes.input,
   innerInput: classes.innerInput,
   section: classes.section,
+  error: classes.fieldError,
 };
 
 export function LoginPage({
-  onSubmit = simulateSignIn,
+  onSubmit,
   forgotPasswordHref = "/forgot-password",
 }: LoginPageProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [lockoutMessage, setLockoutMessage] = useState("");
+  const lockout = useCountdown();
+  const passwordRef = useRef<HTMLInputElement>(null);
 
-  const canSubmit = email.trim() !== "" && password !== "";
+  const isLockedOut = lockout.remainingSeconds > 0;
+  const canSubmit = email.trim() !== "" && password !== "" && !isLockedOut;
+
+  function showError(error: unknown) {
+    if (!(error instanceof ApiRequestError)) {
+      setFormError(
+        error instanceof Error && error.message !== ""
+          ? error.message
+          : GENERIC_SIGN_IN_ERROR,
+      );
+      return;
+    }
+
+    if (error.code === "VALIDATION_ERROR") {
+      const { email: emailError, password: passwordError } = error.fields;
+      setFieldErrors({ email: emailError, password: passwordError });
+      if (emailError === undefined && passwordError === undefined) {
+        setFormError(error.message);
+      }
+      return;
+    }
+    if (
+      error.code === "TOO_MANY_ATTEMPTS" &&
+      error.retryAfterSeconds !== null
+    ) {
+      setLockoutMessage(error.message);
+      lockout.start(error.retryAfterSeconds);
+      return;
+    }
+    setFormError(error.message);
+    if (error.status === 401 || error.status === 403) {
+      // Keep the email, make retyping the password the obvious next step.
+      setPassword("");
+      passwordRef.current?.focus();
+    }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -58,85 +90,98 @@ export function LoginPage({
 
     setIsSubmitting(true);
     setFormError(null);
+    setFieldErrors({});
     try {
       await onSubmit({ email: email.trim(), password });
     } catch (error: unknown) {
-      setFormError(
-        error instanceof Error && error.message !== ""
-          ? error.message
-          : "Couldn't sign in. Please try again.",
-      );
+      showError(error);
     } finally {
       setIsSubmitting(false);
     }
   }
 
+  // The alert is read once; the ticking countdown lives on the button so
+  // screen readers are not interrupted every second.
+  const alertMessage = isLockedOut ? lockoutMessage : formError;
+
   return (
-    <main className={classes.page}>
-      <div className={classes.card}>
-        <Image src={markUrl} alt="OpenPlany" className={classes.mark} />
+    <AuthLayout
+      title="Sign in to OpenPlany"
+      subtitle="Plan projects and docs in one place."
+    >
+      <form
+        className={classes.form}
+        onSubmit={(event) => void handleSubmit(event)}
+        noValidate
+      >
+        <TextInput
+          label="Email"
+          placeholder="name@company.com"
+          type="email"
+          autoComplete="email"
+          required
+          autoFocus
+          value={email}
+          error={fieldErrors.email}
+          onChange={(event) => {
+            setEmail(event.currentTarget.value);
+            setFieldErrors((errors) => ({ ...errors, email: undefined }));
+          }}
+          classNames={inputClassNames}
+        />
 
-        <Title order={1} className={classes.title}>
-          Sign in to OpenPlany
-        </Title>
-        <Text className={classes.subtitle}>
-          Configure instance-wide settings to secure your instance
-        </Text>
-
-        <form
-          className={classes.form}
-          onSubmit={(event) => void handleSubmit(event)}
-          noValidate
-        >
-          <TextInput
-            label="Email"
-            placeholder="name@company.com"
-            type="email"
-            autoComplete="email"
+        <div className={classes.passwordField}>
+          <PasswordInput
+            ref={passwordRef}
+            label="Password"
+            placeholder="Enter your password"
+            autoComplete="current-password"
             required
-            autoFocus
-            value={email}
-            onChange={(event) => setEmail(event.currentTarget.value)}
-            classNames={inputClassNames}
+            value={password}
+            visible={isPasswordVisible}
+            onVisibilityChange={setIsPasswordVisible}
+            // Reachable by Tab (web-spec 6) and named for screen readers.
+            visibilityToggleFocusable
+            visibilityToggleButtonProps={{
+              "aria-label": isPasswordVisible
+                ? "Hide password"
+                : "Show password",
+            }}
+            error={fieldErrors.password}
+            onChange={(event) => {
+              setPassword(event.currentTarget.value);
+              setFieldErrors((errors) => ({ ...errors, password: undefined }));
+            }}
+            classNames={{
+              ...inputClassNames,
+              input: `${classes.input} ${classes.passwordBox}`,
+              visibilityToggle: classes.visibilityToggle,
+            }}
           />
+          {/* After the input in DOM so Tab goes email → password → eye → this link. */}
+          <Anchor href={forgotPasswordHref} className={classes.forgotLink}>
+            Forgot password?
+          </Anchor>
+        </div>
 
-          <div className={classes.passwordField}>
-            <PasswordInput
-              label="Password"
-              placeholder="Enter your password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(event) => setPassword(event.currentTarget.value)}
-              classNames={{
-                ...inputClassNames,
-                input: `${classes.input} ${classes.passwordBox}`,
-                visibilityToggle: classes.visibilityToggle,
-              }}
-            />
-            {/* After the input in DOM so Tab goes email → password → eye → this link. */}
-            <Anchor href={forgotPasswordHref} className={classes.forgotLink}>
-              Forgot password?
-            </Anchor>
-          </div>
+        {alertMessage !== null && (
+          <Text role="alert" className={classes.formError}>
+            {alertMessage}
+          </Text>
+        )}
 
-          {formError !== null && (
-            <Text role="alert" className={classes.formError}>
-              {formError}
-            </Text>
-          )}
-
-          <Button
-            type="submit"
-            fullWidth
-            disabled={!canSubmit}
-            loading={isSubmitting}
-            className={classes.submit}
-          >
-            Sign in
-          </Button>
-        </form>
-      </div>
-    </main>
+        <Button
+          type="submit"
+          fullWidth
+          disabled={!canSubmit}
+          loading={isSubmitting}
+          className={classes.submit}
+        >
+          {isLockedOut
+            ? `Try again in ${formatCountdown(lockout.remainingSeconds)}`
+            : "Sign in"}
+        </Button>
+      </form>
+    </AuthLayout>
   );
 }
