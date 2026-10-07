@@ -18,23 +18,23 @@ export interface AuthSessionResponse {
 }
 
 /** Maps field by field so internal columns can never leak into a response. */
+export function toAuthUserResponse(user: User): AuthUserResponse {
+  return {
+    id: user.id,
+    email: user.email ?? '',
+    displayName: user.displayName ?? '',
+    firstName: user.firstName ?? '',
+    lastName: user.lastName ?? '',
+    avatarUrl: user.avatar !== null && user.avatar !== '' ? user.avatar : null,
+    timezone: user.timezone,
+    isEmailVerified: user.isEmailVerified,
+    isInstanceAdmin: user.isSuperuser,
+  };
+}
+
 export function toAuthSessionResponse(
   user: User,
   requiresPasswordReset: boolean,
 ): AuthSessionResponse {
-  return {
-    user: {
-      id: user.id,
-      email: user.email ?? '',
-      displayName: user.displayName ?? '',
-      firstName: user.firstName ?? '',
-      lastName: user.lastName ?? '',
-      avatarUrl:
-        user.avatar !== null && user.avatar !== '' ? user.avatar : null,
-      timezone: user.timezone,
-      isEmailVerified: user.isEmailVerified,
-      isInstanceAdmin: user.isSuperuser,
-    },
-    requiresPasswordReset,
-  };
+  return { user: toAuthUserResponse(user), requiresPasswordReset };
 }

@@ -2,7 +2,7 @@ import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AppUiProvider } from "@repo/ui";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApiRequestError } from "./api/authApi";
+import { ApiRequestError } from "../../lib/apiClient";
 import { LoginPage } from "./LoginPage";
 
 type Submit = (values: { email: string; password: string }) => Promise<void>;

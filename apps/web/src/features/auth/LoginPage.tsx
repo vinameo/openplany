@@ -1,6 +1,7 @@
 import { useRef, useState, type FormEvent } from "react";
 import { Anchor, Button, PasswordInput, Text, TextInput } from "@mantine/core";
-import { ApiRequestError, GENERIC_SIGN_IN_ERROR } from "./api/authApi";
+import { ApiRequestError } from "../../lib/apiClient";
+import { GENERIC_SIGN_IN_ERROR } from "./api/authApi";
 import { AuthLayout } from "./AuthLayout";
 import { formatCountdown, useCountdown } from "./useCountdown";
 import classes from "./LoginPage.module.css";

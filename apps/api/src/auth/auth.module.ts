@@ -12,6 +12,7 @@ import { LoginAttempt } from './entities/loginAttempt.entity.js';
 import { Session } from './entities/session.entity.js';
 import { User } from './entities/user.entity.js';
 import { OriginGuard } from './guards/originGuard.js';
+import { SessionGuard } from './guards/sessionGuard.js';
 import { NoStoreMiddleware } from './noStore.middleware.js';
 import { Argon2PasswordHasher, PasswordHasher } from './passwordHasher.js';
 import { DbLoginRateLimiter, LoginRateLimiter } from './rateLimiter.js';
@@ -35,6 +36,7 @@ import { SessionCookie } from './sessionCookie.js';
   providers: [
     AuthService,
     SessionCookie,
+    SessionGuard,
     { provide: APP_GUARD, useClass: OriginGuard },
     { provide: Clock, useClass: SystemClock },
     { provide: PasswordHasher, useClass: Argon2PasswordHasher },
@@ -46,6 +48,8 @@ import { SessionCookie } from './sessionCookie.js';
       useClass: TypeOrmLoginAttemptsRepository,
     },
   ],
+  // What other feature modules need to protect their routes with SessionGuard.
+  exports: [AuthService, SessionCookie, SessionGuard, UsersRepository, Clock],
 })
 export class AuthModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {

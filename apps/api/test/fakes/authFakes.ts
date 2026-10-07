@@ -20,7 +20,10 @@ import {
   type ActiveSession,
   type SignInRecord,
 } from '../../src/auth/repositories/sessionsRepository.js';
-import { UsersRepository } from '../../src/auth/repositories/usersRepository.js';
+import {
+  type ProfileChanges,
+  UsersRepository,
+} from '../../src/auth/repositories/usersRepository.js';
 
 export const NOW = new Date('2026-10-07T12:00:00.000Z');
 
@@ -121,6 +124,31 @@ export class FakeUsersRepository extends UsersRepository {
     return Promise.resolve(
       this.users.find((user) => user.email?.toLowerCase() === email) ?? null,
     );
+  }
+
+  findActiveById(id: string): Promise<User | null> {
+    return Promise.resolve(
+      this.users.find(
+        (user) => user.id === id && user.isActive && user.maskedAt === null,
+      ) ?? null,
+    );
+  }
+
+  readonly profileUpdates: { id: string; changes: ProfileChanges; at: Date }[] =
+    [];
+  /** Simulates an account locked between the session check and the write. */
+  rejectProfileUpdates = false;
+
+  async updateProfile(
+    id: string,
+    changes: ProfileChanges,
+    at: Date,
+  ): Promise<User | null> {
+    this.profileUpdates.push({ id, changes, at });
+    const user = await this.findActiveById(id);
+    if (user === null || this.rejectProfileUpdates) return null;
+    Object.assign(user, changes, { updatedAt: at });
+    return user;
   }
 }
 

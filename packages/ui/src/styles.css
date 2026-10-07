@@ -1,6 +1,8 @@
 @import "@mantine/core/styles.css";
 
 :root {
+  /* Secondary text; 4.9:1 on white, which Mantine's dimmed (3.3:1) is not. */
+  --app-color-muted: #707070;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }

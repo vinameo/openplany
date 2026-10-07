@@ -10,6 +10,7 @@ import {
   SIGN_IN_PATH,
 } from "./features/auth/sessionDestination";
 import { HomePage } from "./features/home/HomePage";
+import { AppLayout } from "./features/layout/AppLayout";
 
 export const appRoutes: RouteObject[] = [
   { path: SIGN_IN_PATH, element: <SignInRoute /> },
@@ -17,7 +18,12 @@ export const appRoutes: RouteObject[] = [
   { path: FORGOT_PASSWORD_PATH, element: <ForgotPasswordRoute /> },
   {
     element: <RequireAuth />,
-    children: [{ path: HOME_PATH, element: <HomePage /> }],
+    children: [
+      {
+        element: <AppLayout />,
+        children: [{ path: HOME_PATH, element: <HomePage /> }],
+      },
+    ],
   },
   { path: "*", element: <Navigate to={HOME_PATH} replace /> },
 ];

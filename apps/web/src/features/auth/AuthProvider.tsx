@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { authApi } from "./api/authApi";
-import type { SignInRequest } from "./api/authTypes";
+import type { AuthUser, SignInRequest } from "./api/authTypes";
 import {
   AuthContext,
   type AuthContextValue,
@@ -53,6 +53,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
           // Forget the session locally even if the request failed.
           setState({ status: "anonymous" });
         }
+      },
+      updateUser(user: AuthUser) {
+        setState((current) =>
+          current.status === "authenticated"
+            ? { status: "authenticated", session: { ...current.session, user } }
+            : current,
+        );
+      },
+      expireSession() {
+        setState({ status: "anonymous" });
       },
     }),
     [state],

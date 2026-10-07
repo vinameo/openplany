@@ -1,5 +1,5 @@
-// Mirrors apps/api/src/auth/dto/authSessionResponse.dto.ts and the api-spec 2.1
-// error shape. Moves to @repo/contracts (Zod) once that package exists (W6).
+// Mirrors apps/api/src/auth/dto/authSessionResponse.dto.ts. Moves to
+// @repo/contracts (Zod) once that package exists (W6).
 
 export interface AuthUser {
   id: string;
@@ -23,11 +23,9 @@ export interface SignInRequest {
   password: string;
 }
 
-export interface ApiErrorBody {
-  statusCode: number;
-  code: string;
-  message: string;
-  requestId: string;
-  fields?: Record<string, string>;
-  retryAfterSeconds?: number;
+/** PATCH /api/users/me: only the fields that changed. */
+export interface UpdateProfileRequest {
+  firstName?: string;
+  lastName?: string;
+  displayName?: string;
 }

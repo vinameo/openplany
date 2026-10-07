@@ -1,0 +1,45 @@
+.title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.avatar {
+  flex: none;
+  background: var(--mantine-color-gray-1);
+  color: var(--mantine-color-gray-7);
+}
+
+.identity {
+  min-width: 0;
+}
+
+.name {
+  overflow: hidden;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.email {
+  overflow: hidden;
+  color: var(--app-color-muted);
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.footer {
+  padding-top: 8px;
+}
+
+/* Keep the action reachable above the on-screen keyboard on phones. */
+@media (max-width: 575px) {
+  .footer {
+    position: sticky;
+    bottom: 0;
+    padding-bottom: 8px;
+    background: var(--mantine-color-white);
+  }
+}
