@@ -118,9 +118,6 @@ describe("profile popup", () => {
       ([, init]) => init?.method === "PATCH",
     );
     expect(patch?.[1]?.body).toBe(JSON.stringify({ displayName: "Kai" }));
-    expect(
-      screen.getByRole("heading", { name: "Welcome, Kai" }),
-    ).toBeInTheDocument();
   });
 
   it("blocks a blank first name without calling the API", async () => {
@@ -135,7 +132,9 @@ describe("profile popup", () => {
       await screen.findByText("Enter your first name"),
     ).toBeInTheDocument();
     expect(screen.getByLabelText(/first name/i)).toHaveFocus();
-    expect(fetchMock).toHaveBeenCalledTimes(1); // only the session check
+    // Only session check and workspaces list, no PATCH to profile API
+    const patchCalls = fetchMock.mock.calls.filter(([, init]) => init?.method === "PATCH");
+    expect(patchCalls).toHaveLength(0);
   });
 
   it("puts server field errors under the right input", async () => {

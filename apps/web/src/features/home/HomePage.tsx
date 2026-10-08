@@ -1,13 +1,18 @@
 import { Alert, Container, Title } from "@mantine/core";
+import { useOutletContext } from "react-router";
+import type { WorkspaceResponse } from "@repo/contracts";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { useAuth } from "../auth/useAuth";
 import { userLabel } from "../profile/userName";
 import classes from "./HomePage.module.css";
 
-/** Landing page after sign-in; the real dashboard replaces its body later. */
+/** Landing page after sign-in; displays current workspace title. */
 export function HomePage() {
   const { state } = useAuth();
-  useDocumentTitle("OpenPlany");
+  const workspace = useOutletContext<WorkspaceResponse | null>();
+
+  const title = workspace ? `${workspace.name} · OpenPlany` : "OpenPlany";
+  useDocumentTitle(title);
 
   if (state.status !== "authenticated") return null;
   const { user } = state.session;
@@ -20,7 +25,7 @@ export function HomePage() {
         </Alert>
       )}
       <Title order={1} size="h3">
-        Welcome, {userLabel(user)}
+        {workspace?.name ?? `Welcome, ${userLabel(user)}`}
       </Title>
     </Container>
   );

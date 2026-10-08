@@ -10,6 +10,7 @@ export const API_ERROR_CODES = [
   'UNAUTHENTICATED',
   'PASSWORD_RESET_REQUIRED',
   'NOT_FOUND',
+  'SLUG_ALREADY_EXISTS',
   'INTERNAL_ERROR',
 ] as const;
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number];

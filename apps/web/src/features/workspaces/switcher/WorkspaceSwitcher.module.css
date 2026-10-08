@@ -1,0 +1,72 @@
+.trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+  padding: 4px 8px;
+  border-radius: var(--mantine-radius-sm);
+  transition: background-color 150ms ease;
+  color: var(--mantine-color-text);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  max-width: 260px;
+}
+
+.trigger:hover {
+  background-color: var(--mantine-color-default-hover);
+}
+
+.name {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chevron {
+  color: var(--mantine-color-dimmed);
+  flex-shrink: 0;
+}
+
+.menuItem {
+  padding: 8px 12px;
+}
+
+.itemContent {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.itemLeft {
+  display: flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+  min-width: 0;
+}
+
+.itemDetails {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.itemName {
+  font-size: 14px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--mantine-color-text);
+}
+
+.itemMeta {
+  font-size: 12px;
+  color: var(--mantine-color-dimmed);
+}
+
+.activeItem {
+  background-color: var(--mantine-color-default-hover);
+}
+

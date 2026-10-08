@@ -47,7 +47,9 @@ describe("app routes", () => {
     const { router } = renderApp("/sign-in");
 
     expect(
-      await screen.findByRole("heading", { name: "Welcome, An Nguyen" }),
+      await screen.findByRole("heading", {
+        name: "You're not in a workspace yet",
+      }),
     ).toBeInTheDocument();
     expect(router.state.location.pathname).toBe("/");
     expect(screen.queryByLabelText(/email/i)).not.toBeInTheDocument();
@@ -74,7 +76,9 @@ describe("app routes", () => {
     await user.click(screen.getByRole("button", { name: "Sign in" }));
 
     expect(
-      await screen.findByRole("heading", { name: "Welcome, An Nguyen" }),
+      await screen.findByRole("heading", {
+        name: "You're not in a workspace yet",
+      }),
     ).toBeInTheDocument();
     expect(router.state.location.pathname).toBe("/");
   });

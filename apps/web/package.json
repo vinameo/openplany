@@ -27,6 +27,7 @@
     "@mantine/nprogress": "^9.6.3",
     "@mantine/spotlight": "^9.6.3",
     "@mantine/tiptap": "^9.6.3",
+    "@repo/contracts": "workspace:*",
     "@repo/ui": "workspace:*",
     "@tiptap/extension-link": "^3.31.3",
     "@tiptap/pm": "^3.31.3",

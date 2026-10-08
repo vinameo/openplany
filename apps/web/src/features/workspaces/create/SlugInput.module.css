@@ -1,0 +1,44 @@
+.box {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--mantine-color-default-border);
+  border-radius: var(--mantine-radius-default);
+  background-color: var(--mantine-color-body);
+  transition: border-color 150ms ease;
+  min-height: 42px;
+  padding: 0 var(--mantine-spacing-sm);
+}
+
+.box:focus-within {
+  border-color: var(--mantine-primary-color-filled);
+}
+
+.boxError {
+  border-color: var(--mantine-color-error);
+}
+
+.prefix {
+  color: var(--mantine-color-dimmed);
+  user-select: none;
+  font-size: var(--mantine-font-size-sm);
+  white-space: nowrap;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  direction: rtl;
+  text-align: left;
+  cursor: text;
+  flex-shrink: 0;
+}
+
+.input {
+  flex: 1;
+}
+
+.input input {
+  padding-left: 2px;
+  padding-right: 0;
+  height: 40px;
+  font-size: var(--mantine-font-size-sm);
+}
+

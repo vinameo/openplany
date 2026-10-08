@@ -1,4 +1,4 @@
-import { Navigate, type RouteObject } from "react-router";
+import { Outlet, type RouteObject } from "react-router";
 import { ForgotPasswordRoute } from "./features/auth/routes/ForgotPasswordRoute";
 import { RequireAuth } from "./features/auth/routes/RequireAuth";
 import { SetPasswordRoute } from "./features/auth/routes/SetPasswordRoute";
@@ -10,7 +10,11 @@ import {
   SIGN_IN_PATH,
 } from "./features/auth/sessionDestination";
 import { HomePage } from "./features/home/HomePage";
-import { AppLayout } from "./features/layout/AppLayout";
+import { CreateWorkspaceRoute } from "./features/workspaces/create/CreateWorkspaceRoute";
+import { HomeRedirect } from "./features/workspaces/routes/HomeRedirect";
+import { WorkspaceLayout } from "./features/workspaces/routes/WorkspaceLayout";
+import { WorkspaceNotFound } from "./features/workspaces/routes/WorkspaceNotFound";
+import { WorkspaceProvider } from "./features/workspaces/WorkspaceProvider";
 
 export const appRoutes: RouteObject[] = [
   { path: SIGN_IN_PATH, element: <SignInRoute /> },
@@ -20,10 +24,22 @@ export const appRoutes: RouteObject[] = [
     element: <RequireAuth />,
     children: [
       {
-        element: <AppLayout />,
-        children: [{ path: HOME_PATH, element: <HomePage /> }],
+        element: (
+          <WorkspaceProvider>
+            <Outlet />
+          </WorkspaceProvider>
+        ),
+        children: [
+          { path: HOME_PATH, element: <HomeRedirect /> },
+          { path: "/create-workspace", element: <CreateWorkspaceRoute /> },
+          {
+            path: "/:workspaceSlug",
+            element: <WorkspaceLayout />,
+            children: [{ index: true, element: <HomePage /> }],
+          },
+        ],
       },
     ],
   },
-  { path: "*", element: <Navigate to={HOME_PATH} replace /> },
+  { path: "*", element: <WorkspaceNotFound /> },
 ];

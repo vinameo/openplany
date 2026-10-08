@@ -27,7 +27,9 @@ export async function createE2eApp(): Promise<E2eApp> {
     app,
     dataSource,
     reset: async () => {
-      await dataSource.query('TRUNCATE login_attempts, sessions, users');
+      await dataSource.query(
+        'TRUNCATE workspace_members, workspaces, login_attempts, sessions, users',
+      );
     },
   };
 }

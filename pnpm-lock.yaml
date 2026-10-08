@@ -196,6 +196,9 @@ importers:
       '@nestjs/typeorm':
         specifier: ^12.0.2
         version: 12.0.2(@nestjs/common@12.1.0(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@nestjs/core@12.1.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)(typeorm@1.1.1(pg@8.23.1)(supports-color@7.2.0))
+      '@repo/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       class-transformer:
         specifier: ^0.5.1
         version: 0.5.1
@@ -323,6 +326,9 @@ importers:
       '@mantine/tiptap':
         specifier: ^9.6.3
         version: 9.6.3(@mantine/core@9.6.3(@mantine/hooks@9.6.3(react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@mantine/hooks@9.6.3(react@19.3.0))(@tiptap/extension-link@3.31.3(@tiptap/core@3.31.3(@tiptap/pm@3.31.3))(@tiptap/pm@3.31.3))(@tiptap/react@3.31.3(@floating-ui/dom@1.8.0)(@tiptap/core@3.31.3(@tiptap/pm@3.31.3))(@tiptap/pm@3.31.3)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@repo/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@repo/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -423,6 +429,21 @@ importers:
       vitest:
         specifier: ^5.0.3
         version: 5.0.3(@types/node@24.19.0)(jsdom@30.1.2(@noble/hashes@1.8.0))(vite@8.3.1(@types/node@24.19.0)(sugarss@5.0.1))
+
+  packages/contracts:
+    devDependencies:
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.19.0
+      oxlint:
+        specifier: ^1.58.0
+        version: 1.87.0(oxlint-tsgolint@7.0.2003)
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.2
+        version: 4.1.11(@types/node@24.19.0)(@vitest/coverage-v8@4.1.11)(jsdom@30.1.2(@noble/hashes@1.8.0))(vite@8.3.1(@types/node@24.19.0)(sugarss@5.0.1(postcss@8.5.28)))
 
   packages/ui:
     devDependencies:

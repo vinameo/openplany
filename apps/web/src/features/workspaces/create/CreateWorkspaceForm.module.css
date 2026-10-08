@@ -1,0 +1,55 @@
+.container {
+  max-width: 520px;
+  width: 100%;
+}
+
+.title {
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--mantine-color-bright);
+  margin-bottom: 40px;
+  line-height: 1.25;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.statusWrapper {
+  margin-top: 6px;
+  font-size: var(--mantine-font-size-xs);
+  min-height: 20px;
+}
+
+.statusChecking {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--mantine-color-dimmed);
+}
+
+.statusAvailable {
+  color: var(--mantine-color-teal-6, #059669);
+  font-weight: 500;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+@media (max-width: 768px) {
+  .actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .actions button {
+    width: 100%;
+  }
+}
+

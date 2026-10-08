@@ -103,4 +103,7 @@ export class User {
 
   @Column({ name: 'is_superuser', type: 'boolean' })
   isSuperuser: boolean;
+
+  @Column({ name: 'last_workspace_id', type: 'uuid', nullable: true })
+  lastWorkspaceId: string | null;
 }
