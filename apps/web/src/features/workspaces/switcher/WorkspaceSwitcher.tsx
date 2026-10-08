@@ -1,11 +1,12 @@
 import { Menu, ScrollArea, Text, UnstyledButton } from "@mantine/core";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import type { WorkspaceResponse } from "@repo/contracts";
 import { useAuth } from "../../auth/useAuth";
 import {
   CheckIcon,
   ChevronDownIcon,
   PlusIcon,
+  SettingsIcon,
   SignOutIcon,
 } from "../icons";
 import { useWorkspaces } from "../useWorkspaces";
@@ -89,7 +90,7 @@ export function WorkspaceSwitcher({
               ws.memberCount === 1 ? "1 member" : `${ws.memberCount} members`;
             const roleText = capitalize(ws.role);
 
-            return (
+            const workspaceItem = (
               <Menu.Item
                 key={ws.id}
                 className={`${classes.menuItem} ${isCurrent ? classes.activeItem : ""}`}
@@ -119,6 +120,25 @@ export function WorkspaceSwitcher({
                 </div>
               </Menu.Item>
             );
+
+            if (isCurrent) {
+              return (
+                <div key={ws.id} className={classes.activeGroup}>
+                  {workspaceItem}
+                  <Menu.Item
+                    component={Link}
+                    role="menuitem"
+                    to={`/${ws.slug}/settings`}
+                    leftSection={<SettingsIcon width={14} height={14} />}
+                    className={classes.settingsChip}
+                  >
+                    Settings
+                  </Menu.Item>
+                </div>
+              );
+            }
+
+            return workspaceItem;
           })}
         </ScrollArea.Autosize>
 
@@ -142,4 +162,3 @@ export function WorkspaceSwitcher({
     </Menu>
   );
 }
-

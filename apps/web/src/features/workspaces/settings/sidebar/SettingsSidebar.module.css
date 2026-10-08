@@ -1,0 +1,137 @@
+.nav {
+  position: sticky;
+  top: var(--app-header-height);
+  height: calc(100dvh - var(--app-header-height));
+  width: 248px;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--app-color-surface);
+  border-right: 1px solid var(--app-color-border);
+  box-sizing: border-box;
+}
+
+.headerRow {
+  height: 50px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.heading {
+  font-size: 18px;
+  font-weight: 500;
+  margin: 0;
+  color: var(--mantine-color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspaceCard {
+  padding: 12px 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.workspaceInfo {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.workspaceName {
+  font-size: 16px;
+  line-height: 1.3;
+  color: var(--mantine-color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspaceRole {
+  font-size: 14px;
+  line-height: 1.2;
+  color: var(--mantine-color-text);
+}
+
+.scrollArea {
+  flex: 1;
+  min-height: 0;
+}
+
+.scrollContent {
+  padding: 24px 12px 16px;
+}
+
+.groupsWrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+}
+
+.groupWithMargin {
+  display: flex;
+  flex-direction: column;
+  margin-top: 24px;
+}
+
+.groupLabel {
+  padding: 0 10px;
+  margin-bottom: 8px;
+  font-weight: 400;
+}
+
+.sectionList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.navItem {
+  height: 32px;
+  border-radius: var(--mantine-radius-md);
+  padding: 0 10px;
+  color: var(--mantine-color-text);
+  font-size: 16px;
+}
+
+.navItem :global(.mantine-NavLink-label) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 16px;
+}
+
+.navItem[data-active="true"],
+.navItem[data-active] {
+  background-color: var(--mantine-color-gray-light);
+  color: var(--mantine-color-text);
+  font-weight: 500;
+}
+
+.mobileNav {
+  padding: 16px;
+  border-bottom: 1px solid var(--app-color-border);
+  background-color: var(--app-color-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mobileHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+

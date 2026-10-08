@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import type { OrganizationSize, WorkspaceRole } from '@repo/contracts';
+import type {
+  EditableWorkspaceField,
+  OrganizationSize,
+  WorkspaceRole,
+} from '@repo/contracts';
 import { DataSource } from 'typeorm';
 import {
   SlugAlreadyExistsError,
@@ -7,7 +11,15 @@ import {
   type CreateWorkspaceResult,
   type MemberWorkspace,
   type NewWorkspace,
+  type WorkspaceChanges,
 } from './workspaces.repository.js';
+
+/** API field → column. The only columns PATCH may write (RQ 5.3). */
+const EDITABLE_COLUMNS = {
+  name: 'name',
+  organizationSize: 'organization_size',
+  timezone: 'timezone',
+} as const satisfies Record<EditableWorkspaceField, string>;
 
 @Injectable()
 export class TypeOrmWorkspacesRepository implements WorkspacesRepository {
@@ -65,6 +77,7 @@ export class TypeOrmWorkspacesRepository implements WorkspacesRepository {
             organization_size: OrganizationSize;
             timezone: string;
             created_at: Date;
+            updated_at: Date;
           }[]
         >(
           `INSERT INTO workspaces (id, name, slug, owner_id, created_by_id, updated_by_id,
@@ -72,7 +85,7 @@ export class TypeOrmWorkspacesRepository implements WorkspacesRepository {
            SELECT $1, $2, $3, u.id, u.id, u.id, $4, u.user_timezone, $5, $6, $6
            FROM users u
            WHERE u.id = $7 AND u.is_active AND u.masked_at IS NULL
-           RETURNING id, name, slug, logo, background_color, organization_size, timezone, created_at`,
+           RETURNING id, name, slug, logo, background_color, organization_size, timezone, created_at, updated_at`,
           [
             input.id,
             input.name,
@@ -114,6 +127,7 @@ export class TypeOrmWorkspacesRepository implements WorkspacesRepository {
             organizationSize: row.organization_size,
             timezone: row.timezone,
             createdAt: new Date(row.created_at),
+            updatedAt: new Date(row.updated_at),
             role: 'owner',
             memberCount: 1,
           },
@@ -149,6 +163,7 @@ export class TypeOrmWorkspacesRepository implements WorkspacesRepository {
         organizationSize: OrganizationSize;
         timezone: string;
         createdAt: Date;
+        updatedAt: Date;
         role: WorkspaceRole;
         memberCount: number;
         isLast: boolean;
@@ -156,7 +171,7 @@ export class TypeOrmWorkspacesRepository implements WorkspacesRepository {
     >(
       `SELECT w.id, w.name, w.slug, w.logo, w.background_color AS "backgroundColor",
               w.organization_size AS "organizationSize", w.timezone,
-              w.created_at AS "createdAt", m.role,
+              w.created_at AS "createdAt", w.updated_at AS "updatedAt", m.role,
               (SELECT count(*)::int FROM workspace_members c
                 WHERE c.workspace_id = w.id AND c.is_active = true) AS "memberCount",
               (u.last_workspace_id = w.id) AS "isLast"
@@ -182,6 +197,7 @@ export class TypeOrmWorkspacesRepository implements WorkspacesRepository {
         organizationSize: r.organizationSize,
         timezone: r.timezone,
         createdAt: new Date(r.createdAt),
+        updatedAt: new Date(r.updatedAt),
         role: r.role,
         memberCount: Number(r.memberCount),
       };
@@ -204,13 +220,14 @@ export class TypeOrmWorkspacesRepository implements WorkspacesRepository {
         organizationSize: OrganizationSize;
         timezone: string;
         createdAt: Date;
+        updatedAt: Date;
         role: WorkspaceRole;
         memberCount: number;
       }[]
     >(
       `SELECT w.id, w.name, w.slug, w.logo, w.background_color AS "backgroundColor",
               w.organization_size AS "organizationSize", w.timezone,
-              w.created_at AS "createdAt", m.role,
+              w.created_at AS "createdAt", w.updated_at AS "updatedAt", m.role,
               (SELECT count(*)::int FROM workspace_members c
                 WHERE c.workspace_id = w.id AND c.is_active = true) AS "memberCount"
        FROM workspaces w
@@ -232,6 +249,7 @@ export class TypeOrmWorkspacesRepository implements WorkspacesRepository {
       organizationSize: row.organizationSize,
       timezone: row.timezone,
       createdAt: new Date(row.createdAt),
+      updatedAt: new Date(row.updatedAt),
       role: row.role,
       memberCount: Number(row.memberCount),
     };
@@ -246,6 +264,56 @@ export class TypeOrmWorkspacesRepository implements WorkspacesRepository {
        WHERE id = $2 AND last_workspace_id IS DISTINCT FROM $1`,
       [workspaceId, userId],
     );
+  }
+
+  async update(
+    workspaceId: string,
+    actorId: string,
+    changes: WorkspaceChanges,
+    now: Date,
+  ): Promise<{ updatedAt: Date } | null> {
+    const keys = (
+      Object.keys(EDITABLE_COLUMNS) as EditableWorkspaceField[]
+    ).filter((k) => changes[k] !== undefined);
+    if (keys.length === 0) {
+      throw new Error('update called without changes');
+    }
+
+    const setClauses: string[] = [];
+    const params: unknown[] = [];
+    let paramIndex = 1;
+
+    for (const key of keys) {
+      const col = EDITABLE_COLUMNS[key];
+      setClauses.push(`${col} = $${paramIndex++}`);
+      params.push(changes[key]);
+    }
+
+    setClauses.push(`updated_by_id = $${paramIndex++}`);
+    params.push(actorId);
+
+    setClauses.push(`updated_at = $${paramIndex++}`);
+    params.push(now);
+
+    params.push(workspaceId);
+    const idParamIndex = paramIndex++;
+
+    const sql = `UPDATE workspaces
+SET ${setClauses.join(', ')}
+WHERE id = $${idParamIndex}
+  AND deleted_at IS NULL
+RETURNING updated_at AS "updatedAt"`;
+
+    const rows = await this.dataSource.query(sql, params);
+    const row = Array.isArray(rows[0]) ? rows[0][0] : rows[0];
+    if (!row) {
+      return null;
+    }
+    const rawDate = row.updatedAt ?? row.updated_at;
+    if (!rawDate) {
+      throw new Error('update RETURNING did not return a valid timestamp');
+    }
+    return { updatedAt: new Date(rawDate) };
   }
 }
 

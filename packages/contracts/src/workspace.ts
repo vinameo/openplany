@@ -1,3 +1,5 @@
+import type { WorkspacePermission } from './workspacePermissions.js';
+
 export const WORKSPACE_NAME_MAX = 80;
 export const WORKSPACE_SLUG_MIN = 3;
 export const WORKSPACE_SLUG_MAX = 48;
@@ -199,8 +201,10 @@ export interface WorkspaceResponse {
   organizationSize: OrganizationSize;
   timezone: string;
   role: WorkspaceRole;
+  permissions: WorkspacePermission[];
   memberCount: number;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface WorkspaceListResponse {

@@ -14,6 +14,7 @@ export interface WorkspacesContextValue {
   state: WorkspacesState;
   refresh: () => Promise<void>;
   add: (workspace: WorkspaceResponse) => void;
+  replace: (workspace: WorkspaceResponse) => void;
 }
 
 export const WorkspacesContext = createContext<WorkspacesContextValue | null>(

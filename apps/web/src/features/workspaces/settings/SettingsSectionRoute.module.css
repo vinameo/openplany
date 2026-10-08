@@ -1,0 +1,23 @@
+.sectionHeader {
+  height: 50px;
+  border-bottom: 1px solid var(--app-color-border);
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.sectionTitle {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--mantine-color-text);
+}
+
+.sectionBody {
+  padding: 24px;
+  max-width: 880px;
+  width: 100%;
+  box-sizing: border-box;
+}
+

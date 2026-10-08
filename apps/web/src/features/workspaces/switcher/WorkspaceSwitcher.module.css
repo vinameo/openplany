@@ -28,6 +28,13 @@
   flex-shrink: 0;
 }
 
+.activeGroup {
+  background-color: var(--mantine-color-default-hover);
+  border-radius: var(--mantine-radius-sm);
+  margin-bottom: 2px;
+  padding-bottom: 6px;
+}
+
 .menuItem {
   padding: 8px 12px;
 }
@@ -67,6 +74,22 @@
 }
 
 .activeItem {
-  background-color: var(--mantine-color-default-hover);
+  background-color: transparent;
 }
 
+.settingsChip {
+  height: 28px;
+  margin-left: 44px;
+  padding: 0 10px;
+  border-radius: var(--mantine-radius-sm);
+  border: 1px solid var(--mantine-color-default-border);
+  background-color: var(--mantine-color-body);
+  color: var(--mantine-color-text);
+  font-size: 13px;
+  font-weight: 500;
+  width: fit-content;
+}
+
+.settingsChip:hover {
+  background-color: var(--mantine-color-default-hover);
+}

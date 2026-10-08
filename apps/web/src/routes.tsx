@@ -35,7 +35,47 @@ export const appRoutes: RouteObject[] = [
           {
             path: "/:workspaceSlug",
             element: <WorkspaceLayout />,
-            children: [{ index: true, element: <HomePage /> }],
+            children: [
+              { index: true, element: <HomePage /> },
+              {
+                path: "settings",
+                lazy: () =>
+                  import(
+                    "./features/workspaces/settings/settingsRoutes"
+                  ).then((m) => ({
+                    Component: m.WorkspaceSettingsLayout,
+                  })),
+                children: [
+                  {
+                    index: true,
+                    lazy: () =>
+                      import(
+                        "./features/workspaces/settings/settingsRoutes"
+                      ).then((m) => ({
+                        Component: m.SettingsIndexRedirect,
+                      })),
+                  },
+                  {
+                    path: "general",
+                    lazy: () =>
+                      import(
+                        "./features/workspaces/settings/settingsRoutes"
+                      ).then((m) => ({
+                        Component: m.GeneralSettingsRoute,
+                      })),
+                  },
+                  {
+                    path: "*",
+                    lazy: () =>
+                      import(
+                        "./features/workspaces/settings/settingsRoutes"
+                      ).then((m) => ({
+                        Component: m.SettingsSectionNotFound,
+                      })),
+                  },
+                ],
+              },
+            ],
           },
         ],
       },

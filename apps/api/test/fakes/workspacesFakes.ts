@@ -4,11 +4,8 @@ import {
   type CreateWorkspaceResult,
   type MemberWorkspace,
   type NewWorkspace,
+  type WorkspaceChanges,
 } from '../../src/workspaces/repositories/workspaces.repository.js';
-import {
-  SlugCheckRateLimiter,
-  type RateLimitCheckResult,
-} from '../../src/workspaces/slugCheckRateLimiter.js';
 
 export function makeMemberWorkspace(
   overrides: Partial<MemberWorkspace> = {},
@@ -22,6 +19,7 @@ export function makeMemberWorkspace(
     organizationSize: '2-10',
     timezone: 'UTC',
     createdAt: new Date('2026-10-08T10:00:00.000Z'),
+    updatedAt: new Date('2026-10-08T10:00:00.000Z'),
     role: 'owner',
     memberCount: 1,
     ...overrides,
@@ -35,6 +33,13 @@ export class FakeWorkspacesRepository extends WorkspacesRepository {
   memberWorkspaces: MemberWorkspace[] = [];
   lastWorkspaceId: string | null = null;
   rememberedWorkspaces: { userId: string; workspaceId: string }[] = [];
+  updateResult: { updatedAt: Date } | null = null;
+  updateCalledWith: {
+    workspaceId: string;
+    actorId: string;
+    changes: WorkspaceChanges;
+    now: Date;
+  } | null = null;
 
   slugExists(slug: string): Promise<boolean> {
     return Promise.resolve(this.existingSlugs.has(slug));
@@ -64,6 +69,7 @@ export class FakeWorkspacesRepository extends WorkspacesRepository {
       organizationSize: input.organizationSize,
       timezone: 'UTC',
       createdAt: now,
+      updatedAt: now,
       role: 'owner',
       memberCount: 1,
     };
@@ -98,13 +104,57 @@ export class FakeWorkspacesRepository extends WorkspacesRepository {
     this.lastWorkspaceId = workspaceId;
     return Promise.resolve();
   }
+
+  update(
+    workspaceId: string,
+    actorId: string,
+    changes: WorkspaceChanges,
+    now: Date,
+  ): Promise<{ updatedAt: Date } | null> {
+    this.updateCalledWith = { workspaceId, actorId, changes, now };
+    const keys = Object.keys(changes);
+    if (keys.length === 0) {
+      return Promise.reject(new Error('update called without changes'));
+    }
+    if (this.updateResult !== null) {
+      return Promise.resolve(this.updateResult);
+    }
+    const ws = this.memberWorkspaces.find((w) => w.id === workspaceId);
+    if (!ws) {
+      return Promise.resolve(null);
+    }
+    Object.assign(ws, changes, { updatedAt: now });
+    return Promise.resolve({ updatedAt: now });
+  }
 }
 
-export class FakeSlugCheckRateLimiter extends SlugCheckRateLimiter {
-  decision: RateLimitCheckResult = { allowed: true };
+import {
+  SlidingWindowLimiter,
+  type SlidingWindowDecision,
+} from '../../src/common/slidingWindowLimiter.js';
+import {
+  WorkspaceEvents,
+  type WorkspaceUpdatedEvent,
+} from '../../src/workspaces/events/workspaceEvents.js';
 
-  check(_userId: string, _now: Date): RateLimitCheckResult {
+export class FakeSlugCheckRateLimiter extends SlidingWindowLimiter {
+  decision: SlidingWindowDecision = { allowed: true };
+
+  hit(_key: string, _now: Date): SlidingWindowDecision {
     return this.decision;
+  }
+}
+
+export class FakeWorkspaceEvents extends WorkspaceEvents {
+  events: WorkspaceUpdatedEvent[] = [];
+  throwError: Error | null = null;
+
+  updated(event: WorkspaceUpdatedEvent): Promise<void> {
+    if (this.throwError) {
+      return Promise.reject(this.throwError);
+    }
+    this.events.push(event);
+    return Promise.resolve();
   }
 }
 

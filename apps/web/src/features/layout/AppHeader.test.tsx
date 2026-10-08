@@ -58,8 +58,10 @@ describe("AppHeader", () => {
               organizationSize: "2-10",
               timezone: "UTC",
               role: "owner",
+              permissions: ["workspace.settings.update"],
               memberCount: 1,
               createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
             },
           ],
           lastWorkspaceSlug: "acme-corp",
@@ -75,8 +77,10 @@ describe("AppHeader", () => {
       organizationSize: "2-10",
       timezone: "UTC",
       role: "owner",
+      permissions: ["workspace.settings.update"],
       memberCount: 1,
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     });
 
     expect(

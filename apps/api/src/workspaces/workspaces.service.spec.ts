@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { FakeClock } from '../../test/fakes/authFakes.js';
 import {
   FakeSlugCheckRateLimiter,
+  FakeWorkspaceEvents,
   FakeWorkspacesRepository,
   makeMemberWorkspace,
 } from '../../test/fakes/workspacesFakes.js';
@@ -13,13 +14,15 @@ describe('WorkspacesService', () => {
   let repository: FakeWorkspacesRepository;
   let rateLimiter: FakeSlugCheckRateLimiter;
   let clock: FakeClock;
+  let events: FakeWorkspaceEvents;
   let service: WorkspacesService;
 
   beforeEach(() => {
     repository = new FakeWorkspacesRepository();
     rateLimiter = new FakeSlugCheckRateLimiter();
     clock = new FakeClock();
-    service = new WorkspacesService(repository, rateLimiter, clock);
+    events = new FakeWorkspaceEvents();
+    service = new WorkspacesService(repository, rateLimiter, clock, events);
   });
 
   describe('checkSlug', () => {
@@ -208,6 +211,109 @@ describe('WorkspacesService', () => {
       await expect(
         service.rememberLastWorkspace('user-1', 'ws-1'),
       ).resolves.toBeUndefined();
+    });
+  });
+
+  describe('update', () => {
+    it('throws 400 VALIDATION_ERROR when body has no editable fields', async () => {
+      const ws = makeMemberWorkspace();
+      await expect(
+        service.update(ws, 'user-1', {}),
+      ).rejects.toMatchObject({
+        status: HttpStatus.BAD_REQUEST,
+        code: 'VALIDATION_ERROR',
+        message: 'Nothing to update',
+      });
+    });
+
+    it('returns 200 without calling repository or emitting events when no values changed', async () => {
+      const ws = makeMemberWorkspace({
+        name: 'Acme',
+        organizationSize: '2-10',
+        timezone: 'UTC',
+      });
+
+      let repoUpdateCalled = false;
+      repository.update = () => {
+        repoUpdateCalled = true;
+        return Promise.resolve({ updatedAt: new Date() });
+      };
+
+      const res = await service.update(ws, 'user-1', {
+        name: 'Acme',
+        timezone: 'UTC',
+      });
+
+      expect(res.name).toBe('Acme');
+      expect(repoUpdateCalled).toBe(false);
+      expect(events.events).toHaveLength(0);
+    });
+
+    it('updates changed fields, calls repository and emits event with from/to', async () => {
+      const ws = makeMemberWorkspace({
+        id: 'ws-1',
+        name: 'Old Name',
+        organizationSize: '2-10',
+        timezone: 'UTC',
+      });
+      repository.memberWorkspaces = [ws];
+
+      const newDate = new Date('2026-10-09T08:00:00.000Z');
+      clock.now = () => newDate;
+
+      const res = await service.update(
+        ws,
+        'user-1',
+        { name: 'New Name', timezone: 'Asia/Ho_Chi_Minh' },
+        'req-123',
+      );
+
+      expect(res.name).toBe('New Name');
+      expect(res.timezone).toBe('Asia/Ho_Chi_Minh');
+      expect(repository.updateCalledWith).toEqual({
+        workspaceId: 'ws-1',
+        actorId: 'user-1',
+        changes: {
+          name: 'New Name',
+          timezone: 'Asia/Ho_Chi_Minh',
+        },
+        now: newDate,
+      });
+
+      expect(events.events).toHaveLength(1);
+      expect(events.events[0]).toEqual({
+        workspaceId: 'ws-1',
+        actorId: 'user-1',
+        actorRole: 'owner',
+        occurredAt: newDate,
+        requestId: 'req-123',
+        changes: {
+          name: { from: 'Old Name', to: 'New Name' },
+          timezone: { from: 'UTC', to: 'Asia/Ho_Chi_Minh' },
+        },
+      });
+    });
+
+    it('throws 404 NOT_FOUND when repository returns null (soft-deleted)', async () => {
+      const ws = makeMemberWorkspace({ id: 'ws-deleted' });
+      repository.memberWorkspaces = []; // not in repo
+
+      await expect(
+        service.update(ws, 'user-1', { name: 'Renamed' }),
+      ).rejects.toMatchObject({
+        status: HttpStatus.NOT_FOUND,
+        code: 'NOT_FOUND',
+        message: 'Workspace not found',
+      });
+    });
+
+    it('returns response even if event emission fails', async () => {
+      const ws = makeMemberWorkspace({ id: 'ws-1', name: 'Old' });
+      repository.memberWorkspaces = [ws];
+      events.throwError = new Error('Kafka down');
+
+      const res = await service.update(ws, 'user-1', { name: 'New' });
+      expect(res.name).toBe('New');
     });
   });
 });

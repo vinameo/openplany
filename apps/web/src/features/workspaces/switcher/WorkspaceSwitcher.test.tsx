@@ -19,8 +19,10 @@ const workspacesMock = [
     organizationSize: "2-10" as const,
     timezone: "UTC",
     role: "owner" as const,
+    permissions: ["workspace.settings.update" as const],
     memberCount: 1,
     createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   },
   {
     id: "ws-2",
@@ -31,8 +33,10 @@ const workspacesMock = [
     organizationSize: "2-10" as const,
     timezone: "UTC",
     role: "admin" as const,
+    permissions: ["workspace.settings.update" as const],
     memberCount: 5,
     createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   },
 ];
 
@@ -81,8 +85,15 @@ describe("WorkspaceSwitcher", () => {
     expect(screen.getByText("Create workspace")).toBeInTheDocument();
     expect(screen.getByText("Sign out")).toBeInTheDocument();
 
+    // Settings item is present with href="/acme-corp/settings", only under active workspace
+    const settingsLink = screen.getByRole("menuitem", {
+      name: "Settings",
+      hidden: true,
+    });
+    expect(settingsLink).toBeInTheDocument();
+    expect(settingsLink).toHaveAttribute("href", "/acme-corp/settings");
+
     // Verify unbuilt features are NOT present
-    expect(screen.queryByText(/settings/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/invite members/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/workspace invites/i)).not.toBeInTheDocument();
   });

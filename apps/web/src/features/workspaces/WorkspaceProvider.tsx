@@ -86,13 +86,27 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
     });
   }, []);
 
+  const replace = useCallback((workspace: WorkspaceResponse) => {
+    setState((current) => {
+      if (current.status !== "ready") return current;
+      const nextWorkspaces = current.workspaces.map((w) =>
+        w.id === workspace.id ? workspace : w,
+      );
+      return {
+        ...current,
+        workspaces: sortWorkspaces(nextWorkspaces),
+      };
+    });
+  }, []);
+
   const value = useMemo<WorkspacesContextValue>(
     () => ({
       state,
       refresh: loadWorkspaces,
       add,
+      replace,
     }),
-    [state, loadWorkspaces, add],
+    [state, loadWorkspaces, add, replace],
   );
 
   return (

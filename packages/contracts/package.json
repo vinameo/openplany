@@ -17,7 +17,8 @@
     "lint": "oxlint --deny-warnings src",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "generate:timezones": "node --experimental-strip-types scripts/generateTimezones.ts"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

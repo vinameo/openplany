@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   HttpStatus,
+  Patch,
   Post,
   Query,
   Req,
@@ -20,8 +21,10 @@ import { SessionGuard } from '../auth/guards/sessionGuard.js';
 import { CurrentWorkspace } from './currentWorkspace.decorator.js';
 import { CreateWorkspaceDto } from './dto/createWorkspace.dto.js';
 import { SlugCheckQueryDto } from './dto/slugCheckQuery.dto.js';
+import { UpdateWorkspaceDto } from './dto/updateWorkspace.dto.js';
 import { toWorkspaceResponse } from './dto/workspaceResponse.dto.js';
 import type { MemberWorkspace } from './repositories/workspaces.repository.js';
+import { WorkspaceWrite } from './workspaceAccess.decorator.js';
 import { WorkspaceMemberGuard } from './workspaceMemberGuard.js';
 import { WorkspacesService } from './workspaces.service.js';
 
@@ -73,6 +76,22 @@ export class WorkspacesController {
   ): WorkspaceResponse {
     void this.workspacesService.rememberLastWorkspace(userId, workspace.id);
     return toWorkspaceResponse(workspace);
+  }
+
+  @Patch(':slug')
+  @WorkspaceWrite('workspace.settings.update')
+  update(
+    @CurrentUserId() userId: string,
+    @CurrentWorkspace() workspace: MemberWorkspace,
+    @Body() dto: UpdateWorkspaceDto,
+    @Req() request: Request,
+  ): Promise<WorkspaceResponse> {
+    return this.workspacesService.update(
+      workspace,
+      userId,
+      dto,
+      request.requestId,
+    );
   }
 }
 

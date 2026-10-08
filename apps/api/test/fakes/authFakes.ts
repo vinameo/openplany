@@ -78,8 +78,13 @@ export function makeSession(overrides: Partial<Session> = {}): Session {
 }
 
 export class FakeClock extends Clock {
-  current = NOW;
+  current: Date;
   readonly sleeps: number[] = [];
+
+  constructor(initial: Date = NOW) {
+    super();
+    this.current = initial;
+  }
 
   now(): Date {
     return this.current;

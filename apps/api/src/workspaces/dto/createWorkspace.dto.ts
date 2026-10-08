@@ -1,9 +1,11 @@
 import {
   NO_HIDDEN_CHARS,
   NO_URL,
+  normalizeWorkspaceName,
   ORGANIZATION_SIZES,
   RESERVED_WORKSPACE_SLUG_LIST,
   WORKSPACE_NAME_MAX,
+  WORKSPACE_NAME_MESSAGES,
   WORKSPACE_SLUG_MAX,
   WORKSPACE_SLUG_MIN,
   WORKSPACE_SLUG_PATTERN,
@@ -21,19 +23,19 @@ import {
 } from 'class-validator';
 
 const normalizeName = ({ value }: { value: unknown }): unknown =>
-  typeof value === 'string' ? value.normalize('NFC').trim() : value;
+  typeof value === 'string' ? normalizeWorkspaceName(value) : value;
 
 export class CreateWorkspaceDto {
   @Transform(normalizeName)
-  @Matches(NO_URL, { message: 'Workspace name cannot contain a URL' })
+  @Matches(NO_URL, { message: WORKSPACE_NAME_MESSAGES.url })
   @Matches(NO_HIDDEN_CHARS, {
-    message: "Contains characters that aren't allowed",
+    message: WORKSPACE_NAME_MESSAGES.hiddenChars,
   })
   @MaxLength(WORKSPACE_NAME_MAX, {
-    message: `Workspace name must be ${WORKSPACE_NAME_MAX} characters or fewer`,
+    message: WORKSPACE_NAME_MESSAGES.tooLong,
   })
-  @MinLength(1, { message: 'Enter a workspace name' })
-  @IsString({ message: 'Enter a workspace name' })
+  @MinLength(1, { message: WORKSPACE_NAME_MESSAGES.required })
+  @IsString({ message: WORKSPACE_NAME_MESSAGES.required })
   name: string;
 
   @IsNotIn(RESERVED_WORKSPACE_SLUG_LIST, {

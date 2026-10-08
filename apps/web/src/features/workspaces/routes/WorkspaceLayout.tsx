@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Outlet, useParams } from "react-router";
 import type { WorkspaceResponse } from "@repo/contracts";
 import { workspaceSlugProblem } from "@repo/contracts";
@@ -6,13 +6,22 @@ import { ApiRequestError } from "../../../lib/apiClient";
 import { useAuth } from "../../auth/useAuth";
 import { AppHeader } from "../../layout/AppHeader";
 import { workspaceApi } from "../api/workspaceApi";
+import {
+  CurrentWorkspaceContext,
+  type CurrentWorkspaceValue,
+} from "../currentWorkspace/currentWorkspaceContext";
 import { useWorkspaces } from "../useWorkspaces";
 import { WorkspaceNotFound } from "./WorkspaceNotFound";
 
 export function WorkspaceLayout() {
   const { workspaceSlug } = useParams<{ workspaceSlug: string }>();
   const { expireSession } = useAuth();
-  const { state: wsState } = useWorkspaces();
+  const { state: wsState, replace } = useWorkspaces();
+
+  const wsStateRef = useRef(wsState);
+  useEffect(() => {
+    wsStateRef.current = wsState;
+  }, [wsState]);
 
   const [workspace, setWorkspace] = useState<WorkspaceResponse | null>(() => {
     if (workspaceSlug && wsState.status === "ready") {
@@ -21,7 +30,7 @@ export function WorkspaceLayout() {
     return null;
   });
   const [status, setStatus] = useState<"loading" | "ready" | "not_found">(
-    "loading",
+    workspace ? "ready" : "loading",
   );
 
   const problem = workspaceSlug ? workspaceSlugProblem(workspaceSlug) : "INVALID";
@@ -29,6 +38,16 @@ export function WorkspaceLayout() {
   useEffect(() => {
     if (!workspaceSlug || problem === "INVALID") {
       return;
+    }
+
+    const currentCached =
+      wsStateRef.current.status === "ready"
+        ? wsStateRef.current.workspaces.find((w) => w.slug === workspaceSlug) ?? null
+        : null;
+
+    setWorkspace(currentCached);
+    if (!currentCached) {
+      setStatus("loading");
     }
 
     const controller = new AbortController();
@@ -60,14 +79,53 @@ export function WorkspaceLayout() {
     };
   }, [workspaceSlug, problem, expireSession]);
 
+  const applyWorkspaceUpdate = useCallback(
+    (updated: WorkspaceResponse) => {
+      setWorkspace(updated);
+      replace(updated);
+    },
+    [replace],
+  );
+
+  const reload = useCallback(async () => {
+    if (!workspaceSlug) return;
+    try {
+      const data = await workspaceApi.get(workspaceSlug);
+      setWorkspace(data);
+      replace(data);
+    } catch (err: unknown) {
+      if (err instanceof ApiRequestError && err.status === 401) {
+        expireSession();
+      }
+    }
+  }, [workspaceSlug, replace, expireSession]);
+
+  const contextValue = useMemo<CurrentWorkspaceValue | null>(() => {
+    if (!workspace) return null;
+    return {
+      workspace,
+      applyWorkspaceUpdate,
+      reload,
+    };
+  }, [workspace, applyWorkspaceUpdate, reload]);
+
   if (!workspaceSlug || problem === "INVALID" || status === "not_found") {
     return <WorkspaceNotFound />;
   }
 
+  if (!workspace || !contextValue) {
+    return (
+      <>
+        <AppHeader currentWorkspace={undefined} />
+        <div style={{ minHeight: "calc(100dvh - var(--app-header-height))" }} />
+      </>
+    );
+  }
+
   return (
-    <>
-      <AppHeader currentWorkspace={workspace ?? undefined} />
-      <Outlet context={workspace} />
-    </>
+    <CurrentWorkspaceContext value={contextValue}>
+      <AppHeader currentWorkspace={workspace} />
+      <Outlet />
+    </CurrentWorkspaceContext>
   );
 }

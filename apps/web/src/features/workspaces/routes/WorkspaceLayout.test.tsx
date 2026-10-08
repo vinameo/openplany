@@ -7,6 +7,7 @@ import { AuthProvider } from "../../auth/AuthProvider";
 import { appRoutes } from "../../../routes";
 import { makeSession } from "../../../test/authFixtures";
 import { apiError, jsonResponse, mockFetch } from "../../../test/fetchMock";
+import { makeWorkspace } from "../test/workspaceFixtures";
 
 function renderApp(path: string) {
   const router = createMemoryRouter(appRoutes, {
@@ -62,5 +63,26 @@ describe("WorkspaceLayout", () => {
     ).toBeInTheDocument();
     expect(router.state.location.pathname).toBe("/sign-in");
   });
-});
 
+  it("does not re-fetch GET /:slug after provider updates", async () => {
+    const ws1 = makeWorkspace({ id: "ws-1", name: "Alpha", slug: "alpha" });
+    let fetchCount = 0;
+
+    mockFetch({
+      "GET /api/auth/session": () => jsonResponse(200, makeSession()),
+      "GET /api/workspaces": () =>
+        jsonResponse(200, { workspaces: [ws1], lastWorkspaceSlug: "alpha" }),
+      "GET /api/workspaces/alpha": () => {
+        fetchCount++;
+        return jsonResponse(200, ws1);
+      },
+    });
+
+    renderApp("/alpha");
+
+    expect(
+      await screen.findByRole("heading", { name: "Alpha" }),
+    ).toBeInTheDocument();
+    expect(fetchCount).toBe(1);
+  });
+});

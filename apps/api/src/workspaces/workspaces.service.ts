@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import {
+  EDITABLE_WORKSPACE_FIELDS,
+  pickChangedFields,
   pickWorkspaceColor,
   workspaceSlugProblem,
   type SlugCheckResponse,
@@ -9,13 +11,21 @@ import {
 } from '@repo/contracts';
 import { Clock } from '../auth/clock.js';
 import { ApiException } from '../common/apiException.js';
+import { SlidingWindowLimiter } from '../common/slidingWindowLimiter.js';
 import type { CreateWorkspaceDto } from './dto/createWorkspace.dto.js';
+import type { UpdateWorkspaceDto } from './dto/updateWorkspace.dto.js';
 import { toWorkspaceResponse } from './dto/workspaceResponse.dto.js';
 import {
+  WorkspaceEvents,
+  type WorkspaceUpdatedEvent,
+} from './events/workspaceEvents.js';
+import {
+  type MemberWorkspace,
   SlugAlreadyExistsError,
   WorkspacesRepository,
+  type WorkspaceChanges,
 } from './repositories/workspaces.repository.js';
-import { SlugCheckRateLimiter } from './slugCheckRateLimiter.js';
+import { SLUG_CHECK_LIMITER } from './tokens.js';
 
 @Injectable()
 export class WorkspacesService {
@@ -23,8 +33,10 @@ export class WorkspacesService {
 
   constructor(
     private readonly workspacesRepository: WorkspacesRepository,
-    private readonly slugCheckRateLimiter: SlugCheckRateLimiter,
+    @Inject(SLUG_CHECK_LIMITER)
+    private readonly slugCheckRateLimiter: SlidingWindowLimiter,
     private readonly clock: Clock,
+    private readonly workspaceEvents: WorkspaceEvents,
   ) {}
 
   async checkSlug(
@@ -32,7 +44,7 @@ export class WorkspacesService {
     slug: string,
     requestId?: string,
   ): Promise<SlugCheckResponse> {
-    const rateCheck = this.slugCheckRateLimiter.check(userId, this.clock.now());
+    const rateCheck = this.slugCheckRateLimiter.hit(userId, this.clock.now());
     if (!rateCheck.allowed) {
       this.logger.warn(
         `workspace.slug_check.rate_limited userId=${userId} requestId=${requestId ?? ''}`,
@@ -147,5 +159,93 @@ export class WorkspacesService {
         `workspace.remember_last_failed userId=${userId} workspaceId=${workspaceId} error=${err instanceof Error ? err.message : String(err)}`,
       );
     }
+  }
+
+  async update(
+    workspace: MemberWorkspace,
+    actorId: string,
+    dto: UpdateWorkspaceDto,
+    requestId?: string,
+  ): Promise<WorkspaceResponse> {
+    const requested: WorkspaceChanges = {};
+    if (dto.name !== undefined) requested.name = dto.name;
+    if (dto.organizationSize !== undefined) requested.organizationSize = dto.organizationSize;
+    if (dto.timezone !== undefined) requested.timezone = dto.timezone;
+
+    if (Object.keys(requested).length === 0) {
+      throw new ApiException(
+        HttpStatus.BAD_REQUEST,
+        'VALIDATION_ERROR',
+        'Nothing to update',
+      );
+    }
+
+    const changes = pickChangedFields(
+      workspace,
+      requested,
+      EDITABLE_WORKSPACE_FIELDS,
+    );
+
+    if (Object.keys(changes).length === 0) {
+      return toWorkspaceResponse(workspace);
+    }
+
+    const eventChanges: WorkspaceUpdatedEvent['changes'] = {};
+    if (changes.name !== undefined) {
+      eventChanges.name = {
+        from: workspace.name,
+        to: changes.name,
+      };
+    }
+    if (changes.organizationSize !== undefined) {
+      eventChanges.organizationSize = {
+        from: workspace.organizationSize,
+        to: changes.organizationSize,
+      };
+    }
+    if (changes.timezone !== undefined) {
+      eventChanges.timezone = {
+        from: workspace.timezone,
+        to: changes.timezone,
+      };
+    }
+
+    const saved = await this.workspacesRepository.update(
+      workspace.id,
+      actorId,
+      changes,
+      this.clock.now(),
+    );
+
+    if (saved === null) {
+      throw new ApiException(
+        HttpStatus.NOT_FOUND,
+        'NOT_FOUND',
+        'Workspace not found',
+      );
+    }
+
+    const updated: MemberWorkspace = {
+      ...workspace,
+      ...changes,
+      updatedAt: saved.updatedAt,
+    };
+
+    try {
+      await this.workspaceEvents.updated({
+        workspaceId: workspace.id,
+        actorId,
+        actorRole: workspace.role,
+        occurredAt: saved.updatedAt,
+        requestId,
+        changes: eventChanges,
+      });
+    } catch (err: unknown) {
+      this.logger.error(
+        `workspace.updated.event_failed workspaceId=${workspace.id} actorId=${actorId} error=${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+
+    return toWorkspaceResponse(updated);
   }
 }

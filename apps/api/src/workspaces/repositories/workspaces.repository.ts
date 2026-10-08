@@ -1,4 +1,8 @@
-import type { OrganizationSize, WorkspaceRole } from '@repo/contracts';
+import type {
+  EditableWorkspaceField,
+  OrganizationSize,
+  WorkspaceRole,
+} from '@repo/contracts';
 
 /** A workspace as seen by one member: the row plus that member's role and the head count. */
 export interface MemberWorkspace {
@@ -10,9 +14,14 @@ export interface MemberWorkspace {
   organizationSize: OrganizationSize;
   timezone: string;
   createdAt: Date;
+  updatedAt: Date;
   role: WorkspaceRole;
   memberCount: number;
 }
+
+export type WorkspaceChanges = Partial<
+  Pick<MemberWorkspace, EditableWorkspaceField>
+>;
 
 export interface NewWorkspace {
   id: string;
@@ -56,5 +65,16 @@ export abstract class WorkspacesRepository {
     userId: string,
     workspaceId: string,
   ): Promise<void>;
+  /**
+   * Writes only the given fields plus updated_by_id/updated_at.
+   * Callers never pass an empty `changes` (RQ 5.2).
+   * Returns the stored updated_at, or null when the workspace is gone (soft-deleted).
+   */
+  abstract update(
+    workspaceId: string,
+    actorId: string,
+    changes: WorkspaceChanges,
+    now: Date,
+  ): Promise<{ updatedAt: Date } | null>;
 }
 

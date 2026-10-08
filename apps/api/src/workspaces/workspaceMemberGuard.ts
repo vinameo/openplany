@@ -5,15 +5,25 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { workspaceSlugProblem } from '@repo/contracts';
+import type { Request } from 'express';
 import { ApiException } from '../common/apiException.js';
-import { WorkspacesRepository } from './repositories/workspaces.repository.js';
+import {
+  type MemberWorkspace,
+  WorkspacesRepository,
+} from './repositories/workspaces.repository.js';
+
+declare module 'express-serve-static-core' {
+  interface Request {
+    workspace?: MemberWorkspace;
+  }
+}
 
 @Injectable()
 export class WorkspaceMemberGuard implements CanActivate {
   constructor(private readonly workspacesRepository: WorkspacesRepository) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<Request>();
     const slug = request.params?.slug;
     const userId = request.auth?.userId;
 

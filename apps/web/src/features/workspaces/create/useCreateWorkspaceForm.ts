@@ -8,16 +8,15 @@ import { useForm } from "@mantine/form";
 import { useNavigate } from "react-router";
 import {
   extractSlugFromUrl,
-  NO_HIDDEN_CHARS,
-  NO_URL,
   normalizeSlugInput,
+  normalizeWorkspaceName,
   ORGANIZATION_SIZES,
   RESERVED_WORKSPACE_SLUGS,
   slugify,
-  WORKSPACE_NAME_MAX,
   WORKSPACE_SLUG_MAX,
   WORKSPACE_SLUG_MIN,
   WORKSPACE_SLUG_PATTERN,
+  workspaceNameProblem,
   type CreateWorkspaceRequest,
   type OrganizationSize,
 } from "@repo/contracts";
@@ -45,20 +44,7 @@ export function useCreateWorkspaceForm() {
     },
     validateInputOnBlur: true,
     validate: {
-      name: (value) => {
-        const trimmed = typeof value === "string" ? value.trim() : "";
-        if (!trimmed) return "Enter a workspace name";
-        if (trimmed.length > WORKSPACE_NAME_MAX) {
-          return `Workspace name must be ${WORKSPACE_NAME_MAX} characters or fewer`;
-        }
-        if (!NO_HIDDEN_CHARS.test(trimmed)) {
-          return "Contains characters that aren't allowed";
-        }
-        if (!NO_URL.test(trimmed)) {
-          return "Workspace name cannot contain a URL";
-        }
-        return null;
-      },
+      name: (value) => workspaceNameProblem(value),
       slug: (value) => {
         if (!value) return "Enter a workspace URL";
         if (
@@ -119,12 +105,7 @@ export function useCreateWorkspaceForm() {
   }
 
   // Determine whether submit button should be enabled
-  const trimmedName = form.values.name.trim();
-  const isNameValid =
-    trimmedName.length >= 1 &&
-    trimmedName.length <= WORKSPACE_NAME_MAX &&
-    NO_HIDDEN_CHARS.test(trimmedName) &&
-    NO_URL.test(trimmedName);
+  const isNameValid = workspaceNameProblem(form.values.name) === null;
 
   const isSlugFormatValid =
     form.values.slug.length >= WORKSPACE_SLUG_MIN &&
@@ -156,7 +137,7 @@ export function useCreateWorkspaceForm() {
     setIsSubmitting(true);
     try {
       const created = await workspaceApi.create({
-        name: trimmedName,
+        name: normalizeWorkspaceName(form.values.name),
         slug: form.values.slug,
         organizationSize: form.values.organizationSize,
       });

@@ -6,15 +6,17 @@ import {
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module.js';
 import { NoStoreMiddleware } from '../auth/noStore.middleware.js';
+import { InMemorySlidingWindowLimiter } from '../common/slidingWindowLimiter.js';
 import { Workspace } from './entities/workspace.entity.js';
 import { WorkspaceMember } from './entities/workspaceMember.entity.js';
+import { LoggingWorkspaceEvents } from './events/loggingWorkspaceEvents.js';
+import { WorkspaceEvents } from './events/workspaceEvents.js';
 import { TypeOrmWorkspacesRepository } from './repositories/typeOrmWorkspaces.repository.js';
 import { WorkspacesRepository } from './repositories/workspaces.repository.js';
-import {
-  InMemorySlugCheckRateLimiter,
-  SlugCheckRateLimiter,
-} from './slugCheckRateLimiter.js';
+import { SLUG_CHECK_LIMITER, WORKSPACE_WRITE_LIMITER } from './tokens.js';
 import { WorkspaceMemberGuard } from './workspaceMemberGuard.js';
+import { WorkspacePermissionGuard } from './workspacePermissionGuard.js';
+import { WorkspaceWriteRateLimitGuard } from './workspaceWriteRateLimitGuard.js';
 import { WorkspacesController } from './workspaces.controller.js';
 import { WorkspacesService } from './workspaces.service.js';
 
@@ -27,16 +29,34 @@ import { WorkspacesService } from './workspaces.service.js';
   providers: [
     WorkspacesService,
     WorkspaceMemberGuard,
+    WorkspacePermissionGuard,
+    WorkspaceWriteRateLimitGuard,
     {
       provide: WorkspacesRepository,
       useClass: TypeOrmWorkspacesRepository,
     },
     {
-      provide: SlugCheckRateLimiter,
-      useClass: InMemorySlugCheckRateLimiter,
+      provide: WorkspaceEvents,
+      useClass: LoggingWorkspaceEvents,
+    },
+    {
+      provide: SLUG_CHECK_LIMITER,
+      useFactory: () =>
+        new InMemorySlidingWindowLimiter({ limit: 60, windowMs: 60_000 }),
+    },
+    {
+      provide: WORKSPACE_WRITE_LIMITER,
+      useFactory: () =>
+        new InMemorySlidingWindowLimiter({ limit: 30, windowMs: 600_000 }),
     },
   ],
-  exports: [WorkspacesService, WorkspacesRepository, WorkspaceMemberGuard],
+  exports: [
+    WorkspacesService,
+    WorkspacesRepository,
+    WorkspaceMemberGuard,
+    WorkspacePermissionGuard,
+    WorkspaceWriteRateLimitGuard,
+  ],
 })
 export class WorkspacesModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {

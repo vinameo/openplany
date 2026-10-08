@@ -411,4 +411,352 @@ describe('Workspaces (e2e)', () => {
     expect(res.headers['cache-control']).toBe('no-store');
     expect(res.headers['x-request-id']).toBeDefined();
   });
+
+  describe('PATCH /api/workspaces/:slug', () => {
+    async function seedWorkspace(ownerEmail: string, slug = 'test-ws') {
+      const ownerId = await createUser(ownerEmail, 'UTC');
+      const cookie = await signInCookie(ownerEmail);
+      const res = await http()
+        .post('/api/workspaces')
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({
+          name: 'Original Name',
+          slug,
+          organizationSize: '2-10',
+        })
+        .expect(201);
+      return { ownerId, cookie, workspace: res.body };
+    }
+
+    it('1. owner updates name -> 200, has permissions, updatedAt, DB updated, slug preserved', async () => {
+      const { ownerId, cookie } = await seedWorkspace('owner1@openplany.dev', 'openstudy');
+
+      const res = await http()
+        .patch('/api/workspaces/openstudy')
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ name: 'OpenStudy Team' })
+        .expect(200);
+
+      expect(res.body.name).toBe('OpenStudy Team');
+      expect(res.body.slug).toBe('openstudy');
+      expect(res.body.permissions).toEqual(['workspace.settings.update']);
+      expect(res.body.updatedAt).toBeDefined();
+
+      const rows = await e2e.dataSource.query<{ name: string; slug: string; updated_by_id: string }[]>(
+        'SELECT name, slug, updated_by_id FROM workspaces WHERE slug = $1',
+        ['openstudy'],
+      );
+      expect(rows[0]!.name).toBe('OpenStudy Team');
+      expect(rows[0]!.slug).toBe('openstudy');
+      expect(rows[0]!.updated_by_id).toBe(ownerId);
+    });
+
+    it('2. empty name, 81 chars, https://... -> 400 fields.name', async () => {
+      const { cookie } = await seedWorkspace('owner2@openplany.dev', 'ws-validation');
+
+      // Empty name
+      const resEmpty = await http()
+        .patch('/api/workspaces/ws-validation')
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ name: '   ' })
+        .expect(400);
+      expect(resEmpty.body.code).toBe('VALIDATION_ERROR');
+      expect(resEmpty.body.fields).toHaveProperty('name');
+
+      // 81 chars
+      const resLong = await http()
+        .patch('/api/workspaces/ws-validation')
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ name: 'a'.repeat(81) })
+        .expect(400);
+      expect(resLong.body.fields).toHaveProperty('name');
+
+      // URL
+      const resUrl = await http()
+        .patch('/api/workspaces/ws-validation')
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ name: 'https://evil.example' })
+        .expect(400);
+      expect(resUrl.body.fields).toHaveProperty('name');
+    });
+
+    it('3. body with forbidden fields (slug, ownerId) -> 400, DB unchanged', async () => {
+      const { cookie } = await seedWorkspace('owner3@openplany.dev', 'ws-forbidden-fields');
+
+      await http()
+        .patch('/api/workspaces/ws-forbidden-fields')
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ slug: 'new-slug' })
+        .expect(400);
+
+      await http()
+        .patch('/api/workspaces/ws-forbidden-fields')
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ ownerId: '00000000-0000-0000-0000-000000000000' })
+        .expect(400);
+
+      const rows = await e2e.dataSource.query<{ slug: string }[]>(
+        'SELECT slug FROM workspaces WHERE slug = $1',
+        ['ws-forbidden-fields'],
+      );
+      expect(rows).toHaveLength(1);
+    });
+
+    it('4. timezone valid / Mars/Base -> 200 / 400, users.user_timezone unchanged', async () => {
+      const { ownerId, cookie } = await seedWorkspace('owner4@openplany.dev', 'ws-tz');
+
+      const resValid = await http()
+        .patch('/api/workspaces/ws-tz')
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ timezone: 'Asia/Ho_Chi_Minh' })
+        .expect(200);
+      expect(resValid.body.timezone).toBe('Asia/Ho_Chi_Minh');
+
+      const userRow = await e2e.dataSource.query<{ user_timezone: string }[]>(
+        'SELECT user_timezone FROM users WHERE id = $1',
+        [ownerId],
+      );
+      expect(userRow[0]!.user_timezone).toBe('UTC'); // personal tz unchanged
+
+      const resInvalid = await http()
+        .patch('/api/workspaces/ws-tz')
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ timezone: 'Mars/Base' })
+        .expect(400);
+      expect(resInvalid.body.fields).toHaveProperty('timezone');
+    });
+
+    it('5. workspace with seed Asia/Saigon, only update name -> 200, timezone preserved', async () => {
+      const { cookie, workspace } = await seedWorkspace('owner5@openplany.dev', 'ws-saigon');
+      await e2e.dataSource.query(
+        'UPDATE workspaces SET timezone = $1 WHERE id = $2',
+        ['Asia/Saigon', workspace.id],
+      );
+
+      const res = await http()
+        .patch('/api/workspaces/ws-saigon')
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ name: 'Saigon Team' })
+        .expect(200);
+
+      expect(res.body.name).toBe('Saigon Team');
+      expect(res.body.timezone).toBe('Asia/Saigon');
+    });
+
+    it('6. body {} -> 400; duplicate values -> 200 without DB row version update', async () => {
+      const { cookie, workspace } = await seedWorkspace('owner6@openplany.dev', 'ws-duplicate');
+
+      // Empty body {} -> 400
+      const resEmpty = await http()
+        .patch('/api/workspaces/ws-duplicate')
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({})
+        .expect(400);
+      expect(resEmpty.body.code).toBe('VALIDATION_ERROR');
+
+      // Snapshot xmin and updated_at
+      const before = await e2e.dataSource.query<{ xmin: string; updated_at: Date }[]>(
+        'SELECT xmin::text, updated_at FROM workspaces WHERE id = $1',
+        [workspace.id],
+      );
+
+      // Send identical values
+      const resDup = await http()
+        .patch('/api/workspaces/ws-duplicate')
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ name: 'Original Name', organizationSize: '2-10' })
+        .expect(200);
+
+      expect(resDup.body.name).toBe('Original Name');
+
+      const after = await e2e.dataSource.query<{ xmin: string; updated_at: Date }[]>(
+        'SELECT xmin::text, updated_at FROM workspaces WHERE id = $1',
+        [workspace.id],
+      );
+      expect(after[0]!.xmin).toBe(before[0]!.xmin);
+      expect(after[0]!.updated_at.getTime()).toBe(before[0]!.updated_at.getTime());
+    });
+
+    it('7. member (seed) sending PATCH -> 403 FORBIDDEN, even with invalid name', async () => {
+      const { workspace } = await seedWorkspace('owner7@openplany.dev', 'ws-member-test');
+      const memberId = await createUser('member1@openplany.dev');
+      const memberCookie = await signInCookie('member1@openplany.dev');
+
+      await e2e.dataSource.query(
+        'INSERT INTO workspace_members (workspace_id, member_id, role, created_at, updated_at) VALUES ($1, $2, $3, now(), now())',
+        [workspace.id, memberId, 'member'],
+      );
+
+      // Valid name -> 403
+      const resValid = await http()
+        .patch('/api/workspaces/ws-member-test')
+        .set('Cookie', memberCookie)
+        .set('Origin', ORIGIN)
+        .send({ name: 'Hacked Name' })
+        .expect(403);
+      expect(resValid.body.code).toBe('FORBIDDEN');
+
+      // Empty name -> still 403 (Guard runs before validation pipe)
+      const resEmpty = await http()
+        .patch('/api/workspaces/ws-member-test')
+        .set('Cookie', memberCookie)
+        .set('Origin', ORIGIN)
+        .send({ name: '' })
+        .expect(403);
+      expect(resEmpty.body.code).toBe('FORBIDDEN');
+    });
+
+    it('8. non-member or nonexistent slug -> 404 with identical body', async () => {
+      await createUser('outsider@openplany.dev');
+      const outsiderCookie = await signInCookie('outsider@openplany.dev');
+      await seedWorkspace('owner8@openplany.dev', 'ws-secret');
+
+      const resSecret = await http()
+        .patch('/api/workspaces/ws-secret')
+        .set('Cookie', outsiderCookie)
+        .set('Origin', ORIGIN)
+        .send({ name: 'Outsider Try' })
+        .expect(404);
+
+      const resNonExistent = await http()
+        .patch('/api/workspaces/does-not-exist')
+        .set('Cookie', outsiderCookie)
+        .set('Origin', ORIGIN)
+        .send({ name: 'Outsider Try' })
+        .expect(404);
+
+      expect(resSecret.body.code).toBe('NOT_FOUND');
+      expect(resNonExistent.body.code).toBe('NOT_FOUND');
+    });
+
+    it('9. two admins concurrently update {name} and {timezone} -> both 200 and kept', async () => {
+      const { workspace } = await seedWorkspace('owner9@openplany.dev', 'ws-concurrent');
+
+      const admin1Id = await createUser('admin1@openplany.dev');
+      const admin1Cookie = await signInCookie('admin1@openplany.dev');
+      await e2e.dataSource.query(
+        'INSERT INTO workspace_members (workspace_id, member_id, role, created_at, updated_at) VALUES ($1, $2, $3, now(), now())',
+        [workspace.id, admin1Id, 'admin'],
+      );
+
+      const admin2Id = await createUser('admin2@openplany.dev');
+      const admin2Cookie = await signInCookie('admin2@openplany.dev');
+      await e2e.dataSource.query(
+        'INSERT INTO workspace_members (workspace_id, member_id, role, created_at, updated_at) VALUES ($1, $2, $3, now(), now())',
+        [workspace.id, admin2Id, 'admin'],
+      );
+
+      const [res1, res2] = await Promise.all([
+        http()
+          .patch('/api/workspaces/ws-concurrent')
+          .set('Cookie', admin1Cookie)
+          .set('Origin', ORIGIN)
+          .send({ name: 'Concurrent Name' }),
+        http()
+          .patch('/api/workspaces/ws-concurrent')
+          .set('Cookie', admin2Cookie)
+          .set('Origin', ORIGIN)
+          .send({ timezone: 'Asia/Ho_Chi_Minh' }),
+      ]);
+
+      expect(res1.status).toBe(200);
+      expect(res2.status).toBe(200);
+
+      const rows = await e2e.dataSource.query<{ name: string; timezone: string }[]>(
+        'SELECT name, timezone FROM workspaces WHERE id = $1',
+        [workspace.id],
+      );
+      expect(rows[0]!.name).toBe('Concurrent Name');
+      expect(rows[0]!.timezone).toBe('Asia/Ho_Chi_Minh');
+    });
+
+    it('10. 31 requests within 10 minutes -> 31st request gets 429 and Retry-After header', async () => {
+      const { cookie } = await seedWorkspace('owner10@openplany.dev', 'ws-rate-limit');
+
+      for (let i = 0; i < 30; i++) {
+        // Send requests (even to non-existent slug to count toward user limiter)
+        await http()
+          .patch('/api/workspaces/non-existent-slug')
+          .set('Cookie', cookie)
+          .set('Origin', ORIGIN)
+          .send({ name: 'Some Name' });
+      }
+
+      const res31 = await http()
+        .patch('/api/workspaces/ws-rate-limit')
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ name: 'Request 31' })
+        .expect(429);
+
+      expect(res31.body.code).toBe('TOO_MANY_ATTEMPTS');
+      expect(res31.headers['retry-after']).toBeDefined();
+    });
+
+    it('11. unauthenticated / reset-only / bad origin -> 401 / 403 / 403', async () => {
+      await seedWorkspace('owner11@openplany.dev', 'ws-auth-checks');
+
+      // No cookie
+      await http()
+        .patch('/api/workspaces/ws-auth-checks')
+        .set('Origin', ORIGIN)
+        .send({ name: 'No Cookie' })
+        .expect(401);
+
+      // Password reset required
+      await createUser('resetuser@openplany.dev', 'UTC', { is_password_reset_required: true });
+      const resetCookie = await signInCookie('resetuser@openplany.dev');
+      await http()
+        .patch('/api/workspaces/ws-auth-checks')
+        .set('Cookie', resetCookie)
+        .set('Origin', ORIGIN)
+        .send({ name: 'Reset Only' })
+        .expect(403);
+
+      // Bad origin
+      const ownerCookie = await signInCookie('owner11@openplany.dev');
+      await http()
+        .patch('/api/workspaces/ws-auth-checks')
+        .set('Cookie', ownerCookie)
+        .set('Origin', 'http://malicious.site')
+        .send({ name: 'Bad Origin' })
+        .expect(403);
+    });
+
+    it('12. GET /:slug returns permissions and updatedAt for owner and member', async () => {
+      const { workspace, cookie: ownerCookie } = await seedWorkspace('owner12@openplany.dev', 'ws-get-perm');
+      const memberId = await createUser('member12@openplany.dev');
+      const memberCookie = await signInCookie('member12@openplany.dev');
+      await e2e.dataSource.query(
+        'INSERT INTO workspace_members (workspace_id, member_id, role, created_at, updated_at) VALUES ($1, $2, $3, now(), now())',
+        [workspace.id, memberId, 'member'],
+      );
+
+      const ownerRes = await http()
+        .get('/api/workspaces/ws-get-perm')
+        .set('Cookie', ownerCookie)
+        .expect(200);
+      expect(ownerRes.body.permissions).toEqual(['workspace.settings.update']);
+      expect(ownerRes.body.updatedAt).toBeDefined();
+
+      const memberRes = await http()
+        .get('/api/workspaces/ws-get-perm')
+        .set('Cookie', memberCookie)
+        .expect(200);
+      expect(memberRes.body.permissions).toEqual([]);
+      expect(memberRes.body.updatedAt).toBeDefined();
+    });
+  });
 });

@@ -1,6 +1,7 @@
 import type {
   CreateWorkspaceRequest,
   SlugCheckResponse,
+  UpdateWorkspaceRequest,
   WorkspaceListResponse,
   WorkspaceResponse,
 } from "@repo/contracts";
@@ -26,6 +27,22 @@ export const workspaceApi = {
     });
   },
 
+  update(
+    slug: string,
+    body: UpdateWorkspaceRequest,
+    signal?: AbortSignal,
+  ): Promise<WorkspaceResponse> {
+    return request<WorkspaceResponse>(
+      `/api/workspaces/${encodeURIComponent(slug)}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal,
+      },
+    );
+  },
+
   checkSlug(slug: string, signal?: AbortSignal): Promise<SlugCheckResponse> {
     return request<SlugCheckResponse>(
       `/api/workspaces/slug-check?slug=${encodeURIComponent(slug)}`,
@@ -33,4 +50,3 @@ export const workspaceApi = {
     );
   },
 };
-

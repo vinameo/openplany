@@ -1,4 +1,7 @@
-import type { WorkspaceResponse } from '@repo/contracts';
+import {
+  workspacePermissionsOf,
+  type WorkspaceResponse,
+} from '@repo/contracts';
 import type { MemberWorkspace } from '../repositories/workspaces.repository.js';
 
 export function toWorkspaceResponse(
@@ -13,11 +16,16 @@ export function toWorkspaceResponse(
     organizationSize: workspace.organizationSize,
     timezone: workspace.timezone,
     role: workspace.role,
+    permissions: workspacePermissionsOf(workspace.role),
     memberCount: Number(workspace.memberCount),
     createdAt:
       workspace.createdAt instanceof Date
         ? workspace.createdAt.toISOString()
         : new Date(workspace.createdAt).toISOString(),
+    updatedAt:
+      workspace.updatedAt instanceof Date
+        ? workspace.updatedAt.toISOString()
+        : new Date(workspace.updatedAt).toISOString(),
   };
 }
 
