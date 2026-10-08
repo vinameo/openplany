@@ -1,90 +1,81 @@
-create table if not exists public.workspaces
-(
-    created_at        timestamp with time zone not null,
-    updated_at        timestamp with time zone not null,
-    id                uuid                     not null
-        constraint workspace_pkey
-            primary key,
-    name              varchar(80)              not null,
-    logo              text,
-    slug              varchar(48)              not null
-        constraint workspace_slug_key
-            unique,
-    created_by_id     uuid
-        constraint workspace_created_by_id_10ad894e_fk_user_id
-            references public.users
-            deferrable initially deferred,
-    owner_id          uuid                     not null
-        constraint workspace_owner_id_60a8bafc_fk_user_id
-            references public.users
-            deferrable initially deferred,
-    updated_by_id     uuid
-        constraint workspace_updated_by_id_09d249ed_fk_user_id
-            references public.users
-            deferrable initially deferred,
-    organization_size varchar(20),
-    deleted_at        timestamp with time zone,
-    logo_asset_id     uuid
-        constraint workspaces_logo_asset_id_a784bb00_fk_file_assets_id
-            references public.file_assets
-            deferrable initially deferred,
-    timezone          varchar(255)             not null,
-    background_color  varchar(255)             not null
+-- Schema cho tính năng Tạo Workspace (PostgreSQL 17).
+-- Đồng bộ với "3 - database-spec.md" mục 3; migration CreateWorkspaceTables chạy đúng các câu này.
+-- Yêu cầu bảng users đã có (migration CreateAuthTables).
+--
+-- Chạy thử mà không để lại gì (trong psql):
+--   BEGIN;
+--   \i sample-workspace.sql
+--   ROLLBACK;
+
+-- ---------------------------------------------------------------------------
+-- workspaces
+-- ---------------------------------------------------------------------------
+CREATE TABLE workspaces (
+    id                uuid          PRIMARY KEY DEFAULT gen_random_uuid(),
+    name              varchar(80)   NOT NULL,
+    slug              varchar(48)   NOT NULL,
+    logo              text,                                   -- URL; chưa dùng (chưa có module lưu trữ file)
+    owner_id          uuid          NOT NULL REFERENCES users (id),
+    created_by_id     uuid          REFERENCES users (id),
+    updated_by_id     uuid          REFERENCES users (id),
+    organization_size varchar(20)   NOT NULL,
+    timezone          varchar(255)  NOT NULL DEFAULT 'UTC',  -- sao chép từ users.user_timezone của người tạo
+    background_color  varchar(7)    NOT NULL,                -- '#RRGGBB' viết hoa, chọn theo hash của id
+    created_at        timestamptz   NOT NULL DEFAULT now(),
+    updated_at        timestamptz   NOT NULL DEFAULT now(),
+    deleted_at        timestamptz,                            -- xoá mềm (tính năng sau)
+
+    -- Toàn bảng, kể cả workspace đã xoá: slug không bao giờ được dùng lại.
+    CONSTRAINT workspaces_slug_key UNIQUE (slug),
+    CONSTRAINT workspaces_name_check CHECK (btrim(name) <> ''),
+    CONSTRAINT workspaces_slug_check CHECK (
+        char_length(slug) BETWEEN 3 AND 48
+        AND slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'
+    ),
+    CONSTRAINT workspaces_organization_size_check CHECK (
+        organization_size IN ('Just myself', '2-10', '11-50', '51-200', '201-500', '500+')
+    ),
+    CONSTRAINT workspaces_background_color_check CHECK (background_color ~ '^#[0-9A-F]{6}$')
 );
 
-create table if not exists public.file_assets
-(
-    created_at        timestamp with time zone not null,
-    updated_at        timestamp with time zone not null,
-    id                uuid                     not null
-        constraint file_asset_pkey
-            primary key,
-    attributes        jsonb                    not null,
-    asset             varchar(800)             not null,
-    created_by_id     uuid
-        constraint file_asset_created_by_id_966942a0_fk_user_id
-            references public.users
-            deferrable initially deferred,
-    updated_by_id     uuid
-        constraint file_asset_updated_by_id_d6aaf4f0_fk_user_id
-            references public.users
-            deferrable initially deferred,
-    workspace_id      uuid
-        constraint file_assets_workspace_id_fa50b9c5_fk_workspaces_id
-            references public.workspaces
-            deferrable initially deferred,
-    is_deleted        boolean                  not null,
-    deleted_at        timestamp with time zone,
-    is_archived       boolean                  not null,
-    comment_id        uuid
-        constraint file_assets_comment_id_35d4ecaf_fk_issue_comments_id
-            references public.issue_comments
-            deferrable initially deferred,
-    entity_type       varchar(255),
-    external_id       varchar(255),
-    external_source   varchar(255),
-    is_uploaded       boolean                  not null,
-    issue_id          uuid
-        constraint file_assets_issue_id_cfe87d6c_fk_issues_id
-            references public.issues
-            deferrable initially deferred,
-    page_id           uuid
-        constraint file_assets_page_id_64c753d1_fk_pages_id
-            references public.pages
-            deferrable initially deferred,
-    project_id        uuid
-        constraint file_assets_project_id_ebd5c0d8_fk_projects_id
-            references public.projects
-            deferrable initially deferred,
-    size              double precision         not null,
-    storage_metadata  jsonb,
-    user_id           uuid
-        constraint file_assets_user_id_ce1818dc_fk_users_id
-            references public.users
-            deferrable initially deferred,
-    draft_issue_id    uuid
-        constraint file_assets_draft_issue_id_52633145_fk_draft_issues_id
-            references public.draft_issues
-            deferrable initially deferred,
-    entity_identifier varchar(255)
+-- PostgreSQL không tự tạo index cho cột FK.
+CREATE INDEX idx_workspaces_owner_id ON workspaces (owner_id);
+-- Luật tần suất: tối đa 5 workspace / 1 giờ / người tạo.
+CREATE INDEX idx_workspaces_created_by_created_at ON workspaces (created_by_id, created_at);
+
+-- ---------------------------------------------------------------------------
+-- workspace_members
+-- ---------------------------------------------------------------------------
+CREATE TABLE workspace_members (
+    id           uuid         PRIMARY KEY DEFAULT gen_random_uuid(),
+    workspace_id uuid         NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE,
+    member_id    uuid         NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    role         varchar(20)  NOT NULL DEFAULT 'member',     -- người tạo được ghi 'owner' tường minh
+    is_active    boolean      NOT NULL DEFAULT true,          -- rời đi = false; quay lại = bật lại cùng dòng
+    created_at   timestamptz  NOT NULL DEFAULT now(),
+    updated_at   timestamptz  NOT NULL DEFAULT now(),
+
+    CONSTRAINT workspace_members_workspace_member_key UNIQUE (workspace_id, member_id),
+    CONSTRAINT workspace_members_role_check CHECK (role IN ('owner', 'admin', 'member', 'guest'))
 );
+
+-- "Workspace của tôi": truy vấn phải có đúng điều kiện is_active = true.
+CREATE INDEX idx_workspace_members_member_id_active
+    ON workspace_members (member_id) WHERE is_active = true;
+
+-- Mỗi workspace có tối đa một owner.
+CREATE UNIQUE INDEX workspace_members_one_owner_key
+    ON workspace_members (workspace_id) WHERE role = 'owner';
+
+-- ---------------------------------------------------------------------------
+-- users.last_workspace_id: workspace mở gần nhất, dùng để điều hướng sau khi đăng nhập
+-- ---------------------------------------------------------------------------
+ALTER TABLE users
+    ADD COLUMN last_workspace_id uuid REFERENCES workspaces (id) ON DELETE SET NULL;
+
+-- ---------------------------------------------------------------------------
+-- down (chỉ dùng ở môi trường dev, xoá toàn bộ dữ liệu workspace)
+-- ---------------------------------------------------------------------------
+-- ALTER TABLE users DROP COLUMN IF EXISTS last_workspace_id;
+-- DROP TABLE IF EXISTS workspace_members;
+-- DROP TABLE IF EXISTS workspaces;

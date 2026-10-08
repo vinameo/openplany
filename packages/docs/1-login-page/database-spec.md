@@ -34,7 +34,7 @@ login_attempts                           nhật ký chỉ ghi thêm; user_id KH�
 
 ## 3. Bảng `users` (đã có)
 
-Danh sách cột trùng với model `User` của Plane. Kiểu dữ liệu dưới đây suy ra từ model đó và **cần đối chiếu với DB thật** (câu hỏi D2).
+Danh sách cột theo cấu trúc model `User` của Django. Kiểu dữ liệu dưới đây suy ra từ cấu trúc đó và **cần đối chiếu với DB thật** (câu hỏi D2).
 
 ### 3.1 Cột
 
@@ -56,7 +56,7 @@ Danh sách cột trùng với model `User` của Plane. Kiểu dữ liệu dư�
 | `last_login_time` | `timestamptz` | có | — | ghi | **Nguồn chuẩn** |
 | `last_logout_time` | `timestamptz` | có | — | ghi khi đăng xuất | |
 | `last_active` | `timestamptz` | có | — | ghi (có giãn cách, mục 5.3) | Nguồn tính DAU |
-| `last_login_ip`, `last_logout_ip` | `varchar(45)` | có | — | ghi | PII (R3). Plane dùng 255, rút xuống 45 là đủ |
+| `last_login_ip`, `last_logout_ip` | `varchar(45)` | có | — | ghi | PII (R3). IPv6 dài nhất 45 ký tự, nên `varchar(45)` là đủ |
 | `last_login_medium` | `varchar(20)` | có | — | ghi `'email'` | `CHECK` (mục 3.2) |
 | `last_login_uagent` | `text` | có | — | ghi (cắt tối đa 512 ký tự) | PII |
 | `last_location`, `created_location` | `varchar(255)` | có | — | tuỳ chọn | PII |
@@ -273,7 +273,7 @@ Mọi bước đều dùng `IF NOT EXISTS` khi có thể, để chạy lại an 
 | # | Câu hỏi | Đề xuất |
 | --- | --- | --- |
 | D1 | CLAUDE.md đang ghi "PostgreSQL" và dự định chạy Postgres bằng Docker ở máy dev. Cú pháp `CREATE INDEX ASYNC` và `ALTER TABLE ASYNC` **không chạy được** trên Postgres thường. Đã chốt dùng DSQL chưa? | Nếu chốt DSQL: dev dùng một cluster DSQL riêng cho dev, và cập nhật CLAUDE.md. Nếu không: bỏ `ASYNC` và dùng lại expression index `lower(email)` |
-| D2 | Kiểu cột thật của `users` có khớp mục 3.1 không? Có dữ liệu cần chuyển từ Plane không? | Chạy `get_schema users` trên DB thật rồi đối chiếu |
+| D2 | Kiểu cột thật của `users` có khớp mục 3.1 không? Có dữ liệu cần chuyển từ hệ thống cũ không? | Chạy `get_schema users` trên DB thật rồi đối chiếu |
 | D3 | `bot_type` có những giá trị nào? | Chưa đặt `CHECK` cho tới khi biết |
 | D4 | ORM (TypeORM hay Prisma) chưa chọn. Migration do ORM sinh ra có giữ được luật một DDL mỗi transaction và `ASYNC` không? | Viết migration bằng SQL tay. ORM chỉ dùng để truy vấn. Thêm ORM là dependency mới, cần hỏi trước |
 | D5 | Ngưỡng rate limit (5 lần theo email, 50 lần theo IP, trong 15 phút) và thời hạn phiên 7 ngày có ổn không? | Như đề xuất |

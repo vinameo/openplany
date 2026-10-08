@@ -29,7 +29,7 @@ Draft **không có ô username**, dù bảng có cột `username`. Mặc định
 
 ## 3. Cột liên quan và vai trò
 
-Danh sách cột này trùng gần như hoàn toàn với model `User` của Plane (Django). Vì vậy cột `password` nhiều khả năng lưu theo định dạng hash của Django: `pbkdf2_sha256$<iterations>$<salt>$<hash>`. Nếu dữ liệu được chuyển từ Plane sang, API NestJS phải kiểm tra được đúng định dạng này. Xem rủi ro R1.
+Bảng này theo cấu trúc model `User` của Django (có `is_staff`, `is_superuser`, `last_login`, `date_joined`). Vì vậy cột `password` nhiều khả năng lưu theo định dạng hash của Django: `pbkdf2_sha256$<iterations>$<salt>$<hash>`. Nếu có dữ liệu chuyển từ hệ thống cũ sang, API NestJS phải kiểm tra được đúng định dạng này. Xem rủi ro R1.
 
 | Nhóm | Cột | Dùng ở bước đăng nhập |
 | --- | --- | --- |
@@ -85,7 +85,7 @@ updated_at        = now()
 
 **Khi đăng nhập thất bại:** không ghi gì vào bảng người dùng. Chỉ ghi vào nhật ký đăng nhập (mục 6).
 
-`last_login` và `last_login_time` trùng nghĩa. Cột đầu là cột mặc định của Django, cột sau là cột Plane thêm vào. Nên chọn một cột làm nguồn chuẩn, đề xuất `last_login_time`, và vẫn cập nhật cả hai cho tới khi bỏ được cột kia.
+`last_login` và `last_login_time` trùng nghĩa. Cột đầu là cột mặc định của Django, cột sau là cột được thêm riêng. Nên chọn một cột làm nguồn chuẩn, đề xuất `last_login_time`, và vẫn cập nhật cả hai cho tới khi bỏ được cột kia.
 
 ## 6. Khoảng trống của schema
 
@@ -145,7 +145,7 @@ Response **không bao giờ** chứa `password`, `token`, `last_login_ip`, `last
 | Q5 | `is_managed` cụ thể nghĩa là gì: SSO, LDAP hay do admin tạo hộ? | Cần người nắm hệ thống cũ xác nhận |
 | Q6 | Chưa xác minh email (`is_email_verified = false`) thì có cho vào không? | Cho vào, kèm banner nhắc xác minh |
 | Q7 | Phiên đăng nhập kéo dài bao lâu? Có cần nhiều thiết bị cùng lúc không? | 7 ngày, có trượt thời hạn khi dùng. Nhiều thiết bị, nên cần bảng `sessions` |
-| Q8 | Có chuyển dữ liệu người dùng từ Plane sang không? | Nếu có, phải hỗ trợ hash Django PBKDF2 (R1) |
+| Q8 | Có chuyển dữ liệu người dùng từ hệ thống cũ sang không? | Nếu có, phải hỗ trợ hash Django PBKDF2 (R1) |
 
 ## 10. Rủi ro
 

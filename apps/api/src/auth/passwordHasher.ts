@@ -47,7 +47,8 @@ const toB64 = (buffer: Buffer): string =>
 
 /**
  * argon2id via node:crypto (Node 24+), stored in PHC string format.
- * Also verifies Django `pbkdf2_sha256$…` hashes migrated from Plane and
+ * Also verifies Django-format `pbkdf2_sha256$…` hashes imported from a legacy
+ * system and
  * flags them for rehashing.
  */
 @Injectable()
