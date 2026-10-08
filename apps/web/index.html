@@ -5,6 +5,24 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sign in · OpenPlany</title>
+    <!-- Mantine's ColorSchemeScript for a SPA: set the scheme before first paint so dark mode doesn't flash light. -->
+    <script>
+      try {
+        var stored = window.localStorage.getItem("mantine-color-scheme-value");
+        var scheme = stored === "light" || stored === "dark" ? stored : "auto";
+        document.documentElement.setAttribute(
+          "data-mantine-color-scheme",
+          scheme !== "auto"
+            ? scheme
+            : window.matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light",
+        );
+      } catch (error) {
+        // Storage blocked (private mode, policy): fall back to light; MantineProvider corrects it on mount.
+        document.documentElement.setAttribute("data-mantine-color-scheme", "light");
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

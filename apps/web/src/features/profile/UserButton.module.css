@@ -8,7 +8,7 @@
 }
 
 .button:hover {
-  background: var(--mantine-color-gray-1);
+  background: var(--mantine-color-default-hover);
 }
 
 .name {

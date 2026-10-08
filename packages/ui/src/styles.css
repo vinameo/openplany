@@ -1,10 +1,27 @@
 @import "@mantine/core/styles.css";
 
+/*
+ * App surface tokens. Brand palettes and text colours live in theme.ts;
+ * these only name the layers Mantine has no variable for.
+ */
 :root {
-  /* Secondary text; 4.9:1 on white, which Mantine's dimmed (3.3:1) is not. */
-  --app-color-muted: #707070;
+  --app-color-accent: var(--mantine-color-electric-5);
+  --app-color-page: var(--mantine-color-gray-0);
+  --app-color-surface: var(--mantine-color-white);
+  --app-color-border: var(--mantine-color-gray-2);
+  /* Cards rely on page/card contrast in light mode, a hairline in dark mode. */
+  --app-color-card-border: transparent;
+  --app-glow: color-mix(in srgb, var(--app-color-accent) 16%, transparent);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+}
+
+:root[data-mantine-color-scheme="dark"] {
+  --app-color-page: var(--mantine-color-dark-8);
+  --app-color-surface: var(--mantine-color-dark-7);
+  --app-color-border: var(--mantine-color-dark-5);
+  --app-color-card-border: var(--mantine-color-dark-5);
+  --app-glow: color-mix(in srgb, var(--app-color-accent) 10%, transparent);
 }
 
 html,
@@ -15,11 +32,16 @@ body,
 
 body {
   margin: 0;
-  background: var(--mantine-color-gray-0);
+  background: var(--app-color-page);
 }
 
-[data-mantine-color-scheme="dark"] body {
-  background: var(--mantine-color-dark-8);
+/* Titles in Cyber Black (light) / near-white (dark); body copy stays Charcoal. */
+:where(h1, h2, h3, h4, h5, h6) {
+  color: var(--mantine-color-bright);
+}
+
+.mantine-Anchor-root {
+  text-underline-offset: 3px;
 }
 
 * {

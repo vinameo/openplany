@@ -1,6 +1,6 @@
 .header {
-  border-bottom: 1px solid var(--mantine-color-gray-3);
-  background: var(--mantine-color-white);
+  border-bottom: 1px solid var(--app-color-border);
+  background: var(--app-color-surface);
 }
 
 .inner {

@@ -1,0 +1,4 @@
+/* The sun only shows in dark mode, where Electric Yellow reads at 11.7:1. */
+.sun {
+  color: var(--app-color-accent);
+}

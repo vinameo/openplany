@@ -1,7 +1,7 @@
 .text {
   font-size: 14px;
   line-height: 1.5;
-  color: var(--auth-muted);
+  color: var(--mantine-color-dimmed);
 }
 
 .action {

@@ -17,17 +17,16 @@
 }
 
 .required {
-  color: var(--mantine-color-red-8);
+  color: var(--mantine-color-error);
 }
 
-/* 48px controls are 12px radius; focus = primary border + soft 2px ring. */
+/* 48px controls are 12px radius; focus = primary border + soft 2px ring (Cyber Black light, Electric Yellow dark). */
 .input {
   height: 48px;
   min-height: 48px;
   padding-inline: 16px;
-  border-color: var(--mantine-color-gray-3);
+  border-color: var(--mantine-color-default-border);
   border-radius: 12px;
-  background: var(--mantine-color-white);
   font-size: 16px;
   color: var(--mantine-color-text);
   transition:
@@ -35,7 +34,7 @@
     box-shadow 150ms ease;
 
   &::placeholder {
-    color: var(--auth-muted);
+    color: var(--mantine-color-placeholder);
   }
 
   &:focus,
@@ -61,7 +60,7 @@
   font-size: inherit;
 
   &::placeholder {
-    color: var(--auth-muted);
+    color: var(--mantine-color-placeholder);
   }
 }
 
@@ -75,11 +74,11 @@
   height: 32px;
   min-height: 32px;
   border-radius: 8px;
-  color: var(--auth-muted);
+  color: var(--mantine-color-dimmed);
 
   &:hover {
     color: var(--mantine-color-text);
-    background: var(--mantine-color-gray-1);
+    background: var(--mantine-color-default-hover);
   }
 }
 
@@ -110,12 +109,12 @@
 
 .fieldError {
   font-size: 13px;
-  color: var(--mantine-color-red-8);
+  color: var(--mantine-color-error);
 }
 
 .formError {
   font-size: 14px;
-  color: var(--mantine-color-red-8);
+  color: var(--mantine-color-error);
 }
 
 .submit {

@@ -1,39 +1,63 @@
+/* A soft Electric Yellow glow from the top, echoing the light in the logo's box. */
 .page {
-  /* Secondary text/placeholder grey: 4.9:1 on white (Mantine dimmed is only 3.3:1). */
-  --auth-muted: #707070;
-
+  position: relative;
   min-height: 100svh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 48px 16px;
-  background: var(--mantine-color-gray-0);
+  background:
+    radial-gradient(56rem 28rem at 50% -8rem, var(--app-glow), transparent 70%),
+    var(--app-color-page);
 }
 
-/* Single card on an empty page: no border, no shadow; the page/card contrast is enough. */
+.schemeToggle {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+}
+
+/* Single card on an empty page: no shadow; page/card contrast (plus a hairline in dark mode) is enough. */
 .card {
   width: 100%;
   max-width: 448px;
   padding: 40px;
+  border: 1px solid var(--app-color-card-border);
   border-radius: 16px;
-  background: var(--mantine-color-white);
+  background: var(--app-color-surface);
 
   @media (max-width: 480px) {
     padding: 32px 20px;
   }
 }
 
-.mark {
-  width: 48px;
-  height: 48px;
-  margin-bottom: 24px;
+/*
+ * The logo PNG (1408×768) has wide transparent padding; its visible content spans
+ * x 113–1296, y 224–544 (1183×320). The wrapper is sized to that box and the image
+ * is scaled and offset so only the content shows. Percent margins resolve against
+ * the wrapper width, so the crop holds at any width.
+ */
+.logo {
+  width: 240px;
+  max-width: 100%;
+  aspect-ratio: 1183 / 320;
+  overflow: hidden;
+  margin: 0 auto 24px;
+}
+
+/* Two classes so this outranks Mantine's own `width: 100%` on Image. */
+.logo .logoImage {
+  width: calc(1408 / 1183 * 100%);
+  max-width: none;
+  margin-left: calc(-113 / 1183 * 100%);
+  margin-top: calc(-224 / 1183 * 100%);
 }
 
 .title {
   font-size: 20px;
   font-weight: 600;
   line-height: 1.4;
-  color: var(--mantine-color-text);
+  color: var(--mantine-color-bright);
 }
 
 .subtitle {
@@ -41,7 +65,7 @@
   font-size: 16px;
   font-weight: 500;
   line-height: 1.5;
-  color: var(--auth-muted);
+  color: var(--mantine-color-dimmed);
   text-wrap: pretty;
 }
 

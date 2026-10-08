@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button, Container, Group, Image } from "@mantine/core";
+import { ColorSchemeToggle } from "@repo/ui";
 import markUrl from "../../assets/openplany-mark.png";
 import { useAuth } from "../auth/useAuth";
 import { UserButton } from "../profile/UserButton";
@@ -29,6 +30,7 @@ export function AppHeader() {
       <Container size="lg" className={classes.inner}>
         <Image src={markUrl} alt="OpenPlany" className={classes.mark} />
         <Group gap="sm">
+          <ColorSchemeToggle size="input-xs" />
           <UserButton user={state.session.user} />
           <Button
             variant="default"

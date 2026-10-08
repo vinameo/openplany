@@ -9,7 +9,7 @@ import { App } from './App.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AppUiProvider defaultColorScheme="light">
+    <AppUiProvider defaultColorScheme="auto">
       <Notifications />
       <App />
     </AppUiProvider>
