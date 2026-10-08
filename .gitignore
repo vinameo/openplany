@@ -8,6 +8,8 @@ data
 .env
 .env.*
 !.env.example
+.mcp.json
+.claude/.mcp.json
 
 apps/*/node_modules
 packages/*/node_modules
