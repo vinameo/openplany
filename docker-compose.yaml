@@ -38,33 +38,6 @@ services:
       timeout: 3s
       retries: 10
 
-  api:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
-    image: openplany-api
-    restart: unless-stopped
-    environment:
-      NODE_ENV: production
-      PORT: 3000
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-openplany}:${POSTGRES_PASSWORD:-openplany}@postgres:5432/${POSTGRES_DB:-openplany}
-      DB_MIGRATIONS_RUN: "true"
-      DB_LOGGING: "false"
-      REDIS_URL: redis://redis:6379
-      # Local stack only: set a real secret in the root .env for anything shared.
-      AUTH_HMAC_SECRET: ${AUTH_HMAC_SECRET:-local-dev-only-hmac-secret-not-for-production}
-      # Served over plain http://localhost by this stack.
-      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
-      TRUST_PROXY: ${TRUST_PROXY:-false}
-    ports:
-      - "${API_PORT:-3000}:3000"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-
 volumes:
   postgres-data:
   redis-data:
