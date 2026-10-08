@@ -25,6 +25,7 @@ export function WorkspaceAvatar({
           color: "#FFFFFF",
           fontWeight: 600,
           border: "1px solid var(--app-color-border, rgba(255, 255, 255, 0.1))",
+          flexShrink: 0,
         },
       }}
       {...others}

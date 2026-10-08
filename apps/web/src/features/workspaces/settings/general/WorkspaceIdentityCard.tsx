@@ -22,7 +22,7 @@ export function WorkspaceIdentityCard({
         backgroundColor={workspace.backgroundColor}
         size={64}
       />
-      <Box style={{ minWidth: 0 }}>
+      <Box style={{ minWidth: 0, flex: 1 }}>
         <Title
           order={3}
           style={{

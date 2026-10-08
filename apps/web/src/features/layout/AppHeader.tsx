@@ -39,16 +39,18 @@ export function AppHeader({ currentWorkspace }: AppHeaderProps) {
   return (
     <header className={classes.header}>
       <Container size="lg" className={classes.inner}>
-        {currentWorkspace ? (
-          <WorkspaceSwitcher currentWorkspace={currentWorkspace} />
-        ) : (
-          <Group gap="xs">
-            <Image src={markUrl} alt="OpenPlany" className={classes.mark} />
-            {hasNoWorkspaces && <CreateWorkspaceButton />}
-          </Group>
-        )}
+        <div className={classes.leftGroup}>
+          {currentWorkspace ? (
+            <WorkspaceSwitcher currentWorkspace={currentWorkspace} />
+          ) : (
+            <Group gap="xs" wrap="nowrap">
+              <Image src={markUrl} alt="OpenPlany" className={classes.mark} />
+              {hasNoWorkspaces && <CreateWorkspaceButton />}
+            </Group>
+          )}
+        </div>
 
-        <Group gap="sm">
+        <Group gap="xs" wrap="nowrap" className={classes.rightGroup}>
           <ColorSchemeToggle size="input-xs" />
           <UserButton user={authState.session.user} />
           {!currentWorkspace && (

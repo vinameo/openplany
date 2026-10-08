@@ -28,10 +28,16 @@ export function UserButton({ user }: UserButtonProps) {
         aria-haspopup="dialog"
         aria-label={`Edit profile – ${name}`}
       >
-        <Avatar src={user.avatarUrl} alt="" radius="xl" size="sm">
+        <Avatar
+          src={user.avatarUrl}
+          alt=""
+          radius="xl"
+          size="sm"
+          style={{ flexShrink: 0 }}
+        >
           {name.charAt(0).toUpperCase()}
         </Avatar>
-        <Text size="sm" fw={500} className={classes.name}>
+        <Text size="sm" fw={500} className={classes.name} visibleFrom="sm">
           {name}
         </Text>
       </UnstyledButton>

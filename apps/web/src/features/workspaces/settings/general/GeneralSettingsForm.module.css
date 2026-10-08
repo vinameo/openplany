@@ -9,3 +9,13 @@
   justify-content: flex-start;
 }
 
+@media (max-width: 767.98px) {
+  .submitWrapper {
+    width: 100%;
+  }
+
+  .submitWrapper :global(.mantine-Button-root) {
+    width: 100%;
+  }
+}
+

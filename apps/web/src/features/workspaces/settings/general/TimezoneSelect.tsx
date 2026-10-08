@@ -56,7 +56,7 @@ export function TimezoneSelect({
   return (
     <Select
       label="Workspace Timezone"
-      description="Set the timezone in this workspace.."
+      description="Set the timezone used for dates, times, and notifications in this workspace."
       data={selectData}
       value={value}
       onChange={(val) => {

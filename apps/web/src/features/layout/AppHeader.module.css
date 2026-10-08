@@ -1,17 +1,37 @@
 .header {
   border-bottom: 1px solid var(--app-color-border);
   background: var(--app-color-surface);
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 .inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
   min-height: calc(var(--app-header-height) - 1px);
+  height: calc(var(--app-header-height) - 1px);
+}
+
+.leftGroup {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+.rightGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  flex-wrap: nowrap;
 }
 
 .mark {
   width: 32px;
   height: 32px;
+  flex-shrink: 0;
 }

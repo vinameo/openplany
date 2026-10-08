@@ -10,6 +10,8 @@
   font-weight: 600;
   cursor: pointer;
   max-width: 260px;
+  min-width: 0;
+  flex-shrink: 1;
 }
 
 .trigger:hover {
@@ -18,6 +20,7 @@
 
 .name {
   max-width: 180px;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -26,6 +29,17 @@
 .chevron {
   color: var(--mantine-color-dimmed);
   flex-shrink: 0;
+}
+
+@media (max-width: 767.98px) {
+  .trigger {
+    padding: 4px 6px;
+    max-width: calc(100vw - 120px);
+  }
+
+  .name {
+    max-width: calc(100vw - 170px);
+  }
 }
 
 .activeGroup {
