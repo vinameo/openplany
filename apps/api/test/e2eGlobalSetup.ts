@@ -1,6 +1,7 @@
 import { DataSource } from 'typeorm';
 import { CreateAuthTables1791379542810 } from '../src/database/migrations/1791379542810-CreateAuthTables.js';
 import { CreateWorkspaceTables1791465600000 } from '../src/database/migrations/1791465600000-CreateWorkspaceTables.js';
+import { AddUsersCreatedBy1791534730151 } from '../src/database/migrations/1791534730151-AddUsersCreatedBy.js';
 import { e2eEnv } from './e2eEnv.js';
 
 /** Creates the e2e database if needed and brings it to the latest migration. */
@@ -32,7 +33,11 @@ export async function setup(): Promise<void> {
   const test = new DataSource({
     type: 'postgres',
     url: url.toString(),
-    migrations: [CreateAuthTables1791379542810, CreateWorkspaceTables1791465600000],
+    migrations: [
+      CreateAuthTables1791379542810,
+      CreateWorkspaceTables1791465600000,
+      AddUsersCreatedBy1791534730151,
+    ],
     migrationsTableName: 'typeorm_migrations',
   });
   await test.initialize();

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
+import { AdminModule } from './admin/admin.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { validateEnv } from './config/env.validation.js';
 import { DatabaseModule } from './database/database.module.js';
@@ -19,6 +20,7 @@ import { WorkspacesModule } from './workspaces/workspaces.module.js';
     }),
     DatabaseModule,
     AuthModule,
+    AdminModule,
     UsersModule,
     WorkspacesModule,
   ],

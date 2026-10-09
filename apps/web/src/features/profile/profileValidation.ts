@@ -1,13 +1,14 @@
-// Mirrors apps/api/src/users/dto/updateProfile.dto.ts so errors show before a
-// round trip; the server stays the source of truth.
+import {
+  USER_NAME_ALLOWED,
+  USER_NAME_MAX,
+  normalizeName,
+} from "@repo/contracts";
 
 export const PROFILE_FIELDS = ["firstName", "lastName", "displayName"] as const;
 export type ProfileField = (typeof PROFILE_FIELDS)[number];
 export type ProfileValues = Record<ProfileField, string>;
 
-const MAX_NAME_LENGTH = 50;
-// Control (Cc) and invisible format (Cf) characters, zero-width spaces included.
-const HIDDEN_CHARS = /[\p{Cc}\p{Cf}]/u;
+export { normalizeName };
 
 const LABELS: Record<ProfileField, string> = {
   firstName: "First name",
@@ -19,11 +20,6 @@ const REQUIRED_MESSAGES: Partial<Record<ProfileField, string>> = {
   displayName: "Enter a display name",
 };
 
-/** Same cleanup as the server: composed Unicode (NFC) and no surrounding spaces. */
-export function normalizeName(value: string): string {
-  return value.normalize("NFC").trim();
-}
-
 /** The error for one field, or null when the value is acceptable. */
 export function validateName(
   field: ProfileField,
@@ -32,10 +28,10 @@ export function validateName(
   const name = normalizeName(value);
   const required = REQUIRED_MESSAGES[field];
   if (required !== undefined && name === "") return required;
-  if (name.length > MAX_NAME_LENGTH) {
-    return `${LABELS[field]} must be ${MAX_NAME_LENGTH} characters or fewer`;
+  if (name.length > USER_NAME_MAX) {
+    return `${LABELS[field]} must be ${USER_NAME_MAX} characters or fewer`;
   }
-  if (HIDDEN_CHARS.test(name)) return "Contains characters that aren't allowed";
+  if (!USER_NAME_ALLOWED.test(name)) return "Contains characters that aren't allowed";
   return null;
 }
 

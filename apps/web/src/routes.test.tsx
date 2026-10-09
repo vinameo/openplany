@@ -115,14 +115,15 @@ describe("app routes", () => {
     expect(router.state.location.pathname).toBe("/set-password");
   });
 
-  it("shows a verification banner for an unverified email", async () => {
+  it("does not show a verification banner for an unverified email", async () => {
     const session = makeSession();
     session.user.isEmailVerified = false;
     mockFetch({ "GET /api/auth/session": () => jsonResponse(200, session) });
 
     renderApp("/");
 
-    expect(await screen.findByText("Verify your email")).toBeInTheDocument();
+    await screen.findByRole("button", { name: "Sign out" });
+    expect(screen.queryByText("Verify your email")).not.toBeInTheDocument();
   });
 
   it("signs out back to the sign-in screen", async () => {

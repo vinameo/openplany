@@ -6,15 +6,17 @@ import {
   MinLength,
   ValidateIf,
 } from 'class-validator';
+import {
+  USER_NAME_ALLOWED,
+  USER_NAME_MAX,
+  normalizeName as normalizeNameContract,
+} from '@repo/contracts';
 
-// Control (Cc) and invisible format (Cf) characters, zero-width spaces included.
-const NO_HIDDEN_CHARS = /^[^\p{Cc}\p{Cf}]*$/u;
 const HIDDEN_CHARS_MESSAGE = "Contains characters that aren't allowed";
-const MAX_NAME_LENGTH = 50;
 
 /** NFC first: macOS Vietnamese input may send decomposed forms of the same name. */
 const normalizeName = ({ value }: { value: unknown }): unknown =>
-  typeof value === 'string' ? value.normalize('NFC').trim() : value;
+  typeof value === 'string' ? normalizeNameContract(value) : value;
 
 const isProvided = (_object: unknown, value: unknown): boolean =>
   value !== undefined;
@@ -27,9 +29,9 @@ const isProvided = (_object: unknown, value: unknown): boolean =>
 export class UpdateProfileDto {
   @ValidateIf(isProvided)
   @Transform(normalizeName)
-  @Matches(NO_HIDDEN_CHARS, { message: HIDDEN_CHARS_MESSAGE })
-  @MaxLength(MAX_NAME_LENGTH, {
-    message: `First name must be ${MAX_NAME_LENGTH} characters or fewer`,
+  @Matches(USER_NAME_ALLOWED, { message: HIDDEN_CHARS_MESSAGE })
+  @MaxLength(USER_NAME_MAX, {
+    message: `First name must be ${USER_NAME_MAX} characters or fewer`,
   })
   @MinLength(1, { message: 'Enter your first name' })
   @IsString({ message: 'Enter your first name' })
@@ -37,18 +39,18 @@ export class UpdateProfileDto {
 
   @ValidateIf(isProvided)
   @Transform(normalizeName)
-  @Matches(NO_HIDDEN_CHARS, { message: HIDDEN_CHARS_MESSAGE })
-  @MaxLength(MAX_NAME_LENGTH, {
-    message: `Last name must be ${MAX_NAME_LENGTH} characters or fewer`,
+  @Matches(USER_NAME_ALLOWED, { message: HIDDEN_CHARS_MESSAGE })
+  @MaxLength(USER_NAME_MAX, {
+    message: `Last name must be ${USER_NAME_MAX} characters or fewer`,
   })
   @IsString({ message: 'Last name must be text' })
   lastName?: string;
 
   @ValidateIf(isProvided)
   @Transform(normalizeName)
-  @Matches(NO_HIDDEN_CHARS, { message: HIDDEN_CHARS_MESSAGE })
-  @MaxLength(MAX_NAME_LENGTH, {
-    message: `Display name must be ${MAX_NAME_LENGTH} characters or fewer`,
+  @Matches(USER_NAME_ALLOWED, { message: HIDDEN_CHARS_MESSAGE })
+  @MaxLength(USER_NAME_MAX, {
+    message: `Display name must be ${USER_NAME_MAX} characters or fewer`,
   })
   @MinLength(1, { message: 'Enter a display name' })
   @IsString({ message: 'Enter a display name' })

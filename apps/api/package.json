@@ -17,6 +17,7 @@
     "migration:run": "pnpm build && typeorm migration:run -d dist/database/dataSource.js",
     "migration:revert": "pnpm build && typeorm migration:revert -d dist/database/dataSource.js",
     "user:create": "node dist/scripts/createUser.js",
+    "user:promote": "node dist/scripts/promoteUser.js",
     "lint": "oxlint --type-aware --deny-warnings src test",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --coverage",

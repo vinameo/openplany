@@ -49,7 +49,14 @@ import { SessionCookie } from './sessionCookie.js';
     },
   ],
   // What other feature modules need to protect their routes with SessionGuard.
-  exports: [AuthService, SessionCookie, SessionGuard, UsersRepository, Clock],
+  exports: [
+    AuthService,
+    SessionCookie,
+    SessionGuard,
+    UsersRepository,
+    Clock,
+    PasswordHasher,
+  ],
 })
 export class AuthModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {

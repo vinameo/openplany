@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AppUiProvider } from "@repo/ui";
-import { MemoryRouter } from "react-router";
+import { createMemoryRouter, MemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "../../auth/AuthProvider";
 import { makeSession } from "../../../test/authFixtures";
@@ -153,5 +153,117 @@ describe("WorkspaceSwitcher", () => {
 
     const items = await screen.findAllByText(longName);
     expect(items.length).toBeGreaterThan(0);
+  });
+
+  it("AC-01: hides 'Create user' menuitem when isInstanceAdmin is false", async () => {
+    mockFetch({
+      "GET /api/auth/session": () =>
+        jsonResponse(
+          200,
+          makeSession({
+            user: { ...makeSession().user, isInstanceAdmin: false },
+          }),
+        ),
+      "GET /api/workspaces": () =>
+        jsonResponse(200, {
+          workspaces: workspacesMock,
+          lastWorkspaceSlug: "acme-corp",
+        }),
+    });
+
+    const { user } = renderSwitcher();
+
+    const trigger = await screen.findByRole("button", {
+      name: "Switch workspace – Acme Corp",
+    });
+    await user.click(trigger);
+
+    expect(screen.queryByText("Create user")).not.toBeInTheDocument();
+  });
+
+  it("AC-02: shows 'Create user' between 'Create workspace' and 'Sign out' when isInstanceAdmin is true", async () => {
+    mockFetch({
+      "GET /api/auth/session": () =>
+        jsonResponse(
+          200,
+          makeSession({
+            user: { ...makeSession().user, isInstanceAdmin: true },
+          }),
+        ),
+      "GET /api/workspaces": () =>
+        jsonResponse(200, {
+          workspaces: workspacesMock,
+          lastWorkspaceSlug: "acme-corp",
+        }),
+    });
+
+    const { user } = renderSwitcher();
+
+    const trigger = await screen.findByRole("button", {
+      name: "Switch workspace – Acme Corp",
+    });
+    await user.click(trigger);
+
+    const menuItems = await screen.findAllByRole("menuitem");
+    const itemTexts = menuItems.map((item) => item.textContent?.trim());
+
+    const createWsIndex = itemTexts.findIndex((t) => t?.includes("Create workspace"));
+    const createUserIndex = itemTexts.findIndex((t) => t?.includes("Create user"));
+    const signOutIndex = itemTexts.findIndex((t) => t?.includes("Sign out"));
+
+    expect(createUserIndex).toBeGreaterThan(createWsIndex);
+    expect(signOutIndex).toBeGreaterThan(createUserIndex);
+  });
+
+  it("AC-18: clicking 'Create user' item navigates to /create-user", async () => {
+    mockFetch({
+      "GET /api/auth/session": () =>
+        jsonResponse(
+          200,
+          makeSession({
+            user: { ...makeSession().user, isInstanceAdmin: true },
+          }),
+        ),
+      "GET /api/workspaces": () =>
+        jsonResponse(200, {
+          workspaces: workspacesMock,
+          lastWorkspaceSlug: "acme-corp",
+        }),
+    });
+
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/",
+          element: <WorkspaceSwitcher currentWorkspace={workspacesMock[0]} />,
+        },
+        {
+          path: "/create-user",
+          element: <div>Create User Page</div>,
+        },
+      ],
+      { initialEntries: ["/"] },
+    );
+
+    render(
+      <AppUiProvider>
+        <AuthProvider>
+          <WorkspaceProvider>
+            <RouterProvider router={router} />
+          </WorkspaceProvider>
+        </AuthProvider>
+      </AppUiProvider>,
+    );
+
+    const user = userEvent.setup();
+    const trigger = await screen.findByRole("button", {
+      name: "Switch workspace – Acme Corp",
+    });
+    await user.click(trigger);
+
+    const createUserItem = await screen.findByText("Create user");
+    await user.click(createUserItem);
+
+    expect(router.state.location.pathname).toBe("/create-user");
   });
 });

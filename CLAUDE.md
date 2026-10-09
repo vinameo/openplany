@@ -131,7 +131,8 @@ pnpm --filter @repo/api migration:generate src/database/migrations/AddIssues  # 
 pnpm --filter @repo/api migration:create src/database/migrations/SeedFoo      # empty migration
 pnpm --filter @repo/api migration:run
 pnpm --filter @repo/api migration:revert
-pnpm --filter @repo/api user:create an@openplany.dev "An Nguyen"  # dev user; password read from stdin
+pnpm --filter @repo/api user:create an@openplany.dev "An Nguyen" [--instance-admin]  # dev / admin user; password read from stdin
+pnpm --filter @repo/api user:promote an@openplany.dev  # elevate existing user to instance admin
 ```
 
 ## 4. Code Style & Conventions
@@ -325,6 +326,20 @@ Web variables must be prefixed `VITE_` to reach client code — and are public, 
 ### Database
 
 Run PostgreSQL + Redis via `docker compose up -d postgres redis`, then `pnpm --filter @repo/api migration:run`.
+
+To bootstrap the first instance admin on a fresh install:
+```bash
+pnpm --filter @repo/api user:create admin@openplany.dev "Admin" --instance-admin
+```
+
+To promote an existing user to instance admin:
+```bash
+pnpm --filter @repo/api user:promote admin@openplany.dev
+```
+Or with SQL:
+```sql
+UPDATE users SET is_superuser = true, updated_at = now() WHERE lower(email) = lower('admin@openplany.dev') RETURNING id, is_superuser;
+```
 
 ## 10. Deployment
 

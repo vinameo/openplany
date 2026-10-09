@@ -106,4 +106,7 @@ export class User {
 
   @Column({ name: 'last_workspace_id', type: 'uuid', nullable: true })
   lastWorkspaceId: string | null;
+
+  @Column({ name: 'created_by_id', type: 'uuid', nullable: true })
+  createdById: string | null;
 }

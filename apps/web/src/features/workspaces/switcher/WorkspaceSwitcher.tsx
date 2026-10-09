@@ -8,6 +8,7 @@ import {
   PlusIcon,
   SettingsIcon,
   SignOutIcon,
+  UserPlusIcon,
 } from "../icons";
 import { useWorkspaces } from "../useWorkspaces";
 import { WorkspaceAvatar } from "../WorkspaceAvatar";
@@ -36,6 +37,10 @@ export function WorkspaceSwitcher({
 
   const workspaces =
     wsState.status === "ready" ? wsState.workspaces : [];
+
+  const isInstanceAdmin =
+    authState.status === "authenticated" &&
+    authState.session.user.isInstanceAdmin;
 
   const activeWs =
     currentWorkspace ??
@@ -150,6 +155,15 @@ export function WorkspaceSwitcher({
         >
           <Text size="sm">Create workspace</Text>
         </Menu.Item>
+
+        {isInstanceAdmin && (
+          <Menu.Item
+            leftSection={<UserPlusIcon />}
+            onClick={() => navigate("/create-user")}
+          >
+            <Text size="sm">Create user</Text>
+          </Menu.Item>
+        )}
 
         <Menu.Item
           color="red"

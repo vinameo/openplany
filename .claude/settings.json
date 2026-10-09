@@ -7,6 +7,7 @@
     "web-dev-tools@claudekit-skills": true,
     "vercel@claude-plugins-official": true,
     "agentic-bundle-business-analyst@agentic-awesome-skills": true,
-    "postgres-skills@postgres-skills": true
+    "postgres-skills@postgres-skills": true,
+    "mattpocock-skills@claude-plugins-official": true
   }
 }

@@ -125,7 +125,26 @@ describe('SessionGuard', () => {
 
     await expect(guard.canActivate(context)).resolves.toBe(true);
 
-    expect(request.auth).toEqual({ userId: 'user-1', isResetOnly: false });
+    expect(request.auth).toEqual({
+      userId: 'user-1',
+      isResetOnly: false,
+      isInstanceAdmin: false,
+    });
+  });
+
+  it('attaches isInstanceAdmin: true when the user is a superuser', async () => {
+    const { guard, sessions } = setup();
+    sessions.active = {
+      session: makeSession(),
+      user: makeUser({ isSuperuser: true }),
+    };
+    const { context, request } = contextFor(PlainController, {
+      [COOKIE]: 'token',
+    });
+
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+
+    expect(request.auth?.isInstanceAdmin).toBe(true);
   });
 
   it('refreshes the cookie when the session expiry slid', async () => {

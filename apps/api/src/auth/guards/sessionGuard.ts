@@ -13,7 +13,7 @@ import { SessionCookie } from '../sessionCookie.js';
 
 declare module 'express-serve-static-core' {
   interface Request {
-    auth?: { userId: string; isResetOnly: boolean };
+    auth?: { userId: string; isResetOnly: boolean; isInstanceAdmin: boolean };
   }
 }
 
@@ -62,7 +62,11 @@ export class SessionGuard implements CanActivate {
       );
     }
 
-    request.auth = { userId: result.body.user.id, isResetOnly };
+    request.auth = {
+      userId: result.body.user.id,
+      isResetOnly,
+      isInstanceAdmin: result.body.user.isInstanceAdmin,
+    };
     return true;
   }
 }

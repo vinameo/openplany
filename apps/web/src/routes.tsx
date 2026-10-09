@@ -10,6 +10,7 @@ import {
   SIGN_IN_PATH,
 } from "./features/auth/sessionDestination";
 import { HomePage } from "./features/home/HomePage";
+import { CreateUserRoute } from "./features/admin/users/CreateUserRoute";
 import { CreateWorkspaceRoute } from "./features/workspaces/create/CreateWorkspaceRoute";
 import { HomeRedirect } from "./features/workspaces/routes/HomeRedirect";
 import { WorkspaceLayout } from "./features/workspaces/routes/WorkspaceLayout";
@@ -32,6 +33,7 @@ export const appRoutes: RouteObject[] = [
         children: [
           { path: HOME_PATH, element: <HomeRedirect /> },
           { path: "/create-workspace", element: <CreateWorkspaceRoute /> },
+          { path: "/create-user", element: <CreateUserRoute /> },
           {
             path: "/:workspaceSlug",
             element: <WorkspaceLayout />,
