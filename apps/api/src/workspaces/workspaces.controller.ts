@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   HttpStatus,
+  Logger,
   Patch,
   Post,
   Query,
@@ -18,6 +19,7 @@ import type {
 import type { Request, Response } from 'express';
 import { CurrentUserId } from '../auth/currentUser.decorator.js';
 import { SessionGuard } from '../auth/guards/sessionGuard.js';
+import { ApiException } from '../common/apiException.js';
 import { CurrentWorkspace } from './currentWorkspace.decorator.js';
 import { CreateWorkspaceDto } from './dto/createWorkspace.dto.js';
 import { SlugCheckQueryDto } from './dto/slugCheckQuery.dto.js';
@@ -31,6 +33,8 @@ import { WorkspacesService } from './workspaces.service.js';
 @Controller('workspaces')
 @UseGuards(SessionGuard)
 export class WorkspacesController {
+  private readonly logger = new Logger(WorkspacesController.name);
+
   constructor(private readonly workspacesService: WorkspacesService) {}
 
   @Get('slug-check')
@@ -39,6 +43,13 @@ export class WorkspacesController {
     @Query() query: SlugCheckQueryDto,
     @Req() request: Request,
   ): Promise<SlugCheckResponse> {
+    if (!request.auth?.isInstanceAdmin) {
+      throw new ApiException(
+        HttpStatus.FORBIDDEN,
+        'FORBIDDEN',
+        "You don't have permission to check workspace slugs",
+      );
+    }
     return this.workspacesService.checkSlug(
       userId,
       query.slug,
@@ -53,6 +64,16 @@ export class WorkspacesController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ): Promise<WorkspaceResponse> {
+    if (!request.auth?.isInstanceAdmin) {
+      this.logger.warn(
+        `workspace.create.forbidden userId=${userId} requestId=${request.requestId ?? ''}`,
+      );
+      throw new ApiException(
+        HttpStatus.FORBIDDEN,
+        'FORBIDDEN',
+        "You don't have permission to create workspaces",
+      );
+    }
     const created = await this.workspacesService.create(
       userId,
       dto,

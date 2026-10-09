@@ -13,7 +13,7 @@ afterEach(() => {
 });
 
 describe("NoWorkspaceHome", () => {
-  it("does not render 'Verify your email' banner even when isEmailVerified is false (WEB-01)", async () => {
+  it("does not render 'Verify your email' banner even when isEmailVerified is false (WEB-01) and renders Create workspace when isInstanceAdmin is true", async () => {
     mockFetch({
       "GET /api/auth/session": () =>
         jsonResponse(
@@ -22,6 +22,7 @@ describe("NoWorkspaceHome", () => {
             user: {
               ...makeSession().user,
               isEmailVerified: false,
+              isInstanceAdmin: true,
             },
           }),
         ),
@@ -63,5 +64,50 @@ describe("NoWorkspaceHome", () => {
         /Check your inbox for a verification link from OpenPlany/i,
       ),
     ).toBeNull();
+  });
+
+  it("renders non-admin message and hides Create workspace button when isInstanceAdmin is false", async () => {
+    mockFetch({
+      "GET /api/auth/session": () =>
+        jsonResponse(
+          200,
+          makeSession({
+            user: {
+              ...makeSession().user,
+              isInstanceAdmin: false,
+            },
+          }),
+        ),
+      "GET /api/workspaces": () =>
+        jsonResponse(200, { workspaces: [], lastWorkspaceSlug: null }),
+    });
+
+    render(
+      <AppUiProvider>
+        <AuthProvider>
+          <WorkspaceProvider>
+            <MemoryRouter>
+              <NoWorkspaceHome />
+            </MemoryRouter>
+          </WorkspaceProvider>
+        </AuthProvider>
+      </AppUiProvider>,
+    );
+
+    expect(
+      await screen.findByRole("heading", {
+        name: "You're not in a workspace yet",
+      }),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByText(
+        "Ask your admin to invite you to a workspace to get started.",
+      ),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.queryByRole("link", { name: "Create workspace" }),
+    ).not.toBeInTheDocument();
   });
 });

@@ -62,7 +62,13 @@ afterEach(() => {
 describe("WorkspaceSwitcher", () => {
   it("AC 15: opening menu shows email, current workspace with checkmark, other workspace, and actions", async () => {
     mockFetch({
-      "GET /api/auth/session": () => jsonResponse(200, makeSession()),
+      "GET /api/auth/session": () =>
+        jsonResponse(
+          200,
+          makeSession({
+            user: { ...makeSession().user, isInstanceAdmin: true },
+          }),
+        ),
       "GET /api/workspaces": () =>
         jsonResponse(200, {
           workspaces: workspacesMock,
@@ -155,7 +161,7 @@ describe("WorkspaceSwitcher", () => {
     expect(items.length).toBeGreaterThan(0);
   });
 
-  it("AC-01: hides 'Create user' menuitem when isInstanceAdmin is false", async () => {
+  it("AC-01: hides 'Create workspace' and 'Create user' menuitems when isInstanceAdmin is false", async () => {
     mockFetch({
       "GET /api/auth/session": () =>
         jsonResponse(
@@ -178,6 +184,7 @@ describe("WorkspaceSwitcher", () => {
     });
     await user.click(trigger);
 
+    expect(screen.queryByText("Create workspace")).not.toBeInTheDocument();
     expect(screen.queryByText("Create user")).not.toBeInTheDocument();
   });
 

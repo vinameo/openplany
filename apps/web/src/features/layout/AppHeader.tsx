@@ -36,6 +36,10 @@ export function AppHeader({ currentWorkspace }: AppHeaderProps) {
   const hasNoWorkspaces =
     wsState.status === "ready" && wsState.workspaces.length === 0;
 
+  const isInstanceAdmin =
+    authState.status === "authenticated" &&
+    authState.session.user.isInstanceAdmin;
+
   return (
     <header className={classes.header}>
       <Container size="lg" className={classes.inner}>
@@ -45,7 +49,7 @@ export function AppHeader({ currentWorkspace }: AppHeaderProps) {
           ) : (
             <Group gap="xs" wrap="nowrap">
               <Image src={markUrl} alt="OpenPlany" className={classes.mark} />
-              {hasNoWorkspaces && <CreateWorkspaceButton />}
+              {hasNoWorkspaces && isInstanceAdmin && <CreateWorkspaceButton />}
             </Group>
           )}
         </div>

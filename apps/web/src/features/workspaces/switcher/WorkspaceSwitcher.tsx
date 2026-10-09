@@ -149,12 +149,14 @@ export function WorkspaceSwitcher({
 
         <Menu.Divider />
 
-        <Menu.Item
-          leftSection={<PlusIcon />}
-          onClick={() => navigate("/create-workspace")}
-        >
-          <Text size="sm">Create workspace</Text>
-        </Menu.Item>
+        {isInstanceAdmin && (
+          <Menu.Item
+            leftSection={<PlusIcon />}
+            onClick={() => navigate("/create-workspace")}
+          >
+            <Text size="sm">Create workspace</Text>
+          </Menu.Item>
+        )}
 
         {isInstanceAdmin && (
           <Menu.Item

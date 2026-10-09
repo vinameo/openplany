@@ -30,12 +30,13 @@ describe('Workspaces (e2e)', () => {
     timezone = 'Asia/Ho_Chi_Minh',
     flags: Record<string, boolean> = {},
   ): Promise<string> {
-    const columns = Object.keys(flags);
+    const effectiveFlags = { is_superuser: true, ...flags };
+    const columns = Object.keys(effectiveFlags);
     const result = await e2e.dataSource.query<{ id: string }[]>(
       `INSERT INTO users (email, username, password, first_name, last_name, display_name, user_timezone${columns.map((c) => `, ${c}`).join('')})
        VALUES ($1, $1, $2, 'An', 'Nguyen', 'An Nguyen', $3${columns.map((_, i) => `, $${i + 4}`).join('')})
        RETURNING id`,
-      [email, passwordHash, timezone, ...Object.values(flags)],
+      [email, passwordHash, timezone, ...Object.values(effectiveFlags)],
     );
     return result[0]!.id;
   }
@@ -270,6 +271,31 @@ describe('Workspaces (e2e)', () => {
       .expect(403);
 
     expect(res.body.code).toBe('ORIGIN_NOT_ALLOWED');
+  });
+
+  it('8b. rejects POST and slug-check from user with is_superuser = false with 403 FORBIDDEN', async () => {
+    await createUser('regular@openplany.dev', 'UTC', { is_superuser: false });
+    const cookie = await signInCookie('regular@openplany.dev');
+
+    const res = await http()
+      .post('/api/workspaces')
+      .set('Cookie', cookie)
+      .set('Origin', ORIGIN)
+      .send({
+        name: 'Forbidden Corp',
+        slug: 'forbidden-corp',
+        organizationSize: 'Just myself',
+      })
+      .expect(403);
+
+    expect(res.body.code).toBe('FORBIDDEN');
+
+    const slugRes = await http()
+      .get('/api/workspaces/slug-check?slug=forbidden-corp')
+      .set('Cookie', cookie)
+      .expect(403);
+
+    expect(slugRes.body.code).toBe('FORBIDDEN');
   });
 
   it('9. GET /api/workspaces returns only active workspaces for current user', async () => {

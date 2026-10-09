@@ -27,9 +27,15 @@ afterEach(() => {
 });
 
 describe("AppHeader", () => {
-  it("AC 13: 0 workspaces shows 'Create workspace' link and 'Sign out' button", async () => {
+  it("AC 13: 0 workspaces shows 'Create workspace' link and 'Sign out' button when isInstanceAdmin is true", async () => {
     mockFetch({
-      "GET /api/auth/session": () => jsonResponse(200, makeSession()),
+      "GET /api/auth/session": () =>
+        jsonResponse(
+          200,
+          makeSession({
+            user: { ...makeSession().user, isInstanceAdmin: true },
+          }),
+        ),
       "GET /api/workspaces": () =>
         jsonResponse(200, { workspaces: [], lastWorkspaceSlug: null }),
     });
@@ -41,6 +47,27 @@ describe("AppHeader", () => {
     expect(
       screen.getByRole("button", { name: /sign out/i }),
     ).toBeInTheDocument();
+  });
+
+  it("0 workspaces hides 'Create workspace' link when isInstanceAdmin is false", async () => {
+    mockFetch({
+      "GET /api/auth/session": () =>
+        jsonResponse(
+          200,
+          makeSession({
+            user: { ...makeSession().user, isInstanceAdmin: false },
+          }),
+        ),
+      "GET /api/workspaces": () =>
+        jsonResponse(200, { workspaces: [], lastWorkspaceSlug: null }),
+    });
+
+    renderHeader();
+
+    await screen.findByRole("button", { name: /sign out/i });
+    expect(
+      screen.queryByRole("link", { name: /create workspace/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("AC 17: in workspace shows WorkspaceSwitcher and hides standalone Sign out", async () => {

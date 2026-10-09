@@ -27,10 +27,36 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+function adminSession() {
+  return makeSession({
+    user: { ...makeSession().user, isInstanceAdmin: true },
+  });
+}
+
 describe("CreateWorkspaceRoute", () => {
+  it("redirects to / when user is not an instance admin", async () => {
+    mockFetch({
+      "GET /api/auth/session": () =>
+        jsonResponse(
+          200,
+          makeSession({
+            user: { ...makeSession().user, isInstanceAdmin: false },
+          }),
+        ),
+      "GET /api/workspaces": () =>
+        jsonResponse(200, { workspaces: [], lastWorkspaceSlug: null }),
+    });
+
+    const { router } = renderRoute();
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/");
+    });
+  });
+
   it("AC 8: successful creation (201) navigates to /:slug and updates workspace provider", async () => {
     mockFetch({
-      "GET /api/auth/session": () => jsonResponse(200, makeSession()),
+      "GET /api/auth/session": () => jsonResponse(200, adminSession()),
       "GET /api/workspaces": () =>
         jsonResponse(200, { workspaces: [], lastWorkspaceSlug: null }),
       "GET /api/workspaces/slug-check?slug=acme-corp": () =>
@@ -84,7 +110,7 @@ describe("CreateWorkspaceRoute", () => {
 
   it("handles 409 conflict and 429 rate limit responses gracefully", async () => {
     mockFetch({
-      "GET /api/auth/session": () => jsonResponse(200, makeSession()),
+      "GET /api/auth/session": () => jsonResponse(200, adminSession()),
       "GET /api/workspaces/slug-check?slug=acme-conflict": () =>
         jsonResponse(200, {
           slug: "acme-conflict",
@@ -117,7 +143,7 @@ describe("CreateWorkspaceRoute", () => {
 
   it("handles 429 rate limit with minutes countdown alert", async () => {
     mockFetch({
-      "GET /api/auth/session": () => jsonResponse(200, makeSession()),
+      "GET /api/auth/session": () => jsonResponse(200, adminSession()),
       "GET /api/workspaces/slug-check?slug=rate-limited": () =>
         jsonResponse(200, {
           slug: "rate-limited",
@@ -150,7 +176,7 @@ describe("CreateWorkspaceRoute", () => {
 
   it("Go back navigates to / when opened without prior history", async () => {
     mockFetch({
-      "GET /api/auth/session": () => jsonResponse(200, makeSession()),
+      "GET /api/auth/session": () => jsonResponse(200, adminSession()),
     });
 
     const { user, router } = renderRoute();
