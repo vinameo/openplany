@@ -1,5 +1,5 @@
 import type { ComponentType, SVGProps } from "react";
-import type { WorkspacePermission } from "@repo/contracts";
+import type { EnforcedWorkspacePermission } from "@repo/contracts";
 import { BuildingIcon } from "../icons";
 
 export const WORKSPACE_SETTINGS_GROUPS = [
@@ -14,7 +14,7 @@ export interface WorkspaceSettingsSection {
   group: WorkspaceSettingsGroup;
   label: string;
   icon: ComponentType<SVGProps<SVGSVGElement>>;
-  viewPermission?: WorkspacePermission;
+  viewPermission?: EnforcedWorkspacePermission;
 }
 
 export const WORKSPACE_SETTINGS_SECTIONS: readonly WorkspaceSettingsSection[] = [
@@ -28,7 +28,7 @@ export const WORKSPACE_SETTINGS_SECTIONS: readonly WorkspaceSettingsSection[] = 
 
 /** Sections this member may open, in display order. */
 export function visibleSettingsSections(
-  permissions: readonly WorkspacePermission[],
+  permissions: readonly EnforcedWorkspacePermission[],
   sections: readonly WorkspaceSettingsSection[] = WORKSPACE_SETTINGS_SECTIONS,
 ): WorkspaceSettingsSection[] {
   return sections.filter(

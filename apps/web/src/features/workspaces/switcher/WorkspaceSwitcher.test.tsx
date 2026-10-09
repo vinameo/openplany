@@ -273,4 +273,99 @@ describe("WorkspaceSwitcher", () => {
 
     expect(router.state.location.pathname).toBe("/create-user");
   });
+
+  it("AC-12: shows 'Roles & Permissions' immediately after 'Create user' and before 'Sign out' for instance admin, and clicking it navigates", async () => {
+    mockFetch({
+      "GET /api/auth/session": () =>
+        jsonResponse(
+          200,
+          makeSession({
+            user: { ...makeSession().user, isInstanceAdmin: true },
+          }),
+        ),
+      "GET /api/workspaces": () =>
+        jsonResponse(200, {
+          workspaces: workspacesMock,
+          lastWorkspaceSlug: "acme-corp",
+        }),
+    });
+
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/",
+          element: <WorkspaceSwitcher currentWorkspace={workspacesMock[0]} />,
+        },
+        {
+          path: "/roles-and-permissions",
+          element: <div>Roles and Permissions Page</div>,
+        },
+      ],
+      { initialEntries: ["/"] },
+    );
+
+    render(
+      <AppUiProvider>
+        <AuthProvider>
+          <WorkspaceProvider>
+            <RouterProvider router={router} />
+          </WorkspaceProvider>
+        </AuthProvider>
+      </AppUiProvider>,
+    );
+
+    const user = userEvent.setup();
+    const trigger = await screen.findByRole("button", {
+      name: "Switch workspace – Acme Corp",
+    });
+    await user.click(trigger);
+
+    const menuItems = await screen.findAllByRole("menuitem");
+    const itemTexts = menuItems.map((item) => item.textContent?.trim());
+
+    const createUserIndex = itemTexts.findIndex((t) =>
+      t?.includes("Create user"),
+    );
+    const rolesIndex = itemTexts.findIndex((t) =>
+      t?.includes("Roles & Permissions"),
+    );
+    const signOutIndex = itemTexts.findIndex((t) => t?.includes("Sign out"));
+
+    expect(rolesIndex).toBe(createUserIndex + 1);
+    expect(signOutIndex).toBe(rolesIndex + 1);
+
+    const rolesItem = await screen.findByText("Roles & Permissions");
+    await user.click(rolesItem);
+
+    expect(router.state.location.pathname).toBe("/roles-and-permissions");
+  });
+
+  it("AC-12b: hides 'Roles & Permissions' when isInstanceAdmin is false", async () => {
+    mockFetch({
+      "GET /api/auth/session": () =>
+        jsonResponse(
+          200,
+          makeSession({
+            user: { ...makeSession().user, isInstanceAdmin: false },
+          }),
+        ),
+      "GET /api/workspaces": () =>
+        jsonResponse(200, {
+          workspaces: workspacesMock,
+          lastWorkspaceSlug: "acme-corp",
+        }),
+    });
+
+    const { user } = renderSwitcher();
+
+    const trigger = await screen.findByRole("button", {
+      name: "Switch workspace – Acme Corp",
+    });
+    await user.click(trigger);
+
+    expect(
+      screen.queryByText("Roles & Permissions"),
+    ).not.toBeInTheDocument();
+  });
 });
+

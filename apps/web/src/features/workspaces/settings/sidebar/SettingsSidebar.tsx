@@ -1,5 +1,6 @@
 import { ActionIcon, Box, ScrollArea, Text } from "@mantine/core";
 import { Link } from "react-router";
+import { WORKSPACE_ROLE_LABELS } from "@repo/contracts";
 import { useCurrentWorkspace } from "../../currentWorkspace/useCurrentWorkspace";
 import { ArrowLeftIcon } from "../../icons";
 import { WorkspaceAvatar } from "../../WorkspaceAvatar";
@@ -14,11 +15,6 @@ import { useSettingsNavigation } from "./useSettingsNavigation";
 interface SettingsSidebarProps {
   sections?: readonly WorkspaceSettingsSection[];
   groups?: readonly { key: WorkspaceSettingsGroup; label: string }[];
-}
-
-function capitalizeRole(role: string): string {
-  if (!role) return "";
-  return role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
 }
 
 export function SettingsSidebar({ sections, groups }: SettingsSidebarProps) {
@@ -59,7 +55,7 @@ export function SettingsSidebar({ sections, groups }: SettingsSidebarProps) {
             {workspace.name}
           </Text>
           <Text className={classes.workspaceRole}>
-            {capitalizeRole(workspace.role)}
+            {WORKSPACE_ROLE_LABELS[workspace.role]}
           </Text>
         </div>
       </div>

@@ -3,6 +3,7 @@ import {
   type ExecutionContext,
   HttpStatus,
   Injectable,
+  Logger,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import {
@@ -15,6 +16,8 @@ import { WORKSPACE_PERMISSION_KEY } from './workspaceAccess.decorator.js';
 
 @Injectable()
 export class WorkspacePermissionGuard implements CanActivate {
+  private readonly logger = new Logger(WorkspacePermissionGuard.name);
+
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
@@ -33,6 +36,10 @@ export class WorkspacePermissionGuard implements CanActivate {
       );
     }
     if (!workspacePermissionsOf(workspace.role).includes(required)) {
+      this.logger.warn(
+        `workspace.forbidden permission=${required} role=${workspace.role} ` +
+          `workspaceId=${workspace.id} userId=${request.auth?.userId ?? ''} requestId=${request.requestId ?? ''}`,
+      );
       throw new ApiException(
         HttpStatus.FORBIDDEN,
         'FORBIDDEN',
@@ -42,4 +49,3 @@ export class WorkspacePermissionGuard implements CanActivate {
     return true;
   }
 }
-

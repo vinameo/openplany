@@ -119,6 +119,21 @@ describe('WorkspacesService', () => {
       expect(result.id).toBeDefined();
       expect(result.backgroundColor).toMatch(/^#[0-9A-F]{6}$/);
       expect(repository.lastWorkspaceId).toBe(result.id);
+      expect(repository.createCalledWith?.requestId).toBeNull();
+    });
+
+    it('forwards requestId to repository when provided', async () => {
+      await service.create(
+        'user-1',
+        {
+          name: 'Acme Corp',
+          slug: 'acme-corp',
+          organizationSize: '2-10',
+        },
+        'req-xyz-456',
+      );
+
+      expect(repository.createCalledWith?.requestId).toBe('req-xyz-456');
     });
 
     it('throws 429 TOO_MANY_ATTEMPTS when rate limited by database check', async () => {

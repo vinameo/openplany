@@ -1,9 +1,10 @@
 import { type ReactNode } from "react";
-import { Box, Paper, Text } from "@mantine/core";
+import { Box, Paper, Text, Title, type TitleOrder } from "@mantine/core";
 import classes from "./SettingsSection.module.css";
 
 interface SettingsSectionProps {
   title?: string;
+  titleOrder?: TitleOrder;
   description?: string;
   variant?: "default" | "danger";
   children?: ReactNode;
@@ -11,6 +12,7 @@ interface SettingsSectionProps {
 
 export function SettingsSection({
   title,
+  titleOrder,
   description,
   variant = "default",
   children,
@@ -26,13 +28,21 @@ export function SettingsSection({
     >
       {(title || description) && (
         <Box mb="md">
-          {title && (
-            <Text
-              className={`${classes.title} ${isDanger ? classes.dangerTitle : ""}`}
-            >
-              {title}
-            </Text>
-          )}
+          {title &&
+            (titleOrder ? (
+              <Title
+                order={titleOrder}
+                className={`${classes.title} ${isDanger ? classes.dangerTitle : ""}`}
+              >
+                {title}
+              </Title>
+            ) : (
+              <Text
+                className={`${classes.title} ${isDanger ? classes.dangerTitle : ""}`}
+              >
+                {title}
+              </Text>
+            ))}
           {description && (
             <Text className={classes.description}>{description}</Text>
           )}
@@ -42,4 +52,5 @@ export function SettingsSection({
     </Paper>
   );
 }
+
 

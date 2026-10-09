@@ -1,0 +1,55 @@
+.table {
+  width: 100%;
+}
+
+.roleCol {
+  width: 160px;
+}
+
+.projectRoleCol {
+  width: 180px;
+}
+
+.roleName,
+.actionName {
+  font-weight: 600;
+  text-align: left;
+  word-break: break-word;
+}
+
+.descCell {
+  word-break: break-word;
+}
+
+.checkCol {
+  width: 72px;
+  text-align: center;
+}
+
+.checkCell {
+  text-align: center;
+}
+
+.allowedIcon {
+  width: 16px;
+  height: 16px;
+  color: var(--mantine-color-green-6);
+  display: inline-block;
+  vertical-align: middle;
+}
+
+@media (max-width: 600px) {
+  .roleCol {
+    width: auto;
+    min-width: 90px;
+  }
+  .projectRoleCol {
+    width: auto;
+    min-width: 100px;
+  }
+  .checkCol {
+    width: 48px;
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+}

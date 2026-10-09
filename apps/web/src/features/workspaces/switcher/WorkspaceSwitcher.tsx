@@ -1,12 +1,14 @@
 import { Menu, ScrollArea, Text, UnstyledButton } from "@mantine/core";
 import { Link, useNavigate } from "react-router";
-import type { WorkspaceResponse } from "@repo/contracts";
+import { WORKSPACE_ROLE_LABELS, type WorkspaceResponse } from "@repo/contracts";
 import { useAuth } from "../../auth/useAuth";
+import { ROLES_AND_PERMISSIONS_PATH } from "../../admin/roles/rolesOverview";
 import {
   CheckIcon,
   ChevronDownIcon,
   PlusIcon,
   SettingsIcon,
+  ShieldIcon,
   SignOutIcon,
   UserPlusIcon,
 } from "../icons";
@@ -16,11 +18,6 @@ import classes from "./WorkspaceSwitcher.module.css";
 
 interface WorkspaceSwitcherProps {
   currentWorkspace?: WorkspaceResponse;
-}
-
-function capitalize(text: string): string {
-  if (!text) return "";
-  return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
 }
 
 export function WorkspaceSwitcher({
@@ -93,7 +90,7 @@ export function WorkspaceSwitcher({
             const isCurrent = ws.slug === activeWs.slug;
             const memberText =
               ws.memberCount === 1 ? "1 member" : `${ws.memberCount} members`;
-            const roleText = capitalize(ws.role);
+            const roleText = WORKSPACE_ROLE_LABELS[ws.role];
 
             const workspaceItem = (
               <Menu.Item
@@ -159,12 +156,20 @@ export function WorkspaceSwitcher({
         )}
 
         {isInstanceAdmin && (
-          <Menu.Item
-            leftSection={<UserPlusIcon />}
-            onClick={() => navigate("/create-user")}
-          >
-            <Text size="sm">Create user</Text>
-          </Menu.Item>
+          <>
+            <Menu.Item
+              leftSection={<UserPlusIcon />}
+              onClick={() => navigate("/create-user")}
+            >
+              <Text size="sm">Create user</Text>
+            </Menu.Item>
+            <Menu.Item
+              leftSection={<ShieldIcon />}
+              onClick={() => navigate(ROLES_AND_PERMISSIONS_PATH)}
+            >
+              <Text size="sm">Roles & Permissions</Text>
+            </Menu.Item>
+          </>
         )}
 
         <Menu.Item

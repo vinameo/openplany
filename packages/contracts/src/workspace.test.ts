@@ -79,8 +79,34 @@ describe('contracts workspace helpers', () => {
     expect(RESERVED_WORKSPACE_SLUGS.has('admin')).toBe(true);
     expect(RESERVED_WORKSPACE_SLUGS.has('slug-check')).toBe(true);
     expect(RESERVED_WORKSPACE_SLUGS.has('create-workspace')).toBe(true);
+    expect(RESERVED_WORKSPACE_SLUGS.has('create-user')).toBe(true);
+    expect(RESERVED_WORKSPACE_SLUGS.has('roles-and-permissions')).toBe(true);
     expect(RESERVED_WORKSPACE_SLUGS.has('sign-in')).toBe(true);
     expect(RESERVED_WORKSPACE_SLUGS.has('openplany')).toBe(true);
+  });
+
+  it('AC-23: marks create-user and roles-and-permissions as RESERVED in workspaceSlugProblem', () => {
+    expect(workspaceSlugProblem('create-user')).toBe('RESERVED');
+    expect(workspaceSlugProblem('roles-and-permissions')).toBe('RESERVED');
+  });
+
+  it('verifies workspace role ranks, labels, and summaries', async () => {
+    const { WORKSPACE_ROLES, WORKSPACE_ROLE_RANK, WORKSPACE_ROLE_LABELS, WORKSPACE_ROLE_SUMMARIES } = await import('./workspace.js');
+    expect(WORKSPACE_ROLE_RANK.owner).toBe(40);
+    expect(WORKSPACE_ROLE_RANK.admin).toBe(30);
+    expect(WORKSPACE_ROLE_RANK.member).toBe(20);
+    expect(WORKSPACE_ROLE_RANK.guest).toBe(10);
+
+    for (const role of WORKSPACE_ROLES) {
+      expect(WORKSPACE_ROLE_LABELS[role]).toBeTruthy();
+      expect(WORKSPACE_ROLE_SUMMARIES[role]).toBeTruthy();
+    }
+
+    for (let i = 0; i < WORKSPACE_ROLES.length - 1; i++) {
+      const currentRole = WORKSPACE_ROLES[i]!;
+      const nextRole = WORKSPACE_ROLES[i + 1]!;
+      expect(WORKSPACE_ROLE_RANK[currentRole]).toBeGreaterThan(WORKSPACE_ROLE_RANK[nextRole]);
+    }
   });
 });
 

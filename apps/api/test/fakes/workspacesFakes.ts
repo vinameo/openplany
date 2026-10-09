@@ -40,16 +40,24 @@ export class FakeWorkspacesRepository extends WorkspacesRepository {
     changes: WorkspaceChanges;
     now: Date;
   } | null = null;
+  createCalledWith: {
+    userId: string;
+    input: NewWorkspace;
+    now: Date;
+    requestId: string | null;
+  } | null = null;
 
   slugExists(slug: string): Promise<boolean> {
     return Promise.resolve(this.existingSlugs.has(slug));
   }
 
   create(
-    _userId: string,
+    userId: string,
     input: NewWorkspace,
     now: Date,
+    requestId: string | null = null,
   ): Promise<CreateWorkspaceResult> {
+    this.createCalledWith = { userId, input, now, requestId };
     if (this.throwOnCreate) {
       return Promise.reject(this.throwOnCreate);
     }

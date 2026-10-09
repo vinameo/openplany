@@ -2,6 +2,7 @@ import { DataSource } from 'typeorm';
 import { CreateAuthTables1791379542810 } from '../src/database/migrations/1791379542810-CreateAuthTables.js';
 import { CreateWorkspaceTables1791465600000 } from '../src/database/migrations/1791465600000-CreateWorkspaceTables.js';
 import { AddUsersCreatedBy1791534730151 } from '../src/database/migrations/1791534730151-AddUsersCreatedBy.js';
+import { CreateWorkspaceMemberRoleHistory1791550147414 } from '../src/database/migrations/1791550147414-CreateWorkspaceMemberRoleHistory.js';
 import { e2eEnv } from './e2eEnv.js';
 
 /** Creates the e2e database if needed and brings it to the latest migration. */
@@ -37,6 +38,7 @@ export async function setup(): Promise<void> {
       CreateAuthTables1791379542810,
       CreateWorkspaceTables1791465600000,
       AddUsersCreatedBy1791534730151,
+      CreateWorkspaceMemberRoleHistory1791550147414,
     ],
     migrationsTableName: 'typeorm_migrations',
   });

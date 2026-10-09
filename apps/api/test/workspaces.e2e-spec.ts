@@ -136,7 +136,15 @@ describe('Workspaces (e2e)', () => {
     await createUser('user2@openplany.dev');
     const cookie = await signInCookie('user2@openplany.dev');
 
-    const testSlugs = ['admin', 'slug-check', 'Acme', 'ab', 'a--b'];
+    const testSlugs = [
+      'admin',
+      'slug-check',
+      'Acme',
+      'ab',
+      'a--b',
+      'create-user',
+      'roles-and-permissions',
+    ];
     for (const slug of testSlugs) {
       const res = await http()
         .post('/api/workspaces')
@@ -151,6 +159,24 @@ describe('Workspaces (e2e)', () => {
 
       expect(res.body.code).toBe('VALIDATION_ERROR');
       expect(res.body.fields?.slug).toBeDefined();
+    }
+  });
+
+  it('4b. slug-check returns RESERVED for reserved system route slugs create-user and roles-and-permissions (AC-23)', async () => {
+    await createUser('slugchecker@openplany.dev');
+    const cookie = await signInCookie('slugchecker@openplany.dev');
+
+    for (const slug of ['create-user', 'roles-and-permissions']) {
+      const res = await http()
+        .get(`/api/workspaces/slug-check?slug=${slug}`)
+        .set('Cookie', cookie)
+        .expect(200);
+
+      expect(res.body).toEqual({
+        slug,
+        available: false,
+        reason: 'RESERVED',
+      });
     }
   });
 

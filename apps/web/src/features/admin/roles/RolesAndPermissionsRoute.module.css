@@ -1,0 +1,48 @@
+.page {
+  min-height: 100vh;
+  background-color: var(--app-color-page);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.topBar {
+  position: absolute;
+  top: var(--mantine-spacing-md);
+  right: var(--mantine-spacing-md);
+  z-index: 10;
+}
+
+.main {
+  flex: 1;
+  max-width: 960px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 80px 32px;
+}
+
+.header {
+  margin-bottom: var(--mantine-spacing-xl);
+}
+
+.backButton {
+  margin-bottom: var(--mantine-spacing-md);
+  padding-left: 0;
+}
+
+.title {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: var(--mantine-spacing-xs);
+}
+
+.subtitle {
+  color: var(--mantine-color-dimmed);
+  font-size: var(--mantine-font-size-md);
+}
+
+@media (max-width: 768px) {
+  .main {
+    padding: 48px 16px;
+  }
+}

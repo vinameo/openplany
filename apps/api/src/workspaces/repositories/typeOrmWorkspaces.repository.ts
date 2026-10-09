@@ -13,6 +13,7 @@ import {
   type NewWorkspace,
   type WorkspaceChanges,
 } from './workspaces.repository.js';
+import { recordWorkspaceRoleChanges } from './workspaceRoleHistory.js';
 
 /** API field → column. The only columns PATCH may write (RQ 5.3). */
 const EDITABLE_COLUMNS = {
@@ -37,6 +38,7 @@ export class TypeOrmWorkspacesRepository implements WorkspacesRepository {
     userId: string,
     input: NewWorkspace,
     now: Date,
+    requestId: string | null,
   ): Promise<CreateWorkspaceResult> {
     return this.dataSource.transaction(async (manager) => {
       // 1. Advisory transaction lock for concurrent requests by the same user
@@ -110,7 +112,21 @@ export class TypeOrmWorkspacesRepository implements WorkspacesRepository {
           [row.id, userId, now],
         );
 
-        // 5. Update user's last_workspace_id
+        // 5. Record role history: workspace_created
+        await recordWorkspaceRoleChanges(manager, [
+          {
+            workspaceId: row.id,
+            memberId: userId,
+            fromRole: null,
+            toRole: 'owner',
+            changeType: 'workspace_created',
+            actorId: userId,
+            requestId,
+            at: now,
+          },
+        ]);
+
+        // 6. Update user's last_workspace_id
         await manager.query(
           `UPDATE users SET last_workspace_id = $1 WHERE id = $2`,
           [row.id, userId],

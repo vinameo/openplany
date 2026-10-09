@@ -11,6 +11,8 @@ import {
 } from "./features/auth/sessionDestination";
 import { HomePage } from "./features/home/HomePage";
 import { CreateUserRoute } from "./features/admin/users/CreateUserRoute";
+import { RolesAndPermissionsRoute } from "./features/admin/roles/RolesAndPermissionsRoute";
+import { ROLES_AND_PERMISSIONS_PATH } from "./features/admin/roles/rolesOverview";
 import { CreateWorkspaceRoute } from "./features/workspaces/create/CreateWorkspaceRoute";
 import { HomeRedirect } from "./features/workspaces/routes/HomeRedirect";
 import { WorkspaceLayout } from "./features/workspaces/routes/WorkspaceLayout";
@@ -34,6 +36,7 @@ export const appRoutes: RouteObject[] = [
           { path: HOME_PATH, element: <HomeRedirect /> },
           { path: "/create-workspace", element: <CreateWorkspaceRoute /> },
           { path: "/create-user", element: <CreateUserRoute /> },
+          { path: ROLES_AND_PERMISSIONS_PATH, element: <RolesAndPermissionsRoute /> },
           {
             path: "/:workspaceSlug",
             element: <WorkspaceLayout />,

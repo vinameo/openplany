@@ -1,13 +1,12 @@
-import type { WorkspacePermission, WorkspaceResponse } from "@repo/contracts";
-import { workspacePermissionsOf } from "@repo/contracts";
+import type { WorkspaceResponse } from "@repo/contracts";
+import { enforcedWorkspacePermissionsOf } from "@repo/contracts";
 
 export function makeWorkspace(
   overrides: Partial<WorkspaceResponse> = {},
 ): WorkspaceResponse {
   const role = overrides.role ?? "owner";
   const permissions =
-    overrides.permissions ??
-    (workspacePermissionsOf(role) as WorkspacePermission[]);
+    overrides.permissions ?? enforcedWorkspacePermissionsOf(role);
 
   return {
     id: "ws-1",
@@ -25,4 +24,3 @@ export function makeWorkspace(
     ...overrides,
   };
 }
-

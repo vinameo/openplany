@@ -1,4 +1,4 @@
-import type { WorkspacePermission } from './workspacePermissions.js';
+import type { EnforcedWorkspacePermission } from './workspacePermissions.js';
 
 export const WORKSPACE_NAME_MAX = 80;
 export const WORKSPACE_SLUG_MIN = 3;
@@ -21,6 +21,27 @@ export type OrganizationSize = (typeof ORGANIZATION_SIZES)[number];
 export const WORKSPACE_ROLES = ['owner', 'admin', 'member', 'guest'] as const;
 export type WorkspaceRole = (typeof WORKSPACE_ROLES)[number];
 
+export const WORKSPACE_ROLE_RANK = {
+  owner: 40,
+  admin: 30,
+  member: 20,
+  guest: 10,
+} as const satisfies Record<WorkspaceRole, number>;
+
+export const WORKSPACE_ROLE_LABELS = {
+  owner: 'Owner',
+  admin: 'Admin',
+  member: 'Member',
+  guest: 'Guest',
+} as const satisfies Record<WorkspaceRole, string>;
+
+export const WORKSPACE_ROLE_SUMMARIES = {
+  owner: 'Everything, including transferring ownership and deleting the workspace',
+  admin: 'Manage settings, members and projects; access to every project',
+  member: 'Work in the projects they join; join public projects',
+  guest: 'View-only access',
+} as const satisfies Record<WorkspaceRole, string>;
+
 export const WORKSPACE_COLORS = [
   '#0F172A',
   '#374151',
@@ -41,6 +62,8 @@ export const RESERVED_WORKSPACE_SLUG_LIST = [
   'forgot-password',
   'reset-password',
   'create-workspace',
+  'create-user',
+  'roles-and-permissions',
   'onboarding',
   'invitations',
   'invite',
@@ -201,7 +224,7 @@ export interface WorkspaceResponse {
   organizationSize: OrganizationSize;
   timezone: string;
   role: WorkspaceRole;
-  permissions: WorkspacePermission[];
+  permissions: EnforcedWorkspacePermission[];
   memberCount: number;
   createdAt: string;
   updatedAt: string;

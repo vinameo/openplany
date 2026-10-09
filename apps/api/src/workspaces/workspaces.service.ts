@@ -93,6 +93,7 @@ export class WorkspacesService {
           backgroundColor,
         },
         now,
+        requestId ?? null,
       );
 
       if (result.status === 'rate_limited') {

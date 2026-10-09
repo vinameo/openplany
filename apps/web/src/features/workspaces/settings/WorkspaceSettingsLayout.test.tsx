@@ -79,4 +79,17 @@ describe("WorkspaceSettingsLayout", () => {
     });
     expect(backButtons[0]).toHaveAttribute("href", "/openstudy");
   });
+
+  it("does not render any link or section for 'Roles' in the sidebar (AC-12b)", async () => {
+    renderSettingsApp("/openstudy/settings/general");
+
+    const headings = await screen.findAllByRole("heading", {
+      name: "Workspace settings",
+    });
+    expect(headings.length).toBeGreaterThan(0);
+
+    expect(screen.getByRole("link", { name: /General/i })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Roles/i })).not.toBeInTheDocument();
+  });
 });
+

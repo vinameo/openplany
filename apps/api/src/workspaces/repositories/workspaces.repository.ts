@@ -51,6 +51,7 @@ export abstract class WorkspacesRepository {
     userId: string,
     input: NewWorkspace,
     now: Date,
+    requestId: string | null,
   ): Promise<CreateWorkspaceResult>;
   /** 4.4, ordered for display. */
   abstract listForMember(
