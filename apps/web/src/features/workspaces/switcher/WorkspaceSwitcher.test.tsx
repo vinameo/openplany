@@ -40,13 +40,13 @@ const workspacesMock = [
   },
 ];
 
-function renderSwitcher() {
+function renderSwitcher(currentWorkspace = workspacesMock[0]) {
   render(
     <AppUiProvider>
       <AuthProvider>
         <WorkspaceProvider>
           <MemoryRouter>
-            <WorkspaceSwitcher currentWorkspace={workspacesMock[0]} />
+            <WorkspaceSwitcher currentWorkspace={currentWorkspace} />
           </MemoryRouter>
         </WorkspaceProvider>
       </AuthProvider>
@@ -123,5 +123,35 @@ describe("WorkspaceSwitcher", () => {
       "/api/auth/sign-out",
       expect.objectContaining({ method: "POST" }),
     );
+  });
+
+  it("handles very long workspace name gracefully with ellipsis truncation classes", async () => {
+    const longName = "The Second Workspace 325467809876543678901234567890";
+    const longWorkspaces = [
+      {
+        ...workspacesMock[0]!,
+        name: longName,
+      },
+    ];
+
+    mockFetch({
+      "GET /api/auth/session": () => jsonResponse(200, makeSession()),
+      "GET /api/workspaces": () =>
+        jsonResponse(200, {
+          workspaces: longWorkspaces,
+          lastWorkspaceSlug: "acme-corp",
+        }),
+    });
+
+    const { user } = renderSwitcher(longWorkspaces[0]);
+
+    const trigger = await screen.findByRole("button", {
+      name: `Switch workspace – ${longName}`,
+    });
+    expect(trigger).toBeInTheDocument();
+    await user.click(trigger);
+
+    const items = await screen.findAllByText(longName);
+    expect(items.length).toBeGreaterThan(0);
   });
 });

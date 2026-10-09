@@ -78,12 +78,12 @@ export function WorkspaceSwitcher({
         </UnstyledButton>
       </Menu.Target>
 
-      <Menu.Dropdown>
+      <Menu.Dropdown className={classes.dropdown}>
         {userEmail && (
           <Menu.Label className={classes.userEmail}>{userEmail}</Menu.Label>
         )}
 
-        <ScrollArea.Autosize mah={320}>
+        <ScrollArea.Autosize mah={320} className={classes.scrollArea}>
           {workspaces.map((ws) => {
             const isCurrent = ws.slug === activeWs.slug;
             const memberText =
@@ -116,7 +116,7 @@ export function WorkspaceSwitcher({
                       </span>
                     </div>
                   </div>
-                  {isCurrent && <CheckIcon />}
+                  {isCurrent && <CheckIcon className={classes.checkIcon} />}
                 </div>
               </Menu.Item>
             );

@@ -42,15 +42,53 @@
   }
 }
 
+.dropdown {
+  max-width: calc(100vw - 32px);
+  box-sizing: border-box;
+}
+
+.userEmail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scrollArea {
+  width: 100%;
+}
+
+.scrollArea :global(.mantine-ScrollArea-viewport) {
+  overflow-x: hidden !important;
+}
+
+.scrollArea :global(.mantine-ScrollArea-viewport > div) {
+  display: block !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+.scrollArea :global(.mantine-ScrollArea-scrollbar[data-orientation="horizontal"]) {
+  display: none !important;
+}
+
 .activeGroup {
   background-color: var(--mantine-color-default-hover);
   border-radius: var(--mantine-radius-sm);
   margin-bottom: 2px;
   padding-bottom: 6px;
+  max-width: 100%;
 }
 
 .menuItem {
   padding: 8px 12px;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.menuItem :global(.mantine-Menu-itemLabel) {
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
 }
 
 .itemContent {
@@ -58,6 +96,8 @@
   align-items: center;
   justify-content: space-between;
   width: 100%;
+  min-width: 0;
+  gap: 8px;
 }
 
 .itemLeft {
@@ -65,12 +105,14 @@
   align-items: center;
   gap: var(--mantine-spacing-xs);
   min-width: 0;
+  flex: 1;
 }
 
 .itemDetails {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  flex: 1;
 }
 
 .itemName {
@@ -80,11 +122,26 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--mantine-color-text);
+  min-width: 0;
+  max-width: 100%;
+  display: block;
 }
 
 .itemMeta {
   font-size: 12px;
   color: var(--mantine-color-dimmed);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  max-width: 100%;
+  display: block;
+}
+
+.checkIcon {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--mantine-primary-color-filled);
 }
 
 .activeItem {
@@ -102,6 +159,7 @@
   font-size: 13px;
   font-weight: 500;
   width: fit-content;
+  max-width: calc(100% - 56px);
 }
 
 .settingsChip:hover {

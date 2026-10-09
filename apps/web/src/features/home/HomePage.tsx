@@ -22,7 +22,7 @@ export function HomePage() {
           Check your inbox for a verification link from OpenPlany.
         </Alert>
       )}
-      <Title order={1} size="h3">
+      <Title order={1} size="h3" style={{ wordBreak: "break-word" }}>
         {workspace.name}
       </Title>
     </Container>
