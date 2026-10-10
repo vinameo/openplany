@@ -7,11 +7,18 @@ export function makeWorkspace(
   overrides: Partial<WorkspaceResponse> = {},
 ): WorkspaceResponse {
   const role = overrides.role ?? "admin";
+  const defaultGranted =
+    role === "admin"
+      ? [
+          "workspace.settings.update",
+          "workspace.members.view",
+          "workspace.members.email.view",
+        ]
+      : role === "member"
+        ? ["workspace.members.view"]
+        : [];
   const permissions =
-    overrides.permissions ??
-    enforcedWorkspacePermissions(
-      role === "admin" ? ["workspace.settings.update"] : [],
-    );
+    overrides.permissions ?? enforcedWorkspacePermissions(defaultGranted);
 
   return {
     id: "ws-1",

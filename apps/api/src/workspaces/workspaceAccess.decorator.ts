@@ -20,3 +20,14 @@ export function WorkspaceWrite(
   );
 }
 
+/** Endpoint đọc dưới /api/workspaces/:slug cần một quyền. Không có giới hạn ghi. */
+export function WorkspaceRead(
+  permission: EnforcedWorkspacePermission,
+): MethodDecorator {
+  return applyDecorators(
+    SetMetadata(WORKSPACE_PERMISSION_KEY, permission),
+    UseGuards(WorkspaceMemberGuard, WorkspacePermissionGuard),
+  );
+}
+
+

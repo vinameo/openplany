@@ -70,6 +70,15 @@ export const appRoutes: RouteObject[] = [
                       })),
                   },
                   {
+                    path: "members",
+                    lazy: () =>
+                      import(
+                        "./features/workspaces/settings/settingsRoutes"
+                      ).then((m) => ({
+                        Component: m.MembersSettingsRoute,
+                      })),
+                  },
+                  {
                     path: "*",
                     lazy: () =>
                       import(

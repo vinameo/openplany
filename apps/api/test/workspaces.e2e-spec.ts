@@ -1,18 +1,21 @@
 import request from 'supertest';
 import { describe, beforeAll, beforeEach, afterAll, it, expect } from 'vitest';
-import { Argon2PasswordHasher } from '../src/auth/passwordHasher.js';
 import { createE2eApp, type E2eApp } from './createE2eApp.js';
+import {
+  createUser as createE2eUser,
+  signInCookie as signInE2eCookie,
+  DEFAULT_E2E_ORIGIN,
+  DEFAULT_E2E_PASSWORD,
+} from './helpers/e2eUsers.js';
 
-const ORIGIN = 'http://localhost:5173';
-const PASSWORD = 'Secret123!';
+const ORIGIN = DEFAULT_E2E_ORIGIN;
+const PASSWORD = DEFAULT_E2E_PASSWORD;
 
 describe('Workspaces (e2e)', () => {
   let e2e: E2eApp;
-  let passwordHash: string;
 
   beforeAll(async () => {
     e2e = await createE2eApp();
-    passwordHash = await new Argon2PasswordHasher().hash(PASSWORD);
   });
 
   beforeEach(async () => {
@@ -30,28 +33,18 @@ describe('Workspaces (e2e)', () => {
     timezone = 'Asia/Ho_Chi_Minh',
     flags: Record<string, boolean> = {},
   ): Promise<string> {
-    const effectiveFlags = { is_superuser: true, ...flags };
-    const columns = Object.keys(effectiveFlags);
-    const result = await e2e.dataSource.query<{ id: string }[]>(
-      `INSERT INTO users (email, username, password, first_name, last_name, display_name, user_timezone${columns.map((c) => `, ${c}`).join('')})
-       VALUES ($1, $1, $2, 'An', 'Nguyen', 'An Nguyen', $3${columns.map((_, i) => `, $${i + 4}`).join('')})
-       RETURNING id`,
-      [email, passwordHash, timezone, ...Object.values(effectiveFlags)],
-    );
-    return result[0]!.id;
+    return createE2eUser(e2e, email, {
+      first: 'An',
+      last: 'Nguyen',
+      display: 'An Nguyen',
+      timezone,
+      is_superuser: true,
+      ...flags,
+    });
   }
 
-  async function signInCookie(email: string): Promise<string> {
-    const response = await http()
-      .post('/api/auth/sign-in')
-      .set('Origin', ORIGIN)
-      .send({ email, password: PASSWORD })
-      .expect(200);
-    const cookies = response.headers['set-cookie'] as unknown as string[];
-    const cookie = cookies.find((val) => val.startsWith('op_session='));
-    if (!cookie) throw new Error('No session cookie found');
-    return cookie.split(';')[0]!;
-  }
+  const signInCookie = (email: string) =>
+    signInE2eCookie(e2e, email, PASSWORD, ORIGIN);
 
   it('1. returns 401 UNAUTHENTICATED on all endpoints without session cookie', async () => {
     await http().get('/api/workspaces/slug-check?slug=acme').expect(401);
@@ -493,7 +486,11 @@ describe('Workspaces (e2e)', () => {
 
       expect(res.body.name).toBe('OpenStudy Team');
       expect(res.body.slug).toBe('openstudy');
-      expect(res.body.permissions).toEqual(['workspace.settings.update']);
+      expect(res.body.permissions).toEqual([
+        'workspace.settings.update',
+        'workspace.members.view',
+        'workspace.members.email.view',
+      ]);
       expect(res.body.updatedAt).toBeDefined();
 
       const rows = await e2e.dataSource.query<{ name: string; slug: string; updated_by_id: string }[]>(
@@ -800,14 +797,18 @@ describe('Workspaces (e2e)', () => {
         .get('/api/workspaces/ws-get-perm')
         .set('Cookie', ownerCookie)
         .expect(200);
-      expect(ownerRes.body.permissions).toEqual(['workspace.settings.update']);
+      expect(ownerRes.body.permissions).toEqual([
+        'workspace.settings.update',
+        'workspace.members.view',
+        'workspace.members.email.view',
+      ]);
       expect(ownerRes.body.updatedAt).toBeDefined();
 
       const memberRes = await http()
         .get('/api/workspaces/ws-get-perm')
         .set('Cookie', memberCookie)
         .expect(200);
-      expect(memberRes.body.permissions).toEqual([]);
+      expect(memberRes.body.permissions).toEqual(['workspace.members.view']);
       expect(memberRes.body.updatedAt).toBeDefined();
     });
 
@@ -820,20 +821,27 @@ describe('Workspaces (e2e)', () => {
         [workspace.id, memberId, 'member'],
       );
 
-      // Default state: Admin has workspace.settings.update, Member does not
+      // Default state: Admin has 3 permissions, Member has workspace.members.view
       let adminRes = await http().get('/api/workspaces/ws-perm-db').set('Cookie', adminCookie).expect(200);
-      expect(adminRes.body.permissions).toEqual(['workspace.settings.update']);
+      expect(adminRes.body.permissions).toEqual([
+        'workspace.settings.update',
+        'workspace.members.view',
+        'workspace.members.email.view',
+      ]);
       let memberRes = await http().get('/api/workspaces/ws-perm-db').set('Cookie', memberCookie).expect(200);
-      expect(memberRes.body.permissions).toEqual([]);
+      expect(memberRes.body.permissions).toEqual(['workspace.members.view']);
 
       // 1. Revoke workspace.settings.update from Admin in DB
       await e2e.dataSource.query(
         "DELETE FROM role_permissions WHERE scope = 'workspace' AND role_key = 'admin' AND permission_key = 'workspace.settings.update'",
       );
 
-      // Admin immediately loses permission in GET response
+      // Admin immediately loses settings.update permission in GET response
       adminRes = await http().get('/api/workspaces/ws-perm-db').set('Cookie', adminCookie).expect(200);
-      expect(adminRes.body.permissions).toEqual([]);
+      expect(adminRes.body.permissions).toEqual([
+        'workspace.members.view',
+        'workspace.members.email.view',
+      ]);
 
       // Admin trying to update workspace settings gets 403 FORBIDDEN immediately
       await http()
@@ -850,7 +858,10 @@ describe('Workspaces (e2e)', () => {
 
       // Member immediately gets permission in GET response
       memberRes = await http().get('/api/workspaces/ws-perm-db').set('Cookie', memberCookie).expect(200);
-      expect(memberRes.body.permissions).toEqual(['workspace.settings.update']);
+      expect(memberRes.body.permissions).toEqual([
+        'workspace.settings.update',
+        'workspace.members.view',
+      ]);
 
       // Member can now update workspace settings
       await http()
@@ -868,7 +879,10 @@ describe('Workspaces (e2e)', () => {
         "INSERT INTO role_permissions (scope, role_key, permission_key, created_at) VALUES ('workspace', 'member', 'workspace.unrecognized.custom', now()) ON CONFLICT DO NOTHING",
       );
       memberRes = await http().get('/api/workspaces/ws-perm-db').set('Cookie', memberCookie).expect(200);
-      expect(memberRes.body.permissions).toEqual(['workspace.settings.update']);
+      expect(memberRes.body.permissions).toEqual([
+        'workspace.settings.update',
+        'workspace.members.view',
+      ]);
     });
   });
 });

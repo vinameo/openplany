@@ -1,18 +1,21 @@
 import request from 'supertest';
 import { describe, beforeAll, beforeEach, afterAll, it, expect } from 'vitest';
-import { Argon2PasswordHasher } from '../src/auth/passwordHasher.js';
 import { createE2eApp, type E2eApp } from './createE2eApp.js';
+import {
+  createUser as createE2eUser,
+  signInCookie as signInE2eCookie,
+  DEFAULT_E2E_ORIGIN,
+  DEFAULT_E2E_PASSWORD,
+} from './helpers/e2eUsers.js';
 
-const ORIGIN = 'http://localhost:5173';
-const PASSWORD = 'Secret123!';
+const ORIGIN = DEFAULT_E2E_ORIGIN;
+const PASSWORD = DEFAULT_E2E_PASSWORD;
 
 describe('WorkspaceRoleHistory (e2e)', () => {
   let e2e: E2eApp;
-  let passwordHash: string;
 
   beforeAll(async () => {
     e2e = await createE2eApp();
-    passwordHash = await new Argon2PasswordHasher().hash(PASSWORD);
   });
 
   beforeEach(async () => {
@@ -25,27 +28,10 @@ describe('WorkspaceRoleHistory (e2e)', () => {
 
   const http = () => request(e2e.app.getHttpServer());
 
-  async function createUser(email: string): Promise<string> {
-    const result = await e2e.dataSource.query<{ id: string }[]>(
-      `INSERT INTO users (email, username, password, first_name, last_name, display_name, user_timezone, is_superuser)
-       VALUES ($1, $1, $2, 'Test', 'User', 'Test User', 'UTC', true)
-       RETURNING id`,
-      [email, passwordHash],
-    );
-    return result[0]!.id;
-  }
-
-  async function signInCookie(email: string): Promise<string> {
-    const response = await http()
-      .post('/api/auth/sign-in')
-      .set('Origin', ORIGIN)
-      .send({ email, password: PASSWORD })
-      .expect(200);
-    const cookies = response.headers['set-cookie'] as unknown as string[];
-    const cookie = cookies.find((val) => val.startsWith('op_session='));
-    if (!cookie) throw new Error('No session cookie found');
-    return cookie.split(';')[0]!;
-  }
+  const createUser = (email: string) =>
+    createE2eUser(e2e, email, { is_superuser: true });
+  const signInCookie = (email: string) =>
+    signInE2eCookie(e2e, email, PASSWORD, ORIGIN);
 
   it('AC-14: database contains the 3 CHECK constraints, the role trigger and 2 indexes with correct names', async () => {
     const constraints = await e2e.dataSource.query<{ conname: string }[]>(

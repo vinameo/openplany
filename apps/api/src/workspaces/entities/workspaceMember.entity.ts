@@ -21,6 +21,9 @@ export class WorkspaceMember {
   @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive: boolean;
 
+  @Column({ name: 'joined_at', type: 'timestamptz' })
+  joinedAt: Date;
+
   @Column({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 

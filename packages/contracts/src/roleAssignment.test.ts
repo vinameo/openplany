@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   assignableProjectRoles,
   assignableWorkspaceRoles,
+  addableWorkspaceRoles,
+  DEFAULT_ADDED_WORKSPACE_ROLE,
   canRemoveProjectMember,
   canRemoveWorkspaceMember,
   projectRolesAboveCeiling,
@@ -256,6 +258,44 @@ describe('roleAssignment', () => {
           assignedRole: 'contributor',
         }),
       ).toBe(false);
+    });
+  });
+
+  describe('API-07: addableWorkspaceRoles', () => {
+    it('returns roles in decreasing rank based on actor role and permissions', () => {
+      expect(DEFAULT_ADDED_WORKSPACE_ROLE).toBe('member');
+
+      // Admin actor with workspace.members.add
+      const adminWithPerm = {
+        userId: 'admin-1',
+        role: 'admin' as WorkspaceRole,
+        permissions: ['workspace.members.add' as const],
+      };
+      expect(addableWorkspaceRoles(adminWithPerm)).toEqual(['admin', 'member', 'guest']);
+
+      // Admin actor without workspace.members.add
+      const adminNoPerm = {
+        userId: 'admin-1',
+        role: 'admin' as WorkspaceRole,
+        permissions: [],
+      };
+      expect(addableWorkspaceRoles(adminNoPerm)).toEqual([]);
+
+      // Member actor with hand-crafted workspace.members.add
+      const memberWithPerm = {
+        userId: 'member-1',
+        role: 'member' as WorkspaceRole,
+        permissions: ['workspace.members.add' as const],
+      };
+      expect(addableWorkspaceRoles(memberWithPerm)).toEqual(['member', 'guest']);
+
+      // Guest actor without permission
+      const guestNoPerm = {
+        userId: 'guest-1',
+        role: 'guest' as WorkspaceRole,
+        permissions: [],
+      };
+      expect(addableWorkspaceRoles(guestNoPerm)).toEqual([]);
     });
   });
 

@@ -20,21 +20,30 @@ import { WorkspacePermissionGuard } from './workspacePermissionGuard.js';
 import { WorkspaceWriteRateLimitGuard } from './workspaceWriteRateLimitGuard.js';
 import { WorkspacesController } from './workspaces.controller.js';
 import { WorkspacesService } from './workspaces.service.js';
+import { WorkspaceMembersController } from './members/workspaceMembers.controller.js';
+import { WorkspaceMembersService } from './members/workspaceMembers.service.js';
+import { WorkspaceMembersRepository } from './members/workspaceMembers.repository.js';
+import { TypeOrmWorkspaceMembersRepository } from './members/typeOrmWorkspaceMembers.repository.js';
 
 @Module({
   imports: [
     AuthModule,
     TypeOrmModule.forFeature([Workspace, WorkspaceMember, RolePermission]),
   ],
-  controllers: [WorkspacesController],
+  controllers: [WorkspacesController, WorkspaceMembersController],
   providers: [
     WorkspacesService,
+    WorkspaceMembersService,
     WorkspaceMemberGuard,
     WorkspacePermissionGuard,
     WorkspaceWriteRateLimitGuard,
     {
       provide: WorkspacesRepository,
       useClass: TypeOrmWorkspacesRepository,
+    },
+    {
+      provide: WorkspaceMembersRepository,
+      useClass: TypeOrmWorkspaceMembersRepository,
     },
     {
       provide: WorkspaceEvents,
@@ -54,6 +63,8 @@ import { WorkspacesService } from './workspaces.service.js';
   exports: [
     WorkspacesService,
     WorkspacesRepository,
+    WorkspaceMembersService,
+    WorkspaceMembersRepository,
     WorkspaceMemberGuard,
     WorkspacePermissionGuard,
     WorkspaceWriteRateLimitGuard,
@@ -61,6 +72,8 @@ import { WorkspacesService } from './workspaces.service.js';
 })
 export class WorkspacesModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(NoStoreMiddleware).forRoutes(WorkspacesController);
+    consumer
+      .apply(NoStoreMiddleware)
+      .forRoutes(WorkspacesController, WorkspaceMembersController);
   }
 }

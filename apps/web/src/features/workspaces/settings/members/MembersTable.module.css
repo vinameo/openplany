@@ -1,0 +1,14 @@
+.stickyHeader {
+  position: sticky;
+  left: 0;
+  background-color: var(--mantine-color-body);
+  z-index: 2;
+}
+
+.stickyColumn {
+  position: sticky;
+  left: 0;
+  background-color: var(--mantine-color-body);
+  z-index: 1;
+}
+

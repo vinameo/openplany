@@ -26,6 +26,13 @@ describe("settingsSections", () => {
     ).toEqual([customSection]);
   });
 
+  it("AC-17: members section is visible with workspace.members.view and hidden without", () => {
+    expect(visibleSettingsSections([]).map((s) => s.key)).not.toContain("members");
+    expect(
+      visibleSettingsSections(["workspace.members.view"]).map((s) => s.key),
+    ).toContain("members");
+  });
+
   it("WEB-13: viewPermission rejects non-enforced permissions at compile-time", () => {
     const _invalidSection: WorkspaceSettingsSection = {
       key: "dangerous",

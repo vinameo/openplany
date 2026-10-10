@@ -136,11 +136,23 @@ export const RESERVED_WORKSPACE_SLUGS: ReadonlySet<string> = new Set(
  * 4. trim leading/trailing '-'.
  * 5. truncate to 48 chars and trim any trailing '-'.
  */
-export function slugify(name: string): string {
-  const decomposed = name
+export function removeDiacritics(str: string): string {
+  return str
     .replace(/[đĐ]/g, 'd')
     .normalize('NFKD')
     .replace(/\p{M}/gu, '');
+}
+
+/**
+ * Generates a clean URL slug from a workspace name.
+ * 1. NFKD decomposition, replace đ/Đ -> d, strip marks.
+ * 2. lowercase.
+ * 3. [^a-z0-9]+ -> single '-'.
+ * 4. trim leading/trailing '-'.
+ * 5. truncate to 48 chars and trim any trailing '-'.
+ */
+export function slugify(name: string): string {
+  const decomposed = removeDiacritics(name);
   const lower = decomposed.toLowerCase();
   const hyphens = lower.replace(/[^a-z0-9]+/g, '-');
   const trimmed = hyphens.replace(/^-+|-+$/g, '');
@@ -152,10 +164,7 @@ export function slugify(name: string): string {
  * so users can continue typing hyphenated slugs like "acme-team".
  */
 export function normalizeSlugInput(value: string): string {
-  const decomposed = value
-    .replace(/[đĐ]/g, 'd')
-    .normalize('NFKD')
-    .replace(/\p{M}/gu, '');
+  const decomposed = removeDiacritics(value);
   const lower = decomposed.toLowerCase();
   const hyphens = lower.replace(/[\s_]+/g, '-');
   return hyphens.replace(/[^a-z0-9-]/g, '');

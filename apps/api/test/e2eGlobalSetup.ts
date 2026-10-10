@@ -7,6 +7,7 @@ import { RemoveWorkspaceOwnerRole1791550200000 } from '../src/database/migration
 import { CreateRolesAndPermissions1791550300000 } from '../src/database/migrations/1791550300000-CreateRolesAndPermissions.js';
 import { AddPermissionLabel1791550400000 } from '../src/database/migrations/1791550400000-AddPermissionLabel.js';
 import { ReplaceHistoryRoleChecks1791603772081 } from '../src/database/migrations/1791603772081-ReplaceHistoryRoleChecks.js';
+import { AddWorkspaceMemberJoinedAt1791604000000 } from '../src/database/migrations/1791604000000-AddWorkspaceMemberJoinedAt.js';
 import { e2eEnv } from './e2eEnv.js';
 
 export interface MigrationSeedSnapshot {
@@ -24,6 +25,7 @@ export const MIGRATIONS = [
   CreateRolesAndPermissions1791550300000,
   AddPermissionLabel1791550400000,
   ReplaceHistoryRoleChecks1791603772081,
+  AddWorkspaceMemberJoinedAt1791604000000,
 ];
 
 /** Creates the e2e database if needed and brings it to the latest migration. */

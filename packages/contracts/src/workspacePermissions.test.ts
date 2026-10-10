@@ -21,7 +21,7 @@ describe('workspacePermissions', () => {
     expect(parseWorkspacePermissions(['foo', 'bar', 'project.view'])).toEqual([]);
   });
 
-  it('AC-08: enforcedWorkspacePermissions returns only enforced permissions in order', () => {
+  it('AC-08 / Ticket 02: enforcedWorkspacePermissions returns only enforced permissions in order', () => {
     expect(
       enforcedWorkspacePermissions([
         'workspace.settings.view',
@@ -34,7 +34,19 @@ describe('workspacePermissions', () => {
         'workspace.settings.view',
         'workspace.members.view',
       ]),
-    ).toEqual([]);
+    ).toEqual(['workspace.members.view']);
+    expect(
+      enforcedWorkspacePermissions([
+        'workspace.settings.view',
+        'workspace.members.view',
+        'workspace.members.email.view',
+        'workspace.settings.update',
+      ]),
+    ).toEqual([
+      'workspace.settings.update',
+      'workspace.members.view',
+      'workspace.members.email.view',
+    ]);
     expect(enforcedWorkspacePermissions(['workspace.settings.view'])).toEqual([]);
     expect(enforcedWorkspacePermissions([])).toEqual([]);
   });

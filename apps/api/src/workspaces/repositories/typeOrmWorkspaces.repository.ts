@@ -129,6 +129,7 @@ export class TypeOrmWorkspacesRepository implements WorkspacesRepository {
         memberId: userId,
         role: WORKSPACE_CREATOR_ROLE,
         roleScope: 'workspace',
+        joinedAt: now,
         createdAt: now,
         updatedAt: now,
       });

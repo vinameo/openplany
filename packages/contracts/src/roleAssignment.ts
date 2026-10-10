@@ -26,6 +26,14 @@ export function assignableWorkspaceRoles(
   return WORKSPACE_ROLES.filter((r) => WORKSPACE_ROLE_RANK[r] <= WORKSPACE_ROLE_RANK[actor.role]);
 }
 
+/** Vai trò actor được gán khi THÊM người mới. Thứ bậc ≤ actor (RP-RQ B8.1). */
+export function addableWorkspaceRoles(actor: WorkspaceActor): WorkspaceRole[] {
+  if (!actor.permissions.includes('workspace.members.add')) return [];
+  return WORKSPACE_ROLES.filter((r) => WORKSPACE_ROLE_RANK[r] <= WORKSPACE_ROLE_RANK[actor.role]);
+}
+
+export const DEFAULT_ADDED_WORKSPACE_ROLE = 'member' as const satisfies WorkspaceRole;
+
 export function canRemoveWorkspaceMember(
   actor: WorkspaceActor,
   target: { userId: string; role: WorkspaceRole },

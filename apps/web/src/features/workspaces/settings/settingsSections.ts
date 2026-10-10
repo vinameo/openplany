@@ -1,6 +1,6 @@
 import type { ComponentType, SVGProps } from "react";
 import type { EnforcedWorkspacePermission } from "@repo/contracts";
-import { BuildingIcon } from "../icons";
+import { BuildingIcon, UsersIcon } from "../icons";
 
 export const WORKSPACE_SETTINGS_GROUPS = [
   { key: "administration", label: "Administration" },
@@ -23,6 +23,13 @@ export const WORKSPACE_SETTINGS_SECTIONS: readonly WorkspaceSettingsSection[] = 
     group: "administration",
     label: "General",
     icon: BuildingIcon,
+  },
+  {
+    key: "members",
+    group: "administration",
+    label: "Members",
+    icon: UsersIcon,
+    viewPermission: "workspace.members.view",
   },
 ];
 

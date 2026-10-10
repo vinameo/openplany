@@ -2,6 +2,7 @@ export * from './workspace.js';
 export {
   parseWorkspacePermissions,
   enforcedWorkspacePermissions,
+  ENFORCED_WORKSPACE_PERMISSIONS,
   type WorkspacePermission,
   type EnforcedWorkspacePermission,
 } from './workspacePermissions.js';
@@ -55,3 +56,4 @@ export {
   ROLE_PERMISSIONS_CHANGES_MAX,
   ROLE_PERMISSIONS_PER_ROLE_MAX,
 } from './adminRoles.js';
+export * from './workspaceMembers.js';

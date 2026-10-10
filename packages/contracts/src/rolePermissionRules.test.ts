@@ -2,12 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { WORKSPACE_ROLES } from './workspace.js';
 import { PROJECT_ROLES } from './projectRoles.js';
 import {
-  ADMIN_ONLY_PERMISSIONS,
   isRoleLocked,
   permissionGrantProblem,
   permissionRevokeProblem,
   scopeOfPermission,
-  VIEW_ONLY_ROLES,
   type RoleRef,
 } from './rolePermissionRules.js';
 

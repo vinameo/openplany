@@ -43,6 +43,12 @@ _Avoid_: Deleted member, inactive member
 A User whose account an instance admin has switched off. They cannot sign in, but stay listed as a workspace member and still count toward the member total.
 _Avoid_: Inactive member (that would be a Former member)
 
+### Projects and work
+
+**Work item**:
+One unit of work tracked inside a project, whatever its kind. It is what people create, assign and move through states.
+_Avoid_: Issue, ticket
+
 ### Roles and permissions
 
 **Project role**:

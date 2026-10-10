@@ -1,11 +1,13 @@
 export type WorkspacePermission = string;
 
-const ENFORCED_WORKSPACE_KEYS = [
+export const ENFORCED_WORKSPACE_PERMISSIONS = [
   'workspace.settings.update',
-] as const;
+  'workspace.members.view',
+  'workspace.members.email.view',
+] as const satisfies readonly WorkspacePermission[];
 
 export type EnforcedWorkspacePermission =
-  (typeof ENFORCED_WORKSPACE_KEYS)[number];
+  (typeof ENFORCED_WORKSPACE_PERMISSIONS)[number];
 
 export function parseWorkspacePermissions(
   keys: readonly string[],
@@ -25,5 +27,5 @@ export function enforcedWorkspacePermissions(
   granted: readonly WorkspacePermission[],
 ): EnforcedWorkspacePermission[] {
   const set = new Set<WorkspacePermission>(granted);
-  return ENFORCED_WORKSPACE_KEYS.filter((p) => set.has(p));
+  return ENFORCED_WORKSPACE_PERMISSIONS.filter((p) => set.has(p));
 }

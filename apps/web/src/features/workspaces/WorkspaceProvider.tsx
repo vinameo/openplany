@@ -43,7 +43,8 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
         return;
       }
       console.error("Could not load workspaces", error);
-      setState({ status: "error" });
+      setState((prev) => (prev.status === "ready" ? prev : { status: "error" }));
+      throw error;
     }
   }, [expireSession]);
 
