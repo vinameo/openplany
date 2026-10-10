@@ -35,6 +35,12 @@ export class User {
   @Column({ name: 'user_timezone', type: 'varchar', length: 255 })
   timezone: string;
 
+  @Column({ name: 'date_joined', type: 'timestamptz' })
+  dateJoined: Date;
+
+  @Column({ name: 'created_at', type: 'timestamptz' })
+  createdAt: Date;
+
   @Column({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
 
@@ -103,6 +109,9 @@ export class User {
 
   @Column({ name: 'is_superuser', type: 'boolean' })
   isSuperuser: boolean;
+
+  @Column({ name: 'is_staff', type: 'boolean' })
+  isStaff: boolean;
 
   @Column({ name: 'last_workspace_id', type: 'uuid', nullable: true })
   lastWorkspaceId: string | null;

@@ -6,6 +6,7 @@ import {
 import { APP_GUARD } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthController } from './auth.controller.js';
+import { AuthDataRetentionService } from './authDataRetention.service.js';
 import { AuthService } from './auth.service.js';
 import { Clock, SystemClock } from './clock.js';
 import { LoginAttempt } from './entities/loginAttempt.entity.js';
@@ -35,6 +36,7 @@ import { SessionCookie } from './sessionCookie.js';
   controllers: [AuthController],
   providers: [
     AuthService,
+    AuthDataRetentionService,
     SessionCookie,
     SessionGuard,
     { provide: APP_GUARD, useClass: OriginGuard },

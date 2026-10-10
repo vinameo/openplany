@@ -3,7 +3,9 @@ import {
   Module,
   type NestModule,
 } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module.js';
+import { User } from '../auth/entities/user.entity.js';
 import { NoStoreMiddleware } from '../auth/noStore.middleware.js';
 import { InMemorySlidingWindowLimiter } from '../common/slidingWindowLimiter.js';
 import { AdminUsersController } from './adminUsers.controller.js';
@@ -22,10 +24,16 @@ import { TypeOrmRolePermissionsRepository } from './roles/repositories/typeOrmRo
 import { RolePermissionsWriteRateLimitGuard } from './roles/rolePermissionsWriteRateLimitGuard.js';
 import { ROLE_PERMISSIONS_WRITE_LIMITER } from './roles/tokens.js';
 import { USER_CREATE_LIMITER } from './tokens.js';
+import { Permission } from '../roles/entities/permission.entity.js';
+import { Role } from '../roles/entities/role.entity.js';
+import { RolePermission } from '../roles/entities/rolePermission.entity.js';
 import { UserCreateRateLimitGuard } from './userCreateRateLimitGuard.js';
 
 @Module({
-  imports: [AuthModule],
+  imports: [
+    AuthModule,
+    TypeOrmModule.forFeature([User, Role, Permission, RolePermission]),
+  ],
   controllers: [AdminUsersController, AdminRolesController],
   providers: [
     AdminUsersService,

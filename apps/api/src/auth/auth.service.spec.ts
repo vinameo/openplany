@@ -11,6 +11,7 @@ import {
   makeSession,
   makeUser,
   NOW,
+  RESERVED_ATTEMPT_ID,
 } from '../../test/fakes/authFakes.js';
 import { AuthService, type RequestContext } from './auth.service.js';
 import { hashEmail, hashSessionToken } from './authTokens.js';
@@ -98,21 +99,28 @@ describe('AuthService', () => {
         expiresAt: result.expiresAt,
         isResetOnly: false,
       });
-      expect(record.attempt).toMatchObject({ result: 'success', reason: null });
+      expect(record.attempt).toEqual({
+        id: RESERVED_ATTEMPT_ID,
+        outcome: { userId: 'user-1', result: 'success', reason: null },
+      });
       expect(record).toMatchObject({ ip: CONTEXT.ip, userAgent: 'vitest' });
     });
 
     it('stores an HMAC of the email, never the email itself', async () => {
-      const { service, sessions } = await setup();
+      const { service, rateLimiter } = await setup();
 
       await service.signIn(
         { email: 'an@openplany.dev', password: 'Secret123!' },
         CONTEXT,
       );
 
-      expect(sessions.signIns[0].attempt.emailHash).toBe(
-        hashEmail(SECRET, 'an@openplany.dev'),
-      );
+      expect(rateLimiter.reservations).toEqual([
+        {
+          ip: CONTEXT.ip,
+          emailHash: hashEmail(SECRET, 'an@openplany.dev'),
+          userAgent: 'vitest',
+        },
+      ]);
     });
 
     it('truncates the user agent to 512 characters', async () => {
@@ -141,11 +149,12 @@ describe('AuthService', () => {
       expect(error.message).toBe('Incorrect email or password');
       expect(hasher.verified).toHaveLength(1);
       expect(attempts.recorded).toEqual([
-        expect.objectContaining({
+        {
+          id: RESERVED_ATTEMPT_ID,
           result: 'failure',
           reason: 'unknown_email',
           userId: null,
-        }),
+        },
       ]);
       expect(sessions.signIns).toHaveLength(0);
     });
@@ -274,7 +283,7 @@ describe('AuthService', () => {
         expect(result.body.requiresPasswordReset).toBe(true);
         expect(result.expiresAt).toEqual(new Date(NOW.getTime() + 15 * MINUTE));
         expect(sessions.signIns[0].session.isResetOnly).toBe(true);
-        expect(sessions.signIns[0].attempt).toMatchObject({
+        expect(sessions.signIns[0].attempt.outcome).toMatchObject({
           result: 'success',
           reason: 'reset_required',
         });
@@ -309,10 +318,8 @@ describe('AuthService', () => {
       expect(error.retryAfterSeconds).toBe(600);
       expect(error.message).toBe('Too many attempts. Try again in 10 minutes.');
       expect(users.lookups).toBe(0);
-      expect(attempts.recorded[0]).toMatchObject({
-        result: 'blocked',
-        reason: 'rate_limited',
-      });
+      // The limiter records the blocked row itself; nothing is finished here.
+      expect(attempts.recorded).toHaveLength(0);
     });
 
     it('waits out the slowdown delay before answering', async () => {

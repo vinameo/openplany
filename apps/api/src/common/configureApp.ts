@@ -1,4 +1,4 @@
-import type { INestApplication } from '@nestjs/common';
+import { type INestApplication, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
@@ -23,10 +23,15 @@ export function configureApp(app: INestApplication): void {
   const config = app.get(ConfigService);
   const expressApp = app as NestExpressApplication;
 
-  expressApp.set(
-    'trust proxy',
-    parseTrustProxy(config.getOrThrow<string>('TRUST_PROXY')),
-  );
+  const trustProxy = parseTrustProxy(config.getOrThrow<string>('TRUST_PROXY'));
+  if (trustProxy === false && config.get<string>('NODE_ENV') === 'production') {
+    // Behind a load balancer every client would share the proxy's IP, so the
+    // per-IP sign-in limit would lock everyone out at once.
+    new Logger('configureApp').warn(
+      'TRUST_PROXY is false in production; set it when running behind a proxy or load balancer',
+    );
+  }
+  expressApp.set('trust proxy', trustProxy);
   app.use(requestIdMiddleware);
   app.setGlobalPrefix('api');
   app.use(helmet());

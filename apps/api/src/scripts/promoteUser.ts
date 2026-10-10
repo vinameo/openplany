@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import { AppDataSource } from '../database/dataSource.js';
+import { User } from '../auth/entities/user.entity.js';
 
 // CLI helper to elevate an existing user to instance admin (Q-DB1, Ticket 10):
 //   pnpm --filter @repo/api user:promote an@openplany.dev
@@ -7,38 +8,40 @@ async function main(): Promise<void> {
   const [rawEmail] = process.argv.slice(2);
   if (rawEmail === undefined || rawEmail.trim() === '') {
     process.stderr.write('Usage: user:promote <email>\n');
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   const email = rawEmail.trim().toLowerCase();
 
   await AppDataSource.initialize();
   try {
-    const rows = await AppDataSource.query<{ id: string; is_superuser: boolean }[]>(
-      `SELECT id, is_superuser FROM users WHERE lower(email) = lower($1)`,
-      [email],
-    );
+    const users = AppDataSource.getRepository(User);
+    // Matches the users_email_lower_key expression index exactly.
+    const user = await users
+      .createQueryBuilder('user')
+      .select(['user.id', 'user.isSuperuser'])
+      .where('lower(user.email) = :email', { email })
+      .getOne();
 
-    if (rows.length === 0) {
+    if (user === null) {
       process.stderr.write(`User not found: ${email}\n`);
-      process.exit(1);
+      process.exitCode = 1;
+      return;
     }
-
-    const user = rows[0];
-    if (user.is_superuser) {
+    if (user.isSuperuser) {
       process.stderr.write(`${email} is already an instance admin\n`);
-      process.exit(0);
+      return;
     }
 
-    await AppDataSource.query(
-      `UPDATE users SET is_superuser = true, updated_at = now() WHERE lower(email) = lower($1)`,
-      [email],
+    await users.update(
+      { id: user.id },
+      { isSuperuser: true, updatedAt: new Date() },
     );
-
     process.stderr.write(`Promoted ${email} to instance admin\n`);
   } finally {
+    // Runs on every path above: `return` (unlike process.exit) unwinds finally.
     await AppDataSource.destroy();
   }
 }
 
 await main();
-

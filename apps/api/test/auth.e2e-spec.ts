@@ -197,6 +197,43 @@ describe('Auth (e2e)', () => {
       });
     });
 
+    it('lets at most 5 of 12 parallel wrong-password tries reach the password check', async () => {
+      await createUser('an@openplany.dev');
+
+      const responses = await Promise.all(
+        Array.from({ length: 12 }, () =>
+          signIn({ email: 'an@openplany.dev', password: 'wrong' }),
+        ),
+      );
+
+      const statuses = responses.map((response) => response.status);
+      expect(statuses.filter((status) => status === 401)).toHaveLength(5);
+      expect(statuses.filter((status) => status === 429)).toHaveLength(7);
+
+      const rows: { result: string; reason: string | null }[] =
+        await e2e.dataSource.query(
+          'SELECT result, reason FROM login_attempts ORDER BY created_at',
+        );
+      expect(rows.filter((row) => row.result === 'failure')).toEqual(
+        Array.from({ length: 5 }, () => ({
+          result: 'failure',
+          reason: 'wrong_password',
+        })),
+      );
+    });
+
+    it('marks the reserved attempt as the successful login', async () => {
+      await createUser('an@openplany.dev');
+
+      await signIn({ email: 'an@openplany.dev', password: PASSWORD }).expect(
+        200,
+      );
+
+      const rows: { result: string; reason: string | null }[] =
+        await e2e.dataSource.query('SELECT result, reason FROM login_attempts');
+      expect(rows).toEqual([{ result: 'success', reason: null }]);
+    });
+
     it('rehashes a migrated Django password on first sign-in', async () => {
       // hashlib.pbkdf2_hmac('sha256', 'lètmein'.encode(), b'seasalt', 260000)
       await createUser(

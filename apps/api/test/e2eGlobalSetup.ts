@@ -6,6 +6,7 @@ import { CreateWorkspaceMemberRoleHistory1791550147414 } from '../src/database/m
 import { RemoveWorkspaceOwnerRole1791550200000 } from '../src/database/migrations/1791550200000-RemoveWorkspaceOwnerRole.js';
 import { CreateRolesAndPermissions1791550300000 } from '../src/database/migrations/1791550300000-CreateRolesAndPermissions.js';
 import { AddPermissionLabel1791550400000 } from '../src/database/migrations/1791550400000-AddPermissionLabel.js';
+import { ReplaceHistoryRoleChecks1791603772081 } from '../src/database/migrations/1791603772081-ReplaceHistoryRoleChecks.js';
 import { e2eEnv } from './e2eEnv.js';
 
 export interface MigrationSeedSnapshot {
@@ -22,6 +23,7 @@ export const MIGRATIONS = [
   RemoveWorkspaceOwnerRole1791550200000,
   CreateRolesAndPermissions1791550300000,
   AddPermissionLabel1791550400000,
+  ReplaceHistoryRoleChecks1791603772081,
 ];
 
 /** Creates the e2e database if needed and brings it to the latest migration. */
@@ -71,7 +73,10 @@ export async function setup({
     throw new Error(`Refusing to create seed database "${seedDbName}"`);
   }
 
-  const adminForSeed = new DataSource({ type: 'postgres', url: adminUrl.toString() });
+  const adminForSeed = new DataSource({
+    type: 'postgres',
+    url: adminUrl.toString(),
+  });
   await adminForSeed.initialize();
   try {
     await adminForSeed.query(`DROP DATABASE IF EXISTS ${seedDbName}`);
@@ -100,9 +105,7 @@ export async function setup({
     );
     const permissions = await seedDs.query<
       { key: string; scope: string; label: string }[]
-    >(
-      'SELECT key, scope, label FROM permissions ORDER BY key',
-    );
+    >('SELECT key, scope, label FROM permissions ORDER BY key');
     const rolePermissions = await seedDs.query<
       { scope: string; roleKey: string; permissionKey: string }[]
     >(
@@ -116,7 +119,10 @@ export async function setup({
   } finally {
     await seedDs.destroy();
 
-    const adminCleanup = new DataSource({ type: 'postgres', url: adminUrl.toString() });
+    const adminCleanup = new DataSource({
+      type: 'postgres',
+      url: adminUrl.toString(),
+    });
     await adminCleanup.initialize();
     try {
       await adminCleanup.query(`DROP DATABASE IF EXISTS ${seedDbName}`);

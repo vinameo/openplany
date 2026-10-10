@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { DataSource } from 'typeorm';
-import { QueryFailedError } from 'typeorm';
+import { QueryFailedError, type Repository } from 'typeorm';
+import type { User } from '../../auth/entities/user.entity.js';
 import {
   EmailAlreadyExistsError,
   type NewUser,
@@ -19,12 +19,16 @@ describe('TypeOrmAdminUsersRepository', () => {
     at: new Date('2026-10-09T10:00:00.000Z'),
   };
 
-  it('inserts user and returns id and createdAt', async () => {
-    const mockQuery = vi.fn().mockResolvedValue([
-      { id: 'user-uuid-123', created_at: new Date('2026-10-09T10:00:00.000Z') },
-    ]);
-    const dataSource = { query: mockQuery } as unknown as DataSource;
-    const repo = new TypeOrmAdminUsersRepository(dataSource);
+  function repoWith(insert: ReturnType<typeof vi.fn>) {
+    const users = { insert } as unknown as Repository<User>;
+    return new TypeOrmAdminUsersRepository(users);
+  }
+
+  it('inserts user with every privilege flag false and returns id and createdAt', async () => {
+    const insert = vi
+      .fn()
+      .mockResolvedValue({ identifiers: [{ id: 'user-uuid-123' }] });
+    const repo = repoWith(insert);
 
     const result = await repo.createUser(sampleUser);
 
@@ -32,30 +36,40 @@ describe('TypeOrmAdminUsersRepository', () => {
       id: 'user-uuid-123',
       createdAt: new Date('2026-10-09T10:00:00.000Z'),
     });
-    expect(mockQuery).toHaveBeenCalledTimes(1);
-    expect(mockQuery.mock.calls[0][1]).toEqual([
-      sampleUser.email,
-      sampleUser.username,
-      sampleUser.passwordHash,
-      sampleUser.firstName,
-      sampleUser.lastName,
-      sampleUser.displayName,
-      sampleUser.createdById,
-      sampleUser.at,
-    ]);
+    expect(insert).toHaveBeenCalledTimes(1);
+    expect(insert.mock.calls[0][0]).toEqual({
+      email: sampleUser.email,
+      username: sampleUser.username,
+      password: sampleUser.passwordHash,
+      firstName: sampleUser.firstName,
+      lastName: sampleUser.lastName,
+      displayName: sampleUser.displayName,
+      isSuperuser: false,
+      isStaff: false,
+      isEmailVerified: false,
+      isPasswordAutoset: false,
+      isPasswordResetRequired: false,
+      isPasswordExpired: false,
+      createdById: sampleUser.createdById,
+      dateJoined: sampleUser.at,
+      createdAt: sampleUser.at,
+      updatedAt: sampleUser.at,
+    });
   });
 
   it('throws EmailAlreadyExistsError on 23505 with users_email_lower_key', async () => {
-    const queryError = new QueryFailedError('query', [], new Error('duplicate key'));
+    const queryError = new QueryFailedError(
+      'query',
+      [],
+      new Error('duplicate key'),
+    );
     Object.assign(queryError, {
       driverError: {
         code: '23505',
         constraint: 'users_email_lower_key',
       },
     });
-    const mockQuery = vi.fn().mockRejectedValue(queryError);
-    const dataSource = { query: mockQuery } as unknown as DataSource;
-    const repo = new TypeOrmAdminUsersRepository(dataSource);
+    const repo = repoWith(vi.fn().mockRejectedValue(queryError));
 
     await expect(repo.createUser(sampleUser)).rejects.toThrow(
       EmailAlreadyExistsError,
@@ -63,45 +77,45 @@ describe('TypeOrmAdminUsersRepository', () => {
   });
 
   it('rethrows original QueryFailedError on 23505 with different constraint', async () => {
-    const queryError = new QueryFailedError('query', [], new Error('duplicate key'));
+    const queryError = new QueryFailedError(
+      'query',
+      [],
+      new Error('duplicate key'),
+    );
     Object.assign(queryError, {
       driverError: {
         code: '23505',
         constraint: 'users_username_key',
       },
     });
-    const mockQuery = vi.fn().mockRejectedValue(queryError);
-    const dataSource = { query: mockQuery } as unknown as DataSource;
-    const repo = new TypeOrmAdminUsersRepository(dataSource);
+    const repo = repoWith(vi.fn().mockRejectedValue(queryError));
 
     await expect(repo.createUser(sampleUser)).rejects.toBe(queryError);
   });
 
   it('rethrows other errors unmodified', async () => {
     const generalError = new Error('Connection lost');
-    const mockQuery = vi.fn().mockRejectedValue(generalError);
-    const dataSource = { query: mockQuery } as unknown as DataSource;
-    const repo = new TypeOrmAdminUsersRepository(dataSource);
+    const repo = repoWith(vi.fn().mockRejectedValue(generalError));
 
     await expect(repo.createUser(sampleUser)).rejects.toBe(generalError);
   });
 
   it('rethrows QueryFailedError when driverError is undefined or null', async () => {
-    const queryError = new QueryFailedError('query', [], new Error('generic db error'));
-    const mockQuery = vi.fn().mockRejectedValue(queryError);
-    const dataSource = { query: mockQuery } as unknown as DataSource;
-    const repo = new TypeOrmAdminUsersRepository(dataSource);
+    const queryError = new QueryFailedError(
+      'query',
+      [],
+      new Error('generic db error'),
+    );
+    const repo = repoWith(vi.fn().mockRejectedValue(queryError));
 
     await expect(repo.createUser(sampleUser)).rejects.toBe(queryError);
   });
 
-  it('throws if query returned empty rows', async () => {
-    const mockQuery = vi.fn().mockResolvedValue([]);
-    const dataSource = { query: mockQuery } as unknown as DataSource;
-    const repo = new TypeOrmAdminUsersRepository(dataSource);
+  it('throws if the insert returned no id', async () => {
+    const repo = repoWith(vi.fn().mockResolvedValue({ identifiers: [] }));
 
     await expect(repo.createUser(sampleUser)).rejects.toThrow(
-      'Insert returned no rows',
+      'Insert returned no id',
     );
   });
 });

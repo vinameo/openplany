@@ -47,19 +47,25 @@ describe('WorkspaceRoleHistory (e2e)', () => {
     return cookie.split(';')[0]!;
   }
 
-  it('AC-14: database contains all 5 CHECK constraints and 2 indexes with correct names', async () => {
+  it('AC-14: database contains the 3 CHECK constraints, the role trigger and 2 indexes with correct names', async () => {
     const constraints = await e2e.dataSource.query<{ conname: string }[]>(
       `SELECT conname FROM pg_constraint
        WHERE conrelid = 'workspace_member_role_history'::regclass AND contype = 'c'`,
     );
     const conNames = constraints.map((c) => c.conname);
 
-    expect(conNames).toHaveLength(5);
-    expect(conNames).toContain('wmrh_from_role_check');
-    expect(conNames).toContain('wmrh_to_role_check');
-    expect(conNames).toContain('wmrh_change_check');
-    expect(conNames).toContain('wmrh_change_type_check');
-    expect(conNames).toContain('wmrh_shape_check');
+    // Role names are no longer listed in CHECKs; the trigger checks them against roles (B14).
+    expect(conNames.sort()).toEqual([
+      'wmrh_change_check',
+      'wmrh_change_type_check',
+      'wmrh_shape_check',
+    ]);
+
+    const triggers = await e2e.dataSource.query<{ tgname: string }[]>(
+      `SELECT tgname FROM pg_trigger
+       WHERE tgrelid = 'workspace_member_role_history'::regclass AND NOT tgisinternal`,
+    );
+    expect(triggers.map((t) => t.tgname)).toEqual(['wmrh_validate_row']);
 
     const indexes = await e2e.dataSource.query<{ indexname: string }[]>(
       `SELECT indexname FROM pg_indexes
@@ -122,7 +128,9 @@ describe('WorkspaceRoleHistory (e2e)', () => {
       [workspaceId, userId],
     );
     expect(memberRows).toHaveLength(1);
-    expect(new Date(row.created_at).getTime()).toBe(new Date(memberRows[0]!.created_at).getTime());
+    expect(new Date(row.created_at).getTime()).toBe(
+      new Date(memberRows[0]!.created_at).getTime(),
+    );
   });
 
   it('AC-16: if history insertion fails, the entire transaction rolls back and workspace is not created', async () => {
@@ -162,10 +170,9 @@ describe('WorkspaceRoleHistory (e2e)', () => {
       expect(members).toHaveLength(0);
 
       // Verify last_workspace_id did not change
-      const user = await e2e.dataSource.query<{ last_workspace_id: string | null }[]>(
-        'SELECT last_workspace_id FROM users WHERE id = $1',
-        [userId],
-      );
+      const user = await e2e.dataSource.query<
+        { last_workspace_id: string | null }[]
+      >('SELECT last_workspace_id FROM users WHERE id = $1', [userId]);
       expect(user[0]!.last_workspace_id).toBeNull();
     } finally {
       await e2e.dataSource.query(
@@ -237,47 +244,136 @@ describe('WorkspaceRoleHistory (e2e)', () => {
     }
 
     it('rejects invalid from_role via wmrh_from_role_check', async () => {
-      await expectConstraintViolation('superadmin', 'admin', 'role_changed', 'wmrh_from_role_check');
+      await expectConstraintViolation(
+        'superadmin',
+        'admin',
+        'role_changed',
+        'wmrh_from_role_check',
+      );
     });
 
     it('rejects invalid to_role via wmrh_to_role_check', async () => {
-      await expectConstraintViolation('admin', 'superadmin', 'role_changed', 'wmrh_to_role_check');
+      await expectConstraintViolation(
+        'admin',
+        'superadmin',
+        'role_changed',
+        'wmrh_to_role_check',
+      );
     });
 
     it('rejects invalid change_type via wmrh_change_type_check', async () => {
-      await expectConstraintViolation('admin', 'member', 'invalid_type', 'wmrh_change_type_check');
+      await expectConstraintViolation(
+        'admin',
+        'member',
+        'invalid_type',
+        'wmrh_change_type_check',
+      );
     });
 
     it('rejects from_role = to_role via wmrh_change_check', async () => {
-      await expectConstraintViolation('admin', 'admin', 'role_changed', 'wmrh_change_check');
+      await expectConstraintViolation(
+        'admin',
+        'admin',
+        'role_changed',
+        'wmrh_change_check',
+      );
     });
 
-    it('rejects role_changed to owner via wmrh_shape_check', async () => {
-      await expectConstraintViolation('admin', 'owner', 'role_changed', 'wmrh_shape_check');
+    it('rejects role_changed to the retired owner role via wmrh_to_role_check', async () => {
+      await expectConstraintViolation(
+        'admin',
+        'owner',
+        'role_changed',
+        'wmrh_to_role_check',
+      );
     });
 
-    it('rejects role_changed from owner via wmrh_shape_check', async () => {
-      await expectConstraintViolation('owner', 'admin', 'role_changed', 'wmrh_shape_check');
+    it('rejects role_changed from the retired owner role via wmrh_from_role_check', async () => {
+      await expectConstraintViolation(
+        'owner',
+        'admin',
+        'role_changed',
+        'wmrh_from_role_check',
+      );
     });
 
     it('rejects role_changed missing from_role via wmrh_shape_check', async () => {
-      await expectConstraintViolation(null, 'admin', 'role_changed', 'wmrh_shape_check');
+      await expectConstraintViolation(
+        null,
+        'admin',
+        'role_changed',
+        'wmrh_shape_check',
+      );
     });
 
     it('rejects member_removed with non-null to_role via wmrh_shape_check', async () => {
-      await expectConstraintViolation('member', 'admin', 'member_removed', 'wmrh_shape_check');
+      await expectConstraintViolation(
+        'member',
+        'admin',
+        'member_removed',
+        'wmrh_shape_check',
+      );
     });
 
-    it('rejects member_removed from owner via wmrh_shape_check', async () => {
-      await expectConstraintViolation('owner', null, 'member_removed', 'wmrh_shape_check');
+    it('rejects member_removed from the retired owner role via wmrh_from_role_check', async () => {
+      await expectConstraintViolation(
+        'owner',
+        null,
+        'member_removed',
+        'wmrh_from_role_check',
+      );
     });
 
-    it('rejects workspace_created with to_role other than admin/owner via wmrh_shape_check', async () => {
-      await expectConstraintViolation(null, 'member', 'workspace_created', 'wmrh_shape_check');
+    it('rejects workspace_created with a from_role via wmrh_shape_check', async () => {
+      await expectConstraintViolation(
+        'member',
+        'admin',
+        'workspace_created',
+        'wmrh_shape_check',
+      );
     });
 
-    it('rejects ownership_transferred without owner on either side via wmrh_shape_check', async () => {
-      await expectConstraintViolation('member', 'admin', 'ownership_transferred', 'wmrh_shape_check');
+    it('rejects new ownership_transferred rows via wmrh_legacy_change_type_check', async () => {
+      await expectConstraintViolation(
+        'member',
+        'admin',
+        'ownership_transferred',
+        'wmrh_legacy_change_type_check',
+      );
+    });
+
+    it('rejects new owner_role_retired rows via wmrh_legacy_change_type_check', async () => {
+      await expectConstraintViolation(
+        'owner',
+        'admin',
+        'owner_role_retired',
+        'wmrh_legacy_change_type_check',
+      );
+    });
+
+    it('accepts a role added to roles later without any schema change', async () => {
+      const runner = e2e.dataSource.createQueryRunner();
+      await runner.startTransaction();
+      try {
+        await runner.query(
+          `INSERT INTO roles (scope, key) VALUES ('workspace', 'reviewer')`,
+        );
+        await runner.query(
+          `INSERT INTO workspace_member_role_history
+            (workspace_id, member_id, from_role, to_role, change_type, actor_id)
+           VALUES ($1, $2, NULL, 'reviewer', 'member_added', $2)`,
+          [workspaceId, userId],
+        );
+        const rows: { to_role: string }[] = await runner.query(
+          `SELECT to_role FROM workspace_member_role_history WHERE workspace_id = $1`,
+          [workspaceId],
+        );
+        expect(rows).toEqual([{ to_role: 'reviewer' }]);
+      } finally {
+        // Never leave the extra role behind for other tests.
+        await runner.rollbackTransaction();
+        await runner.release();
+      }
     });
   });
 });

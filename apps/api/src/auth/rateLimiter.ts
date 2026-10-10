@@ -1,18 +1,30 @@
 import { Injectable } from '@nestjs/common';
 import { Clock } from './clock.js';
-import { LoginAttemptsRepository } from './repositories/loginAttemptsRepository.js';
+import {
+  LoginAttemptsRepository,
+  type LockedLoginAttempts,
+} from './repositories/loginAttemptsRepository.js';
 
 export type RateLimitDecision =
   | { blocked: true; retryAfterSeconds: number }
-  | { blocked: false; delayMs: number };
+  | { blocked: false; delayMs: number; attemptId: string };
 
-export interface RateLimitKey {
+export interface PendingLoginAttempt {
   ip: string;
   emailHash: string;
+  userAgent: string | null;
 }
 
 export abstract class LoginRateLimiter {
-  abstract check(key: RateLimitKey): Promise<RateLimitDecision>;
+  /**
+   * Checks the limits and records the attempt in the same locked step, so
+   * parallel sign-ins already count it (no check-then-act race):
+   * - blocked: a `blocked` row is recorded;
+   * - allowed: a provisional `failure` row is recorded and its id returned.
+   *   The caller finishes it with LoginAttemptsRepository.finish() or the
+   *   sign-in transaction. If the request dies first, it stays a failure.
+   */
+  abstract reserve(attempt: PendingLoginAttempt): Promise<RateLimitDecision>;
 }
 
 // api-spec 6.2. Only `failure` rows count; `blocked` rows never do.
@@ -33,19 +45,50 @@ export class DbLoginRateLimiter extends LoginRateLimiter {
     super();
   }
 
-  async check({ ip, emailHash }: RateLimitKey): Promise<RateLimitDecision> {
+  reserve(attempt: PendingLoginAttempt): Promise<RateLimitDecision> {
+    return this.attempts.withIpLock(attempt.ip, async (locked) => {
+      const decision = await this.decide(locked, attempt);
+      if (decision.blocked) {
+        await locked.insert({
+          ...attempt,
+          userId: null,
+          result: 'blocked',
+          reason: 'rate_limited',
+        });
+        return decision;
+      }
+      const attemptId = await locked.insert({
+        ...attempt,
+        userId: null,
+        result: 'failure',
+        reason: null,
+      });
+      return { ...decision, attemptId };
+    });
+  }
+
+  private async decide(
+    locked: LockedLoginAttempts,
+    { ip, emailHash }: PendingLoginAttempt,
+  ): Promise<
+    | { blocked: true; retryAfterSeconds: number }
+    | { blocked: false; delayMs: number }
+  > {
     const now = this.clock.now();
     const since = new Date(now.getTime() - RATE_LIMIT_WINDOW_MS);
 
-    const [ipLimitHitAt, emailIpLimitHitAt, emailFailures] = await Promise.all([
-      this.attempts.nthRecentFailureAt({ ip }, since, IP_FAILURE_LIMIT),
-      this.attempts.nthRecentFailureAt(
-        { ip, emailHash },
-        since,
-        EMAIL_IP_FAILURE_LIMIT,
-      ),
-      this.attempts.countEmailFailures(emailHash, since),
-    ]);
+    // Sequential: the queries share the transaction's single connection.
+    const ipLimitHitAt = await locked.nthRecentFailureAt(
+      { ip },
+      since,
+      IP_FAILURE_LIMIT,
+    );
+    const emailIpLimitHitAt = await locked.nthRecentFailureAt(
+      { ip, emailHash },
+      since,
+      EMAIL_IP_FAILURE_LIMIT,
+    );
+    const emailFailures = await locked.countEmailFailures(emailHash, since);
 
     // Locked until the oldest failure that keeps the count at the limit
     // slides out of the window.

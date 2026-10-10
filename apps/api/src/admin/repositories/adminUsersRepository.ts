@@ -1,5 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { DataSource, QueryFailedError } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import type { Repository } from 'typeorm';
+import { User } from '../../auth/entities/user.entity.js';
+import { isUniqueViolation } from '../../common/databaseErrors.js';
 
 export interface NewUser {
   email: string;
@@ -29,65 +32,45 @@ export abstract class AdminUsersRepository {
   abstract createUser(user: NewUser): Promise<CreatedUserRow>;
 }
 
-const INSERT_USER_SQL = `INSERT INTO users (
-  email, username, password, first_name, last_name, display_name,
-  is_superuser, is_staff, is_email_verified,
-  is_password_autoset, is_password_reset_required, is_password_expired,
-  created_by_id, date_joined, created_at, updated_at
-) VALUES (
-  $1, $2, $3, $4, $5, $6,
-  false, false, false,
-  false, false, false,
-  $7, $8, $8, $8
-)
-RETURNING id, created_at`;
-
-function isEmailTaken(error: unknown): boolean {
-  if (!(error instanceof QueryFailedError)) return false;
-  const driverError = error.driverError as
-    | { code?: unknown; constraint?: unknown }
-    | undefined;
-  return (
-    driverError?.code === '23505' &&
-    driverError?.constraint === 'users_email_lower_key'
-  );
-}
-
 @Injectable()
 export class TypeOrmAdminUsersRepository extends AdminUsersRepository {
-  constructor(private readonly dataSource: DataSource) {
+  constructor(
+    @InjectRepository(User) private readonly users: Repository<User>,
+  ) {
     super();
   }
 
   async createUser(user: NewUser): Promise<CreatedUserRow> {
     try {
-      const rows = await this.dataSource.query<{ id: string; created_at: Date }[]>(
-        INSERT_USER_SQL,
-        [
-          user.email,
-          user.username,
-          user.passwordHash,
-          user.firstName,
-          user.lastName,
-          user.displayName,
-          user.createdById,
-          user.at,
-        ],
-      );
-      const row = rows[0];
-      if (!row) {
-        throw new Error('Insert returned no rows');
+      const result = await this.users.insert({
+        email: user.email,
+        username: user.username,
+        password: user.passwordHash,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        displayName: user.displayName,
+        // INV-02: set explicitly so a column default can never grant privileges.
+        isSuperuser: false,
+        isStaff: false,
+        isEmailVerified: false,
+        isPasswordAutoset: false,
+        isPasswordResetRequired: false,
+        isPasswordExpired: false,
+        createdById: user.createdById,
+        dateJoined: user.at,
+        createdAt: user.at,
+        updatedAt: user.at,
+      });
+      const id: unknown = result.identifiers[0]?.id;
+      if (typeof id !== 'string') {
+        throw new Error('Insert returned no id');
       }
-      return {
-        id: row.id,
-        createdAt: new Date(row.created_at),
-      };
+      return { id, createdAt: user.at };
     } catch (error) {
-      if (isEmailTaken(error)) {
+      if (isUniqueViolation(error, 'users_email_lower_key')) {
         throw new EmailAlreadyExistsError();
       }
       throw error;
     }
   }
 }
-

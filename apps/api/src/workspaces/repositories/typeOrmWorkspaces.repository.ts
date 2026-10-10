@@ -1,12 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import {
+  EDITABLE_WORKSPACE_FIELDS,
   WORKSPACE_CREATOR_ROLE,
   parseWorkspacePermissions,
-  type EditableWorkspaceField,
   type OrganizationSize,
+  type RoleScope,
   type WorkspaceRole,
 } from '@repo/contracts';
-import { DataSource } from 'typeorm';
+import { DataSource, IsNull, type EntityManager } from 'typeorm';
+import { User } from '../../auth/entities/user.entity.js';
+import { isUniqueViolation } from '../../common/databaseErrors.js';
+import {
+  loadRolePermissions,
+  rolePermissionsKey,
+} from '../../roles/rolePermissionsQuery.js';
+import { Workspace } from '../entities/workspace.entity.js';
+import { WorkspaceMember } from '../entities/workspaceMember.entity.js';
 import {
   SlugAlreadyExistsError,
   WorkspacesRepository,
@@ -17,23 +26,32 @@ import {
 } from './workspaces.repository.js';
 import { recordWorkspaceRoleChanges } from './workspaceRoleHistory.js';
 
-/** API field → column. The only columns PATCH may write (RQ 5.3). */
-const EDITABLE_COLUMNS = {
-  name: 'name',
-  organizationSize: 'organization_size',
-  timezone: 'timezone',
-} as const satisfies Record<EditableWorkspaceField, string>;
+const CREATE_LIMIT = 5;
+const CREATE_WINDOW_MS = 60 * 60 * 1000;
+
+/** One row of memberWorkspaces(): a workspace plus the member's role. */
+interface MemberWorkspaceRow {
+  id: string;
+  name: string;
+  slug: string;
+  logo: string | null;
+  backgroundColor: string;
+  organizationSize: OrganizationSize;
+  timezone: string;
+  createdAt: Date;
+  updatedAt: Date;
+  role: WorkspaceRole;
+  roleScope: RoleScope;
+  memberCount: number;
+}
 
 @Injectable()
 export class TypeOrmWorkspacesRepository implements WorkspacesRepository {
   constructor(private readonly dataSource: DataSource) {}
 
-  async slugExists(slug: string): Promise<boolean> {
-    const result = await this.dataSource.query<{ taken: boolean }[]>(
-      'SELECT EXISTS (SELECT 1 FROM workspaces WHERE slug = $1) AS taken',
-      [slug],
-    );
-    return Boolean(result[0]?.taken);
+  slugExists(slug: string): Promise<boolean> {
+    // Workspace.deletedAt is a plain column, so soft-deleted rows count too (4.1).
+    return this.dataSource.getRepository(Workspace).existsBy({ slug });
   }
 
   async create(
@@ -43,202 +61,142 @@ export class TypeOrmWorkspacesRepository implements WorkspacesRepository {
     requestId: string | null,
   ): Promise<CreateWorkspaceResult> {
     return this.dataSource.transaction(async (manager) => {
-      // 1. Advisory transaction lock for concurrent requests by the same user
+      // 1. Serialize concurrent creates by the same user. TypeORM has no
+      //    advisory-lock API; the key is a bound parameter.
       await manager.query(
         `SELECT pg_advisory_xact_lock(hashtextextended('workspace-create:' || $1, 0))`,
         [userId],
       );
 
-      // 2. Rate limit count (max 5 per 1 hour rolling window)
-      const rateCheck = await manager.query<
-        { created: number; oldest: Date | null }[]
-      >(
-        `SELECT count(*)::int AS created, min(created_at) AS oldest
-         FROM workspaces
-         WHERE created_by_id = $1 AND created_at > $2::timestamptz - interval '1 hour'`,
-        [userId, now],
-      );
-
-      const createdCount = Number(rateCheck[0]?.created ?? 0);
-      const oldest = rateCheck[0]?.oldest ? new Date(rateCheck[0].oldest) : null;
-      if (createdCount >= 5 && oldest) {
+      // 2. At most CREATE_LIMIT workspaces per rolling hour.
+      const recent = await manager
+        .createQueryBuilder(Workspace, 'w')
+        .select('count(*)::int', 'created')
+        .addSelect('min(w.createdAt)', 'oldest')
+        .where('w.createdById = :userId', { userId })
+        .andWhere('w.createdAt > :since', {
+          since: new Date(now.getTime() - CREATE_WINDOW_MS),
+        })
+        .getRawOne<{ created: number; oldest: Date | null }>();
+      if (Number(recent?.created ?? 0) >= CREATE_LIMIT && recent?.oldest) {
         const retryAfterSeconds = Math.max(
           1,
-          Math.ceil((oldest.getTime() + 3600000 - now.getTime()) / 1000),
+          Math.ceil(
+            (new Date(recent.oldest).getTime() +
+              CREATE_WINDOW_MS -
+              now.getTime()) /
+              1000,
+          ),
         );
         return { status: 'rate_limited', retryAfterSeconds };
       }
 
-      // 3. Insert workspace and add creator as admin member
+      // 3. The creator must still be usable; FOR SHARE keeps them so until commit.
+      const creator = await manager.findOne(User, {
+        select: { id: true, timezone: true },
+        where: { id: userId, isActive: true, maskedAt: IsNull() },
+        lock: { mode: 'pessimistic_read' },
+      });
+      if (creator === null) {
+        return { status: 'user_inactive' };
+      }
+
+      // 4. Workspace row, creator as WORKSPACE_CREATOR_ROLE, role history.
       try {
-        const inserted = await manager.query<
-          {
-            id: string;
-            name: string;
-            slug: string;
-            logo: string | null;
-            background_color: string;
-            organization_size: OrganizationSize;
-            timezone: string;
-            created_at: Date;
-            updated_at: Date;
-          }[]
-        >(
-          `INSERT INTO workspaces (id, name, slug, created_by_id, updated_by_id,
-                                  organization_size, timezone, background_color, created_at, updated_at)
-           SELECT $1, $2, $3, u.id, u.id, $4, u.user_timezone, $5, $6, $6
-           FROM users u
-           WHERE u.id = $7 AND u.is_active AND u.masked_at IS NULL
-           RETURNING id, name, slug, logo, background_color, organization_size, timezone, created_at, updated_at`,
-          [
-            input.id,
-            input.name,
-            input.slug,
-            input.organizationSize,
-            input.backgroundColor,
-            now,
-            userId,
-          ],
-        );
-
-        if (!inserted || inserted.length === 0) {
-          return { status: 'user_inactive' };
-        }
-
-        const row = inserted[0]!;
-
-        // 4. Insert creator into workspace_members with WORKSPACE_CREATOR_ROLE ('admin')
-        await manager.query(
-          `INSERT INTO workspace_members (workspace_id, member_id, role, role_scope, created_at, updated_at)
-           VALUES ($1, $2, $3, 'workspace', $4, $4)`,
-          [row.id, userId, WORKSPACE_CREATOR_ROLE, now],
-        );
-
-        // 5. Record role history: workspace_created (NULL -> admin)
-        await recordWorkspaceRoleChanges(manager, [
-          {
-            workspaceId: row.id,
-            memberId: userId,
-            fromRole: null,
-            toRole: WORKSPACE_CREATOR_ROLE,
-            changeType: 'workspace_created',
-            actorId: userId,
-            requestId,
-            at: now,
-          },
-        ]);
-
-        // 6. Update user's last_workspace_id
-        await manager.query(
-          `UPDATE users SET last_workspace_id = $1 WHERE id = $2`,
-          [row.id, userId],
-        );
-
-        // 7. Read permissions for WORKSPACE_CREATOR_ROLE from role_permissions
-        const permRows = await manager.query<{ permissionKey: string }[]>(
-          `SELECT permission_key AS "permissionKey"
-           FROM role_permissions
-           WHERE scope = 'workspace' AND role_key = $1
-           ORDER BY permission_key`,
-          [WORKSPACE_CREATOR_ROLE],
-        );
-        const permissions = parseWorkspacePermissions(
-          permRows.map((p) => p.permissionKey),
-        );
-
-        return {
-          status: 'created',
-          workspace: {
-            id: row.id,
-            name: row.name,
-            slug: row.slug,
-            logo: row.logo,
-            backgroundColor: row.background_color,
-            organizationSize: row.organization_size,
-            timezone: row.timezone,
-            createdAt: new Date(row.created_at),
-            updatedAt: new Date(row.updated_at),
-            role: WORKSPACE_CREATOR_ROLE,
-            permissions,
-            memberCount: 1,
-          },
-        };
+        await manager.insert(Workspace, {
+          id: input.id,
+          name: input.name,
+          slug: input.slug,
+          createdById: userId,
+          updatedById: userId,
+          organizationSize: input.organizationSize,
+          timezone: creator.timezone,
+          backgroundColor: input.backgroundColor,
+          createdAt: now,
+          updatedAt: now,
+        });
       } catch (err: unknown) {
-        if (
-          err !== null &&
-          typeof err === 'object' &&
-          'driverError' in err &&
-          typeof (err as { driverError: unknown }).driverError === 'object' &&
-          (err as { driverError: { code?: string; constraint?: string } })
-            .driverError?.code === '23505' &&
-          (err as { driverError: { code?: string; constraint?: string } })
-            .driverError?.constraint === 'workspaces_slug_key'
-        ) {
-          throw new SlugAlreadyExistsError(`Slug ${input.slug} is already taken`);
+        if (isUniqueViolation(err, 'workspaces_slug_key')) {
+          throw new SlugAlreadyExistsError(
+            `Slug ${input.slug} is already taken`,
+          );
         }
         throw err;
       }
+
+      await manager.insert(WorkspaceMember, {
+        workspaceId: input.id,
+        memberId: userId,
+        role: WORKSPACE_CREATOR_ROLE,
+        roleScope: 'workspace',
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      await recordWorkspaceRoleChanges(manager, [
+        {
+          workspaceId: input.id,
+          memberId: userId,
+          fromRole: null,
+          toRole: WORKSPACE_CREATOR_ROLE,
+          changeType: 'workspace_created',
+          actorId: userId,
+          requestId,
+          at: now,
+        },
+      ]);
+
+      await manager.update(User, { id: userId }, { lastWorkspaceId: input.id });
+
+      const permissions = await loadRolePermissions(manager, [
+        { scope: 'workspace', key: WORKSPACE_CREATOR_ROLE },
+      ]);
+
+      return {
+        status: 'created',
+        workspace: {
+          id: input.id,
+          name: input.name,
+          slug: input.slug,
+          logo: null,
+          backgroundColor: input.backgroundColor,
+          organizationSize: input.organizationSize,
+          timezone: creator.timezone,
+          createdAt: now,
+          updatedAt: now,
+          role: WORKSPACE_CREATOR_ROLE,
+          permissions: parseWorkspacePermissions(
+            permissions.get(
+              rolePermissionsKey('workspace', WORKSPACE_CREATOR_ROLE),
+            ) ?? [],
+          ),
+          memberCount: 1,
+        },
+      };
     });
   }
 
   async listForMember(
     userId: string,
-  ): Promise<{ workspaces: MemberWorkspace[]; lastWorkspaceId: string | null }> {
-    const rows = await this.dataSource.query<
-      {
-        id: string;
-        name: string;
-        slug: string;
-        logo: string | null;
-        backgroundColor: string;
-        organizationSize: OrganizationSize;
-        timezone: string;
-        createdAt: Date;
-        updatedAt: Date;
-        role: WorkspaceRole;
-        permissions: string[];
-        memberCount: number;
-        isLast: boolean;
-      }[]
-    >(
-      `SELECT w.id, w.name, w.slug, w.logo, w.background_color AS "backgroundColor",
-              w.organization_size AS "organizationSize", w.timezone,
-              w.created_at AS "createdAt", w.updated_at AS "updatedAt", m.role,
-              COALESCE((SELECT array_agg(rp.permission_key ORDER BY rp.permission_key)
-                        FROM role_permissions rp
-                        WHERE rp.scope = m.role_scope AND rp.role_key = m.role), '{}') AS permissions,
-              (SELECT count(*)::int FROM workspace_members c
-                WHERE c.workspace_id = w.id AND c.is_active = true) AS "memberCount",
-              (u.last_workspace_id = w.id) AS "isLast"
-       FROM workspace_members m
-       JOIN workspaces w ON w.id = m.workspace_id AND w.deleted_at IS NULL
-       JOIN users u      ON u.id = m.member_id
-       WHERE m.member_id = $1 AND m.is_active = true
-       ORDER BY lower(w.name), w.created_at`,
-      [userId],
-    );
+  ): Promise<{
+    workspaces: MemberWorkspace[];
+    lastWorkspaceId: string | null;
+  }> {
+    const manager = this.dataSource.manager;
+    const [rows, user] = await Promise.all([
+      memberWorkspaces(manager, userId)
+        .orderBy('lower(w.name)', 'ASC')
+        .addOrderBy('w.createdAt', 'ASC')
+        .getRawMany<MemberWorkspaceRow>(),
+      manager.findOne(User, {
+        select: { id: true, lastWorkspaceId: true },
+        where: { id: userId },
+      }),
+    ]);
 
-    let lastWorkspaceId: string | null = null;
-    const workspaces: MemberWorkspace[] = rows.map((r) => {
-      if (r.isLast) {
-        lastWorkspaceId = r.id;
-      }
-      return {
-        id: r.id,
-        name: r.name,
-        slug: r.slug,
-        logo: r.logo,
-        backgroundColor: r.backgroundColor,
-        organizationSize: r.organizationSize,
-        timezone: r.timezone,
-        createdAt: new Date(r.createdAt),
-        updatedAt: new Date(r.updatedAt),
-        role: r.role,
-        permissions: parseWorkspacePermissions(r.permissions ?? []),
-        memberCount: Number(r.memberCount),
-      };
-    });
-
+    const workspaces = await withPermissions(manager, rows);
+    const lastWorkspaceId =
+      workspaces.find((w) => w.id === user?.lastWorkspaceId)?.id ?? null;
     return { workspaces, lastWorkspaceId };
   }
 
@@ -246,65 +204,29 @@ export class TypeOrmWorkspacesRepository implements WorkspacesRepository {
     slug: string,
     userId: string,
   ): Promise<MemberWorkspace | null> {
-    const rows = await this.dataSource.query<
-      {
-        id: string;
-        name: string;
-        slug: string;
-        logo: string | null;
-        backgroundColor: string;
-        organizationSize: OrganizationSize;
-        timezone: string;
-        createdAt: Date;
-        updatedAt: Date;
-        role: WorkspaceRole;
-        permissions: string[];
-        memberCount: number;
-      }[]
-    >(
-      `SELECT w.id, w.name, w.slug, w.logo, w.background_color AS "backgroundColor",
-              w.organization_size AS "organizationSize", w.timezone,
-              w.created_at AS "createdAt", w.updated_at AS "updatedAt", m.role,
-              COALESCE((SELECT array_agg(rp.permission_key ORDER BY rp.permission_key)
-                        FROM role_permissions rp
-                        WHERE rp.scope = m.role_scope AND rp.role_key = m.role), '{}') AS permissions,
-              (SELECT count(*)::int FROM workspace_members c
-                WHERE c.workspace_id = w.id AND c.is_active = true) AS "memberCount"
-       FROM workspaces w
-       JOIN workspace_members m
-         ON m.workspace_id = w.id AND m.member_id = $2 AND m.is_active = true
-       WHERE w.slug = $1 AND w.deleted_at IS NULL`,
-      [slug, userId],
-    );
+    const manager = this.dataSource.manager;
+    const row = await memberWorkspaces(manager, userId)
+      .andWhere('w.slug = :slug', { slug })
+      .getRawOne<MemberWorkspaceRow>();
+    if (row === undefined) return null;
 
-    const row = rows[0];
-    if (!row) return null;
-
-    return {
-      id: row.id,
-      name: row.name,
-      slug: row.slug,
-      logo: row.logo,
-      backgroundColor: row.backgroundColor,
-      organizationSize: row.organizationSize,
-      timezone: row.timezone,
-      createdAt: new Date(row.createdAt),
-      updatedAt: new Date(row.updatedAt),
-      role: row.role,
-      permissions: parseWorkspacePermissions(row.permissions ?? []),
-      memberCount: Number(row.memberCount),
-    };
+    const [workspace] = await withPermissions(manager, [row]);
+    return workspace ?? null;
   }
 
   async rememberLastWorkspace(
     userId: string,
     workspaceId: string,
   ): Promise<void> {
-    await this.dataSource.query(
-      `UPDATE users SET last_workspace_id = $1
-       WHERE id = $2 AND last_workspace_id IS DISTINCT FROM $1`,
-      [workspaceId, userId],
-    );
+    await this.dataSource
+      .createQueryBuilder()
+      .update(User)
+      .set({ lastWorkspaceId: workspaceId })
+      .where('id = :userId', { userId })
+      .andWhere('last_workspace_id IS DISTINCT FROM :workspaceId', {
+        workspaceId,
+      })
+      .execute();
   }
 
   async update(
@@ -313,48 +235,82 @@ export class TypeOrmWorkspacesRepository implements WorkspacesRepository {
     changes: WorkspaceChanges,
     now: Date,
   ): Promise<{ updatedAt: Date } | null> {
-    const keys = (
-      Object.keys(EDITABLE_COLUMNS) as EditableWorkspaceField[]
-    ).filter((k) => changes[k] !== undefined);
-    if (keys.length === 0) {
+    // Only fields listed in EDITABLE_WORKSPACE_FIELDS are ever written (RQ 5.3).
+    const editable: WorkspaceChanges = {};
+    for (const field of EDITABLE_WORKSPACE_FIELDS) {
+      if (changes[field] !== undefined) {
+        Object.assign(editable, { [field]: changes[field] });
+      }
+    }
+    if (Object.keys(editable).length === 0) {
       throw new Error('update called without changes');
     }
 
-    const setClauses: string[] = [];
-    const params: unknown[] = [];
-    let paramIndex = 1;
+    const result = await this.dataSource
+      .createQueryBuilder()
+      .update(Workspace)
+      .set({ ...editable, updatedById: actorId, updatedAt: now })
+      .where('id = :workspaceId', { workspaceId })
+      .andWhere('deleted_at IS NULL')
+      .returning('updated_at')
+      .execute();
 
-    for (const key of keys) {
-      const col = EDITABLE_COLUMNS[key];
-      setClauses.push(`${col} = $${paramIndex++}`);
-      params.push(changes[key]);
-    }
-
-    setClauses.push(`updated_by_id = $${paramIndex++}`);
-    params.push(actorId);
-
-    setClauses.push(`updated_at = $${paramIndex++}`);
-    params.push(now);
-
-    params.push(workspaceId);
-    const idParamIndex = paramIndex++;
-
-    const sql = `UPDATE workspaces
-SET ${setClauses.join(', ')}
-WHERE id = $${idParamIndex}
-  AND deleted_at IS NULL
-RETURNING updated_at AS "updatedAt"`;
-
-    const rows = await this.dataSource.query(sql, params);
-    const row = Array.isArray(rows[0]) ? rows[0][0] : rows[0];
-    if (!row) {
-      return null;
-    }
-    const rawDate = row.updatedAt ?? row.updated_at;
-    if (!rawDate) {
-      throw new Error('update RETURNING did not return a valid timestamp');
-    }
-    return { updatedAt: new Date(rawDate) };
+    const [row] = result.raw as { updated_at: Date }[];
+    return row === undefined ? null : { updatedAt: new Date(row.updated_at) };
   }
 }
 
+/** Active, non-deleted workspaces of one member, with the member's role and head count. */
+function memberWorkspaces(manager: EntityManager, userId: string) {
+  return manager
+    .createQueryBuilder(WorkspaceMember, 'm')
+    .innerJoin(Workspace, 'w', 'w.id = m.workspaceId AND w.deletedAt IS NULL')
+    .select('w.id', 'id')
+    .addSelect('w.name', 'name')
+    .addSelect('w.slug', 'slug')
+    .addSelect('w.logo', 'logo')
+    .addSelect('w.backgroundColor', 'backgroundColor')
+    .addSelect('w.organizationSize', 'organizationSize')
+    .addSelect('w.timezone', 'timezone')
+    .addSelect('w.createdAt', 'createdAt')
+    .addSelect('w.updatedAt', 'updatedAt')
+    .addSelect('m.role', 'role')
+    .addSelect('m.roleScope', 'roleScope')
+    .addSelect(
+      (count) =>
+        count
+          .select('count(*)::int')
+          .from(WorkspaceMember, 'c')
+          .where('c.workspaceId = w.id')
+          .andWhere('c.isActive = true'),
+      'memberCount',
+    )
+    .where('m.memberId = :userId', { userId })
+    .andWhere('m.isActive = true');
+}
+
+async function withPermissions(
+  manager: EntityManager,
+  rows: readonly MemberWorkspaceRow[],
+): Promise<MemberWorkspace[]> {
+  const permissions = await loadRolePermissions(
+    manager,
+    rows.map((row) => ({ scope: row.roleScope, key: row.role })),
+  );
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    slug: row.slug,
+    logo: row.logo,
+    backgroundColor: row.backgroundColor,
+    organizationSize: row.organizationSize,
+    timezone: row.timezone,
+    createdAt: new Date(row.createdAt),
+    updatedAt: new Date(row.updatedAt),
+    role: row.role,
+    permissions: parseWorkspacePermissions(
+      permissions.get(rolePermissionsKey(row.roleScope, row.role)) ?? [],
+    ),
+    memberCount: Number(row.memberCount),
+  }));
+}

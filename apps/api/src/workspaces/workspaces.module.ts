@@ -9,6 +9,7 @@ import { NoStoreMiddleware } from '../auth/noStore.middleware.js';
 import { InMemorySlidingWindowLimiter } from '../common/slidingWindowLimiter.js';
 import { Workspace } from './entities/workspace.entity.js';
 import { WorkspaceMember } from './entities/workspaceMember.entity.js';
+import { RolePermission } from '../roles/entities/rolePermission.entity.js';
 import { LoggingWorkspaceEvents } from './events/loggingWorkspaceEvents.js';
 import { WorkspaceEvents } from './events/workspaceEvents.js';
 import { TypeOrmWorkspacesRepository } from './repositories/typeOrmWorkspaces.repository.js';
@@ -23,7 +24,7 @@ import { WorkspacesService } from './workspaces.service.js';
 @Module({
   imports: [
     AuthModule,
-    TypeOrmModule.forFeature([Workspace, WorkspaceMember]),
+    TypeOrmModule.forFeature([Workspace, WorkspaceMember, RolePermission]),
   ],
   controllers: [WorkspacesController],
   providers: [
@@ -63,4 +64,3 @@ export class WorkspacesModule implements NestModule {
     consumer.apply(NoStoreMiddleware).forRoutes(WorkspacesController);
   }
 }
-

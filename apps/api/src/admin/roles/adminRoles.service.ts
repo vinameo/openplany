@@ -1,8 +1,4 @@
-import {
-  HttpStatus,
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import {
   PROJECT_ROLES,
   WORKSPACE_ROLES,
@@ -15,6 +11,7 @@ import {
 } from '@repo/contracts';
 import { Clock } from '../../auth/clock.js';
 import { ApiException } from '../../common/apiException.js';
+import { isForeignKeyViolation } from '../../common/databaseErrors.js';
 import {
   planRolePermissionChanges,
   type StoredRolePermissions,
@@ -73,13 +70,7 @@ export class AdminRolesService {
         },
       );
     } catch (err: unknown) {
-      if (
-        err !== null &&
-        typeof err === 'object' &&
-        'driverError' in err &&
-        typeof (err as { driverError: unknown }).driverError === 'object' &&
-        (err as { driverError: { code?: string } }).driverError?.code === '23503'
-      ) {
+      if (isForeignKeyViolation(err)) {
         throw new ApiException(
           HttpStatus.BAD_REQUEST,
           'VALIDATION_ERROR',
@@ -124,7 +115,9 @@ export class AdminRolesService {
     return this.getRoles();
   }
 
-  private formatRoles(stored: readonly StoredRolePermissions[]): RoleResponse[] {
+  private formatRoles(
+    stored: readonly StoredRolePermissions[],
+  ): RoleResponse[] {
     const storedMap = new Map<string, StoredRolePermissions>();
     for (const s of stored) {
       storedMap.set(`${s.scope}.${s.key}`, s);
@@ -161,4 +154,3 @@ export class AdminRolesService {
     return orderedRoles;
   }
 }
-

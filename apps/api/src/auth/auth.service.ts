@@ -86,28 +86,16 @@ export class AuthService implements OnModuleInit {
   async signIn(dto: SignInDto, context: RequestContext): Promise<SignInResult> {
     const emailHash = hashEmail(this.hmacSecret, dto.email);
     const userAgent = truncateUserAgent(context.userAgent);
-    const fail = async (
-      reason: LoginReason,
-      userId: string | null,
-      result: 'failure' | 'blocked' = 'failure',
-    ): Promise<void> => {
-      await this.attempts.record({
-        userId,
-        emailHash,
-        ip: context.ip,
-        userAgent,
-        result,
-        reason,
-      });
-      this.logger.log(
-        `sign-in ${result} reason=${reason} requestId=${context.requestId} ` +
-          `userId=${userId ?? '-'} emailKey=${emailHash.slice(0, 8)}`,
-      );
-    };
-
-    const limit = await this.rateLimiter.check({ ip: context.ip, emailHash });
+    const limit = await this.rateLimiter.reserve({
+      ip: context.ip,
+      emailHash,
+      userAgent,
+    });
     if (limit.blocked) {
-      await fail('rate_limited', null, 'blocked');
+      this.logger.log(
+        `sign-in blocked reason=rate_limited requestId=${context.requestId} ` +
+          `userId=- emailKey=${emailHash.slice(0, 8)}`,
+      );
       const minutes = Math.ceil(limit.retryAfterSeconds / 60);
       throw new ApiException(
         HttpStatus.TOO_MANY_REQUESTS,
@@ -116,6 +104,20 @@ export class AuthService implements OnModuleInit {
         { retryAfterSeconds: limit.retryAfterSeconds },
       );
     }
+    const fail = async (
+      reason: LoginReason,
+      userId: string | null,
+    ): Promise<void> => {
+      await this.attempts.finish(limit.attemptId, {
+        userId,
+        result: 'failure',
+        reason,
+      });
+      this.logger.log(
+        `sign-in failure reason=${reason} requestId=${context.requestId} ` +
+          `userId=${userId ?? '-'} emailKey=${emailHash.slice(0, 8)}`,
+      );
+    };
     if (limit.delayMs > 0) await this.clock.sleep(limit.delayMs);
 
     const user = await this.users.findByEmail(dto.email);
@@ -173,12 +175,8 @@ export class AuthService implements OnModuleInit {
         isResetOnly: resetOnly,
       },
       attempt: {
-        userId: user.id,
-        emailHash,
-        ip: context.ip,
-        userAgent,
-        result: 'success',
-        reason,
+        id: limit.attemptId,
+        outcome: { userId: user.id, result: 'success', reason },
       },
     });
     this.logger.log(

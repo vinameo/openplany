@@ -29,14 +29,22 @@ function addFailures(
   }
 }
 
+function reserve(
+  limiter: DbLoginRateLimiter,
+  { ip = IP, emailHash = EMAIL } = {},
+) {
+  return limiter.reserve({ ip, emailHash, userAgent: 'vitest' });
+}
+
 describe('DbLoginRateLimiter', () => {
-  describe('check', () => {
+  describe('reserve', () => {
     it('allows a clean key without delay', async () => {
       const { limiter } = setup();
 
-      expect(await limiter.check({ ip: IP, emailHash: EMAIL })).toEqual({
+      expect(await reserve(limiter)).toEqual({
         blocked: false,
         delayMs: 0,
+        attemptId: 'attempt-1',
       });
     });
 
@@ -44,16 +52,14 @@ describe('DbLoginRateLimiter', () => {
       const { limiter, attempts } = setup();
       addFailures(attempts, 4);
 
-      expect((await limiter.check({ ip: IP, emailHash: EMAIL })).blocked).toBe(
-        false,
-      );
+      expect((await reserve(limiter)).blocked).toBe(false);
     });
 
     it('blocks the 6th try after 5 failures for the same email and IP', async () => {
       const { limiter, attempts } = setup();
       addFailures(attempts, 5, { minutesAgo: 3 });
 
-      expect(await limiter.check({ ip: IP, emailHash: EMAIL })).toEqual({
+      expect(await reserve(limiter)).toEqual({
         blocked: true,
         retryAfterSeconds: 12 * 60,
       });
@@ -63,9 +69,7 @@ describe('DbLoginRateLimiter', () => {
       const { limiter, attempts } = setup();
       addFailures(attempts, 5, { ip: '198.51.100.1' });
 
-      expect((await limiter.check({ ip: IP, emailHash: EMAIL })).blocked).toBe(
-        false,
-      );
+      expect((await reserve(limiter)).blocked).toBe(false);
     });
 
     it('blocks an IP after 50 failures across emails', async () => {
@@ -74,7 +78,7 @@ describe('DbLoginRateLimiter', () => {
         addFailures(attempts, 1, { emailHash: `email-${i}` });
       }
 
-      const decision = await limiter.check({ ip: IP, emailHash: 'fresh' });
+      const decision = await reserve(limiter, { emailHash: 'fresh' });
       expect(decision.blocked).toBe(true);
     });
 
@@ -82,9 +86,7 @@ describe('DbLoginRateLimiter', () => {
       const { limiter, attempts } = setup();
       addFailures(attempts, 5, { minutesAgo: 16 });
 
-      expect((await limiter.check({ ip: IP, emailHash: EMAIL })).blocked).toBe(
-        false,
-      );
+      expect((await reserve(limiter)).blocked).toBe(false);
     });
 
     it('slows down instead of locking after 20 failures for an email across IPs', async () => {
@@ -93,7 +95,7 @@ describe('DbLoginRateLimiter', () => {
         addFailures(attempts, 1, { ip: `198.51.100.${i}` });
       }
 
-      expect(await limiter.check({ ip: IP, emailHash: EMAIL })).toEqual({
+      expect(await reserve(limiter)).toMatchObject({
         blocked: false,
         delayMs: 2000,
       });
@@ -105,10 +107,62 @@ describe('DbLoginRateLimiter', () => {
         addFailures(attempts, 1, { ip: `198.51.100.${i}` });
       }
 
-      expect(await limiter.check({ ip: IP, emailHash: EMAIL })).toEqual({
+      expect(await reserve(limiter)).toMatchObject({
         blocked: false,
         delayMs: 5000,
       });
+    });
+
+    it('records an allowed try as a provisional failure under the IP lock', async () => {
+      const { limiter, attempts } = setup();
+
+      await reserve(limiter);
+
+      expect(attempts.lockedIps).toEqual([IP]);
+      expect(attempts.inserted).toEqual([
+        {
+          id: 'attempt-1',
+          ip: IP,
+          emailHash: EMAIL,
+          userAgent: 'vitest',
+          userId: null,
+          result: 'failure',
+          reason: null,
+        },
+      ]);
+    });
+
+    it('records a blocked try as a blocked row that does not count', async () => {
+      const { limiter, attempts } = setup();
+      addFailures(attempts, 5);
+
+      await reserve(limiter);
+      await reserve(limiter);
+
+      expect(attempts.inserted.map((row) => row.result)).toEqual([
+        'blocked',
+        'blocked',
+      ]);
+      expect(attempts.failures).toHaveLength(5);
+    });
+
+    it('counts reserved tries that have not finished, so parallel sign-ins cannot exceed the limit', async () => {
+      const { limiter } = setup();
+
+      const decisions = [];
+      for (let i = 0; i < 7; i += 1) {
+        decisions.push(await reserve(limiter));
+      }
+
+      expect(decisions.map((d) => d.blocked)).toEqual([
+        false,
+        false,
+        false,
+        false,
+        false,
+        true,
+        true,
+      ]);
     });
   });
 });

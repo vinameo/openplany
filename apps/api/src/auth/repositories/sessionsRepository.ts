@@ -4,7 +4,7 @@ import { IsNull, type DataSource } from 'typeorm';
 import { LoginAttempt } from '../entities/loginAttempt.entity.js';
 import { Session } from '../entities/session.entity.js';
 import { User } from '../entities/user.entity.js';
-import type { NewLoginAttempt } from './loginAttemptsRepository.js';
+import type { LoginAttemptOutcome } from './loginAttemptsRepository.js';
 
 export interface SignInRecord {
   userId: string;
@@ -18,7 +18,8 @@ export interface SignInRecord {
     expiresAt: Date;
     isResetOnly: boolean;
   };
-  attempt: NewLoginAttempt;
+  /** The attempt the rate limiter reserved; marked successful in the same transaction. */
+  attempt: { id: string; outcome: LoginAttemptOutcome };
 }
 
 export interface ActiveSession {
@@ -75,10 +76,11 @@ export class TypeOrmSessionsRepository extends SessionsRepository {
         isResetOnly: record.session.isResetOnly,
       });
       await manager.insert(Session, session);
-      await manager.insert(LoginAttempt, {
-        ...record.attempt,
-        medium: 'email',
-      });
+      await manager.update(
+        LoginAttempt,
+        { id: record.attempt.id },
+        record.attempt.outcome,
+      );
       return session;
     });
   }

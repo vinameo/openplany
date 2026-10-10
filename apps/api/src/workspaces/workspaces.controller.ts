@@ -3,7 +3,6 @@ import {
   Controller,
   Get,
   HttpStatus,
-  Logger,
   Patch,
   Post,
   Query,
@@ -19,7 +18,10 @@ import type {
 import type { Request, Response } from 'express';
 import { CurrentUserId } from '../auth/currentUser.decorator.js';
 import { SessionGuard } from '../auth/guards/sessionGuard.js';
-import { ApiException } from '../common/apiException.js';
+import {
+  InstanceAdminDeniedMessage,
+  InstanceAdminGuard,
+} from '../admin/instanceAdminGuard.js';
 import { CurrentWorkspace } from './currentWorkspace.decorator.js';
 import { CreateWorkspaceDto } from './dto/createWorkspace.dto.js';
 import { SlugCheckQueryDto } from './dto/slugCheckQuery.dto.js';
@@ -33,23 +35,18 @@ import { WorkspacesService } from './workspaces.service.js';
 @Controller('workspaces')
 @UseGuards(SessionGuard)
 export class WorkspacesController {
-  private readonly logger = new Logger(WorkspacesController.name);
-
   constructor(private readonly workspacesService: WorkspacesService) {}
 
   @Get('slug-check')
+  @UseGuards(InstanceAdminGuard)
+  @InstanceAdminDeniedMessage(
+    "You don't have permission to check workspace slugs",
+  )
   checkSlug(
     @CurrentUserId() userId: string,
     @Query() query: SlugCheckQueryDto,
     @Req() request: Request,
   ): Promise<SlugCheckResponse> {
-    if (!request.auth?.isInstanceAdmin) {
-      throw new ApiException(
-        HttpStatus.FORBIDDEN,
-        'FORBIDDEN',
-        "You don't have permission to check workspace slugs",
-      );
-    }
     return this.workspacesService.checkSlug(
       userId,
       query.slug,
@@ -58,22 +55,14 @@ export class WorkspacesController {
   }
 
   @Post()
+  @UseGuards(InstanceAdminGuard)
+  @InstanceAdminDeniedMessage("You don't have permission to create workspaces")
   async create(
     @CurrentUserId() userId: string,
     @Body() dto: CreateWorkspaceDto,
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ): Promise<WorkspaceResponse> {
-    if (!request.auth?.isInstanceAdmin) {
-      this.logger.warn(
-        `workspace.create.forbidden userId=${userId} requestId=${request.requestId ?? ''}`,
-      );
-      throw new ApiException(
-        HttpStatus.FORBIDDEN,
-        'FORBIDDEN',
-        "You don't have permission to create workspaces",
-      );
-    }
     const created = await this.workspacesService.create(
       userId,
       dto,
@@ -91,11 +80,13 @@ export class WorkspacesController {
 
   @Get(':slug')
   @UseGuards(WorkspaceMemberGuard)
-  getBySlug(
+  async getBySlug(
     @CurrentUserId() userId: string,
     @CurrentWorkspace() workspace: MemberWorkspace,
-  ): WorkspaceResponse {
-    void this.workspacesService.rememberLastWorkspace(userId, workspace.id);
+  ): Promise<WorkspaceResponse> {
+    // Spec API7: GET also records last_workspace_id. Awaited (never floating);
+    // the service logs and absorbs a failed write so the read still succeeds.
+    await this.workspacesService.rememberLastWorkspace(userId, workspace.id);
     return toWorkspaceResponse(workspace);
   }
 
@@ -115,4 +106,3 @@ export class WorkspacesController {
     );
   }
 }
-

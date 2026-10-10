@@ -8,11 +8,14 @@ import {
 } from '../../src/auth/passwordHasher.js';
 import {
   LoginRateLimiter,
+  type PendingLoginAttempt,
   type RateLimitDecision,
 } from '../../src/auth/rateLimiter.js';
 import {
   LoginAttemptsRepository,
   type FailureScope,
+  type LockedLoginAttempts,
+  type LoginAttemptOutcome,
   type NewLoginAttempt,
 } from '../../src/auth/repositories/loginAttemptsRepository.js';
 import {
@@ -112,11 +115,21 @@ export class FakePasswordHasher extends PasswordHasher {
   }
 }
 
-export class FakeRateLimiter extends LoginRateLimiter {
-  decision: RateLimitDecision = { blocked: false, delayMs: 0 };
+export const RESERVED_ATTEMPT_ID = 'attempt-1';
 
-  check(): Promise<RateLimitDecision> {
-    return Promise.resolve(this.decision);
+export class FakeRateLimiter extends LoginRateLimiter {
+  decision:
+    | { blocked: true; retryAfterSeconds: number }
+    | { blocked: false; delayMs: number } = { blocked: false, delayMs: 0 };
+  readonly reservations: PendingLoginAttempt[] = [];
+
+  reserve(attempt: PendingLoginAttempt): Promise<RateLimitDecision> {
+    this.reservations.push(attempt);
+    return Promise.resolve(
+      this.decision.blocked
+        ? this.decision
+        : { ...this.decision, attemptId: RESERVED_ATTEMPT_ID },
+    );
   }
 }
 
@@ -158,40 +171,60 @@ export class FakeUsersRepository extends UsersRepository {
 }
 
 export class FakeLoginAttemptsRepository extends LoginAttemptsRepository {
-  readonly recorded: NewLoginAttempt[] = [];
+  /** Rows inserted while the IP lock was held (provisional and blocked). */
+  readonly inserted: (NewLoginAttempt & { id: string })[] = [];
+  /** Outcomes written by finish(), in order. */
+  readonly recorded: (LoginAttemptOutcome & { id: string })[] = [];
   /** Failure rows the rate limiter reads: newest last. */
   readonly failures: Pick<LoginAttempt, 'emailHash' | 'ip' | 'createdAt'>[] =
     [];
+  readonly lockedIps: string[] = [];
 
-  record(attempt: NewLoginAttempt): Promise<void> {
-    this.recorded.push(attempt);
+  private readonly locked: LockedLoginAttempts = {
+    nthRecentFailureAt: (scope: FailureScope, since: Date, n: number) => {
+      const matching = this.failures
+        .filter(
+          (row) =>
+            row.ip === scope.ip &&
+            (scope.emailHash === undefined ||
+              row.emailHash === scope.emailHash) &&
+            row.createdAt > since,
+        )
+        .map((row) => row.createdAt)
+        .sort((a, b) => b.getTime() - a.getTime());
+      return Promise.resolve(matching[n - 1] ?? null);
+    },
+    countEmailFailures: (emailHash: string, since: Date) =>
+      Promise.resolve(
+        this.failures.filter(
+          (row) => row.emailHash === emailHash && row.createdAt > since,
+        ).length,
+      ),
+    insert: (attempt: NewLoginAttempt) => {
+      const id = `attempt-${this.inserted.length + 1}`;
+      this.inserted.push({ ...attempt, id });
+      if (attempt.result === 'failure') {
+        this.failures.push({
+          emailHash: attempt.emailHash,
+          ip: attempt.ip,
+          createdAt: NOW,
+        });
+      }
+      return Promise.resolve(id);
+    },
+  };
+
+  withIpLock<T>(
+    ip: string,
+    work: (attempts: LockedLoginAttempts) => Promise<T>,
+  ): Promise<T> {
+    this.lockedIps.push(ip);
+    return work(this.locked);
+  }
+
+  finish(attemptId: string, outcome: LoginAttemptOutcome): Promise<void> {
+    this.recorded.push({ ...outcome, id: attemptId });
     return Promise.resolve();
-  }
-
-  nthRecentFailureAt(
-    scope: FailureScope,
-    since: Date,
-    n: number,
-  ): Promise<Date | null> {
-    const matching = this.failures
-      .filter(
-        (row) =>
-          row.ip === scope.ip &&
-          (scope.emailHash === undefined ||
-            row.emailHash === scope.emailHash) &&
-          row.createdAt > since,
-      )
-      .map((row) => row.createdAt)
-      .sort((a, b) => b.getTime() - a.getTime());
-    return Promise.resolve(matching[n - 1] ?? null);
-  }
-
-  countEmailFailures(emailHash: string, since: Date): Promise<number> {
-    return Promise.resolve(
-      this.failures.filter(
-        (row) => row.emailHash === emailHash && row.createdAt > since,
-      ).length,
-    );
   }
 }
 
