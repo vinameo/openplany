@@ -8,17 +8,24 @@ import { UserButton } from "../profile/UserButton";
 import { CreateWorkspaceButton } from "../workspaces/CreateWorkspaceButton";
 import { WorkspaceSwitcher } from "../workspaces/switcher/WorkspaceSwitcher";
 import { useWorkspaces } from "../workspaces/useWorkspaces";
+import { CommandSearchPlaceholder } from "./CommandSearchPlaceholder";
+import { useIsDesktop } from "./useIsDesktop";
 import classes from "./AppHeader.module.css";
 
 interface AppHeaderProps {
   currentWorkspace?: WorkspaceResponse;
+  variant?: "workspace" | "default";
 }
 
 /** Head bar of every signed-in page. */
-export function AppHeader({ currentWorkspace }: AppHeaderProps) {
+export function AppHeader({
+  currentWorkspace,
+  variant = "default",
+}: AppHeaderProps) {
   const { state: authState, signOut } = useAuth();
   const { state: wsState } = useWorkspaces();
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const isDesktop = useIsDesktop();
 
   if (authState.status !== "authenticated") return null;
 
@@ -41,8 +48,8 @@ export function AppHeader({ currentWorkspace }: AppHeaderProps) {
     authState.session.user.isInstanceAdmin;
 
   return (
-    <header className={classes.header}>
-      <Container size="lg" className={classes.inner}>
+    <header className={classes.header} data-variant={variant}>
+      <Container fluid className={classes.inner}>
         <div className={classes.leftGroup}>
           {currentWorkspace ? (
             <WorkspaceSwitcher currentWorkspace={currentWorkspace} />
@@ -54,7 +61,14 @@ export function AppHeader({ currentWorkspace }: AppHeaderProps) {
           )}
         </div>
 
+        {isDesktop && (
+          <div className={classes.centerGroup}>
+            {currentWorkspace && <CommandSearchPlaceholder />}
+          </div>
+        )}
+
         <Group gap="xs" wrap="nowrap" className={classes.rightGroup}>
+          {!isDesktop && currentWorkspace && <CommandSearchPlaceholder />}
           <ColorSchemeToggle size="input-xs" />
           <UserButton user={authState.session.user} />
           {!currentWorkspace && (

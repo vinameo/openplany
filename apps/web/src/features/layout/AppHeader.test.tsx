@@ -8,13 +8,16 @@ import { jsonResponse, mockFetch } from "../../test/fetchMock";
 import { WorkspaceProvider } from "../workspaces/WorkspaceProvider";
 import { AppHeader } from "./AppHeader";
 
-function renderHeader(currentWorkspace?: Parameters<typeof AppHeader>[0]["currentWorkspace"]) {
+function renderHeader(
+  currentWorkspace?: Parameters<typeof AppHeader>[0]["currentWorkspace"],
+  variant?: Parameters<typeof AppHeader>[0]["variant"],
+) {
   render(
     <AppUiProvider>
       <AuthProvider>
         <WorkspaceProvider>
           <MemoryRouter>
-            <AppHeader currentWorkspace={currentWorkspace} />
+            <AppHeader currentWorkspace={currentWorkspace} variant={variant} />
           </MemoryRouter>
         </WorkspaceProvider>
       </AuthProvider>
@@ -121,5 +124,70 @@ describe("AppHeader", () => {
     expect(
       screen.queryByRole("button", { name: /^sign out$/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it("AC-20: when not in a workspace, does not show command search button, retains Sign out", async () => {
+    mockFetch({
+      "GET /api/auth/session": () =>
+        jsonResponse(
+          200,
+          makeSession({
+            user: { ...makeSession().user, isInstanceAdmin: false },
+          }),
+        ),
+      "GET /api/workspaces": () =>
+        jsonResponse(200, { workspaces: [], lastWorkspaceSlug: null }),
+    });
+
+    renderHeader();
+
+    await screen.findByRole("button", { name: /sign out/i });
+    expect(
+      screen.queryByRole("button", { name: /search commands/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("AC-18: in workspace shows command search placeholder button", async () => {
+    mockFetch({
+      "GET /api/auth/session": () => jsonResponse(200, makeSession()),
+      "GET /api/workspaces": () =>
+        jsonResponse(200, {
+          workspaces: [],
+          lastWorkspaceSlug: null,
+        }),
+    });
+
+    renderHeader({
+      id: "ws-1",
+      name: "Acme Corp",
+      slug: "acme-corp",
+      logoUrl: null,
+      backgroundColor: "#0F172A",
+      organizationSize: "2-10",
+      timezone: "UTC",
+      role: "admin",
+      permissions: ["workspace.settings.update"],
+      memberCount: 1,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    expect(
+      await screen.findByRole("button", {
+        name: "Search commands (coming soon)",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("renders data-variant='default' by default, and data-variant='workspace' when passed", async () => {
+    mockFetch({
+      "GET /api/auth/session": () => jsonResponse(200, makeSession()),
+      "GET /api/workspaces": () =>
+        jsonResponse(200, { workspaces: [], lastWorkspaceSlug: null }),
+    });
+
+    renderHeader();
+    const defaultHeader = await screen.findByRole("banner");
+    expect(defaultHeader).toHaveAttribute("data-variant", "default");
   });
 });

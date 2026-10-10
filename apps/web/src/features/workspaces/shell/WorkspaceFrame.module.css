@@ -1,0 +1,23 @@
+.frame {
+  height: calc(100dvh - var(--app-header-height));
+  background: var(--app-color-page);
+  box-sizing: border-box;
+}
+
+.panel {
+  height: 100%;
+  overflow: hidden;
+  background: var(--app-color-surface);
+  box-sizing: border-box;
+}
+
+@media (min-width: 48em) {
+  .frame {
+    padding: 0 var(--workspace-frame-gap) var(--workspace-frame-gap);
+  }
+
+  .panel {
+    border: 1px solid var(--app-color-border);
+    border-radius: var(--mantine-radius-md);
+  }
+}

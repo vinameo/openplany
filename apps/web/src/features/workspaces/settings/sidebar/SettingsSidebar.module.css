@@ -1,8 +1,6 @@
 .nav {
-  position: sticky;
-  top: var(--app-header-height);
-  height: calc(100dvh - var(--app-header-height));
-  width: 248px;
+  height: 100%;
+  width: var(--app-sidebar-width);
   display: flex;
   flex-direction: column;
   background-color: var(--app-color-surface);

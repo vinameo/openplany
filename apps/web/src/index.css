@@ -1,4 +1,14 @@
 :root {
   --app-header-height: 65px;
+  --app-sidebar-width: 248px;
+  --workspace-frame-gap: 8px;
+  --workspace-page-header-height: 50px;
+  --workspace-sidebar-transition: 200ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --workspace-sidebar-transition: 0ms;
+  }
 }
 

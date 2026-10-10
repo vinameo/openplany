@@ -10,8 +10,10 @@ import {
   CurrentWorkspaceContext,
   type CurrentWorkspaceValue,
 } from "../currentWorkspace/currentWorkspaceContext";
+import { WorkspaceFrame } from "../shell/WorkspaceFrame";
 import { useWorkspaces } from "../useWorkspaces";
 import { WorkspaceNotFound } from "./WorkspaceNotFound";
+import classes from "./WorkspaceLayout.module.css";
 
 export function WorkspaceLayout() {
   const { workspaceSlug } = useParams<{ workspaceSlug: string }>();
@@ -117,15 +119,17 @@ export function WorkspaceLayout() {
     return (
       <>
         <AppHeader currentWorkspace={undefined} />
-        <div style={{ minHeight: "calc(100dvh - var(--app-header-height))" }} />
+        <div className={classes.placeholder} />
       </>
     );
   }
 
   return (
     <CurrentWorkspaceContext value={contextValue}>
-      <AppHeader currentWorkspace={workspace} />
-      <Outlet />
+      <AppHeader currentWorkspace={workspace} variant="workspace" />
+      <WorkspaceFrame>
+        <Outlet />
+      </WorkspaceFrame>
     </CurrentWorkspaceContext>
   );
 }

@@ -14,9 +14,12 @@ import { CreateUserRoute } from "./features/admin/users/CreateUserRoute";
 import { RolesAndPermissionsRoute } from "./features/admin/roles/RolesAndPermissionsRoute";
 import { ROLES_AND_PERMISSIONS_PATH } from "./features/admin/roles/rolesOverview";
 import { CreateWorkspaceRoute } from "./features/workspaces/create/CreateWorkspaceRoute";
+import { HomeIcon } from "./features/workspaces/icons";
 import { HomeRedirect } from "./features/workspaces/routes/HomeRedirect";
 import { WorkspaceLayout } from "./features/workspaces/routes/WorkspaceLayout";
 import { WorkspaceNotFound } from "./features/workspaces/routes/WorkspaceNotFound";
+import { WorkspaceShell } from "./features/workspaces/shell/WorkspaceShell";
+import type { WorkspacePageHandle } from "./features/workspaces/shell/workspacePageHandle";
 import { WorkspaceProvider } from "./features/workspaces/WorkspaceProvider";
 
 export const appRoutes: RouteObject[] = [
@@ -41,7 +44,18 @@ export const appRoutes: RouteObject[] = [
             path: "/:workspaceSlug",
             element: <WorkspaceLayout />,
             children: [
-              { index: true, element: <HomePage /> },
+              {
+                element: <WorkspaceShell />,
+                children: [
+                  {
+                    index: true,
+                    element: <HomePage />,
+                    handle: {
+                      workspacePage: { title: "Home", icon: HomeIcon },
+                    } satisfies WorkspacePageHandle,
+                  },
+                ],
+              },
               {
                 path: "settings",
                 lazy: () =>
