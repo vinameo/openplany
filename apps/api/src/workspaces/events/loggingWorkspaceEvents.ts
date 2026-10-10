@@ -1,10 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import {
   EDITABLE_WORKSPACE_FIELDS,
+  WORKSPACE_ROLES,
   type EditableWorkspaceField,
 } from '@repo/contracts';
 import {
   WorkspaceEvents,
+  type MemberCandidatesSearchedEvent,
+  type WorkspaceMembersAddedEvent,
   type WorkspaceUpdatedEvent,
 } from './workspaceEvents.js';
 
@@ -41,6 +44,23 @@ export class LoggingWorkspaceEvents extends WorkspaceEvents {
     }
 
     this.logger.log(parts.join(' '));
+  }
+
+  async memberCandidatesSearched(
+    event: MemberCandidatesSearchedEvent,
+  ): Promise<void> {
+    this.logger.debug(
+      `workspace.members.candidates requestId=${event.requestId} userId=${event.actorId} workspaceId=${event.workspaceId} resultCount=${event.resultCount}`,
+    );
+  }
+
+  async membersAdded(event: WorkspaceMembersAddedEvent): Promise<void> {
+    const rolesPart = WORKSPACE_ROLES.filter((r) => event.roles[r] !== undefined)
+      .map((r) => `${r}:${event.roles[r]}`)
+      .join(',');
+    this.logger.log(
+      `workspace.members.added requestId=${event.requestId} userId=${event.actorId} workspaceId=${event.workspaceId} role=${event.actorRole} count=${event.count} reactivated=${event.reactivatedCount} roles=${rolesPart}`,
+    );
   }
 }
 

@@ -1,4 +1,8 @@
-import type { WorkspaceMemberResponse, WorkspaceRole } from '@repo/contracts';
+import type {
+  MemberCandidate,
+  WorkspaceMemberResponse,
+  WorkspaceRole,
+} from '@repo/contracts';
 
 export interface WorkspaceMemberRow {
   userId: string;
@@ -34,3 +38,24 @@ export function toWorkspaceMemberResponse(
   return res;
 }
 
+export interface MemberCandidateRow {
+  userId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  displayName: string;
+  avatarUrl: string | null;
+  alreadyMember: boolean;
+}
+
+export function toMemberCandidate(row: MemberCandidateRow): MemberCandidate {
+  return {
+    userId: row.userId,
+    email: row.email,
+    firstName: row.firstName,
+    lastName: row.lastName,
+    displayName: row.displayName,
+    avatarUrl: row.avatarUrl,
+    alreadyMember: row.alreadyMember,
+  };
+}

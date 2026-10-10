@@ -35,7 +35,8 @@ export function mockFetch(routes: Record<string, Handler>) {
   const fetchMock = vi.fn(
     async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
       const key = `${init?.method ?? "GET"} ${String(input)}`;
-      const handler = allRoutes[key];
+      const pathOnlyKey = `${init?.method ?? "GET"} ${String(input).split("?")[0]}`;
+      const handler = allRoutes[key] ?? allRoutes[pathOnlyKey];
       if (handler === undefined) throw new Error(`Unexpected request: ${key}`);
       return handler(init);
     },

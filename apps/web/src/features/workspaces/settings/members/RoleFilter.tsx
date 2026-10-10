@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   Button,
   Checkbox,
@@ -20,8 +19,6 @@ interface RoleFilterProps {
 }
 
 export function RoleFilter({ selectedRoles, onChange }: RoleFilterProps) {
-  const [opened, setOpened] = useState(false);
-
   const label =
     selectedRoles.length > 0
       ? `Filters · ${selectedRoles.length}`
@@ -29,17 +26,15 @@ export function RoleFilter({ selectedRoles, onChange }: RoleFilterProps) {
 
   return (
     <Popover
-      opened={opened}
-      onChange={setOpened}
       position="bottom-start"
       withArrow
       shadow="md"
+      withinPortal={false}
     >
       <Popover.Target>
         <Button
           variant="default"
           leftSection={<FilterIcon width={14} height={14} />}
-          onClick={() => setOpened((o) => !o)}
           aria-label="Filter by role"
         >
           {label}
@@ -81,4 +76,3 @@ export function RoleFilter({ selectedRoles, onChange }: RoleFilterProps) {
     </Popover>
   );
 }
-

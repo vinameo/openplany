@@ -13,6 +13,7 @@ export function makeWorkspace(
           "workspace.settings.update",
           "workspace.members.view",
           "workspace.members.email.view",
+          "workspace.members.add",
         ]
       : role === "member"
         ? ["workspace.members.view"]

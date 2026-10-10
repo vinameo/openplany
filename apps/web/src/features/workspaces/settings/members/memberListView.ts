@@ -25,7 +25,11 @@ export interface MemberListQuery {
 }
 
 /** Full name đã trim; rỗng thì Display name (RQ A6). */
-export function memberDisplayName(member: WorkspaceMemberResponse): string {
+export function memberDisplayName(member: {
+  firstName: string;
+  lastName: string;
+  displayName: string;
+}): string {
   const full = [member.firstName, member.lastName]
     .map((s) => s.trim())
     .filter((s) => s.length > 0)

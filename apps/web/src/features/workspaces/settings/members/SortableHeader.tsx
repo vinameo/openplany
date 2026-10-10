@@ -41,7 +41,7 @@ export function SortableHeader({
         <Text size="sm" fw={600}>
           {title}
         </Text>
-        <Menu position="bottom-start" withinPortal>
+        <Menu position="bottom-start" withinPortal={false}>
           <Menu.Target>
             <ActionIcon
               variant="subtle"

@@ -14,10 +14,15 @@ import { LoggingWorkspaceEvents } from './events/loggingWorkspaceEvents.js';
 import { WorkspaceEvents } from './events/workspaceEvents.js';
 import { TypeOrmWorkspacesRepository } from './repositories/typeOrmWorkspaces.repository.js';
 import { WorkspacesRepository } from './repositories/workspaces.repository.js';
-import { SLUG_CHECK_LIMITER, WORKSPACE_WRITE_LIMITER } from './tokens.js';
+import {
+  MEMBER_CANDIDATE_LIMITER,
+  SLUG_CHECK_LIMITER,
+  WORKSPACE_WRITE_LIMITER,
+} from './tokens.js';
 import { WorkspaceMemberGuard } from './workspaceMemberGuard.js';
 import { WorkspacePermissionGuard } from './workspacePermissionGuard.js';
 import { WorkspaceWriteRateLimitGuard } from './workspaceWriteRateLimitGuard.js';
+import { MemberCandidateRateLimitGuard } from './members/memberCandidateRateLimitGuard.js';
 import { WorkspacesController } from './workspaces.controller.js';
 import { WorkspacesService } from './workspaces.service.js';
 import { WorkspaceMembersController } from './members/workspaceMembers.controller.js';
@@ -37,6 +42,7 @@ import { TypeOrmWorkspaceMembersRepository } from './members/typeOrmWorkspaceMem
     WorkspaceMemberGuard,
     WorkspacePermissionGuard,
     WorkspaceWriteRateLimitGuard,
+    MemberCandidateRateLimitGuard,
     {
       provide: WorkspacesRepository,
       useClass: TypeOrmWorkspacesRepository,
@@ -59,6 +65,11 @@ import { TypeOrmWorkspaceMembersRepository } from './members/typeOrmWorkspaceMem
       useFactory: () =>
         new InMemorySlidingWindowLimiter({ limit: 30, windowMs: 600_000 }),
     },
+    {
+      provide: MEMBER_CANDIDATE_LIMITER,
+      useFactory: () =>
+        new InMemorySlidingWindowLimiter({ limit: 60, windowMs: 60_000 }),
+    },
   ],
   exports: [
     WorkspacesService,
@@ -68,6 +79,7 @@ import { TypeOrmWorkspaceMembersRepository } from './members/typeOrmWorkspaceMem
     WorkspaceMemberGuard,
     WorkspacePermissionGuard,
     WorkspaceWriteRateLimitGuard,
+    MemberCandidateRateLimitGuard,
   ],
 })
 export class WorkspacesModule implements NestModule {

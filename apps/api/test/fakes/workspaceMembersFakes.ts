@@ -9,6 +9,10 @@ import type { WorkspaceMemberRow } from '../../src/workspaces/members/dto/worksp
 export class FakeWorkspaceMembersRepository extends WorkspaceMembersRepository {
   public membersByWorkspace = new Map<string, WorkspaceMemberRow[]>();
   public totalOverride?: number;
+  public candidates: MemberCandidateRow[] = [];
+  public lastSearchQuery?: string;
+  public addMembersResult?: AddMembersResult;
+  public addMembersInput?: unknown;
 
   async list(
     workspaceId: string,
@@ -30,14 +34,24 @@ export class FakeWorkspaceMembersRepository extends WorkspaceMembersRepository {
 
   async searchCandidates(
     _workspaceId: string,
-    _query: string,
-    _limit: number,
+    query: string,
+    limit: number,
   ): Promise<MemberCandidateRow[]> {
-    return [];
+    this.lastSearchQuery = query;
+    return this.candidates.slice(0, limit);
   }
 
-  async addMembers(_input: unknown): Promise<AddMembersResult> {
-    return { status: 'added', members: [], reactivatedCount: 0 };
+  async addMembers(
+    input: Parameters<WorkspaceMembersRepository['addMembers']>[0],
+  ): Promise<AddMembersResult> {
+    this.addMembersInput = input;
+    return (
+      this.addMembersResult ?? {
+        status: 'added',
+        members: [],
+        reactivatedCount: 0,
+      }
+    );
   }
 }
 

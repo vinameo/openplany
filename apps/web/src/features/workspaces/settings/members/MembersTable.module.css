@@ -1,8 +1,22 @@
+.scrollContainer {
+  width: 100%;
+}
+
+.scrollContainer > div {
+  width: 100%;
+}
+
+.table {
+  width: 100%;
+  min-width: 100%;
+}
+
 .stickyHeader {
   position: sticky;
   left: 0;
   background-color: var(--mantine-color-body);
   z-index: 2;
+  white-space: nowrap;
 }
 
 .stickyColumn {
@@ -10,5 +24,12 @@
   left: 0;
   background-color: var(--mantine-color-body);
   z-index: 1;
+}
+
+.roleHeader,
+.roleCell,
+.dateHeader,
+.dateCell {
+  white-space: nowrap;
 }
 

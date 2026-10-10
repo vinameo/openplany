@@ -152,6 +152,8 @@ import {
 } from '../../src/common/slidingWindowLimiter.js';
 import {
   WorkspaceEvents,
+  type MemberCandidatesSearchedEvent,
+  type WorkspaceMembersAddedEvent,
   type WorkspaceUpdatedEvent,
 } from '../../src/workspaces/events/workspaceEvents.js';
 
@@ -165,6 +167,8 @@ export class FakeSlugCheckRateLimiter extends SlidingWindowLimiter {
 
 export class FakeWorkspaceEvents extends WorkspaceEvents {
   events: WorkspaceUpdatedEvent[] = [];
+  candidateSearchedEvents: MemberCandidatesSearchedEvent[] = [];
+  membersAddedEvents: WorkspaceMembersAddedEvent[] = [];
   throwError: Error | null = null;
 
   updated(event: WorkspaceUpdatedEvent): Promise<void> {
@@ -172,6 +176,24 @@ export class FakeWorkspaceEvents extends WorkspaceEvents {
       return Promise.reject(this.throwError);
     }
     this.events.push(event);
+    return Promise.resolve();
+  }
+
+  memberCandidatesSearched(
+    event: MemberCandidatesSearchedEvent,
+  ): Promise<void> {
+    if (this.throwError) {
+      return Promise.reject(this.throwError);
+    }
+    this.candidateSearchedEvents.push(event);
+    return Promise.resolve();
+  }
+
+  membersAdded(event: WorkspaceMembersAddedEvent): Promise<void> {
+    if (this.throwError) {
+      return Promise.reject(this.throwError);
+    }
+    this.membersAddedEvents.push(event);
     return Promise.resolve();
   }
 }

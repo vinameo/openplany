@@ -28,7 +28,16 @@ export async function recordWorkspaceRoleChanges(
   await manager
     .createQueryBuilder()
     .insert()
-    .into('workspace_member_role_history')
+    .into('workspace_member_role_history', [
+      'workspace_id',
+      'member_id',
+      'from_role',
+      'to_role',
+      'change_type',
+      'actor_id',
+      'request_id',
+      'created_at',
+    ])
     .values(
       entries.map((e) => ({
         workspace_id: e.workspaceId,

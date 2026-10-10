@@ -14,6 +14,7 @@ export const API_ERROR_CODES = [
   'SLUG_ALREADY_EXISTS',
   'EMAIL_ALREADY_EXISTS',
   'ROLE_PERMISSIONS_CHANGED',
+  'MEMBERS_NOT_ADDABLE',
   'INTERNAL_ERROR',
 ] as const;
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number];

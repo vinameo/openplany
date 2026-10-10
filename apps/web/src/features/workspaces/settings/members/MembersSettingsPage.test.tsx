@@ -59,6 +59,7 @@ function renderMembersApp(
       "workspace.settings.update",
       "workspace.members.view",
       "workspace.members.email.view",
+      "workspace.members.add",
     ],
     ...wsOverrides,
   });
@@ -263,7 +264,7 @@ describe("MembersSettingsPage", () => {
 
     await user.click(filterBtn);
 
-    const guestCheckbox = screen.getByRole("checkbox", { name: "Guest" });
+    const guestCheckbox = await screen.findByRole("checkbox", { name: "Guest" });
     await user.click(guestCheckbox);
 
     expect(screen.getByRole("button", { name: "Filter by role" })).toHaveTextContent("Filters · 1");
@@ -281,7 +282,7 @@ describe("MembersSettingsPage", () => {
     const sortRoleBtn = screen.getByRole("button", { name: "Sort by Role" });
     await user.click(sortRoleBtn);
 
-    const ascOption = screen.getByRole("menuitem", { name: "Ascending" });
+    const ascOption = await screen.findByRole("menuitem", { name: "Ascending" });
     await user.click(ascOption);
 
     // In ascending order, Member Bob (rank 20) should appear before Admin Alice (rank 30)
@@ -289,6 +290,35 @@ describe("MembersSettingsPage", () => {
     // Row 0 is header, Row 1 should be Bob, Row 2 should be Alice
     expect(rows[1]).toHaveTextContent("Member Bob");
     expect(rows[2]).toHaveTextContent("Admin Alice");
+  });
+
+  it("AC-16 / AC-17: Admin with workspace.members.add sees 'Add member' button and opens modal", async () => {
+    const user = userEvent.setup();
+    renderMembersApp({
+      role: "admin",
+      permissions: [
+        "workspace.members.view",
+        "workspace.members.email.view",
+        "workspace.members.add",
+      ],
+    });
+
+    await screen.findByRole("heading", { name: "Members", level: 2 });
+    const addMemberBtn = screen.getByRole("button", { name: "Add member" });
+    expect(addMemberBtn).toBeInTheDocument();
+
+    await user.click(addMemberBtn);
+    expect(await screen.findByRole("dialog", { name: "Add member" })).toBeInTheDocument();
+  });
+
+  it("AC-17: Member without workspace.members.add does not see 'Add member' button", async () => {
+    renderMembersApp({
+      role: "member",
+      permissions: ["workspace.members.view"],
+    });
+
+    await screen.findByRole("heading", { name: "Members", level: 2 });
+    expect(screen.queryByRole("button", { name: "Add member" })).not.toBeInTheDocument();
   });
 });
 

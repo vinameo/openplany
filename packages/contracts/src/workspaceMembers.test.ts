@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeForSearch } from './workspaceMembers.js';
+import { escapeLikePattern, normalizeForSearch } from './workspaceMembers.js';
 
 describe('normalizeForSearch', () => {
   it('API-08: normalizes Vietnamese diacritics, lowercases, and trims while preserving spaces', () => {
@@ -11,6 +11,16 @@ describe('normalizeForSearch', () => {
   it('handles empty and whitespace strings', () => {
     expect(normalizeForSearch('')).toBe('');
     expect(normalizeForSearch('   ')).toBe('');
+  });
+});
+
+describe('escapeLikePattern', () => {
+  it('API-09: escapes %, _, and \\ with backslash', () => {
+    expect(escapeLikePattern('a_%\\b')).toBe('a\\_\\%\\\\b');
+  });
+
+  it('preserves strings without special characters', () => {
+    expect(escapeLikePattern('user@example.com')).toBe('user@example.com');
   });
 });
 

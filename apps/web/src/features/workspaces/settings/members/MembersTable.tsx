@@ -26,11 +26,22 @@ export function MembersTable({
   onSortChange,
 }: MembersTableProps) {
   return (
-    <Table.ScrollContainer minWidth={760}>
-      <Table verticalSpacing="sm">
+    <Table.ScrollContainer
+      minWidth={760}
+      type="native"
+      className={classes.scrollContainer}
+    >
+      <Table verticalSpacing="sm" className={classes.table}>
         <Table.Caption>
           <VisuallyHidden>Workspace members</VisuallyHidden>
         </Table.Caption>
+        <colgroup>
+          <col style={{ width: canSeeEmail ? "26%" : "35%" }} />
+          <col style={{ width: canSeeEmail ? "20%" : "27%" }} />
+          {canSeeEmail && <col style={{ width: "24%" }} />}
+          <col style={{ width: canSeeEmail ? "14%" : "18%" }} />
+          <col style={{ width: canSeeEmail ? "16%" : "20%" }} />
+        </colgroup>
         <Table.Thead>
           <Table.Tr>
             <SortableHeader
@@ -59,12 +70,14 @@ export function MembersTable({
               sortKey="role"
               currentSort={currentSort}
               onSortChange={onSortChange}
+              className={classes.roleHeader}
             />
             <SortableHeader
               title="Joining date"
               sortKey="joinedAt"
               currentSort={currentSort}
               onSortChange={onSortChange}
+              className={classes.dateHeader}
             />
           </Table.Tr>
         </Table.Thead>
@@ -97,10 +110,10 @@ export function MembersTable({
                     <Text size="sm">{member.email ?? ""}</Text>
                   </Table.Td>
                 )}
-                <Table.Td>
+                <Table.Td className={classes.roleCell}>
                   <Text size="sm">{WORKSPACE_ROLE_LABELS[member.role]}</Text>
                 </Table.Td>
-                <Table.Td>
+                <Table.Td className={classes.dateCell}>
                   <Text size="sm">{formatJoiningDate(member.joinedAt)}</Text>
                 </Table.Td>
               </Table.Tr>

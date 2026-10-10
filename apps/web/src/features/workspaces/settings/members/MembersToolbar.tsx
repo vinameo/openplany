@@ -1,4 +1,4 @@
-import { Group, TextInput } from "@mantine/core";
+import { Button, Group, TextInput } from "@mantine/core";
 import type { WorkspaceRole } from "@repo/contracts";
 import { SearchIcon } from "../../icons";
 import { RoleFilter } from "./RoleFilter";
@@ -8,6 +8,8 @@ interface MembersToolbarProps {
   onSearchChange: (search: string) => void;
   selectedRoles: readonly WorkspaceRole[];
   onRolesChange: (roles: WorkspaceRole[]) => void;
+  canAddMember?: boolean;
+  onAddMember?: () => void;
 }
 
 export function MembersToolbar({
@@ -15,6 +17,8 @@ export function MembersToolbar({
   onSearchChange,
   selectedRoles,
   onRolesChange,
+  canAddMember = false,
+  onAddMember,
 }: MembersToolbarProps) {
   return (
     <Group wrap="wrap" gap="sm">
@@ -26,11 +30,8 @@ export function MembersToolbar({
         onChange={(e) => onSearchChange(e.currentTarget.value)}
         style={{ flexGrow: 1, minWidth: 200 }}
       />
-      <RoleFilter
-        selectedRoles={selectedRoles}
-        onChange={onRolesChange}
-      />
+      <RoleFilter selectedRoles={selectedRoles} onChange={onRolesChange} />
+      {canAddMember && <Button onClick={onAddMember}>Add member</Button>}
     </Group>
   );
 }
-

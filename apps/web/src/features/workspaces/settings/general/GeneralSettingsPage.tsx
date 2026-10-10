@@ -7,7 +7,7 @@ export function GeneralSettingsPage() {
   const { workspace } = useCurrentWorkspace();
 
   return (
-    <Stack gap="xl">
+    <Stack gap="xl" maw={880}>
       <WorkspaceIdentityCard workspace={workspace} />
       <GeneralSettingsForm workspace={workspace} />
     </Stack>

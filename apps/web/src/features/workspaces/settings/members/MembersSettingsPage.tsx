@@ -14,6 +14,7 @@ import {
   type WorkspaceRole,
 } from "@repo/contracts";
 import { useCurrentWorkspace } from "../../currentWorkspace/useCurrentWorkspace";
+import { AddMembersModal } from "./AddMembersModal";
 import {
   applyMemberListQuery,
   DEFAULT_MEMBER_SORT,
@@ -30,20 +31,24 @@ export function MembersSettingsPage() {
   const [search, setSearch] = useState("");
   const [roles, setRoles] = useState<WorkspaceRole[]>([]);
   const [sort, setSort] = useState<MemberSort>(DEFAULT_MEMBER_SORT);
+  const [addModalOpened, setAddModalOpened] = useState(false);
 
   const canSeeEmail = workspace.permissions.includes(
     "workspace.members.email.view",
   );
+  const canAddMember = workspace.permissions.includes(
+    "workspace.members.add",
+  );
 
-  const members = state.status === "ready" ? state.data.members : [];
+  const rawMembers = state.status === "ready" ? state.data.members : undefined;
   const filteredMembers = useMemo(
     () =>
       applyMemberListQuery(
-        members,
+        rawMembers ?? [],
         { search, roles, sort },
         { canSeeEmail },
       ),
-    [members, search, roles, sort, canSeeEmail],
+    [rawMembers, search, roles, sort, canSeeEmail],
   );
 
   if (state.status === "loading") {
@@ -54,6 +59,7 @@ export function MembersSettingsPage() {
           <Skeleton height={20} width={40} radius="xl" />
         </Group>
         <Stack gap="xs">
+          <Skeleton height={40} />
           <Skeleton height={40} />
           <Skeleton height={40} />
           <Skeleton height={40} />
@@ -123,6 +129,8 @@ export function MembersSettingsPage() {
         onSearchChange={setSearch}
         selectedRoles={roles}
         onRolesChange={setRoles}
+        canAddMember={canAddMember}
+        onAddMember={() => setAddModalOpened(true)}
       />
 
       {filteredMembers.length === 0 ? (
@@ -142,6 +150,14 @@ export function MembersSettingsPage() {
           onSortChange={setSort}
         />
       )}
+
+      <AddMembersModal
+        opened={addModalOpened}
+        onClose={() => setAddModalOpened(false)}
+        slug={workspace.slug}
+        addableRoles={data.addableRoles}
+        onSuccess={reload}
+      />
     </Stack>
   );
 }
