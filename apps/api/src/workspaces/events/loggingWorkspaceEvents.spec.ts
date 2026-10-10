@@ -10,7 +10,7 @@ describe('LoggingWorkspaceEvents', () => {
     await events.updated({
       workspaceId: 'ws-123',
       actorId: 'usr-456',
-      actorRole: 'owner',
+      actorRole: 'admin',
       occurredAt: new Date('2026-10-09T02:15:00.000Z'),
       requestId: 'req-789',
       changes: {
@@ -28,7 +28,7 @@ describe('LoggingWorkspaceEvents', () => {
     expect(loggedMessage).toContain('requestId=req-789');
     expect(loggedMessage).toContain('userId=usr-456');
     expect(loggedMessage).toContain('workspaceId=ws-123');
-    expect(loggedMessage).toContain('role=owner');
+    expect(loggedMessage).toContain('role=admin');
     expect(loggedMessage).toContain('changedFields=name,organizationSize,timezone');
     expect(loggedMessage).toContain('organizationSizeFrom=Just myself organizationSizeTo=2-10');
     expect(loggedMessage).toContain('timezoneFrom=UTC timezoneTo=Asia/Ho_Chi_Minh');

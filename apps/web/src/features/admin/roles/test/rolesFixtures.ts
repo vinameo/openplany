@@ -1,0 +1,175 @@
+import {
+  type PermissionItem,
+  type RoleResponse,
+  type RolesResponse,
+  isRoleLocked,
+  PROJECT_ROLES,
+  WORKSPACE_ROLES,
+} from "@repo/contracts";
+
+export const DEFAULT_PERMISSION_ITEMS: PermissionItem[] = [
+  // Workspace permissions (12)
+  { key: "workspace.settings.view", scope: "workspace", label: "View workspace settings" },
+  { key: "workspace.settings.update", scope: "workspace", label: "Edit workspace settings" },
+  { key: "workspace.delete", scope: "workspace", label: "Delete workspace" },
+  { key: "workspace.members.view", scope: "workspace", label: "View workspace members" },
+  { key: "workspace.members.email.view", scope: "workspace", label: "View member emails" },
+  { key: "workspace.members.add", scope: "workspace", label: "Add members" },
+  { key: "workspace.members.remove", scope: "workspace", label: "Remove members" },
+  { key: "workspace.members.role.update", scope: "workspace", label: "Change member roles" },
+  { key: "workspace.members.history.view", scope: "workspace", label: "View member history" },
+  { key: "workspace.projects.create", scope: "workspace", label: "Create projects" },
+  { key: "workspace.projects.browse", scope: "workspace", label: "Browse projects" },
+  { key: "workspace.projects.delete", scope: "workspace", label: "Delete projects" },
+
+  // Project permissions (45)
+  { key: "project.settings.view", scope: "project", label: "View project settings" },
+  { key: "project.settings.update", scope: "project", label: "Edit project settings" },
+  { key: "project.archive", scope: "project", label: "Archive project" },
+  { key: "project.members.view", scope: "project", label: "View project members" },
+  { key: "project.members.manage", scope: "project", label: "Manage project members" },
+  { key: "project.workitems.view", scope: "project", label: "View work items" },
+  { key: "project.workitems.create", scope: "project", label: "Create work items" },
+  { key: "project.workitems.update.any", scope: "project", label: "Edit any work items" },
+  { key: "project.workitems.delete.any", scope: "project", label: "Delete any work items" },
+  { key: "project.workitems.delete.own", scope: "project", label: "Delete own work items" },
+  { key: "project.comments.create", scope: "project", label: "Add comments" },
+  { key: "project.comments.update.own", scope: "project", label: "Edit own comments" },
+  { key: "project.comments.delete.any", scope: "project", label: "Delete any comments" },
+  { key: "project.comments.delete.own", scope: "project", label: "Delete own comments" },
+  { key: "project.reactions.create", scope: "project", label: "Add reactions" },
+  { key: "project.cycles.view", scope: "project", label: "View cycles" },
+  { key: "project.cycles.create", scope: "project", label: "Create cycles" },
+  { key: "project.cycles.update.any", scope: "project", label: "Edit any cycles" },
+  { key: "project.cycles.delete.any", scope: "project", label: "Delete any cycles" },
+  { key: "project.cycles.delete.own", scope: "project", label: "Delete own cycles" },
+  { key: "project.modules.view", scope: "project", label: "View modules" },
+  { key: "project.modules.create", scope: "project", label: "Create modules" },
+  { key: "project.modules.update.any", scope: "project", label: "Edit any modules" },
+  { key: "project.modules.delete.any", scope: "project", label: "Delete any modules" },
+  { key: "project.modules.delete.own", scope: "project", label: "Delete own modules" },
+  { key: "project.views.view", scope: "project", label: "View views" },
+  { key: "project.views.create", scope: "project", label: "Create views" },
+  { key: "project.views.update.any", scope: "project", label: "Edit any views" },
+  { key: "project.views.delete.any", scope: "project", label: "Delete any views" },
+  { key: "project.views.update.own", scope: "project", label: "Edit own views" },
+  { key: "project.views.delete.own", scope: "project", label: "Delete own views" },
+  { key: "project.pages.view", scope: "project", label: "View pages" },
+  { key: "project.pages.create", scope: "project", label: "Create pages" },
+  { key: "project.pages.update.any", scope: "project", label: "Edit any pages" },
+  { key: "project.pages.delete.any", scope: "project", label: "Delete any pages" },
+  { key: "project.pages.update.own", scope: "project", label: "Edit own pages" },
+  { key: "project.pages.delete.own", scope: "project", label: "Delete own pages" },
+  { key: "project.labels.view", scope: "project", label: "View labels" },
+  { key: "project.states.view", scope: "project", label: "View states" },
+  { key: "project.estimates.view", scope: "project", label: "View estimates" },
+  { key: "project.labels.manage", scope: "project", label: "Manage labels" },
+  { key: "project.states.manage", scope: "project", label: "Manage states" },
+  { key: "project.estimates.manage", scope: "project", label: "Manage estimates" },
+  { key: "project.analytics.view", scope: "project", label: "View analytics" },
+  { key: "project.analytics.export", scope: "project", label: "Export analytics" },
+];
+
+const MOCK_WORKSPACE_ROLE_PERMS: Record<string, string[]> = {
+  admin: DEFAULT_PERMISSION_ITEMS.filter((p) => p.scope === "workspace").map((p) => p.key),
+  member: ["workspace.settings.view", "workspace.members.view", "workspace.projects.browse"],
+  guest: ["workspace.settings.view"],
+};
+
+const MOCK_PROJECT_ROLE_PERMS: Record<string, string[]> = {
+  admin: DEFAULT_PERMISSION_ITEMS.filter((p) => p.scope === "project" && !p.key.endsWith(".own")).map((p) => p.key),
+  contributor: [
+    "project.settings.view",
+    "project.members.view",
+    "project.workitems.view",
+    "project.workitems.create",
+    "project.workitems.update.any",
+    "project.workitems.delete.own",
+    "project.comments.create",
+    "project.comments.update.own",
+    "project.comments.delete.own",
+    "project.reactions.create",
+    "project.cycles.view",
+    "project.cycles.create",
+    "project.cycles.update.any",
+    "project.cycles.delete.own",
+    "project.modules.view",
+    "project.modules.create",
+    "project.modules.update.any",
+    "project.modules.delete.own",
+    "project.views.view",
+    "project.views.create",
+    "project.views.update.own",
+    "project.views.delete.own",
+    "project.pages.view",
+    "project.pages.create",
+    "project.pages.update.own",
+    "project.pages.delete.own",
+    "project.labels.view",
+    "project.states.view",
+    "project.estimates.view",
+    "project.analytics.view",
+    "project.analytics.export",
+  ],
+  commenter: [
+    "project.settings.view",
+    "project.members.view",
+    "project.workitems.view",
+    "project.comments.create",
+    "project.comments.update.own",
+    "project.comments.delete.own",
+    "project.reactions.create",
+    "project.cycles.view",
+    "project.modules.view",
+    "project.views.view",
+    "project.pages.view",
+    "project.labels.view",
+    "project.states.view",
+    "project.estimates.view",
+    "project.analytics.view",
+  ],
+  guest: [
+    "project.settings.view",
+    "project.workitems.view",
+    "project.cycles.view",
+    "project.modules.view",
+    "project.views.view",
+    "project.pages.view",
+    "project.labels.view",
+    "project.states.view",
+    "project.estimates.view",
+    "project.analytics.view",
+  ],
+};
+
+export function makeDefaultRolesResponse(): RolesResponse {
+  const roles: RoleResponse[] = [
+    ...WORKSPACE_ROLES.map((role) => ({
+      scope: "workspace" as const,
+      key: role,
+      locked: isRoleLocked({ scope: "workspace", key: role }),
+      version: 1,
+      permissions: [...(MOCK_WORKSPACE_ROLE_PERMS[role] ?? [])],
+    })),
+    ...PROJECT_ROLES.map((role) => ({
+      scope: "project" as const,
+      key: role,
+      locked: isRoleLocked({ scope: "project", key: role }),
+      version: 1,
+      permissions: [...(MOCK_PROJECT_ROLE_PERMS[role] ?? [])],
+    })),
+  ];
+
+  return { roles, permissions: DEFAULT_PERMISSION_ITEMS };
+}
+
+export function makeRolesResponse(
+  overrides?: Partial<RolesResponse>,
+): RolesResponse {
+  const base = makeDefaultRolesResponse();
+  if (!overrides) return base;
+  return {
+    ...base,
+    ...overrides,
+  };
+}

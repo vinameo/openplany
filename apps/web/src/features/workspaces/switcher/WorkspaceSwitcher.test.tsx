@@ -18,7 +18,7 @@ const workspacesMock = [
     backgroundColor: "#0F172A",
     organizationSize: "2-10" as const,
     timezone: "UTC",
-    role: "owner" as const,
+    role: "admin" as const,
     permissions: ["workspace.settings.update" as const],
     memberCount: 1,
     createdAt: new Date().toISOString(),
@@ -86,7 +86,7 @@ describe("WorkspaceSwitcher", () => {
     expect(await screen.findByText("an@openplany.dev")).toBeInTheDocument();
     expect(screen.getAllByText("Acme Corp")).toHaveLength(2);
     expect(screen.getByText("OpenStudy")).toBeInTheDocument();
-    expect(screen.getByText("Owner · 1 member")).toBeInTheDocument();
+    expect(screen.getByText("Admin · 1 member")).toBeInTheDocument();
     expect(screen.getByText("Admin · 5 members")).toBeInTheDocument();
     expect(screen.getByText("Create workspace")).toBeInTheDocument();
     expect(screen.getByText("Sign out")).toBeInTheDocument();

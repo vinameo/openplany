@@ -1,177 +1,40 @@
 import type { ProjectRole } from './projectRoles.js';
 
-export const PROJECT_PERMISSIONS = [
-  'project.settings.view',
-  'project.settings.update',
-  'project.archive',
-  'project.members.view',
-  'project.members.manage',
-  'project.workitems.view',
-  'project.workitems.create',
-  'project.workitems.update.any',
-  'project.workitems.delete.any',
-  'project.workitems.delete.own',
-  'project.comments.create',
-  'project.comments.update.own',
-  'project.comments.delete.any',
-  'project.comments.delete.own',
-  'project.reactions.create',
-  'project.cycles.view',
-  'project.cycles.create',
-  'project.cycles.update.any',
-  'project.cycles.delete.any',
-  'project.cycles.delete.own',
-  'project.modules.view',
-  'project.modules.create',
-  'project.modules.update.any',
-  'project.modules.delete.any',
-  'project.modules.delete.own',
-  'project.views.view',
-  'project.views.create',
-  'project.views.update.any',
-  'project.views.delete.any',
-  'project.views.update.own',
-  'project.views.delete.own',
-  'project.pages.view',
-  'project.pages.create',
-  'project.pages.update.any',
-  'project.pages.delete.any',
-  'project.pages.update.own',
-  'project.pages.delete.own',
-  'project.labels.view',
-  'project.states.view',
-  'project.estimates.view',
-  'project.labels.manage',
-  'project.states.manage',
-  'project.estimates.manage',
-  'project.analytics.view',
-  'project.analytics.export',
-] as const;
-export type ProjectPermission = (typeof PROJECT_PERMISSIONS)[number];
+export type ProjectPermission = string;
 
-export const ENFORCED_PROJECT_PERMISSIONS = [] as const satisfies readonly ProjectPermission[];
-export type EnforcedProjectPermission = (typeof ENFORCED_PROJECT_PERMISSIONS)[number];
+export type EnforcedProjectPermission = never;
 
-export const PROJECT_ROLE_PERMISSIONS = {
-  admin: [
-    'project.settings.view',
-    'project.settings.update',
-    'project.archive',
-    'project.members.view',
-    'project.members.manage',
-    'project.workitems.view',
-    'project.workitems.create',
-    'project.workitems.update.any',
-    'project.workitems.delete.any',
-    'project.comments.create',
-    'project.comments.update.own',
-    'project.comments.delete.any',
-    'project.reactions.create',
-    'project.cycles.view',
-    'project.cycles.create',
-    'project.cycles.update.any',
-    'project.cycles.delete.any',
-    'project.modules.view',
-    'project.modules.create',
-    'project.modules.update.any',
-    'project.modules.delete.any',
-    'project.views.view',
-    'project.views.create',
-    'project.views.update.any',
-    'project.views.delete.any',
-    'project.pages.view',
-    'project.pages.create',
-    'project.pages.update.any',
-    'project.pages.delete.any',
-    'project.labels.view',
-    'project.states.view',
-    'project.estimates.view',
-    'project.labels.manage',
-    'project.states.manage',
-    'project.estimates.manage',
-    'project.analytics.view',
-    'project.analytics.export',
-  ],
-  contributor: [
-    'project.settings.view',
-    'project.members.view',
-    'project.workitems.view',
-    'project.workitems.create',
-    'project.workitems.update.any',
-    'project.workitems.delete.own',
-    'project.comments.create',
-    'project.comments.update.own',
-    'project.comments.delete.own',
-    'project.reactions.create',
-    'project.cycles.view',
-    'project.cycles.create',
-    'project.cycles.update.any',
-    'project.cycles.delete.own',
-    'project.modules.view',
-    'project.modules.create',
-    'project.modules.update.any',
-    'project.modules.delete.own',
-    'project.views.view',
-    'project.views.create',
-    'project.views.update.own',
-    'project.views.delete.own',
-    'project.pages.view',
-    'project.pages.create',
-    'project.pages.update.own',
-    'project.pages.delete.own',
-    'project.labels.view',
-    'project.states.view',
-    'project.estimates.view',
-    'project.analytics.view',
-    'project.analytics.export',
-  ],
-  commenter: [
-    'project.settings.view',
-    'project.members.view',
-    'project.workitems.view',
-    'project.comments.create',
-    'project.comments.update.own',
-    'project.comments.delete.own',
-    'project.reactions.create',
-    'project.cycles.view',
-    'project.modules.view',
-    'project.views.view',
-    'project.pages.view',
-    'project.labels.view',
-    'project.states.view',
-    'project.estimates.view',
-    'project.analytics.view',
-  ],
-  guest: [
-    'project.settings.view',
-    'project.workitems.view',
-    'project.cycles.view',
-    'project.modules.view',
-    'project.views.view',
-    'project.pages.view',
-    'project.labels.view',
-    'project.states.view',
-    'project.estimates.view',
-    'project.analytics.view',
-  ],
-} as const satisfies Record<ProjectRole, readonly ProjectPermission[]>;
+export type ProjectRolePermissions = Readonly<
+  Record<ProjectRole, readonly ProjectPermission[]>
+>;
 
-export function projectPermissionsOf(
-  role: ProjectRole | null | undefined,
+export function parseProjectPermissions(
+  keys: readonly string[],
 ): ProjectPermission[] {
-  if (!role || !(role in PROJECT_ROLE_PERMISSIONS)) return [];
-  return [...PROJECT_ROLE_PERMISSIONS[role]];
+  const seen = new Set<string>();
+  const result: ProjectPermission[] = [];
+  for (const k of keys) {
+    if (typeof k === 'string' && k.startsWith('project.') && !seen.has(k)) {
+      seen.add(k);
+      result.push(k);
+    }
+  }
+  return result;
 }
 
-export function enforcedProjectPermissionsOf(
-  role: ProjectRole | null | undefined,
+export function enforcedProjectPermissions(
+  _granted: readonly ProjectPermission[],
 ): EnforcedProjectPermission[] {
-  if (!role || !(role in PROJECT_ROLE_PERMISSIONS)) return [];
-  const rolePerms = new Set<ProjectPermission>(PROJECT_ROLE_PERMISSIONS[role]);
-  return ENFORCED_PROJECT_PERMISSIONS.filter((p) => rolePerms.has(p));
+  return [];
 }
 
-type OwnershipBase<P extends string> =
-  P extends `${infer B}.own` ? B : P extends `${infer B}.any` ? B : never;
-
-export type ProjectOwnershipBase = OwnershipBase<ProjectPermission>;
+export type ProjectOwnershipBase =
+  | 'project.workitems.delete'
+  | 'project.comments.update'
+  | 'project.comments.delete'
+  | 'project.cycles.delete'
+  | 'project.modules.delete'
+  | 'project.views.update'
+  | 'project.views.delete'
+  | 'project.pages.update'
+  | 'project.pages.delete';

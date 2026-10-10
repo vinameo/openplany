@@ -123,38 +123,42 @@ describe("LoginPage", () => {
 
   it("locks the button with a countdown after a 429, then unlocks", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    const { user } = renderLoginPage(
-      vi.fn<Submit>().mockRejectedValue(
-        new ApiRequestError(429, {
-          code: "TOO_MANY_ATTEMPTS",
-          message: "Too many attempts. Try again in 2 minutes.",
-          retryAfterSeconds: 90,
-        }),
-      ),
-      { advanceTimers: vi.advanceTimersByTime },
-    );
+    try {
+      const { user } = renderLoginPage(
+        vi.fn<Submit>().mockRejectedValue(
+          new ApiRequestError(429, {
+            code: "TOO_MANY_ATTEMPTS",
+            message: "Too many attempts. Try again in 2 minutes.",
+            retryAfterSeconds: 90,
+          }),
+        ),
+        { advanceTimers: vi.advanceTimersByTime },
+      );
 
-    await fillAndSubmit(user);
+      await fillAndSubmit(user);
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Too many attempts. Try again in 2 minutes.",
-    );
-    expect(
-      screen.getByRole("button", { name: "Try again in 1:30" }),
-    ).toBeDisabled();
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Too many attempts. Try again in 2 minutes.",
+      );
+      expect(
+        screen.getByRole("button", { name: "Try again in 1:30" }),
+      ).toBeDisabled();
 
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(30_000);
-    });
-    expect(
-      screen.getByRole("button", { name: "Try again in 1:00" }),
-    ).toBeDisabled();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(30_000);
+      });
+      expect(
+        screen.getByRole("button", { name: "Try again in 1:00" }),
+      ).toBeDisabled();
 
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(61_000);
-    });
-    expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled();
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(61_000);
+      });
+      expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("tabs from email to password, the eye toggle, then the forgot link", async () => {

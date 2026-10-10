@@ -20,7 +20,12 @@ export function makeMemberWorkspace(
     timezone: 'UTC',
     createdAt: new Date('2026-10-08T10:00:00.000Z'),
     updatedAt: new Date('2026-10-08T10:00:00.000Z'),
-    role: 'owner',
+    role: 'admin',
+    permissions: [
+      'workspace.settings.view',
+      'workspace.settings.update',
+      'workspace.members.view',
+    ],
     memberCount: 1,
     ...overrides,
   };
@@ -78,7 +83,12 @@ export class FakeWorkspacesRepository extends WorkspacesRepository {
       timezone: 'UTC',
       createdAt: now,
       updatedAt: now,
-      role: 'owner',
+      role: 'admin',
+      permissions: [
+        'workspace.settings.view',
+        'workspace.settings.update',
+        'workspace.members.view',
+      ],
       memberCount: 1,
     };
     this.memberWorkspaces.push(created);

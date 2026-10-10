@@ -13,6 +13,7 @@ export const API_ERROR_CODES = [
   'FORBIDDEN',
   'SLUG_ALREADY_EXISTS',
   'EMAIL_ALREADY_EXISTS',
+  'ROLE_PERMISSIONS_CHANGED',
   'INTERNAL_ERROR',
 ] as const;
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number];

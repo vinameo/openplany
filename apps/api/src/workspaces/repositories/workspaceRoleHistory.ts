@@ -5,7 +5,6 @@ export type WorkspaceRoleChangeType =
   | 'workspace_created'
   | 'member_added'
   | 'role_changed'
-  | 'ownership_transferred'
   | 'member_removed';
 
 export interface WorkspaceRoleHistoryEntry {

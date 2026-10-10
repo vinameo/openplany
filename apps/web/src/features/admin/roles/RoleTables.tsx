@@ -1,10 +1,5 @@
-import { Table, Text, VisuallyHidden } from "@mantine/core";
-import {
-  PROJECT_ROLE_LABELS,
-  WORKSPACE_ROLE_LABELS,
-  WORKSPACE_ROLES,
-} from "@repo/contracts";
-import { CheckIcon } from "../../workspaces/icons";
+import { Table, VisuallyHidden } from "@mantine/core";
+import { PROJECT_ROLE_LABELS } from "@repo/contracts";
 import type { RolesOverview } from "./rolesOverview";
 import classes from "./RoleTables.module.css";
 
@@ -125,57 +120,3 @@ export function ProjectAccessTable({ rows }: ProjectAccessTableProps) {
   );
 }
 
-interface PermissionMatrixProps {
-  rows: RolesOverview["permissionMatrix"];
-}
-
-export function PermissionMatrix({ rows }: PermissionMatrixProps) {
-  return (
-    <Table.ScrollContainer minWidth={320}>
-      <Table withTableBorder withColumnBorders className={classes.table}>
-        <Table.Caption>
-          <VisuallyHidden>Permissions by workspace role</VisuallyHidden>
-        </Table.Caption>
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th scope="col">Action</Table.Th>
-            {WORKSPACE_ROLES.map((role) => (
-              <Table.Th key={role} scope="col" className={classes.checkCol}>
-                {WORKSPACE_ROLE_LABELS[role]}
-              </Table.Th>
-            ))}
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {rows.map((row) => (
-            <Table.Tr key={row.permission}>
-              <Table.Th scope="row" className={classes.actionName}>
-                {row.label}
-              </Table.Th>
-              {WORKSPACE_ROLES.map((role) => (
-                <Table.Td key={role} className={classes.checkCell}>
-                  {row.allowed[role] ? (
-                    <span>
-                      <CheckIcon
-                        className={classes.allowedIcon}
-                        aria-hidden="true"
-                      />
-                      <VisuallyHidden>Allowed</VisuallyHidden>
-                    </span>
-                  ) : (
-                    <span>
-                      <Text span c="dimmed" aria-hidden="true">
-                        —
-                      </Text>
-                      <VisuallyHidden>Not allowed</VisuallyHidden>
-                    </span>
-                  )}
-                </Table.Td>
-              ))}
-            </Table.Tr>
-          ))}
-        </Table.Tbody>
-      </Table>
-    </Table.ScrollContainer>
-  );
-}

@@ -1,6 +1,4 @@
 import {
-  type EnforcedWorkspacePermission,
-  ENFORCED_WORKSPACE_PERMISSIONS,
   type ProjectRole,
   PROJECT_ROLE_LABELS,
   PROJECT_ROLE_SUMMARIES,
@@ -11,7 +9,6 @@ import {
   WORKSPACE_ROLES,
   effectiveProjectRole,
   projectRoleCeilingOf,
-  workspacePermissionsOf,
 } from "@repo/contracts";
 
 export const ROLES_AND_PERMISSIONS_PATH = "/roles-and-permissions";
@@ -25,17 +22,7 @@ export interface RolesOverview {
     everyProject: ProjectRole | null;
     highestProjectRole: ProjectRole;
   }[];
-  permissionMatrix: {
-    permission: EnforcedWorkspacePermission;
-    label: string;
-    allowed: Record<WorkspaceRole, boolean>;
-  }[];
 }
-
-/** Nhãn cho người đọc. Thêm quyền vào ENFORCED_WORKSPACE_PERMISSIONS mà thiếu nhãn → lỗi typecheck. */
-export const ENFORCED_WORKSPACE_PERMISSION_LABELS = {
-  "workspace.settings.update": "Edit workspace settings",
-} as const satisfies Record<EnforcedWorkspacePermission, string>;
 
 /** Không nhận tham số: bộ luật giống nhau ở mọi workspace (WEB-F7). */
 export function buildRolesOverview(): RolesOverview {
@@ -61,22 +48,9 @@ export function buildRolesOverview(): RolesOverview {
     highestProjectRole: projectRoleCeilingOf(role),
   }));
 
-  const permissionMatrix = ENFORCED_WORKSPACE_PERMISSIONS.map((permission) => {
-    const allowed = {} as Record<WorkspaceRole, boolean>;
-    for (const role of WORKSPACE_ROLES) {
-      allowed[role] = workspacePermissionsOf(role).includes(permission);
-    }
-    return {
-      permission,
-      label: ENFORCED_WORKSPACE_PERMISSION_LABELS[permission],
-      allowed,
-    };
-  });
-
   return {
     workspaceRoles,
     projectRoles,
     projectAccess,
-    permissionMatrix,
   };
 }

@@ -13,10 +13,11 @@ import { CurrentUserId } from '../auth/currentUser.decorator.js';
 import { SessionGuard } from '../auth/guards/sessionGuard.js';
 import { AdminUsersService } from './adminUsers.service.js';
 import { CreateUserDto } from './dto/createUser.dto.js';
-import { InstanceAdminGuard } from './instanceAdminGuard.js';
+import { InstanceAdminDeniedMessage, InstanceAdminGuard } from './instanceAdminGuard.js';
 import { UserCreateRateLimitGuard } from './userCreateRateLimitGuard.js';
 
 @Controller('admin/users')
+@InstanceAdminDeniedMessage("You don't have permission to create users")
 @UseGuards(SessionGuard, UserCreateRateLimitGuard, InstanceAdminGuard)
 export class AdminUsersController {
   constructor(private readonly adminUsersService: AdminUsersService) {}

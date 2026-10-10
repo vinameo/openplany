@@ -3,7 +3,7 @@ import {
   assignableProjectRoles,
   assignableWorkspaceRoles,
   canRemoveProjectMember,
-  canTransferOwnershipTo,
+  canRemoveWorkspaceMember,
   projectRolesAboveCeiling,
 } from './roleAssignment.js';
 import type { WorkspaceRole } from './workspace.js';
@@ -11,73 +11,58 @@ import type { ProjectRole } from './projectRoles.js';
 
 describe('roleAssignment', () => {
   describe('AC-04: assignableWorkspaceRoles', () => {
-    it('matches RQ B8.1 table for all actor and target role combinations', () => {
+    it('matches rules for all actor and target role combinations', () => {
       const actorId = 'actor-user';
       const targetId = 'target-user';
 
-      // Owner actor
+      // Admin actor with role update permission
+      const adminActor = {
+        userId: actorId,
+        role: 'admin' as WorkspaceRole,
+        permissions: ['workspace.members.role.update' as const],
+      };
+
       expect(
-        assignableWorkspaceRoles(
-          { userId: actorId, role: 'owner' },
-          { userId: targetId, role: 'admin' },
-        ),
+        assignableWorkspaceRoles(adminActor, { userId: targetId, role: 'admin' }),
       ).toEqual(['admin', 'member', 'guest']);
       expect(
-        assignableWorkspaceRoles(
-          { userId: actorId, role: 'owner' },
-          { userId: targetId, role: 'member' },
-        ),
+        assignableWorkspaceRoles(adminActor, { userId: targetId, role: 'member' }),
       ).toEqual(['admin', 'member', 'guest']);
       expect(
-        assignableWorkspaceRoles(
-          { userId: actorId, role: 'owner' },
-          { userId: targetId, role: 'guest' },
-        ),
+        assignableWorkspaceRoles(adminActor, { userId: targetId, role: 'guest' }),
       ).toEqual(['admin', 'member', 'guest']);
 
-      // Admin actor
+      // Admin actor without permission
+      const adminNoPermActor = {
+        userId: actorId,
+        role: 'admin' as WorkspaceRole,
+        permissions: [],
+      };
       expect(
-        assignableWorkspaceRoles(
-          { userId: actorId, role: 'admin' },
-          { userId: targetId, role: 'owner' },
-        ),
+        assignableWorkspaceRoles(adminNoPermActor, { userId: targetId, role: 'member' }),
       ).toEqual([]);
-      expect(
-        assignableWorkspaceRoles(
-          { userId: actorId, role: 'admin' },
-          { userId: targetId, role: 'admin' },
-        ),
-      ).toEqual([]);
-      expect(
-        assignableWorkspaceRoles(
-          { userId: actorId, role: 'admin' },
-          { userId: targetId, role: 'member' },
-        ),
-      ).toEqual(['admin', 'member', 'guest']);
-      expect(
-        assignableWorkspaceRoles(
-          { userId: actorId, role: 'admin' },
-          { userId: targetId, role: 'guest' },
-        ),
-      ).toEqual(['admin', 'member', 'guest']);
 
-      // Member actor
-      for (const targetRole of ['owner', 'admin', 'member', 'guest'] as WorkspaceRole[]) {
+      // Member actor (lacks permission by default)
+      const memberActor = {
+        userId: actorId,
+        role: 'member' as WorkspaceRole,
+        permissions: [],
+      };
+      for (const targetRole of ['admin', 'member', 'guest'] as WorkspaceRole[]) {
         expect(
-          assignableWorkspaceRoles(
-            { userId: actorId, role: 'member' },
-            { userId: targetId, role: targetRole },
-          ),
+          assignableWorkspaceRoles(memberActor, { userId: targetId, role: targetRole }),
         ).toEqual([]);
       }
 
       // Guest actor
-      for (const targetRole of ['owner', 'admin', 'member', 'guest'] as WorkspaceRole[]) {
+      const guestActor = {
+        userId: actorId,
+        role: 'guest' as WorkspaceRole,
+        permissions: [],
+      };
+      for (const targetRole of ['admin', 'member', 'guest'] as WorkspaceRole[]) {
         expect(
-          assignableWorkspaceRoles(
-            { userId: actorId, role: 'guest' },
-            { userId: targetId, role: targetRole },
-          ),
+          assignableWorkspaceRoles(guestActor, { userId: targetId, role: targetRole }),
         ).toEqual([]);
       }
     });
@@ -86,43 +71,29 @@ describe('roleAssignment', () => {
       const sameId = 'user-1';
       expect(
         assignableWorkspaceRoles(
-          { userId: sameId, role: 'owner' },
-          { userId: sameId, role: 'owner' },
-        ),
-      ).toEqual([]);
-      expect(
-        assignableWorkspaceRoles(
-          { userId: sameId, role: 'admin' },
+          { userId: sameId, role: 'admin', permissions: ['workspace.members.role.update'] },
           { userId: sameId, role: 'admin' },
         ),
       ).toEqual([]);
     });
 
-    it('never contains owner in assignable workspace roles', () => {
-      const roles = assignableWorkspaceRoles(
-        { userId: 'u1', role: 'owner' },
-        { userId: 'u2', role: 'member' },
-      );
-      expect(roles).not.toContain('owner');
-    });
-  });
+    it('canRemoveWorkspaceMember allows admin to remove members/guests/admins but not self', () => {
+      const admin = {
+        userId: 'admin-1',
+        role: 'admin' as WorkspaceRole,
+        permissions: ['workspace.members.remove' as const],
+      };
+      expect(canRemoveWorkspaceMember(admin, { userId: 'admin-2', role: 'admin' })).toBe(true);
+      expect(canRemoveWorkspaceMember(admin, { userId: 'member-1', role: 'member' })).toBe(true);
+      expect(canRemoveWorkspaceMember(admin, { userId: 'guest-1', role: 'guest' })).toBe(true);
+      expect(canRemoveWorkspaceMember(admin, { userId: 'admin-1', role: 'admin' })).toBe(false);
 
-  describe('AC-05: canTransferOwnershipTo', () => {
-    it('allows Owner to transfer ownership to another admin or member only', () => {
-      const owner = { userId: 'owner-id', role: 'owner' as WorkspaceRole };
-      const admin = { userId: 'admin-id', role: 'admin' as WorkspaceRole };
-      const member = { userId: 'member-id', role: 'member' as WorkspaceRole };
-      const guest = { userId: 'guest-id', role: 'guest' as WorkspaceRole };
-
-      expect(canTransferOwnershipTo(owner, admin)).toBe(true);
-      expect(canTransferOwnershipTo(owner, member)).toBe(true);
-      expect(canTransferOwnershipTo(owner, guest)).toBe(false);
-      expect(canTransferOwnershipTo(owner, { userId: 'owner-id', role: 'owner' })).toBe(false);
-
-      // Non-owner actor cannot transfer ownership
-      expect(canTransferOwnershipTo(admin, member)).toBe(false);
-      expect(canTransferOwnershipTo(member, admin)).toBe(false);
-      expect(canTransferOwnershipTo(guest, admin)).toBe(false);
+      const member = {
+        userId: 'member-1',
+        role: 'member' as WorkspaceRole,
+        permissions: [],
+      };
+      expect(canRemoveWorkspaceMember(member, { userId: 'member-2', role: 'member' })).toBe(false);
     });
   });
 
@@ -130,34 +101,37 @@ describe('roleAssignment', () => {
     const allProjectRoles: ProjectRole[] = ['admin', 'contributor', 'commenter', 'guest'];
 
     it('matches RQ B8.2 rules for project role assignment and removal', () => {
-      const ownerWsActor = {
-        userId: 'actor-owner',
-        workspaceRole: 'owner' as WorkspaceRole,
+      const adminWsActor = {
+        userId: 'actor-admin',
+        workspaceRole: 'admin' as WorkspaceRole,
         effectiveRole: 'admin' as ProjectRole,
+        permissions: ['project.members.manage' as const],
       };
 
       const memberAdminActor = {
         userId: 'actor-member-pa',
         workspaceRole: 'member' as WorkspaceRole,
         effectiveRole: 'admin' as ProjectRole,
+        permissions: ['project.members.manage' as const],
       };
 
       const contributorActor = {
         userId: 'actor-contrib',
         workspaceRole: 'member' as WorkspaceRole,
         effectiveRole: 'contributor' as ProjectRole,
+        permissions: [],
       };
 
       // 1. Target is Member workspace, not yet project member (assignedRole: null)
       expect(
-        assignableProjectRoles(ownerWsActor, {
+        assignableProjectRoles(adminWsActor, {
           userId: 'target-1',
           workspaceRole: 'member',
           assignedRole: null,
         }),
       ).toEqual(allProjectRoles);
       expect(
-        canRemoveProjectMember(ownerWsActor, {
+        canRemoveProjectMember(adminWsActor, {
           userId: 'target-1',
           workspaceRole: 'member',
           assignedRole: null,
@@ -166,14 +140,14 @@ describe('roleAssignment', () => {
 
       // 2. Target is Member workspace, Project Admin
       expect(
-        assignableProjectRoles(ownerWsActor, {
+        assignableProjectRoles(adminWsActor, {
           userId: 'target-pa',
           workspaceRole: 'member',
           assignedRole: 'admin',
         }),
       ).toEqual(allProjectRoles);
       expect(
-        canRemoveProjectMember(ownerWsActor, {
+        canRemoveProjectMember(adminWsActor, {
           userId: 'target-pa',
           workspaceRole: 'member',
           assignedRole: 'admin',
@@ -214,7 +188,7 @@ describe('roleAssignment', () => {
 
       // 3. Target is Guest workspace (Q-R16)
       expect(
-        assignableProjectRoles(ownerWsActor, {
+        assignableProjectRoles(adminWsActor, {
           userId: 'target-guest',
           workspaceRole: 'guest',
           assignedRole: 'guest',
@@ -235,16 +209,16 @@ describe('roleAssignment', () => {
         }),
       ).toBe(true);
 
-      // 4. Target is Owner/Admin workspace
+      // 4. Target is Admin workspace (implicit project role admin)
       expect(
-        assignableProjectRoles(ownerWsActor, {
+        assignableProjectRoles(adminWsActor, {
           userId: 'target-admin-ws',
           workspaceRole: 'admin',
           assignedRole: 'admin',
         }),
       ).toEqual([]);
       expect(
-        canRemoveProjectMember(ownerWsActor, {
+        canRemoveProjectMember(adminWsActor, {
           userId: 'target-admin-ws',
           workspaceRole: 'admin',
           assignedRole: 'admin',
@@ -253,16 +227,16 @@ describe('roleAssignment', () => {
 
       // 5. Self assignment
       expect(
-        assignableProjectRoles(ownerWsActor, {
-          userId: 'actor-owner',
-          workspaceRole: 'owner',
+        assignableProjectRoles(adminWsActor, {
+          userId: 'actor-admin',
+          workspaceRole: 'admin',
           assignedRole: 'admin',
         }),
       ).toEqual([]);
       expect(
-        canRemoveProjectMember(ownerWsActor, {
-          userId: 'actor-owner',
-          workspaceRole: 'owner',
+        canRemoveProjectMember(adminWsActor, {
+          userId: 'actor-admin',
+          workspaceRole: 'admin',
           assignedRole: 'admin',
         }),
       ).toBe(false);
@@ -292,7 +266,6 @@ describe('roleAssignment', () => {
         'contributor',
         'commenter',
       ]);
-      expect(projectRolesAboveCeiling('owner')).toEqual([]);
       expect(projectRolesAboveCeiling('admin')).toEqual([]);
       expect(projectRolesAboveCeiling('member')).toEqual([]);
     });

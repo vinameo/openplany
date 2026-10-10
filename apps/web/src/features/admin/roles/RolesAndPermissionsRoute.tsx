@@ -1,25 +1,95 @@
-import { useMemo } from "react";
-import { Button, Stack, Text, Title } from "@mantine/core";
+import { useMemo, useState } from "react";
+import {
+  Alert,
+  Button,
+  Group,
+  Modal,
+  Skeleton,
+  Stack,
+  Text,
+  Title,
+} from "@mantine/core";
+import { notifications } from "@mantine/notifications";
 import { Navigate, useNavigate } from "react-router";
 import { ColorSchemeToggle } from "@repo/ui";
+import type { RoleRef } from "@repo/contracts";
 import { useAuth } from "../../auth/useAuth";
 import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
+import { useUnsavedChangesGuard } from "../../../hooks/useUnsavedChangesGuard";
 import { ArrowLeftIcon } from "../../workspaces/icons";
 import { SettingsSection } from "../../workspaces/settings/SettingsSection";
 import { buildRolesOverview } from "./rolesOverview";
 import {
-  PermissionMatrix,
   ProjectAccessTable,
   ProjectRolesTable,
   WorkspaceRolesTable,
 } from "./RoleTables";
+import {
+  type PermissionDraft,
+  buildPermissionMatrix,
+  diffDraft,
+  togglePermission,
+  toUpdateRequest,
+} from "./permissionMatrix";
+import { PermissionMatrixTable } from "./PermissionMatrixTable";
+import { SaveChangesBar } from "./SaveChangesBar";
+import { ConfirmPermissionChangesModal } from "./ConfirmPermissionChangesModal";
+import { useRolePermissions } from "./useRolePermissions";
 import classes from "./RolesAndPermissionsRoute.module.css";
+
+type SaveErrorState =
+  | { type: "conflict" }
+  | { type: "invalid"; fields: Record<string, string> }
+  | { type: "failed"; message: string }
+  | null;
 
 export function RolesAndPermissionsRoute() {
   useDocumentTitle("Roles & Permissions · OpenPlany");
   const { state: authState } = useAuth();
   const navigate = useNavigate();
+
   const overview = useMemo(() => buildRolesOverview(), []);
+  const { state: roleState, reload, save } = useRolePermissions();
+
+  const [draft, setDraft] = useState<PermissionDraft>({});
+  const [confirmModalOpened, setConfirmModalOpened] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<SaveErrorState>(null);
+
+  const diff = useMemo(() => {
+    if (roleState.status !== "ready") return [];
+    return diffDraft(roleState.roles, draft);
+  }, [roleState, draft]);
+
+  const totalUnsavedChanges = useMemo(() => {
+    return diff.reduce(
+      (sum, item) => sum + item.granted.length + item.revoked.length,
+      0,
+    );
+  }, [diff]);
+
+  const hasChanges = totalUnsavedChanges > 0;
+  const { blocked, proceed, stay } = useUnsavedChangesGuard(hasChanges);
+
+  const workspaceMatrix = useMemo(() => {
+    if (roleState.status !== "ready") return null;
+    return buildPermissionMatrix(
+      "workspace",
+      roleState.roles,
+      draft,
+      roleState.permissions,
+    );
+  }, [roleState, draft]);
+
+  const projectMatrix = useMemo(() => {
+    if (roleState.status !== "ready") return null;
+    return buildPermissionMatrix(
+      "project",
+      roleState.roles,
+      draft,
+      roleState.permissions,
+    );
+  }, [roleState, draft]);
 
   if (
     authState.status === "authenticated" &&
@@ -34,6 +104,59 @@ export function RolesAndPermissionsRoute() {
     } else {
       navigate("/");
     }
+  }
+
+  function handleToggle(role: RoleRef, permission: string) {
+    if (roleState.status !== "ready" || isSaving) return;
+    setDraft((prev) =>
+      togglePermission(
+        prev,
+        roleState.roles,
+        role,
+        permission,
+        roleState.permissions,
+      ),
+    );
+  }
+
+  function handleDiscard() {
+    setDraft({});
+    setSaveError(null);
+  }
+
+  async function handleConfirmSave() {
+    if (roleState.status !== "ready") return;
+    setIsSaving(true);
+    setSaveError(null);
+
+    const body = toUpdateRequest(roleState.roles, draft);
+    const result = await save(body);
+
+    setIsSaving(false);
+
+    if (result.status === "saved") {
+      setConfirmModalOpened(false);
+      setDraft({});
+      notifications.show({
+        message: "Permissions updated",
+        color: "green",
+      });
+    } else if (result.status === "conflict") {
+      setConfirmModalOpened(false);
+      setSaveError({ type: "conflict" });
+    } else if (result.status === "invalid") {
+      setConfirmModalOpened(false);
+      setSaveError({ type: "invalid", fields: result.fields });
+    } else {
+      setConfirmModalOpened(false);
+      setSaveError({ type: "failed", message: result.message });
+    }
+  }
+
+  function handleConflictReload() {
+    setDraft({});
+    setSaveError(null);
+    reload();
   }
 
   return (
@@ -86,14 +209,125 @@ export function RolesAndPermissionsRoute() {
             <ProjectAccessTable rows={overview.projectAccess} />
           </SettingsSection>
 
+          {saveError?.type === "conflict" && (
+            <Alert
+              color="yellow"
+              title="Someone else changed these permissions. Reload to see the latest."
+            >
+              <Group justify="flex-end" mt="xs">
+                <Button size="xs" variant="default" onClick={handleConflictReload}>
+                  Reload
+                </Button>
+              </Group>
+            </Alert>
+          )}
+
+          {saveError?.type === "invalid" && (
+            <Alert color="red" title="Validation error">
+              {Object.entries(saveError.fields).map(([field, msg]) => (
+                <div key={field}>{msg}</div>
+              ))}
+            </Alert>
+          )}
+
+          {saveError?.type === "failed" && (
+            <Alert color="red" title="Error">
+              {saveError.message}
+            </Alert>
+          )}
+
           <SettingsSection
             titleOrder={2}
-            title="What each role can do"
-            description="Actions OpenPlany checks today. More appear as features are added."
+            title="Workspace permissions"
+            description="Choose what each workspace role can do. Changes apply to every workspace on this instance."
           >
-            <PermissionMatrix rows={overview.permissionMatrix} />
+            {roleState.status === "loading" && (
+              <Stack gap="xs">
+                <Skeleton height={40} />
+                <Skeleton height={200} />
+              </Stack>
+            )}
+            {roleState.status === "error" && (
+              <Alert color="red">
+                <Text mb="xs">Couldn't load permissions.</Text>
+                <Button size="xs" variant="default" onClick={reload}>
+                  Try again
+                </Button>
+              </Alert>
+            )}
+            {roleState.status === "ready" && workspaceMatrix && (
+              <PermissionMatrixTable
+                matrix={workspaceMatrix}
+                readOnly={isSaving}
+                onToggle={handleToggle}
+              />
+            )}
+          </SettingsSection>
+
+          <SettingsSection
+            titleOrder={2}
+            title="Project permissions"
+            description="Choose what each project role can do. Changes apply to every project on this instance."
+          >
+            {roleState.status === "loading" && (
+              <Stack gap="xs">
+                <Skeleton height={40} />
+                <Skeleton height={200} />
+              </Stack>
+            )}
+            {roleState.status === "error" && (
+              <Alert color="red">
+                <Text mb="xs">Couldn't load permissions.</Text>
+                <Button size="xs" variant="default" onClick={reload}>
+                  Try again
+                </Button>
+              </Alert>
+            )}
+            {roleState.status === "ready" && projectMatrix && (
+              <PermissionMatrixTable
+                matrix={projectMatrix}
+                readOnly={isSaving}
+                onToggle={handleToggle}
+              />
+            )}
           </SettingsSection>
         </Stack>
+
+        <SaveChangesBar
+          changeCount={totalUnsavedChanges}
+          onDiscard={handleDiscard}
+          onSaveClick={() => setConfirmModalOpened(true)}
+          disabled={isSaving}
+        />
+
+        <ConfirmPermissionChangesModal
+          opened={confirmModalOpened}
+          onClose={() => setConfirmModalOpened(false)}
+          diff={diff}
+          onConfirm={handleConfirmSave}
+          isSaving={isSaving}
+          permissions={roleState.status === "ready" ? roleState.permissions : []}
+        />
+
+        <Modal
+          opened={blocked}
+          onClose={stay}
+          title="Discard unsaved changes?"
+        >
+          <Stack gap="md">
+            <Text size="sm">
+              You have unsaved changes that will be lost if you leave this page.
+            </Text>
+            <Group justify="flex-end" gap="sm">
+              <Button variant="default" onClick={stay}>
+                Keep editing
+              </Button>
+              <Button color="red" onClick={proceed}>
+                Discard
+              </Button>
+            </Group>
+          </Stack>
+        </Modal>
       </main>
     </div>
   );

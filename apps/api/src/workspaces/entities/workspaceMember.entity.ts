@@ -1,5 +1,5 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
-import type { WorkspaceRole } from '@repo/contracts';
+import type { RoleScope, WorkspaceRole } from '@repo/contracts';
 
 @Entity({ name: 'workspace_members' })
 export class WorkspaceMember {
@@ -11,6 +11,9 @@ export class WorkspaceMember {
 
   @Column({ name: 'member_id', type: 'uuid' })
   memberId: string;
+
+  @Column({ name: 'role_scope', type: 'varchar', length: 16, default: 'workspace' })
+  roleScope: RoleScope;
 
   @Column({ type: 'varchar', length: 20 })
   role: WorkspaceRole;

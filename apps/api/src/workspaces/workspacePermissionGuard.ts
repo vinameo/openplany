@@ -7,7 +7,6 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import {
-  workspacePermissionsOf,
   type WorkspacePermission,
 } from '@repo/contracts';
 import type { Request } from 'express';
@@ -35,7 +34,7 @@ export class WorkspacePermissionGuard implements CanActivate {
         'WorkspacePermissionGuard must run after WorkspaceMemberGuard',
       );
     }
-    if (!workspacePermissionsOf(workspace.role).includes(required)) {
+    if (!workspace.permissions.includes(required)) {
       this.logger.warn(
         `workspace.forbidden permission=${required} role=${workspace.role} ` +
           `workspaceId=${workspace.id} userId=${request.auth?.userId ?? ''} requestId=${request.requestId ?? ''}`,

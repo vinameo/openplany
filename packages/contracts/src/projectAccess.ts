@@ -1,8 +1,10 @@
 import type { WorkspaceRole } from './workspace.js';
 import type { ProjectRole } from './projectRoles.js';
 import { PROJECT_ROLE_RANK } from './projectRoles.js';
-import type { ProjectPermission } from './projectPermissions.js';
-import { projectPermissionsOf } from './projectPermissions.js';
+import type {
+  ProjectPermission,
+  ProjectRolePermissions,
+} from './projectPermissions.js';
 import {
   WORKSPACE_ROLE_POLICY,
   higherProjectRole,
@@ -46,9 +48,10 @@ export interface ProjectAccess {
 
 export function resolveProjectAccess(
   input: ProjectAccessInput,
+  matrix: ProjectRolePermissions,
 ): ProjectAccess | null {
   const role = effectiveProjectRole(input);
   return role === null
     ? null
-    : { role, permissions: projectPermissionsOf(role) };
+    : { role, permissions: matrix[role] };
 }

@@ -1,5 +1,5 @@
 import {
-  enforcedWorkspacePermissionsOf,
+  enforcedWorkspacePermissions,
   type WorkspaceResponse,
 } from '@repo/contracts';
 import type { MemberWorkspace } from '../repositories/workspaces.repository.js';
@@ -16,7 +16,7 @@ export function toWorkspaceResponse(
     organizationSize: workspace.organizationSize,
     timezone: workspace.timezone,
     role: workspace.role,
-    permissions: enforcedWorkspacePermissionsOf(workspace.role),
+    permissions: enforcedWorkspacePermissions(workspace.permissions),
     memberCount: Number(workspace.memberCount),
     createdAt:
       workspace.createdAt instanceof Date

@@ -32,7 +32,7 @@ export function GeneralSettingsForm({ workspace }: GeneralSettingsFormProps) {
     <form className={classes.form} onSubmit={handleSubmit} noValidate>
       {!canEdit && (
         <Alert variant="light" color="gray" mb="lg">
-          Only workspace owners and admins can change these settings.
+          You don't have permission to change these settings.
         </Alert>
       )}
 

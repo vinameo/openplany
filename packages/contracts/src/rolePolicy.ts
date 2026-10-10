@@ -14,13 +14,9 @@ export interface WorkspaceRolePolicy {
   readonly overridesProjectRank: boolean;
 }
 
+import type { WorkspacePermission } from './workspacePermissions.js';
+
 export const WORKSPACE_ROLE_POLICY = {
-  owner: {
-    implicitProjectRole: 'admin',
-    projectRoleCeiling: 'admin',
-    selfJoinProjectRole: 'admin',
-    overridesProjectRank: true,
-  },
   admin: {
     implicitProjectRole: 'admin',
     projectRoleCeiling: 'admin',
@@ -61,11 +57,17 @@ export function projectRoleCeilingOf(role: WorkspaceRole): ProjectRole {
   return WORKSPACE_ROLE_POLICY[role].projectRoleCeiling;
 }
 
-export function selfJoinProjectRoleOf(role: WorkspaceRole): ProjectRole | null {
-  return WORKSPACE_ROLE_POLICY[role].selfJoinProjectRole;
+export function selfJoinProjectRoleOf(
+  role: WorkspaceRole,
+  permissions: readonly WorkspacePermission[],
+): ProjectRole | null {
+  const baseRole = WORKSPACE_ROLE_POLICY[role].selfJoinProjectRole;
+  if (baseRole === null) return null;
+  if (!permissions.includes('workspace.projects.browse')) return null;
+  return baseRole;
 }
 
-/** Các workspace role có quyền ngầm ở mọi project. Dùng làm tham số truy vấn (B10.4), không viết cứng ['owner','admin']. */
+/** Các workspace role có quyền ngầm ở mọi project. Dùng làm tham số truy vấn (B10.4), không viết cứng ['admin']. */
 export function workspaceRolesWithImplicitProjectAccess(): readonly WorkspaceRole[] {
   return WORKSPACE_ROLES.filter(
     (role) => WORKSPACE_ROLE_POLICY[role].implicitProjectRole !== null,

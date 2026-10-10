@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { WORKSPACE_ROLES, type WorkspaceRole } from './workspace.js';
 import { PROJECT_ROLES, type ProjectRole } from './projectRoles.js';
-import { projectPermissionsOf } from './projectPermissions.js';
+import type { ProjectRolePermissions } from './projectPermissions.js';
 import {
   effectiveProjectRole,
   isProjectRoleClamped,
@@ -14,18 +14,11 @@ describe('projectAccess', () => {
 
   // Table A5:
   // | Workspace \ Assigned | null | admin | contributor | commenter | guest |
-  // | owner                | admin| admin | admin       | admin     | admin |
   // | admin                | admin| admin | admin       | admin     | admin |
   // | member               | null | admin | contributor | commenter | guest |
   // | guest                | null | guest | guest       | guest     | guest |
   // | null                 | null | null  | null        | null      | null  |
   const EXPECTED_A5: Record<string, ProjectRole | null> = {
-    'owner:null': 'admin',
-    'owner:admin': 'admin',
-    'owner:contributor': 'admin',
-    'owner:commenter': 'admin',
-    'owner:guest': 'admin',
-
     'admin:null': 'admin',
     'admin:admin': 'admin',
     'admin:contributor': 'admin',
@@ -51,7 +44,7 @@ describe('projectAccess', () => {
     'null:guest': null,
   };
 
-  it('AC-03: effectiveProjectRole matches all 5x5 combinations in table RQ A5', () => {
+  it('AC-03: effectiveProjectRole matches all combinations in table RQ A5', () => {
     for (const wsRole of allWorkspaceRoles) {
       for (const prRole of allProjectRoles) {
         const key = `${wsRole}:${prRole}`;
@@ -84,34 +77,53 @@ describe('projectAccess', () => {
   });
 
   it('AC-03: resolveProjectAccess returns effective role + full permissions, or null', () => {
-    const accessMember = resolveProjectAccess({
-      workspaceRole: 'member',
-      assignedRole: 'contributor',
-    });
+    const samplePermissions: ProjectRolePermissions = {
+      admin: ['project.settings.update'],
+      contributor: ['project.workitems.create'],
+      commenter: ['project.comments.create'],
+      guest: ['project.settings.view'],
+    };
+
+    const accessMember = resolveProjectAccess(
+      {
+        workspaceRole: 'member',
+        assignedRole: 'contributor',
+      },
+      samplePermissions,
+    );
     expect(accessMember).toEqual({
       role: 'contributor',
-      permissions: projectPermissionsOf('contributor'),
+      permissions: samplePermissions.contributor,
     });
 
-    const accessGuestClamped = resolveProjectAccess({
-      workspaceRole: 'guest',
-      assignedRole: 'admin',
-    });
+    const accessGuestClamped = resolveProjectAccess(
+      {
+        workspaceRole: 'guest',
+        assignedRole: 'admin',
+      },
+      samplePermissions,
+    );
     expect(accessGuestClamped).toEqual({
       role: 'guest',
-      permissions: projectPermissionsOf('guest'),
+      permissions: samplePermissions.guest,
     });
 
-    const accessNoWs = resolveProjectAccess({
-      workspaceRole: null,
-      assignedRole: 'admin',
-    });
+    const accessNoWs = resolveProjectAccess(
+      {
+        workspaceRole: null,
+        assignedRole: 'admin',
+      },
+      samplePermissions,
+    );
     expect(accessNoWs).toBeNull();
 
-    const accessMemberUnassigned = resolveProjectAccess({
-      workspaceRole: 'member',
-      assignedRole: null,
-    });
+    const accessMemberUnassigned = resolveProjectAccess(
+      {
+        workspaceRole: 'member',
+        assignedRole: null,
+      },
+      samplePermissions,
+    );
     expect(accessMemberUnassigned).toBeNull();
   });
 });

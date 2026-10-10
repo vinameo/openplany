@@ -49,7 +49,7 @@ describe("SettingsSidebar", () => {
     const ws = makeWorkspace({
       slug: "openstudy",
       name: "OpenStudy",
-      role: "owner",
+      role: "admin",
     });
 
     const contextVal: CurrentWorkspaceValue = {
@@ -69,7 +69,7 @@ describe("SettingsSidebar", () => {
       screen.getByRole("heading", { name: "Workspace settings" }),
     ).toBeInTheDocument();
     expect(screen.getByText("OpenStudy")).toBeInTheDocument();
-    expect(screen.getByText("Owner")).toBeInTheDocument();
+    expect(screen.getByText("Admin")).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Administration" }),
     ).toBeInTheDocument();

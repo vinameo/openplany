@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import type {
-  EditableWorkspaceField,
-  OrganizationSize,
-  WorkspaceRole,
+import {
+  WORKSPACE_CREATOR_ROLE,
+  parseWorkspacePermissions,
+  type EditableWorkspaceField,
+  type OrganizationSize,
+  type WorkspaceRole,
 } from '@repo/contracts';
 import { DataSource } from 'typeorm';
 import {
@@ -67,7 +69,7 @@ export class TypeOrmWorkspacesRepository implements WorkspacesRepository {
         return { status: 'rate_limited', retryAfterSeconds };
       }
 
-      // 3. Insert workspace with owner check on user
+      // 3. Insert workspace and add creator as admin member
       try {
         const inserted = await manager.query<
           {
@@ -82,9 +84,9 @@ export class TypeOrmWorkspacesRepository implements WorkspacesRepository {
             updated_at: Date;
           }[]
         >(
-          `INSERT INTO workspaces (id, name, slug, owner_id, created_by_id, updated_by_id,
+          `INSERT INTO workspaces (id, name, slug, created_by_id, updated_by_id,
                                   organization_size, timezone, background_color, created_at, updated_at)
-           SELECT $1, $2, $3, u.id, u.id, u.id, $4, u.user_timezone, $5, $6, $6
+           SELECT $1, $2, $3, u.id, u.id, $4, u.user_timezone, $5, $6, $6
            FROM users u
            WHERE u.id = $7 AND u.is_active AND u.masked_at IS NULL
            RETURNING id, name, slug, logo, background_color, organization_size, timezone, created_at, updated_at`,
@@ -105,20 +107,20 @@ export class TypeOrmWorkspacesRepository implements WorkspacesRepository {
 
         const row = inserted[0]!;
 
-        // 4. Insert owner into workspace_members
+        // 4. Insert creator into workspace_members with WORKSPACE_CREATOR_ROLE ('admin')
         await manager.query(
-          `INSERT INTO workspace_members (workspace_id, member_id, role, created_at, updated_at)
-           VALUES ($1, $2, 'owner', $3, $3)`,
-          [row.id, userId, now],
+          `INSERT INTO workspace_members (workspace_id, member_id, role, role_scope, created_at, updated_at)
+           VALUES ($1, $2, $3, 'workspace', $4, $4)`,
+          [row.id, userId, WORKSPACE_CREATOR_ROLE, now],
         );
 
-        // 5. Record role history: workspace_created
+        // 5. Record role history: workspace_created (NULL -> admin)
         await recordWorkspaceRoleChanges(manager, [
           {
             workspaceId: row.id,
             memberId: userId,
             fromRole: null,
-            toRole: 'owner',
+            toRole: WORKSPACE_CREATOR_ROLE,
             changeType: 'workspace_created',
             actorId: userId,
             requestId,
@@ -130,6 +132,18 @@ export class TypeOrmWorkspacesRepository implements WorkspacesRepository {
         await manager.query(
           `UPDATE users SET last_workspace_id = $1 WHERE id = $2`,
           [row.id, userId],
+        );
+
+        // 7. Read permissions for WORKSPACE_CREATOR_ROLE from role_permissions
+        const permRows = await manager.query<{ permissionKey: string }[]>(
+          `SELECT permission_key AS "permissionKey"
+           FROM role_permissions
+           WHERE scope = 'workspace' AND role_key = $1
+           ORDER BY permission_key`,
+          [WORKSPACE_CREATOR_ROLE],
+        );
+        const permissions = parseWorkspacePermissions(
+          permRows.map((p) => p.permissionKey),
         );
 
         return {
@@ -144,7 +158,8 @@ export class TypeOrmWorkspacesRepository implements WorkspacesRepository {
             timezone: row.timezone,
             createdAt: new Date(row.created_at),
             updatedAt: new Date(row.updated_at),
-            role: 'owner',
+            role: WORKSPACE_CREATOR_ROLE,
+            permissions,
             memberCount: 1,
           },
         };
@@ -181,6 +196,7 @@ export class TypeOrmWorkspacesRepository implements WorkspacesRepository {
         createdAt: Date;
         updatedAt: Date;
         role: WorkspaceRole;
+        permissions: string[];
         memberCount: number;
         isLast: boolean;
       }[]
@@ -188,6 +204,9 @@ export class TypeOrmWorkspacesRepository implements WorkspacesRepository {
       `SELECT w.id, w.name, w.slug, w.logo, w.background_color AS "backgroundColor",
               w.organization_size AS "organizationSize", w.timezone,
               w.created_at AS "createdAt", w.updated_at AS "updatedAt", m.role,
+              COALESCE((SELECT array_agg(rp.permission_key ORDER BY rp.permission_key)
+                        FROM role_permissions rp
+                        WHERE rp.scope = m.role_scope AND rp.role_key = m.role), '{}') AS permissions,
               (SELECT count(*)::int FROM workspace_members c
                 WHERE c.workspace_id = w.id AND c.is_active = true) AS "memberCount",
               (u.last_workspace_id = w.id) AS "isLast"
@@ -215,6 +234,7 @@ export class TypeOrmWorkspacesRepository implements WorkspacesRepository {
         createdAt: new Date(r.createdAt),
         updatedAt: new Date(r.updatedAt),
         role: r.role,
+        permissions: parseWorkspacePermissions(r.permissions ?? []),
         memberCount: Number(r.memberCount),
       };
     });
@@ -238,12 +258,16 @@ export class TypeOrmWorkspacesRepository implements WorkspacesRepository {
         createdAt: Date;
         updatedAt: Date;
         role: WorkspaceRole;
+        permissions: string[];
         memberCount: number;
       }[]
     >(
       `SELECT w.id, w.name, w.slug, w.logo, w.background_color AS "backgroundColor",
               w.organization_size AS "organizationSize", w.timezone,
               w.created_at AS "createdAt", w.updated_at AS "updatedAt", m.role,
+              COALESCE((SELECT array_agg(rp.permission_key ORDER BY rp.permission_key)
+                        FROM role_permissions rp
+                        WHERE rp.scope = m.role_scope AND rp.role_key = m.role), '{}') AS permissions,
               (SELECT count(*)::int FROM workspace_members c
                 WHERE c.workspace_id = w.id AND c.is_active = true) AS "memberCount"
        FROM workspaces w
@@ -267,6 +291,7 @@ export class TypeOrmWorkspacesRepository implements WorkspacesRepository {
       createdAt: new Date(row.createdAt),
       updatedAt: new Date(row.updatedAt),
       role: row.role,
+      permissions: parseWorkspacePermissions(row.permissions ?? []),
       memberCount: Number(row.memberCount),
     };
   }

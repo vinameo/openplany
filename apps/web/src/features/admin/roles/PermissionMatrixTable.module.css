@@ -1,0 +1,66 @@
+.table {
+  width: 100%;
+}
+
+.groupHeader {
+  background-color: var(--mantine-color-default-hover);
+  font-weight: 700;
+  text-align: left;
+  padding: 8px 12px;
+}
+
+.permissionTh {
+  text-align: left;
+  font-weight: 500;
+  vertical-align: middle;
+}
+
+.permissionContent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.roleCol {
+  width: 90px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.lockedHeader {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.lockIcon {
+  width: 14px;
+  height: 14px;
+  color: var(--mantine-color-dimmed);
+}
+
+.checkCell {
+  text-align: center;
+  vertical-align: middle;
+  padding: 6px 8px;
+}
+
+.cellWrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.changedDot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--mantine-color-blue-filled);
+  margin-left: 4px;
+  vertical-align: middle;
+}
+

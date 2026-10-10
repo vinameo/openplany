@@ -1,39 +1,46 @@
 import type { WorkspaceRole } from './workspace.js';
 import { WORKSPACE_ROLES, WORKSPACE_ROLE_RANK } from './workspace.js';
-import { workspacePermissionsOf } from './workspacePermissions.js';
+import type { WorkspacePermission } from './workspacePermissions.js';
 import type { ProjectRole } from './projectRoles.js';
 import { PROJECT_ROLES, PROJECT_ROLE_RANK } from './projectRoles.js';
-import { projectPermissionsOf } from './projectPermissions.js';
+import type { ProjectPermission } from './projectPermissions.js';
 import {
   WORKSPACE_ROLE_POLICY,
   projectRoleCeilingOf,
 } from './rolePolicy.js';
 import { effectiveProjectRole } from './projectAccess.js';
 
+export interface WorkspaceActor {
+  userId: string;
+  role: WorkspaceRole;
+  permissions: readonly WorkspacePermission[];
+}
+
 export function assignableWorkspaceRoles(
-  actor: { userId: string; role: WorkspaceRole },
+  actor: WorkspaceActor,
   target: { userId: string; role: WorkspaceRole },
 ): WorkspaceRole[] {
   if (actor.userId === target.userId) return [];
-  if (!workspacePermissionsOf(actor.role).includes('workspace.members.role.update')) return [];
-  if (WORKSPACE_ROLE_RANK[actor.role] <= WORKSPACE_ROLE_RANK[target.role]) return [];
-  const maxRank = Math.min(WORKSPACE_ROLE_RANK[actor.role], WORKSPACE_ROLE_RANK.admin);
-  return WORKSPACE_ROLES.filter((r) => r !== 'owner' && WORKSPACE_ROLE_RANK[r] <= maxRank);
+  if (!actor.permissions.includes('workspace.members.role.update')) return [];
+  if (WORKSPACE_ROLE_RANK[actor.role] < WORKSPACE_ROLE_RANK[target.role]) return [];
+  return WORKSPACE_ROLES.filter((r) => WORKSPACE_ROLE_RANK[r] <= WORKSPACE_ROLE_RANK[actor.role]);
 }
 
-export function canTransferOwnershipTo(
-  actor: { userId: string; role: WorkspaceRole },
+export function canRemoveWorkspaceMember(
+  actor: WorkspaceActor,
   target: { userId: string; role: WorkspaceRole },
 ): boolean {
   if (actor.userId === target.userId) return false;
-  if (!workspacePermissionsOf(actor.role).includes('workspace.ownership.transfer')) return false;
-  return target.role === 'admin' || target.role === 'member';
+  if (!actor.permissions.includes('workspace.members.remove')) return false;
+  if (WORKSPACE_ROLE_RANK[actor.role] < WORKSPACE_ROLE_RANK[target.role]) return false;
+  return true;
 }
 
 export interface ProjectActor {
   userId: string;
   workspaceRole: WorkspaceRole;
   effectiveRole: ProjectRole | null;
+  permissions: readonly ProjectPermission[];
 }
 
 export interface ProjectTarget {
@@ -49,7 +56,7 @@ export function assignableProjectRoles(
   if (actor.userId === target.userId) return [];
   if (
     actor.effectiveRole === null ||
-    !projectPermissionsOf(actor.effectiveRole).includes('project.members.manage')
+    !actor.permissions.includes('project.members.manage')
   ) {
     return [];
   }
@@ -83,7 +90,7 @@ export function canRemoveProjectMember(
   if (actor.userId === target.userId) return false;
   if (
     actor.effectiveRole === null ||
-    !projectPermissionsOf(actor.effectiveRole).includes('project.members.manage')
+    !actor.permissions.includes('project.members.manage')
   ) {
     return false;
   }

@@ -1,20 +1,17 @@
 export * from './workspace.js';
 export {
-  WORKSPACE_PERMISSIONS,
-  ENFORCED_WORKSPACE_PERMISSIONS,
-  workspacePermissionsOf,
-  enforcedWorkspacePermissionsOf,
+  parseWorkspacePermissions,
+  enforcedWorkspacePermissions,
   type WorkspacePermission,
   type EnforcedWorkspacePermission,
 } from './workspacePermissions.js';
 export * from './projectRoles.js';
 export {
-  PROJECT_PERMISSIONS,
-  ENFORCED_PROJECT_PERMISSIONS,
-  projectPermissionsOf,
-  enforcedProjectPermissionsOf,
+  parseProjectPermissions,
+  enforcedProjectPermissions,
   type ProjectPermission,
   type EnforcedProjectPermission,
+  type ProjectRolePermissions,
   type ProjectOwnershipBase,
 } from './projectPermissions.js';
 export {
@@ -30,3 +27,31 @@ export * from './resourcePermissions.js';
 export * from './workspaceSettings.js';
 export * from './timezones.js';
 export * from './user.js';
+export {
+  type RolePermissionMatrix,
+} from './rolePermissionMatrix.js';
+export {
+  ROLE_SCOPES,
+  type RoleScope,
+  type RoleRef,
+  LOCKED_ROLES,
+  ADMIN_ONLY_PERMISSIONS,
+  VIEW_ONLY_ROLES,
+  PERMISSION_GRANT_PROBLEMS,
+  type PermissionGrantProblem,
+  PERMISSION_GRANT_PROBLEM_MESSAGES,
+  permissionGrantProblem,
+  permissionRevokeProblem,
+  isRoleLocked,
+  scopeOfPermission,
+} from './rolePermissionRules.js';
+export {
+  type PermissionItem,
+  type PermissionResponse,
+  type RoleResponse,
+  type RolesResponse,
+  type RolePermissionsChange,
+  type UpdateRolePermissionsRequest,
+  ROLE_PERMISSIONS_CHANGES_MAX,
+  ROLE_PERMISSIONS_PER_ROLE_MAX,
+} from './adminRoles.js';

@@ -1,6 +1,7 @@
 import type {
   EditableWorkspaceField,
   OrganizationSize,
+  WorkspacePermission,
   WorkspaceRole,
 } from '@repo/contracts';
 
@@ -16,6 +17,7 @@ export interface MemberWorkspace {
   createdAt: Date;
   updatedAt: Date;
   role: WorkspaceRole;
+  permissions: readonly WorkspacePermission[];
   memberCount: number;
 }
 

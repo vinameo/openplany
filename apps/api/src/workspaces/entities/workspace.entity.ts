@@ -15,9 +15,6 @@ export class Workspace {
   @Column({ type: 'text', nullable: true })
   logo: string | null;
 
-  @Column({ name: 'owner_id', type: 'uuid' })
-  ownerId: string;
-
   @Column({ name: 'created_by_id', type: 'uuid', nullable: true })
   createdById: string | null;
 

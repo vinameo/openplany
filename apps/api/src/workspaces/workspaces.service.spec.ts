@@ -113,7 +113,7 @@ describe('WorkspacesService', () => {
         name: 'Acme Corporation',
         slug: 'acme-corp',
         organizationSize: '2-10',
-        role: 'owner',
+        role: 'admin',
         memberCount: 1,
       });
       expect(result.id).toBeDefined();
@@ -299,7 +299,7 @@ describe('WorkspacesService', () => {
       expect(events.events[0]).toEqual({
         workspaceId: 'ws-1',
         actorId: 'user-1',
-        actorRole: 'owner',
+        actorRole: 'admin',
         occurredAt: newDate,
         requestId: 'req-123',
         changes: {

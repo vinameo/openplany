@@ -1,9 +1,16 @@
 import { type ExecutionContext, HttpStatus, Logger } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
-import { InstanceAdminGuard } from './instanceAdminGuard.js';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  INSTANCE_ADMIN_DENIED_MESSAGE,
+  InstanceAdminGuard,
+} from './instanceAdminGuard.js';
 
 function contextFor(request: Partial<Request>): ExecutionContext {
   return {
+    getHandler: () => () => {},
+    getClass: () => class {},
     switchToHttp: () => ({
       getRequest: () => request as Request,
       getResponse: () => ({}),
@@ -39,9 +46,39 @@ describe('InstanceAdminGuard', () => {
     expect(guard.canActivate(context)).toBe(true);
   });
 
-  it('logs warn and throws FORBIDDEN when user is not an instance admin', () => {
+  it('logs warn and throws FORBIDDEN with default message when no metadata is set', () => {
     const warnSpy = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
     const guard = new InstanceAdminGuard();
+    const context = contextFor({
+      auth: {
+        userId: 'user-1',
+        isResetOnly: false,
+        isInstanceAdmin: false,
+      },
+      requestId: 'req-42',
+    });
+
+    try {
+      expect(() => guard.canActivate(context)).toThrow(
+        expect.objectContaining({
+          status: HttpStatus.FORBIDDEN,
+          code: 'FORBIDDEN',
+          message: "You don't have permission to do this",
+        }),
+      );
+      expect(warnSpy).toHaveBeenCalledWith('admin.forbidden userId=user-1 requestId=req-42');
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it('throws FORBIDDEN with custom message when @InstanceAdminDeniedMessage metadata is set', () => {
+    const warnSpy = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+    const reflector = new Reflector();
+    const getAllAndOverrideSpy = vi.spyOn(reflector, 'getAllAndOverride').mockReturnValue(
+      "You don't have permission to create users",
+    );
+    const guard = new InstanceAdminGuard(reflector);
     const context = contextFor({
       auth: {
         userId: 'user-1',
@@ -59,7 +96,10 @@ describe('InstanceAdminGuard', () => {
           message: "You don't have permission to create users",
         }),
       );
-      expect(warnSpy).toHaveBeenCalledWith('admin.forbidden userId=user-1 requestId=req-42');
+      expect(getAllAndOverrideSpy).toHaveBeenCalledWith(
+        INSTANCE_ADMIN_DENIED_MESSAGE,
+        expect.any(Array),
+      );
     } finally {
       warnSpy.mockRestore();
     }

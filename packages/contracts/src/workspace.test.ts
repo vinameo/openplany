@@ -91,11 +91,19 @@ describe('contracts workspace helpers', () => {
   });
 
   it('verifies workspace role ranks, labels, and summaries', async () => {
-    const { WORKSPACE_ROLES, WORKSPACE_ROLE_RANK, WORKSPACE_ROLE_LABELS, WORKSPACE_ROLE_SUMMARIES } = await import('./workspace.js');
-    expect(WORKSPACE_ROLE_RANK.owner).toBe(40);
+    const {
+      WORKSPACE_ROLES,
+      WORKSPACE_CREATOR_ROLE,
+      WORKSPACE_ROLE_RANK,
+      WORKSPACE_ROLE_LABELS,
+      WORKSPACE_ROLE_SUMMARIES,
+    } = await import('./workspace.js');
+    expect(WORKSPACE_ROLES).toEqual(['admin', 'member', 'guest']);
+    expect(WORKSPACE_CREATOR_ROLE).toBe('admin');
     expect(WORKSPACE_ROLE_RANK.admin).toBe(30);
     expect(WORKSPACE_ROLE_RANK.member).toBe(20);
     expect(WORKSPACE_ROLE_RANK.guest).toBe(10);
+    expect((WORKSPACE_ROLE_RANK as any).owner).toBeUndefined();
 
     for (const role of WORKSPACE_ROLES) {
       expect(WORKSPACE_ROLE_LABELS[role]).toBeTruthy();

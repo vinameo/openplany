@@ -22,7 +22,7 @@ function renderGeneralSettingsApp(wsOverrides = {}) {
     name: "OpenStudy",
     organizationSize: "2-10",
     timezone: "UTC",
-    role: "owner",
+    role: "admin",
     permissions: ["workspace.settings.update"],
     ...wsOverrides,
   });
@@ -218,7 +218,7 @@ describe("GeneralSettingsPage", () => {
 
     expect(
       screen.getByText(
-        "Only workspace owners and admins can change these settings.",
+        "You don't have permission to change these settings.",
       ),
     ).toBeInTheDocument();
     expect(

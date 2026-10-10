@@ -82,7 +82,7 @@ describe('Workspaces (e2e)', () => {
     expect(res.body.code).toBe('PASSWORD_RESET_REQUIRED');
   });
 
-  it('3. valid POST creates workspace, owner member, updates last_workspace_id and copies timezone', async () => {
+  it('3. valid POST creates workspace, admin member, updates last_workspace_id and copies timezone', async () => {
     const userId = await createUser('user1@openplany.dev', 'Asia/Ho_Chi_Minh');
     const cookie = await signInCookie('user1@openplany.dev');
 
@@ -103,18 +103,18 @@ describe('Workspaces (e2e)', () => {
       slug: 'acme-corp',
       organizationSize: '11-50',
       timezone: 'Asia/Ho_Chi_Minh',
-      role: 'owner',
+      role: 'admin',
       memberCount: 1,
     });
     expect(res.body.id).toBeDefined();
 
     // Verify DB state
-    const workspaces = await e2e.dataSource.query<{ id: string; owner_id: string; timezone: string }[]>(
-      'SELECT id, owner_id, timezone FROM workspaces WHERE slug = $1',
+    const workspaces = await e2e.dataSource.query<{ id: string; created_by_id: string; timezone: string }[]>(
+      'SELECT id, created_by_id, timezone FROM workspaces WHERE slug = $1',
       ['acme-corp'],
     );
     expect(workspaces).toHaveLength(1);
-    expect(workspaces[0]!.owner_id).toBe(userId);
+    expect(workspaces[0]!.created_by_id).toBe(userId);
     expect(workspaces[0]!.timezone).toBe('Asia/Ho_Chi_Minh');
 
     const members = await e2e.dataSource.query<{ role: string; member_id: string }[]>(
@@ -122,7 +122,7 @@ describe('Workspaces (e2e)', () => {
       [workspaces[0]!.id],
     );
     expect(members).toHaveLength(1);
-    expect(members[0]!.role).toBe('owner');
+    expect(members[0]!.role).toBe('admin');
     expect(members[0]!.member_id).toBe(userId);
 
     const userRow = await e2e.dataSource.query<{ last_workspace_id: string }[]>(
@@ -412,7 +412,7 @@ describe('Workspaces (e2e)', () => {
       .expect(200);
 
     expect(getRes.body.slug).toBe('openplany-org');
-    expect(getRes.body.role).toBe('owner');
+    expect(getRes.body.role).toBe('admin');
 
     // Wait short tick for asynchronous update
     await new Promise((resolve) => setTimeout(resolve, 50));
@@ -810,5 +810,66 @@ describe('Workspaces (e2e)', () => {
       expect(memberRes.body.permissions).toEqual([]);
       expect(memberRes.body.updatedAt).toBeDefined();
     });
+
+    it('13. AC-26: workspace permissions read from DB and take immediate effect', async () => {
+      const { workspace, cookie: adminCookie } = await seedWorkspace('admin13@openplany.dev', 'ws-perm-db');
+      const memberId = await createUser('member13@openplany.dev');
+      const memberCookie = await signInCookie('member13@openplany.dev');
+      await e2e.dataSource.query(
+        'INSERT INTO workspace_members (workspace_id, member_id, role, created_at, updated_at) VALUES ($1, $2, $3, now(), now())',
+        [workspace.id, memberId, 'member'],
+      );
+
+      // Default state: Admin has workspace.settings.update, Member does not
+      let adminRes = await http().get('/api/workspaces/ws-perm-db').set('Cookie', adminCookie).expect(200);
+      expect(adminRes.body.permissions).toEqual(['workspace.settings.update']);
+      let memberRes = await http().get('/api/workspaces/ws-perm-db').set('Cookie', memberCookie).expect(200);
+      expect(memberRes.body.permissions).toEqual([]);
+
+      // 1. Revoke workspace.settings.update from Admin in DB
+      await e2e.dataSource.query(
+        "DELETE FROM role_permissions WHERE scope = 'workspace' AND role_key = 'admin' AND permission_key = 'workspace.settings.update'",
+      );
+
+      // Admin immediately loses permission in GET response
+      adminRes = await http().get('/api/workspaces/ws-perm-db').set('Cookie', adminCookie).expect(200);
+      expect(adminRes.body.permissions).toEqual([]);
+
+      // Admin trying to update workspace settings gets 403 FORBIDDEN immediately
+      await http()
+        .patch('/api/workspaces/ws-perm-db')
+        .set('Cookie', adminCookie)
+        .set('Origin', ORIGIN)
+        .send({ name: 'Admin Forbidden Edit' })
+        .expect(403);
+
+      // 2. Grant workspace.settings.update to Member in DB
+      await e2e.dataSource.query(
+        "INSERT INTO role_permissions (scope, role_key, permission_key, created_at) VALUES ('workspace', 'member', 'workspace.settings.update', now())",
+      );
+
+      // Member immediately gets permission in GET response
+      memberRes = await http().get('/api/workspaces/ws-perm-db').set('Cookie', memberCookie).expect(200);
+      expect(memberRes.body.permissions).toEqual(['workspace.settings.update']);
+
+      // Member can now update workspace settings
+      await http()
+        .patch('/api/workspaces/ws-perm-db')
+        .set('Cookie', memberCookie)
+        .set('Origin', ORIGIN)
+        .send({ name: 'Member Allowed Edit' })
+        .expect(200);
+
+      // 3. Unknown/foreign permissions in DB do not leak to response
+      await e2e.dataSource.query(
+        "INSERT INTO permissions (key, scope, label) VALUES ('workspace.unrecognized.custom', 'workspace', 'Custom permission') ON CONFLICT (key) DO NOTHING",
+      );
+      await e2e.dataSource.query(
+        "INSERT INTO role_permissions (scope, role_key, permission_key, created_at) VALUES ('workspace', 'member', 'workspace.unrecognized.custom', now()) ON CONFLICT DO NOTHING",
+      );
+      memberRes = await http().get('/api/workspaces/ws-perm-db').set('Cookie', memberCookie).expect(200);
+      expect(memberRes.body.permissions).toEqual(['workspace.settings.update']);
+    });
   });
 });
+

@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { WORKSPACE_ROLES, WORKSPACE_ROLE_RANK } from './workspace.js';
+import { WORKSPACE_ROLES, WORKSPACE_ROLE_RANK, type WorkspaceRole } from './workspace.js';
 import { PROJECT_ROLE_RANK, type ProjectRole } from './projectRoles.js';
-import { projectPermissionsOf } from './projectPermissions.js';
-import { workspacePermissionsOf } from './workspacePermissions.js';
 import {
   PROJECT_CREATOR_ROLE,
   WORKSPACE_ROLE_POLICY,
@@ -12,6 +10,19 @@ import {
 } from './rolePolicy.js';
 
 describe('rolePolicy', () => {
+  const sampleProjectRolePermissions: Record<ProjectRole, readonly string[]> = {
+    admin: ['project.members.manage', 'project.settings.update'],
+    contributor: ['project.workitems.create'],
+    commenter: ['project.comments.create'],
+    guest: ['project.settings.view'],
+  };
+
+  const sampleWorkspaceRolePermissions: Record<WorkspaceRole, readonly string[]> = {
+    admin: ['workspace.projects.create', 'workspace.projects.browse'],
+    member: ['workspace.projects.browse'],
+    guest: [],
+  };
+
   it('AC-19: validates consistency rules PC-1 through PC-6 rule-based across all workspace roles', () => {
     const roleRankOrZero = (role: ProjectRole | null): number =>
       role === null ? 0 : PROJECT_ROLE_RANK[role];
@@ -38,7 +49,7 @@ describe('rolePolicy', () => {
       // PC-4: overridesProjectRank = true => implicitProjectRole có quyền project.members.manage
       if (policy.overridesProjectRank) {
         expect(policy.implicitProjectRole, `PC-4 violated for ${role}`).not.toBeNull();
-        const implicitPerms = projectPermissionsOf(policy.implicitProjectRole);
+        const implicitPerms = sampleProjectRolePermissions[policy.implicitProjectRole!];
         expect(
           implicitPerms.includes('project.members.manage'),
           `PC-4: ${role} implicit role must have project.members.manage`,
@@ -46,7 +57,7 @@ describe('rolePolicy', () => {
       }
 
       // PC-5: Mọi vai trò workspace có workspace.projects.create thì PROJECT_CREATOR_ROLE <= trần của vai trò đó
-      const wsPerms = workspacePermissionsOf(role);
+      const wsPerms: readonly string[] = sampleWorkspaceRolePermissions[role];
       if (wsPerms.includes('workspace.projects.create')) {
         expect(
           PROJECT_ROLE_RANK[PROJECT_CREATOR_ROLE],
@@ -85,14 +96,14 @@ describe('rolePolicy', () => {
   });
 
   it('AC-20: validates accessor functions and constants', () => {
-    expect(workspaceRolesWithImplicitProjectAccess()).toEqual(['owner', 'admin']);
+    expect(workspaceRolesWithImplicitProjectAccess()).toEqual(['admin']);
 
-    expect(selfJoinProjectRoleOf('owner')).toBe('admin');
-    expect(selfJoinProjectRoleOf('admin')).toBe('admin');
-    expect(selfJoinProjectRoleOf('member')).toBe('contributor');
-    expect(selfJoinProjectRoleOf('guest')).toBeNull();
+    expect(selfJoinProjectRoleOf('admin', ['workspace.projects.browse'])).toBe('admin');
+    expect(selfJoinProjectRoleOf('admin', [])).toBeNull();
+    expect(selfJoinProjectRoleOf('member', ['workspace.projects.browse'])).toBe('contributor');
+    expect(selfJoinProjectRoleOf('member', [])).toBeNull();
+    expect(selfJoinProjectRoleOf('guest', ['workspace.projects.browse'])).toBeNull();
 
-    expect(projectRoleCeilingOf('owner')).toBe('admin');
     expect(projectRoleCeilingOf('admin')).toBe('admin');
     expect(projectRoleCeilingOf('member')).toBe('admin');
     expect(projectRoleCeilingOf('guest')).toBe('guest');

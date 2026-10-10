@@ -112,7 +112,7 @@ describe('WorkspaceRoleHistory (e2e)', () => {
     expect(row.workspace_id).toBe(workspaceId);
     expect(row.member_id).toBe(userId);
     expect(row.from_role).toBeNull();
-    expect(row.to_role).toBe('owner');
+    expect(row.to_role).toBe('admin');
     expect(row.change_type).toBe('workspace_created');
     expect(row.actor_id).toBe(userId);
     expect(row.request_id).toBe(requestId);
@@ -207,8 +207,8 @@ describe('WorkspaceRoleHistory (e2e)', () => {
     beforeEach(async () => {
       userId = await createUser('shape-check@openplany.dev');
       const wsResult = await e2e.dataSource.query<{ id: string }[]>(
-        `INSERT INTO workspaces (name, slug, owner_id, created_by_id, updated_by_id, organization_size, timezone, background_color)
-         VALUES ('Test WS', 'test-ws-shape', $1, $1, $1, '2-10', 'UTC', '#0F172A')
+        `INSERT INTO workspaces (name, slug, created_by_id, updated_by_id, organization_size, timezone, background_color)
+         VALUES ('Test WS', 'test-ws-shape', $1, $1, '2-10', 'UTC', '#0F172A')
          RETURNING id`,
         [userId],
       );
@@ -272,8 +272,8 @@ describe('WorkspaceRoleHistory (e2e)', () => {
       await expectConstraintViolation('owner', null, 'member_removed', 'wmrh_shape_check');
     });
 
-    it('rejects workspace_created with to_role other than owner via wmrh_shape_check', async () => {
-      await expectConstraintViolation(null, 'admin', 'workspace_created', 'wmrh_shape_check');
+    it('rejects workspace_created with to_role other than admin/owner via wmrh_shape_check', async () => {
+      await expectConstraintViolation(null, 'member', 'workspace_created', 'wmrh_shape_check');
     });
 
     it('rejects ownership_transferred without owner on either side via wmrh_shape_check', async () => {

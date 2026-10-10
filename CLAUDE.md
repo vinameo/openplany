@@ -197,7 +197,7 @@ export class CreateIssueDto {
   - Rate-limit auth and write endpoints; add security headers (Helmet).
   - Never log secrets, tokens, or personal data.
   - Keep dependencies patched (`pnpm audit`).
-- **Permissions:** mọi quyết định quyền đi qua `@repo/contracts` (không so sánh trực tiếp tên vai trò trong backend/frontend; dùng quyền đã thực thi và hàm trợ giúp từ contracts).
+- **Permissions:** quyền của vai trò đọc từ DB (`role_permissions`) rồi đưa vào hàm của `@repo/contracts`; không so sánh trực tiếp tên vai trò trong backend/frontend, không đọc bộ mặc định ở code chạy thật; dùng quyền đã thực thi và hàm trợ giúp từ contracts.
 
 ### Frontend (React)
 

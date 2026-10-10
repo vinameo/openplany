@@ -36,24 +36,21 @@ describe('WorkspacePermissionGuard', () => {
     );
   });
 
-  it('allows owner and admin through when workspace.settings.update is required, without logging warn', () => {
+  it('allows admin through when workspace.settings.update is required, without logging warn', () => {
     const warnSpy = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
     const reflector = new Reflector();
     vi.spyOn(reflector, 'get').mockReturnValue('workspace.settings.update');
     const guard = new WorkspacePermissionGuard(reflector);
 
-    const ownerCtx = {
-      getHandler: () => () => {},
-      switchToHttp: () => ({
-        getRequest: () => ({ workspace: makeMemberWorkspace({ role: 'owner' }) }),
-      }),
-    } as unknown as ExecutionContext;
-    expect(guard.canActivate(ownerCtx)).toBe(true);
-
     const adminCtx = {
       getHandler: () => () => {},
       switchToHttp: () => ({
-        getRequest: () => ({ workspace: makeMemberWorkspace({ role: 'admin' }) }),
+        getRequest: () => ({
+          workspace: makeMemberWorkspace({
+            role: 'admin',
+            permissions: ['workspace.settings.update'],
+          }),
+        }),
       }),
     } as unknown as ExecutionContext;
     expect(guard.canActivate(adminCtx)).toBe(true);
@@ -73,6 +70,7 @@ describe('WorkspacePermissionGuard', () => {
       name: 'Acme Secret Name',
       slug: 'acme-secret-slug',
       role: 'member',
+      permissions: ['workspace.settings.view'],
     });
 
     const memberCtx = {
@@ -105,7 +103,10 @@ describe('WorkspacePermissionGuard', () => {
       getHandler: () => () => {},
       switchToHttp: () => ({
         getRequest: () => ({
-          workspace: makeMemberWorkspace({ role: 'guest' }),
+          workspace: makeMemberWorkspace({
+            role: 'guest',
+            permissions: ['workspace.settings.view'],
+          }),
         }),
       }),
     } as unknown as ExecutionContext;
