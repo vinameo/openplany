@@ -38,6 +38,7 @@ const sampleProject: ProjectListItem = {
       accountActive: true,
     },
   ],
+  memberCount: 1,
   role: "admin",
   permissions: ["project.members.view"],
 };
@@ -52,7 +53,10 @@ function renderHomeApp(
   const fetchMock = mockFetch({
     "GET /api/auth/session": () => jsonResponse(200, makeSession()),
     "GET /api/workspaces": () =>
-      jsonResponse(200, { workspaces: [testWorkspace], lastWorkspaceSlug: "acme" }),
+      jsonResponse(200, {
+        workspaces: [testWorkspace],
+        lastWorkspaceSlug: "acme",
+      }),
     "GET /api/workspaces/acme": () => jsonResponse(200, testWorkspace),
     ...fetchHandlers,
   });
@@ -76,11 +80,14 @@ describe("ProjectsHome", () => {
   it("renders loading skeletons initially", async () => {
     // Keep list request pending forever
     renderHomeApp({
-      "GET /api/workspaces/acme/projects": () => new Promise<Response>(() => {}),
+      "GET /api/workspaces/acme/projects": () =>
+        new Promise<Response>(() => {}),
     });
 
     expect(
-      await screen.findByRole("button", { name: /Switch workspace – Acme Corp/i }),
+      await screen.findByRole("button", {
+        name: /Switch workspace – Acme Corp/i,
+      }),
     ).toBeInTheDocument();
     // Skeleton elements are rendered
     const skeletons = document.querySelectorAll(".mantine-Skeleton-root");
@@ -125,7 +132,9 @@ describe("ProjectsHome", () => {
         } satisfies ProjectListResponse),
     });
 
-    expect(await screen.findByRole("heading", { name: "Projects" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Projects" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("0")).toBeInTheDocument();
     expect(
       screen.getByText("You haven't been added to any projects yet."),
@@ -142,27 +151,40 @@ describe("ProjectsHome", () => {
         } satisfies ProjectListResponse),
     });
 
-    expect(await screen.findByRole("heading", { name: "Projects" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Projects" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("1")).toBeInTheDocument();
 
     // Headers
-    expect(screen.getByRole("columnheader", { name: "Project Name" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Members" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Created Date" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "Project Name" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "Members" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "Created Date" }),
+    ).toBeInTheDocument();
 
     // Project Name and ID
     expect(screen.getByText("Frontend Redesign")).toBeInTheDocument();
     expect(screen.getByText("FED")).toBeInTheDocument();
 
     // Member Avatar
-    expect(screen.getByRole("button", { name: /Kai Tran/ })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Kai Tran/ }),
+    ).toBeInTheDocument();
 
     // Created Date in Asia/Ho_Chi_Minh: 2026-10-11T10:00:00Z -> Oct 11, 2026
     expect(screen.getByText("Oct 11, 2026")).toBeInTheDocument();
   });
 
   it("renders empty state with Add project button when user has workspace.projects.create", async () => {
-    const wsWithCreate = { ...testWorkspace, permissions: ["workspace.projects.create"] };
+    const wsWithCreate = {
+      ...testWorkspace,
+      permissions: ["workspace.projects.create"],
+    };
     renderHomeApp({
       "GET /api/workspaces/acme": () => jsonResponse(200, wsWithCreate),
       "GET /api/workspaces/acme/projects": () =>
@@ -177,7 +199,9 @@ describe("ProjectsHome", () => {
     expect(
       screen.getByText("Create a project to start tracking work."),
     ).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: "Add project" }).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByRole("button", { name: "Add project" }).length,
+    ).toBeGreaterThan(0);
   });
 
   it("AC-03: hides Add project button when viewer lacks workspace.projects.create", async () => {
@@ -192,13 +216,20 @@ describe("ProjectsHome", () => {
         } satisfies ProjectListResponse),
     });
 
-    expect(await screen.findByRole("heading", { name: "Projects" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Add project" })).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Projects" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Add project" }),
+    ).not.toBeInTheDocument();
   });
 
   it("AC-23: creating a project prepends row to table and increments total badge", async () => {
     const user = userEvent.setup();
-    const wsWithCreate = { ...testWorkspace, permissions: ["workspace.projects.create"] };
+    const wsWithCreate = {
+      ...testWorkspace,
+      permissions: ["workspace.projects.create"],
+    };
 
     const newCreatedProject: ProjectListItem = {
       id: "p-new",
@@ -209,6 +240,7 @@ describe("ProjectsHome", () => {
       coverKey: "cover-01",
       createdAt: "2026-10-11T15:00:00.000Z",
       members: [],
+      memberCount: 0,
       role: "admin",
       permissions: ["project.members.view"],
     };
@@ -225,14 +257,18 @@ describe("ProjectsHome", () => {
         jsonResponse(201, { project: newCreatedProject }),
     });
 
-    expect(await screen.findByRole("heading", { name: "Projects" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Projects" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("1")).toBeInTheDocument();
 
     const addBtn = screen.getByRole("button", { name: "Add project" });
     await user.click(addBtn);
 
     // Modal is opened
-    expect(await screen.findByRole("heading", { name: "Create project" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Create project" }),
+    ).toBeInTheDocument();
 
     await user.type(screen.getByLabelText("Project name"), "Brand New App");
     await user.click(screen.getByRole("button", { name: "Create project" }));
@@ -267,7 +303,9 @@ describe("ProjectsHome", () => {
     expect(screen.getByText("Backend Service")).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument();
 
-    const searchInput = screen.getByRole("textbox", { name: "Search projects" });
+    const searchInput = screen.getByRole("textbox", {
+      name: "Search projects",
+    });
     await user.type(searchInput, "Frontend");
 
     expect(screen.getByText("Frontend Redesign")).toBeInTheDocument();
@@ -290,7 +328,9 @@ describe("ProjectsHome", () => {
 
     expect(await screen.findByText("Frontend Redesign")).toBeInTheDocument();
 
-    const searchInput = screen.getByRole("textbox", { name: "Search projects" });
+    const searchInput = screen.getByRole("textbox", {
+      name: "Search projects",
+    });
     await user.type(searchInput, "unknown keyword");
 
     expect(
@@ -335,9 +375,13 @@ describe("ProjectsHome", () => {
     expect(rows[2]).toHaveTextContent("Alpha Project");
 
     // Click sort by Project Name -> Ascending
-    const sortBtn = screen.getByRole("button", { name: "Sort by Project Name" });
+    const sortBtn = screen.getByRole("button", {
+      name: "Sort by Project Name",
+    });
     await user.click(sortBtn);
-    const ascOption = await screen.findByRole("menuitem", { name: "Ascending" });
+    const ascOption = await screen.findByRole("menuitem", {
+      name: "Ascending",
+    });
     await user.click(ascOption);
 
     rows = screen.getAllByRole("row");

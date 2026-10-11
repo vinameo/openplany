@@ -11,12 +11,16 @@ import { PersonHint } from "./PersonHint";
 import classes from "./ProjectMembersCell.module.css";
 
 export interface ProjectMembersCellProps {
+  /** First members (oldest first); the API caps this list. */
   members: readonly ProjectMemberSummary[] | null;
+  /** Real number of members; may exceed `members.length`. */
+  memberCount: number | null;
   currentUserId?: string;
 }
 
 export function ProjectMembersCell({
   members,
+  memberCount,
   currentUserId,
 }: ProjectMembersCellProps) {
   const auth = useContext(AuthContext);
@@ -55,7 +59,11 @@ export function ProjectMembersCell({
 
   const visibleMembers = members.slice(0, PROJECT_MEMBER_AVATAR_LIMIT);
   const overflowMembers = members.slice(PROJECT_MEMBER_AVATAR_LIMIT);
-  const overflowCount = overflowMembers.length;
+  const total = Math.max(memberCount ?? members.length, members.length);
+  const overflowCount = total - visibleMembers.length;
+  // Members past the API preview are counted but not named.
+  const unnamedCount = total - members.length;
+  const unnamedLabel = `and ${unnamedCount} more`;
 
   return (
     <Avatar.Group spacing="xs">
@@ -105,7 +113,9 @@ export function ProjectMembersCell({
             <div className={classes.overflowList}>
               {overflowMembers.map((m) => {
                 const name = memberDisplayName(m);
-                const isYou = Boolean(activeUserId && m.userId === activeUserId);
+                const isYou = Boolean(
+                  activeUserId && m.userId === activeUserId,
+                );
                 return (
                   <div key={m.userId} className={classes.overflowName}>
                     {name}
@@ -113,6 +123,9 @@ export function ProjectMembersCell({
                   </div>
                 );
               })}
+              {unnamedCount > 0 && (
+                <div className={classes.overflowName}>{unnamedLabel}</div>
+              )}
             </div>
           }
         >
@@ -122,6 +135,7 @@ export function ProjectMembersCell({
               const isYou = Boolean(activeUserId && m.userId === activeUserId);
               return `${name}${isYou ? " (you)" : ""}`;
             });
+            if (unnamedCount > 0) overflowNames.push(unnamedLabel);
             const overflowAriaLabel = `+${overflowCount}: ${overflowNames.join(", ")}`;
 
             return (

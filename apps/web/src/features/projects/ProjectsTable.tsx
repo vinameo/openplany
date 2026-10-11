@@ -76,7 +76,10 @@ export function ProjectsTable({
                 </Group>
               </Table.Td>
               <Table.Td>
-                <ProjectMembersCell members={project.members} />
+                <ProjectMembersCell
+                  members={project.members}
+                  memberCount={project.memberCount}
+                />
               </Table.Td>
               <Table.Td className={classes.dateCell}>
                 <Text size="sm">

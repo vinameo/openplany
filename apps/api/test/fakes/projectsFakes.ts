@@ -1,8 +1,13 @@
-import type { ProjectAccess, WorkspaceRole } from '@repo/contracts';
-import { ProjectAccessResolver } from '../../src/projects/access/projectAccessResolver.js';
+import { PROJECT_LIST_MAX } from '@repo/contracts';
+import {
+  ProjectAccessResolver,
+  type AccessibleProject,
+  type AccessibleProjectList,
+  type ProjectViewer,
+} from '../../src/projects/access/projectAccessResolver.js';
 import type {
   ProjectMemberRow,
-  ProjectRow,
+  ProjectMembersPreview,
 } from '../../src/projects/dto/projectResponse.js';
 import {
   ProjectEvents,
@@ -15,50 +20,56 @@ import {
 } from '../../src/projects/repositories/projects.repository.js';
 
 export class FakeProjectAccessResolver extends ProjectAccessResolver {
-  public rows: { project: ProjectRow; access: ProjectAccess }[] = [];
-  public lastInput?: {
-    workspaceId: string;
-    userId: string;
-    workspaceRole: WorkspaceRole;
-  };
+  /** Accessible projects; forWorkspace returns the first PROJECT_LIST_MAX. */
+  public rows: AccessibleProject[] = [];
+  /** Overrides the total (defaults to rows.length) to simulate a cut list. */
+  public total?: number;
+  /** What forProject returns. */
+  public project: AccessibleProject | null = null;
+  public lastInput?: ProjectViewer;
 
-  async forWorkspace(input: {
-    workspaceId: string;
-    userId: string;
-    workspaceRole: WorkspaceRole;
-  }): Promise<{ project: ProjectRow; access: ProjectAccess }[]> {
-    this.lastInput = input;
-    return this.rows;
+  async forWorkspace(viewer: ProjectViewer): Promise<AccessibleProjectList> {
+    this.lastInput = viewer;
+    return {
+      projects: this.rows.slice(0, PROJECT_LIST_MAX),
+      total: this.total ?? this.rows.length,
+    };
+  }
+
+  async forProject(
+    viewer: ProjectViewer & { projectId: string },
+  ): Promise<AccessibleProject | null> {
+    this.lastInput = viewer;
+    return this.project;
   }
 }
 
 export class FakeProjectsRepository extends ProjectsRepository {
   public membersByProjectId = new Map<string, ProjectMemberRow[]>();
   public createdProjects: CreateProjectInput[] = [];
-  public accessibleProject: {
-    project: ProjectRow;
-    access: ProjectAccess;
-  } | null = null;
   public lastMembersOfQuery?: {
     projectIds: readonly string[];
-    opts: { includeEmail: boolean };
+    opts: { includeEmail: boolean; limitPerProject: number };
   };
 
   async membersOf(
     projectIds: readonly string[],
-    opts: { includeEmail: boolean },
-  ): Promise<Map<string, ProjectMemberRow[]>> {
+    opts: { includeEmail: boolean; limitPerProject: number },
+  ): Promise<Map<string, ProjectMembersPreview>> {
     this.lastMembersOfQuery = { projectIds, opts };
-    const res = new Map<string, ProjectMemberRow[]>();
+    const res = new Map<string, ProjectMembersPreview>();
     for (const id of projectIds) {
       const list = this.membersByProjectId.get(id) ?? [];
-      res.set(
-        id,
-        list.map((m) => ({
-          ...m,
-          email: opts.includeEmail ? m.email : undefined,
-        })),
-      );
+      if (list.length === 0) continue;
+      res.set(id, {
+        total: list.length,
+        members: list.slice(0, opts.limitPerProject).map((m) => {
+          const { email, ...rest } = m;
+          return opts.includeEmail && email !== undefined
+            ? { ...rest, email }
+            : rest;
+        }),
+      });
     }
     return res;
   }
@@ -66,15 +77,6 @@ export class FakeProjectsRepository extends ProjectsRepository {
   async create(input: CreateProjectInput): Promise<{ projectId: string }> {
     this.createdProjects.push(input);
     return { projectId: 'project-new-id' };
-  }
-
-  async findAccessible(_input: {
-    workspaceId: string;
-    userId: string;
-    workspaceRole: WorkspaceRole;
-    projectId: string;
-  }): Promise<{ project: ProjectRow; access: ProjectAccess } | null> {
-    return this.accessibleProject;
   }
 }
 

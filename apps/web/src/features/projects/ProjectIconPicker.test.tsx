@@ -39,12 +39,18 @@ describe("ProjectIconPicker", () => {
     const user = userEvent.setup();
     render(<TestIconPickerWrapper />);
 
-    expect(screen.queryByRole("radiogroup", { name: "Icon color" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("radiogroup", { name: "Icon color" }),
+    ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Change icon" }));
 
-    expect(screen.getByRole("radiogroup", { name: "Icon color" })).toBeInTheDocument();
-    expect(screen.getByRole("radiogroup", { name: "Icon" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("radiogroup", { name: "Icon color" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("radiogroup", { name: "Icon" }),
+    ).toBeInTheDocument();
     expect(
       screen.getByText(/Colors will be adjusted to ensure sufficient contrast/),
     ).toBeInTheDocument();
@@ -98,7 +104,28 @@ describe("ProjectIconPicker", () => {
     await user.type(searchInput, "rocket");
 
     expect(screen.getByRole("radio", { name: "rocket" })).toBeInTheDocument();
-    expect(screen.queryByRole("radio", { name: "home" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("radio", { name: "home" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps one icon reachable with Tab after filtering hides the selected icon", async () => {
+    const user = userEvent.setup();
+    render(
+      <TestIconPickerWrapper
+        initialValue={{ name: "search", color: "#868E96" }}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Change icon" }));
+    await user.type(
+      screen.getByRole("textbox", { name: "Search icons" }),
+      "rocket",
+    );
+
+    const radios = screen.getAllByRole("radio", { name: "rocket" });
+    expect(radios).toHaveLength(1);
+    expect(radios[0]).toHaveAttribute("tabindex", "0");
   });
 
   it("navigates icons with arrow keys and selects via Enter/Space without closing popover", async () => {
@@ -124,7 +151,9 @@ describe("ProjectIconPicker", () => {
     );
 
     // Popover is STILL open
-    expect(screen.getByRole("radiogroup", { name: "Icon" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("radiogroup", { name: "Icon" }),
+    ).toBeInTheDocument();
   });
 
   it("AC-24: pressing Escape closes the popover", async () => {
@@ -132,7 +161,9 @@ describe("ProjectIconPicker", () => {
     render(<TestIconPickerWrapper />);
 
     await user.click(screen.getByRole("button", { name: "Change icon" }));
-    expect(screen.getByRole("radiogroup", { name: "Icon" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("radiogroup", { name: "Icon" }),
+    ).toBeInTheDocument();
 
     // Press Escape
     act(() => {
@@ -141,6 +172,8 @@ describe("ProjectIconPicker", () => {
       });
     });
 
-    expect(screen.queryByRole("radiogroup", { name: "Icon" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("radiogroup", { name: "Icon" }),
+    ).not.toBeInTheDocument();
   });
 });

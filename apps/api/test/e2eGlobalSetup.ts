@@ -9,6 +9,7 @@ import { AddPermissionLabel1791550400000 } from '../src/database/migrations/1791
 import { ReplaceHistoryRoleChecks1791603772081 } from '../src/database/migrations/1791603772081-ReplaceHistoryRoleChecks.js';
 import { AddWorkspaceMemberJoinedAt1791604000000 } from '../src/database/migrations/1791604000000-AddWorkspaceMemberJoinedAt.js';
 import { CreateProjectTables1791605000000 } from '../src/database/migrations/1791605000000-CreateProjectTables.js';
+import { AddProjectForeignKeyIndexes1791606000000 } from '../src/database/migrations/1791606000000-AddProjectForeignKeyIndexes.js';
 import { e2eEnv } from './e2eEnv.js';
 
 export interface MigrationSeedSnapshot {
@@ -28,6 +29,7 @@ export const MIGRATIONS = [
   ReplaceHistoryRoleChecks1791603772081,
   AddWorkspaceMemberJoinedAt1791604000000,
   CreateProjectTables1791605000000,
+  AddProjectForeignKeyIndexes1791606000000,
 ];
 
 /** Creates the e2e database if needed and brings it to the latest migration. */

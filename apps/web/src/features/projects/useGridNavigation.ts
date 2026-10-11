@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useEffect,
   useRef,
   useState,
   type KeyboardEvent,
@@ -22,6 +23,20 @@ export function useGridNavigation({
     selectedIndex >= 0 && selectedIndex < totalItems ? selectedIndex : 0,
   );
   const itemsRef = useRef<(HTMLElement | null)[]>([]);
+
+  // Filtering can shrink the grid below the remembered cell; fall back to the
+  // selected cell (or the first) so exactly one cell stays reachable with Tab.
+  const activeIndex =
+    focusedIndex >= 0 && focusedIndex < totalItems
+      ? focusedIndex
+      : selectedIndex >= 0 && selectedIndex < totalItems
+        ? selectedIndex
+        : 0;
+
+  // Forget refs of cells that no longer render.
+  useEffect(() => {
+    itemsRef.current.length = totalItems;
+  }, [totalItems]);
 
   const registerItem = useCallback(
     (index: number) => (el: HTMLElement | null) => {
@@ -95,11 +110,11 @@ export function useGridNavigation({
   );
 
   const getTabIndex = (index: number): number => {
-    return focusedIndex === index ? 0 : -1;
+    return activeIndex === index ? 0 : -1;
   };
 
   return {
-    focusedIndex,
+    focusedIndex: activeIndex,
     setFocusedIndex,
     registerItem,
     handleKeyDown,

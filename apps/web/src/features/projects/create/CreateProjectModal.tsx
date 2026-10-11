@@ -105,10 +105,18 @@ export function CreateProjectModal({
     } catch (err: unknown) {
       if (err instanceof ApiRequestError) {
         if (err.status === 400 || err.status === 409) {
-          if (err.fields && typeof err.fields === "object") {
-            form.setErrors(err.fields as Record<string, string>);
-          } else {
-            setErrorAlert(err.message || "Invalid input");
+          const { fieldErrors, hasHiddenErrors } = splitServerFieldErrors(
+            err.fields,
+          );
+          form.setErrors(fieldErrors);
+          // Errors on fields without an input (icon.*, coverKey, unknown keys)
+          // would otherwise change nothing on screen.
+          if (hasHiddenErrors || Object.keys(fieldErrors).length === 0) {
+            setErrorAlert(
+              hasHiddenErrors
+                ? "Check the icon and cover, then try again."
+                : err.message || "Check the highlighted fields",
+            );
           }
           return;
         }
@@ -256,4 +264,27 @@ export function CreateProjectModal({
       />
     </>
   );
+}
+
+/** Inputs that can show a server error under themselves. */
+const FORM_FIELDS = ["name", "identifier", "description"] as const;
+
+function splitServerFieldErrors(fields: unknown): {
+  fieldErrors: Record<string, string>;
+  hasHiddenErrors: boolean;
+} {
+  const fieldErrors: Record<string, string> = {};
+  let hasHiddenErrors = false;
+  if (typeof fields !== "object" || fields === null) {
+    return { fieldErrors, hasHiddenErrors };
+  }
+  for (const [key, message] of Object.entries(fields)) {
+    if (typeof message !== "string") continue;
+    if ((FORM_FIELDS as readonly string[]).includes(key)) {
+      fieldErrors[key] = message;
+    } else {
+      hasHiddenErrors = true;
+    }
+  }
+  return { fieldErrors, hasHiddenErrors };
 }

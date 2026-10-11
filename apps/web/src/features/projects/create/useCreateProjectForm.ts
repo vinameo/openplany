@@ -5,7 +5,9 @@ import {
   DEFAULT_PROJECT_ICON_COLOR,
   NO_HIDDEN_CHARS,
   normalizeProjectName,
+  PROJECT_DESCRIPTION_ALLOWED_CHARS,
   PROJECT_DESCRIPTION_MAX,
+  PROJECT_ERROR_MESSAGES,
   PROJECT_IDENTIFIER_MAX,
   PROJECT_IDENTIFIER_PATTERN,
   PROJECT_NAME_MAX,
@@ -66,6 +68,9 @@ export function useCreateProjectForm() {
         if (val && val.length > PROJECT_DESCRIPTION_MAX) {
           return `Keep the description under ${PROJECT_DESCRIPTION_MAX} characters`;
         }
+        if (val && !PROJECT_DESCRIPTION_ALLOWED_CHARS.test(val)) {
+          return PROJECT_ERROR_MESSAGES.descriptionChars;
+        }
         return null;
       },
     },
@@ -83,7 +88,9 @@ export function useCreateProjectForm() {
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     setIdentifierTouched(true);
-    const upper = event.currentTarget.value.toUpperCase().slice(0, PROJECT_IDENTIFIER_MAX);
+    const upper = event.currentTarget.value
+      .toUpperCase()
+      .slice(0, PROJECT_IDENTIFIER_MAX);
     form.setFieldValue("identifier", upper);
   };
 
@@ -107,7 +114,9 @@ export function useCreateProjectForm() {
     form.values.identifier.trim() !== "" ||
     form.values.description.trim() !== "";
 
-  const toRequest = (values: CreateProjectFormValues): CreateProjectRequest => ({
+  const toRequest = (
+    values: CreateProjectFormValues,
+  ): CreateProjectRequest => ({
     name: normalizeProjectName(values.name),
     identifier: values.identifier.trim(),
     ...(values.description ? { description: values.description } : {}),

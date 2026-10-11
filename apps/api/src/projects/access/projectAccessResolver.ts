@@ -6,9 +6,15 @@ import {
   workspaceRolesWithImplicitProjectAccess,
   type ProjectAccess,
   type ProjectRole,
+  type ProjectRolePermissions,
   type WorkspaceRole,
 } from '@repo/contracts';
-import { DataSource, In } from 'typeorm';
+import {
+  DataSource,
+  In,
+  type EntityManager,
+  type FindOptionsWhere,
+} from 'typeorm';
 import {
   loadRolePermissions,
   rolePermissionsKey,
@@ -18,13 +24,41 @@ import { Project } from '../entities/project.entity.js';
 import { ProjectMember } from '../entities/projectMember.entity.js';
 import { ACTIVE_PROJECT, ACTIVE_PROJECT_MEMBER } from '../projectFilters.js';
 
+export interface ProjectViewer {
+  workspaceId: string;
+  userId: string;
+  workspaceRole: WorkspaceRole;
+}
+
+export interface AccessibleProject {
+  project: ProjectRow;
+  access: ProjectAccess;
+}
+
+export interface AccessibleProjectList {
+  /** Newest first, at most PROJECT_LIST_MAX. */
+  projects: AccessibleProject[];
+  /** Every project the viewer can access, including those past PROJECT_LIST_MAX. */
+  total: number;
+}
+
+/**
+ * The single place that decides which projects a viewer can access (DB B5.1).
+ * Public projects / self-join will extend `accessScope` only; list and single
+ * project lookups share it, so they can never disagree.
+ */
 export abstract class ProjectAccessResolver {
-  /** Mọi project truy cập được trong workspace, mới nhất trước; tối đa PROJECT_LIST_MAX + 1 dòng. */
-  abstract forWorkspace(input: {
-    workspaceId: string;
-    userId: string;
-    workspaceRole: WorkspaceRole;
-  }): Promise<{ project: ProjectRow; access: ProjectAccess }[]>;
+  abstract forWorkspace(viewer: ProjectViewer): Promise<AccessibleProjectList>;
+
+  /** One project, or null when it does not exist or the viewer cannot access it. */
+  abstract forProject(
+    viewer: ProjectViewer & { projectId: string },
+  ): Promise<AccessibleProject | null>;
+}
+
+interface AccessScope {
+  where: FindOptionsWhere<Project>;
+  assignedRoles: ReadonlyMap<string, ProjectRole>;
 }
 
 @Injectable()
@@ -33,95 +67,129 @@ export class TypeOrmProjectAccessResolver extends ProjectAccessResolver {
     super();
   }
 
-  async forWorkspace(input: {
-    workspaceId: string;
-    userId: string;
-    workspaceRole: WorkspaceRole;
-  }): Promise<{ project: ProjectRow; access: ProjectAccess }[]> {
-    const { workspaceId, userId, workspaceRole } = input;
+  async forWorkspace(viewer: ProjectViewer): Promise<AccessibleProjectList> {
     const manager = this.dataSource.manager;
+    const scope = await accessScope(manager, viewer);
+    if (scope === null) return { projects: [], total: 0 };
 
-    // 1. Assigned project memberships
-    const assigned = await manager.find(ProjectMember, {
-      select: { projectId: true, role: true },
-      where: {
-        ...ACTIVE_PROJECT_MEMBER,
-        workspaceId,
-        memberId: userId,
-      },
+    const projects = await manager.find(Project, {
+      where: scope.where,
+      order: { createdAt: 'DESC', id: 'DESC' },
+      take: PROJECT_LIST_MAX,
     });
+    const total =
+      projects.length < PROJECT_LIST_MAX
+        ? projects.length
+        : await manager.count(Project, { where: scope.where });
+    if (projects.length === 0) return { projects: [], total };
 
-    const assignedMap = new Map<string, ProjectRole>();
-    for (const a of assigned) {
-      assignedMap.set(a.projectId, a.role);
-    }
-
-    const hasImplicitAccess =
-      workspaceRolesWithImplicitProjectAccess().includes(workspaceRole);
-
-    let projects: Project[] = [];
-    if (hasImplicitAccess) {
-      projects = await manager.find(Project, {
-        where: { ...ACTIVE_PROJECT, workspaceId },
-        order: { createdAt: 'DESC', id: 'DESC' },
-        take: PROJECT_LIST_MAX + 1,
-      });
-    } else {
-      const projectIds = [...assignedMap.keys()];
-      if (projectIds.length === 0) {
-        return [];
-      }
-      projects = await manager.find(Project, {
-        where: {
-          ...ACTIVE_PROJECT,
-          workspaceId,
-          id: In(projectIds),
-        },
-        order: { createdAt: 'DESC', id: 'DESC' },
-        take: PROJECT_LIST_MAX + 1,
-      });
-    }
-
-    if (projects.length === 0) {
-      return [];
-    }
-
-    // 3. Load project role permissions matrix once
-    const permMap = await loadRolePermissions(
-      manager,
-      PROJECT_ROLES.map((key) => ({ scope: 'project', key })),
-    );
-
-    const matrix = {} as Record<ProjectRole, readonly string[]>;
-    for (const roleKey of PROJECT_ROLES) {
-      matrix[roleKey] =
-        permMap.get(rolePermissionsKey('project', roleKey)) ?? [];
-    }
-
-    const results: { project: ProjectRow; access: ProjectAccess }[] = [];
-    for (const p of projects) {
-      const assignedRole = assignedMap.get(p.id) ?? null;
-      const access = resolveProjectAccess(
-        { workspaceRole, assignedRole },
-        matrix,
-      );
-      if (access) {
-        results.push({
-          project: {
-            id: p.id,
-            name: p.name,
-            identifier: p.identifier,
-            description: p.description,
-            iconName: p.iconName,
-            iconColor: p.iconColor,
-            coverKey: p.coverKey,
-            createdAt: p.createdAt,
-          },
-          access,
-        });
-      }
-    }
-
-    return results;
+    const matrix = await loadProjectRoleMatrix(manager);
+    return {
+      projects: projects.flatMap((project) =>
+        toAccessibleProject(project, viewer, scope, matrix),
+      ),
+      total,
+    };
   }
+
+  async forProject(
+    viewer: ProjectViewer & { projectId: string },
+  ): Promise<AccessibleProject | null> {
+    const manager = this.dataSource.manager;
+    const scope = await accessScope(manager, viewer, viewer.projectId);
+    if (scope === null) return null;
+
+    const project = await manager.findOne(Project, {
+      where: { ...scope.where, id: viewer.projectId },
+    });
+    if (project === null) return null;
+
+    const matrix = await loadProjectRoleMatrix(manager);
+    return toAccessibleProject(project, viewer, scope, matrix)[0] ?? null;
+  }
+}
+
+/**
+ * Projects the viewer can see: every project of the workspace for roles with
+ * implicit access, otherwise only projects with an active membership.
+ * Returns null when the viewer can see none (no query needed).
+ */
+async function accessScope(
+  manager: EntityManager,
+  viewer: ProjectViewer,
+  projectId?: string,
+): Promise<AccessScope | null> {
+  const memberships = await manager.find(ProjectMember, {
+    select: { projectId: true, role: true },
+    where: {
+      ...ACTIVE_PROJECT_MEMBER,
+      workspaceId: viewer.workspaceId,
+      memberId: viewer.userId,
+      ...(projectId === undefined ? {} : { projectId }),
+    },
+  });
+  const assignedRoles = new Map<string, ProjectRole>(
+    memberships.map((m) => [m.projectId, m.role]),
+  );
+
+  const base: FindOptionsWhere<Project> = {
+    ...ACTIVE_PROJECT,
+    workspaceId: viewer.workspaceId,
+  };
+  if (
+    workspaceRolesWithImplicitProjectAccess().includes(viewer.workspaceRole)
+  ) {
+    return { where: base, assignedRoles };
+  }
+  if (assignedRoles.size === 0) return null;
+  return {
+    where: { ...base, id: In([...assignedRoles.keys()]) },
+    assignedRoles,
+  };
+}
+
+async function loadProjectRoleMatrix(
+  manager: EntityManager,
+): Promise<ProjectRolePermissions> {
+  const granted = await loadRolePermissions(
+    manager,
+    PROJECT_ROLES.map((key) => ({ scope: 'project', key })),
+  );
+  const matrix = {} as Record<ProjectRole, readonly string[]>;
+  for (const role of PROJECT_ROLES) {
+    matrix[role] = granted.get(rolePermissionsKey('project', role)) ?? [];
+  }
+  return matrix;
+}
+
+/** Empty when the viewer has no project role there (kept as a list for flatMap). */
+function toAccessibleProject(
+  project: Project,
+  viewer: ProjectViewer,
+  scope: AccessScope,
+  matrix: ProjectRolePermissions,
+): AccessibleProject[] {
+  const access = resolveProjectAccess(
+    {
+      workspaceRole: viewer.workspaceRole,
+      assignedRole: scope.assignedRoles.get(project.id) ?? null,
+    },
+    matrix,
+  );
+  if (access === null) return [];
+  return [
+    {
+      project: {
+        id: project.id,
+        name: project.name,
+        identifier: project.identifier,
+        description: project.description,
+        iconName: project.iconName,
+        iconColor: project.iconColor,
+        coverKey: project.coverKey,
+        createdAt: project.createdAt,
+      },
+      access,
+    },
+  ];
 }

@@ -1,5 +1,4 @@
-import type { ProjectAccess, WorkspaceRole } from '@repo/contracts';
-import type { ProjectMemberRow, ProjectRow } from '../dto/projectResponse.js';
+import type { ProjectMembersPreview } from '../dto/projectResponse.js';
 
 export interface CreateProjectInput {
   workspaceId: string;
@@ -15,17 +14,14 @@ export interface CreateProjectInput {
 }
 
 export abstract class ProjectsRepository {
+  /**
+   * Active members of each project, oldest first, at most `limitPerProject`
+   * each, with the real total. Projects without members are absent.
+   */
   abstract membersOf(
     projectIds: readonly string[],
-    opts: { includeEmail: boolean },
-  ): Promise<Map<string, ProjectMemberRow[]>>;
+    opts: { includeEmail: boolean; limitPerProject: number },
+  ): Promise<Map<string, ProjectMembersPreview>>;
 
   abstract create(input: CreateProjectInput): Promise<{ projectId: string }>;
-
-  abstract findAccessible(input: {
-    workspaceId: string;
-    userId: string;
-    workspaceRole: WorkspaceRole;
-    projectId: string;
-  }): Promise<{ project: ProjectRow; access: ProjectAccess } | null>;
 }
