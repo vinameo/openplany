@@ -3,6 +3,7 @@ import { WORKSPACE_ROLES } from './workspace.js';
 import { PROJECT_ROLES } from './projectRoles.js';
 import {
   isRoleLocked,
+  isWorkspaceAdminRole,
   permissionGrantProblem,
   permissionRevokeProblem,
   scopeOfPermission,
@@ -112,6 +113,12 @@ describe('rolePermissionRules', () => {
     expect(isRoleLocked({ scope: 'project', key: 'contributor' })).toBe(false);
     expect(isRoleLocked({ scope: 'project', key: 'commenter' })).toBe(false);
     expect(isRoleLocked({ scope: 'project', key: 'guest' })).toBe(false);
+  });
+
+  it('isWorkspaceAdminRole is true only for the locked workspace role', () => {
+    expect(isWorkspaceAdminRole('admin')).toBe(true);
+    expect(isWorkspaceAdminRole('member')).toBe(false);
+    expect(isWorkspaceAdminRole('guest')).toBe(false);
   });
 
   it('permissionRevokeProblem only reports ROLE_LOCKED for locked roles', () => {
