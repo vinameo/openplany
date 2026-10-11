@@ -1,0 +1,83 @@
+.dropdown {
+  max-width: calc(100vw - 32px);
+  padding: 12px;
+  width: 320px;
+}
+
+.colorRow {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.swatchButton {
+  background: none;
+  border: 2px solid transparent;
+  border-radius: 9999px;
+  cursor: pointer;
+  display: inline-flex;
+  padding: 2px;
+  transition: transform 0.1s ease;
+}
+
+.swatchButton:hover {
+  transform: scale(1.08);
+}
+
+.swatchSelected {
+  border-color: var(--mantine-primary-color-filled);
+}
+
+.hashButton {
+  align-items: center;
+  border: 1px solid var(--app-color-border, #ced4da);
+  border-radius: 9999px;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: var(--mantine-font-size-xs);
+  font-weight: 600;
+  height: 26px;
+  justify-content: center;
+  width: 26px;
+}
+
+.noteRow {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+}
+
+.iconGrid {
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(8, 1fr);
+  padding: 4px;
+}
+
+.iconCell {
+  align-items: center;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--mantine-radius-sm);
+  cursor: pointer;
+  display: inline-flex;
+  height: 32px;
+  justify-content: center;
+  padding: 0;
+  width: 32px;
+}
+
+.iconCell:hover {
+  background-color: var(--mantine-color-gray-1);
+}
+
+.iconCellSelected {
+  background-color: var(--mantine-color-gray-2);
+  border-color: var(--mantine-primary-color-filled);
+}
+
+.iconCell:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: 1px;
+}

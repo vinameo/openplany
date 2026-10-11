@@ -197,4 +197,51 @@ describe("CreateProjectModal", () => {
     expect("leadId" in (capturedBody as unknown as Record<string, unknown>)).toBe(false);
     expect("visibility" in (capturedBody as unknown as Record<string, unknown>)).toBe(false);
   });
+
+  it("allows picking a different icon and color and sends it in the request body", async () => {
+    let capturedBody: CreateProjectRequest | undefined;
+
+    mockFetch({
+      "POST /api/workspaces/acme/projects": (init) => {
+        capturedBody = JSON.parse(init?.body as string) as CreateProjectRequest;
+        return jsonResponse(201, {
+          project: {
+            id: "p-icon",
+            name: "Rocket Project",
+            identifier: "RP",
+            description: "",
+            icon: { name: "rocket", color: "#15AABF" },
+            coverKey: "cover-01",
+            createdAt: new Date().toISOString(),
+            members: [],
+            role: "admin",
+            permissions: ["project.members.view"],
+          },
+        });
+      },
+    });
+
+    const { user } = renderModal();
+
+    await user.type(screen.getByLabelText("Project name"), "Rocket Project");
+
+    // Click icon button to open picker
+    await user.click(screen.getByRole("button", { name: "Change icon" }));
+
+    // Select Cyan color
+    await user.click(screen.getByRole("radio", { name: "Cyan" }));
+
+    // Filter to rocket icon and select
+    await user.type(screen.getByRole("textbox", { name: "Search icons" }), "rocket");
+    await user.click(screen.getByRole("radio", { name: "rocket" }));
+
+    // Submit form
+    await user.click(screen.getByRole("button", { name: "Create project" }));
+
+    await waitFor(() => expect(capturedBody).toBeDefined());
+    expect(capturedBody!.icon).toEqual({
+      name: "rocket",
+      color: "#15AABF",
+    });
+  });
 });

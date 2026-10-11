@@ -8,6 +8,7 @@ import {
 import dataTableClasses from "../workspaces/table/dataTable.module.css";
 import { ProjectMembersCell } from "./ProjectMembersCell";
 import type { ProjectSortKey } from "./projectListView";
+import { ProjectIcon } from "./ProjectIcon";
 import classes from "./ProjectsTable.module.css";
 
 interface ProjectsTableProps {
@@ -65,6 +66,7 @@ export function ProjectsTable({
             <Table.Tr key={project.id}>
               <Table.Td className={dataTableClasses.stickyColumn}>
                 <Group gap="xs" wrap="nowrap">
+                  <ProjectIcon icon={project.icon} size={18} />
                   <Text size="sm" fw={500} lineClamp={1} title={project.name}>
                     {project.name}
                   </Text>

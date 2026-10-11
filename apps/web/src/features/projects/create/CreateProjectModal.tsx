@@ -9,6 +9,7 @@ import {
   Stack,
   Textarea,
   TextInput,
+  UnstyledButton,
   VisuallyHidden,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
@@ -18,6 +19,8 @@ import { useIsDesktop } from "../../layout/useIsDesktop";
 import { ConfirmDiscardModal } from "../../workspaces/ConfirmDiscardModal";
 import { useCurrentWorkspace } from "../../workspaces/currentWorkspace/useCurrentWorkspace";
 import { projectsApi } from "../api/projectsApi";
+import { ProjectIcon } from "../ProjectIcon";
+import { ProjectIconPicker } from "../ProjectIconPicker";
 import { useCreateProjectForm } from "./useCreateProjectForm";
 import classes from "./CreateProjectModal.module.css";
 
@@ -138,7 +141,21 @@ export function CreateProjectModal({
               onClick={handleRequestClose}
               className={classes.closeButton}
             />
-            <div className={classes.iconBox} aria-hidden="true" />
+            <ProjectIconPicker
+              value={form.values.icon}
+              onChange={(newIcon) => form.setFieldValue("icon", newIcon)}
+            >
+              {({ onClick }) => (
+                <UnstyledButton
+                  type="button"
+                  aria-label="Change icon"
+                  onClick={onClick}
+                  className={classes.iconBox}
+                >
+                  <ProjectIcon icon={form.values.icon} size={28} />
+                </UnstyledButton>
+              )}
+            </ProjectIconPicker>
           </div>
 
           <div className={classes.body}>
