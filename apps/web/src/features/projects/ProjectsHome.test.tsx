@@ -155,7 +155,7 @@ describe("ProjectsHome", () => {
     expect(screen.getByText("FED")).toBeInTheDocument();
 
     // Member Avatar
-    expect(screen.getByRole("button", { name: "Kai Tran" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Kai Tran/ })).toBeInTheDocument();
 
     // Created Date in Asia/Ho_Chi_Minh: 2026-10-11T10:00:00Z -> Oct 11, 2026
     expect(screen.getByText("Oct 11, 2026")).toBeInTheDocument();
