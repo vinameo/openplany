@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { notifications } from "@mantine/notifications";
 import { AppUiProvider } from "@repo/ui";
@@ -33,11 +33,13 @@ afterEach(() => {
 });
 
 describe("CreateProjectModal", () => {
-  function renderModal(props: {
-    opened?: boolean;
-    onClose?: () => void;
-    onCreated?: (p: ProjectListItem) => void;
-  } = {}) {
+  function renderModal(
+    props: {
+      opened?: boolean;
+      onClose?: () => void;
+      onCreated?: (p: ProjectListItem) => void;
+    } = {},
+  ) {
     const user = userEvent.setup();
     const onClose = props.onClose ?? vi.fn();
     const onCreated = props.onCreated ?? vi.fn();
@@ -59,7 +61,9 @@ describe("CreateProjectModal", () => {
   it("auto-suggests uppercase ID from name until touched, and does not render Public or Lead chips", async () => {
     const { user } = renderModal();
 
-    expect(screen.getByRole("heading", { name: "Create project" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Create project" }),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/public/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/lead/i)).not.toBeInTheDocument();
 
@@ -136,6 +140,43 @@ describe("CreateProjectModal", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows an alert when the server rejects a field that has no input (icon, cover)", async () => {
+    mockFetch({
+      "POST /api/workspaces/acme/projects": () =>
+        apiError(400, "VALIDATION_ERROR", "Check the highlighted fields", {
+          fields: { "icon.color": "Use a color like #1A2B3C" },
+        }),
+    });
+
+    const { user } = renderModal();
+    await user.type(screen.getByLabelText("Project name"), "Icon Drift");
+    await user.click(screen.getByRole("button", { name: "Create project" }));
+
+    expect(
+      await screen.findByText("Check the icon and cover, then try again."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Create project" }),
+    ).toBeEnabled();
+  });
+
+  it("blocks control characters in the description before calling the API", async () => {
+    const fetchSpy = vi.fn(() => jsonResponse(201, {}));
+    mockFetch({ "POST /api/workspaces/acme/projects": fetchSpy });
+
+    const { user } = renderModal();
+    await user.type(screen.getByLabelText("Project name"), "Bell");
+    fireEvent.change(screen.getByLabelText("Description"), {
+      target: { value: "ring\u0007" },
+    });
+    await user.click(screen.getByRole("button", { name: "Create project" }));
+
+    expect(
+      await screen.findByText("Contains characters that aren't allowed"),
+    ).toBeInTheDocument();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it("handles 403 forbidden by showing alert, calling reloadWorkspace, and disabling create button", async () => {
     mockFetch({
       "POST /api/workspaces/acme/projects": () =>
@@ -150,7 +191,9 @@ describe("CreateProjectModal", () => {
     await user.click(createBtn);
 
     expect(
-      await screen.findByText("You no longer have permission to create projects"),
+      await screen.findByText(
+        "You no longer have permission to create projects",
+      ),
     ).toBeInTheDocument();
     expect(mockReloadWorkspace).toHaveBeenCalled();
     expect(createBtn).toBeDisabled();
@@ -169,6 +212,7 @@ describe("CreateProjectModal", () => {
       coverKey: "cover-01",
       createdAt: new Date().toISOString(),
       members: [],
+      memberCount: 0,
       role: "admin",
       permissions: ["project.members.view"],
     };
@@ -186,7 +230,9 @@ describe("CreateProjectModal", () => {
     await user.type(screen.getByLabelText("Description"), "Sample");
     await user.click(screen.getByRole("button", { name: "Create project" }));
 
-    await waitFor(() => expect(onCreated).toHaveBeenCalledWith(sampleCreatedProject));
+    await waitFor(() =>
+      expect(onCreated).toHaveBeenCalledWith(sampleCreatedProject),
+    );
     expect(onClose).toHaveBeenCalled();
     expect(notifySpy).toHaveBeenCalledWith({ message: "Project created" });
 
@@ -194,8 +240,12 @@ describe("CreateProjectModal", () => {
     expect(capturedBody).toBeDefined();
     expect(capturedBody!.name).toBe("Brand New");
     expect(capturedBody!.identifier).toBe("BN");
-    expect("leadId" in (capturedBody as unknown as Record<string, unknown>)).toBe(false);
-    expect("visibility" in (capturedBody as unknown as Record<string, unknown>)).toBe(false);
+    expect(
+      "leadId" in (capturedBody as unknown as Record<string, unknown>),
+    ).toBe(false);
+    expect(
+      "visibility" in (capturedBody as unknown as Record<string, unknown>),
+    ).toBe(false);
   });
 
   it("allows picking a different icon and color and sends it in the request body", async () => {
@@ -214,6 +264,7 @@ describe("CreateProjectModal", () => {
             coverKey: "cover-01",
             createdAt: new Date().toISOString(),
             members: [],
+            memberCount: 0,
             role: "admin",
             permissions: ["project.members.view"],
           },
@@ -232,7 +283,10 @@ describe("CreateProjectModal", () => {
     await user.click(screen.getByRole("radio", { name: "Cyan" }));
 
     // Filter to rocket icon and select
-    await user.type(screen.getByRole("textbox", { name: "Search icons" }), "rocket");
+    await user.type(
+      screen.getByRole("textbox", { name: "Search icons" }),
+      "rocket",
+    );
     await user.click(screen.getByRole("radio", { name: "rocket" }));
 
     // Submit form
@@ -261,6 +315,7 @@ describe("CreateProjectModal", () => {
             coverKey: "cover-03",
             createdAt: new Date().toISOString(),
             members: [],
+            memberCount: 0,
             role: "admin",
             permissions: ["project.members.view"],
           },

@@ -27,37 +27,18 @@ export interface ProjectMemberRow {
   accountActive: boolean;
 }
 
+/** First members of one project (already in display order) and the real total. */
+export interface ProjectMembersPreview {
+  members: ProjectMemberRow[];
+  total: number;
+}
+
+/** `members` is null exactly when the viewer lacks project.members.view. */
 export function toProjectListItem(
   row: ProjectRow,
   access: ProjectAccess,
-  members: ProjectMemberRow[] | null,
+  members: ProjectMembersPreview | null,
 ): ProjectListItem {
-  const canViewMembers = access.permissions.includes('project.members.view');
-
-  let memberSummaries: ProjectMemberSummary[] | null = null;
-  if (canViewMembers && members !== null) {
-    const sortedMembers = [...members].sort((a, b) => {
-      const timeDiff =
-        new Date(a.addedAt).getTime() - new Date(b.addedAt).getTime();
-      if (timeDiff !== 0) return timeDiff;
-      return a.userId.localeCompare(b.userId);
-    });
-
-    memberSummaries = sortedMembers.map((m) => {
-      const summary: ProjectMemberSummary = {
-        userId: m.userId,
-        firstName: m.firstName,
-        lastName: m.lastName,
-        displayName: m.displayName,
-        accountActive: m.accountActive,
-      };
-      if (m.email !== undefined && m.email !== null) {
-        summary.email = m.email;
-      }
-      return summary;
-    });
-  }
-
   return {
     id: row.id,
     name: row.name,
@@ -69,8 +50,23 @@ export function toProjectListItem(
     },
     coverKey: row.coverKey,
     createdAt: row.createdAt.toISOString(),
-    members: memberSummaries,
+    // The repository already orders members (oldest first); keep that order.
+    members: members === null ? null : members.members.map(toMemberSummary),
+    memberCount: members === null ? null : members.total,
     role: access.role,
     permissions: enforcedProjectPermissions(access.permissions),
   };
+}
+
+function toMemberSummary(m: ProjectMemberRow): ProjectMemberSummary {
+  const summary: ProjectMemberSummary = {
+    userId: m.userId,
+    firstName: m.firstName,
+    lastName: m.lastName,
+    displayName: m.displayName,
+    accountActive: m.accountActive,
+  };
+  // Only add the key when present: viewers without the email permission must not get `email` at all.
+  if (m.email !== undefined) summary.email = m.email;
+  return summary;
 }

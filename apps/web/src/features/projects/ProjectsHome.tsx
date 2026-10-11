@@ -26,12 +26,11 @@ export function ProjectsHome() {
   const { state, reload, addProject } = useProjects(workspace.slug);
   const [createModalOpened, setCreateModalOpened] = useState(false);
   const [search, setSearch] = useState("");
-  const [sort, setSort] = useState<SortState<ProjectSortKey>>(DEFAULT_PROJECT_SORT);
+  const [sort, setSort] =
+    useState<SortState<ProjectSortKey>>(DEFAULT_PROJECT_SORT);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const canCreate = workspace.permissions.includes(
-    "workspace.projects.create",
-  );
+  const canCreate = workspace.permissions.includes("workspace.projects.create");
 
   const handleClearSearch = () => {
     setSearch("");
@@ -74,8 +73,11 @@ export function ProjectsHome() {
   }
 
   const { data } = state;
-  const formattedTotal = new Intl.NumberFormat("en-US").format(data.total);
-  const displayedProjects = applyProjectListQuery(data.projects, { search, sort });
+  const numberFormat = new Intl.NumberFormat("en-US");
+  const displayedProjects = applyProjectListQuery(data.projects, {
+    search,
+    sort,
+  });
 
   return (
     <>
@@ -89,7 +91,7 @@ export function ProjectsHome() {
 
         {data.truncated && (
           <Alert color="yellow" role="alert">
-            {`Showing the first 1,000 of ${formattedTotal} projects.`}
+            {`Showing the first ${numberFormat.format(data.projects.length)} of ${numberFormat.format(data.total)} projects.`}
           </Alert>
         )}
 
@@ -128,11 +130,7 @@ export function ProjectsHome() {
                 <Text size="sm" c="dimmed">
                   {`No projects match "${search}"`}
                 </Text>
-                <Button
-                  variant="subtle"
-                  size="sm"
-                  onClick={handleClearSearch}
-                >
+                <Button variant="subtle" size="sm" onClick={handleClearSearch}>
                   Clear search
                 </Button>
               </Stack>

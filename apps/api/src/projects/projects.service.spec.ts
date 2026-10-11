@@ -4,6 +4,7 @@ import {
   DEFAULT_PROJECT_ICON,
   DEFAULT_PROJECT_ICON_COLOR,
   PROJECT_LIST_MAX,
+  PROJECT_MEMBER_PREVIEW_MAX,
 } from '@repo/contracts';
 import { FakeClock } from '../../test/fakes/authFakes.js';
 import {
@@ -111,39 +112,100 @@ describe('ProjectsService', () => {
 
       const res = await service.list(ws, 'u-guest');
       expect(res.projects[0]!.members).toBeNull();
+      expect(res.projects[0]!.memberCount).toBeNull();
       expect(repository.lastMembersOfQuery).toBeUndefined();
     });
 
-    it('truncates at PROJECT_LIST_MAX, marks truncated, and emits event (R-4)', async () => {
+    it('reports the real total when the list is cut at PROJECT_LIST_MAX (R-4)', async () => {
       const { service, resolver, events } = makeSetup();
       const ws = makeMemberWorkspace();
 
-      const manyRows = [];
-      for (let i = 0; i < PROJECT_LIST_MAX + 5; i++) {
-        manyRows.push({
+      resolver.rows = Array.from({ length: PROJECT_LIST_MAX }, (_, i) => ({
+        project: {
+          id: `p-${i}`,
+          name: `Project ${i}`,
+          identifier: 'P',
+          description: '',
+          iconName: DEFAULT_PROJECT_ICON,
+          iconColor: DEFAULT_PROJECT_ICON_COLOR,
+          coverKey: DEFAULT_PROJECT_COVER,
+          createdAt: new Date(),
+        },
+        access: { role: 'admin' as const, permissions: [] },
+      }));
+      resolver.total = 5000;
+
+      const res = await service.list(ws, 'u-admin', 'req-123');
+      expect(res.projects).toHaveLength(PROJECT_LIST_MAX);
+      expect(res.total).toBe(5000);
+      expect(res.truncated).toBe(true);
+      expect(events.truncatedEvents).toHaveLength(1);
+      expect(events.truncatedEvents[0]!.count).toBe(5000);
+    });
+
+    it('asks for at most PROJECT_MEMBER_PREVIEW_MAX members and returns the real memberCount', async () => {
+      const { service, resolver, repository } = makeSetup();
+      const ws = makeMemberWorkspace();
+
+      resolver.rows = [
+        {
           project: {
-            id: `p-${i}`,
-            name: `Project ${i}`,
-            identifier: 'P',
+            id: 'p-big',
+            name: 'Big',
+            identifier: 'BIG',
             description: '',
             iconName: DEFAULT_PROJECT_ICON,
             iconColor: DEFAULT_PROJECT_ICON_COLOR,
             coverKey: DEFAULT_PROJECT_COVER,
             createdAt: new Date(),
           },
-          access: {
-            role: 'admin' as const,
-            permissions: ['project.members.view'],
-          },
-        });
-      }
-      resolver.rows = manyRows;
+          access: { role: 'admin', permissions: ['project.members.view'] },
+        },
+      ];
+      repository.membersByProjectId.set(
+        'p-big',
+        Array.from({ length: 300 }, (_, i) => ({
+          projectId: 'p-big',
+          userId: `u-${String(i).padStart(3, '0')}`,
+          addedAt: new Date(Date.UTC(2026, 0, 1, 0, i)),
+          firstName: '',
+          lastName: '',
+          displayName: `user ${i}`,
+          accountActive: true,
+        })),
+      );
 
-      const res = await service.list(ws, 'u-admin', 'req-123');
-      expect(res.total).toBe(PROJECT_LIST_MAX);
-      expect(res.truncated).toBe(true);
-      expect(events.truncatedEvents).toHaveLength(1);
-      expect(events.truncatedEvents[0]!.count).toBe(PROJECT_LIST_MAX + 5);
+      const res = await service.list(ws, 'u-000');
+      expect(repository.lastMembersOfQuery?.opts.limitPerProject).toBe(
+        PROJECT_MEMBER_PREVIEW_MAX,
+      );
+      expect(res.projects[0]!.members).toHaveLength(PROJECT_MEMBER_PREVIEW_MAX);
+      expect(res.projects[0]!.memberCount).toBe(300);
+      // Repository order is kept (no re-sort in the mapper).
+      expect(res.projects[0]!.members![0]!.userId).toBe('u-000');
+    });
+
+    it('returns memberCount 0 and an empty list for a visible project without active members', async () => {
+      const { service, resolver } = makeSetup();
+      resolver.rows = [
+        {
+          project: {
+            id: 'p-empty',
+            name: 'Empty',
+            identifier: 'EMP',
+            description: '',
+            iconName: DEFAULT_PROJECT_ICON,
+            iconColor: DEFAULT_PROJECT_ICON_COLOR,
+            coverKey: DEFAULT_PROJECT_COVER,
+            createdAt: new Date(),
+          },
+          access: { role: 'admin', permissions: ['project.members.view'] },
+        },
+      ];
+
+      const res = await service.list(makeMemberWorkspace(), 'u-1');
+      expect(res.projects[0]!.members).toEqual([]);
+      expect(res.projects[0]!.memberCount).toBe(0);
     });
 
     it('excludes email key when viewer lacks workspace.members.email.view (AC-13)', async () => {
@@ -191,10 +253,10 @@ describe('ProjectsService', () => {
 
   describe('create', () => {
     it('creates project, emits event, and returns toProjectListItem', async () => {
-      const { service, repository, events } = makeSetup();
+      const { service, repository, resolver, events } = makeSetup();
       const ws = makeMemberWorkspace();
 
-      repository.accessibleProject = {
+      resolver.project = {
         project: {
           id: 'project-new-id',
           name: 'New Project',
@@ -229,15 +291,21 @@ describe('ProjectsService', () => {
 
       expect(res.project.id).toBe('project-new-id');
       expect(res.project.name).toBe('New Project');
+      expect(resolver.lastInput).toEqual({
+        workspaceId: ws.id,
+        userId: 'u-creator',
+        workspaceRole: ws.role,
+        projectId: 'project-new-id',
+      });
       expect(repository.createdProjects).toHaveLength(1);
       expect(events.createdEvents).toHaveLength(1);
       expect(events.createdEvents[0]!.projectId).toBe('project-new-id');
     });
 
     it('defaults description to empty string when omitted', async () => {
-      const { service, repository } = makeSetup();
+      const { service, repository, resolver } = makeSetup();
       const ws = makeMemberWorkspace();
-      repository.accessibleProject = {
+      resolver.project = {
         project: {
           id: 'p-default',
           name: 'Default',

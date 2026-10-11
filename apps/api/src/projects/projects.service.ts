@@ -1,18 +1,22 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import {
   PROJECT_ERROR_MESSAGES,
-  PROJECT_LIST_MAX,
+  PROJECT_MEMBER_PREVIEW_MAX,
   type CreateProjectResponse,
+  type ProjectListItem,
   type ProjectListResponse,
 } from '@repo/contracts';
 import { Clock } from '../auth/clock.js';
 import { ApiException } from '../common/apiException.js';
 import type { MemberWorkspace } from '../workspaces/repositories/workspaces.repository.js';
-import { ProjectAccessResolver } from './access/projectAccessResolver.js';
+import {
+  ProjectAccessResolver,
+  type AccessibleProject,
+} from './access/projectAccessResolver.js';
 import type { CreateProjectDto } from './dto/createProject.dto.js';
 import {
   toProjectListItem,
-  type ProjectMemberRow,
+  type ProjectMembersPreview,
 } from './dto/projectResponse.js';
 import { ProjectEvents } from './events/projectEvents.js';
 import {
@@ -35,46 +39,25 @@ export class ProjectsService {
     userId: string,
     requestId?: string,
   ): Promise<ProjectListResponse> {
-    const rows = await this.resolver.forWorkspace({
+    const { projects, total } = await this.resolver.forWorkspace({
       workspaceId: workspace.id,
       userId,
       workspaceRole: workspace.role,
     });
 
-    const truncated = rows.length > PROJECT_LIST_MAX;
-    const finalRows = truncated ? rows.slice(0, PROJECT_LIST_MAX) : rows;
+    const truncated = total > projects.length;
     if (truncated) {
       await this.events.listTruncated({
         workspaceId: workspace.id,
         userId,
         requestId,
-        count: rows.length,
+        count: total,
       });
     }
 
-    const memberProjectIds = finalRows
-      .filter((r) => r.access.permissions.includes('project.members.view'))
-      .map((r) => r.project.id);
-
-    const includeEmail = workspace.permissions.includes(
-      'workspace.members.email.view',
-    );
-
-    const membersMap =
-      memberProjectIds.length > 0
-        ? await this.repository.membersOf(memberProjectIds, { includeEmail })
-        : new Map<string, ProjectMemberRow[]>();
-
-    const projects = finalRows.map((r) => {
-      const members = r.access.permissions.includes('project.members.view')
-        ? membersMap.get(r.project.id) ?? []
-        : null;
-      return toProjectListItem(r.project, r.access, members);
-    });
-
     return {
-      projects,
-      total: projects.length,
+      projects: await this.withMembers(projects, workspace),
+      total,
       truncated,
     };
   }
@@ -122,31 +105,20 @@ export class ProjectsService {
       throw err;
     }
 
-    const item = await this.repository.findAccessible({
+    // Same access path as the list, so POST returns exactly the row GET would.
+    const created = await this.resolver.forProject({
       workspaceId: workspace.id,
       userId,
       workspaceRole: workspace.role,
       projectId: createdId,
     });
-
-    if (!item) {
+    const [project] =
+      created === null ? [] : await this.withMembers([created], workspace);
+    if (project === undefined) {
       throw new Error(
         `Newly created project ${createdId} not accessible by creator ${userId}`,
       );
     }
-
-    const includeEmail = workspace.permissions.includes(
-      'workspace.members.email.view',
-    );
-    const membersMap = item.access.permissions.includes('project.members.view')
-      ? await this.repository.membersOf([createdId], { includeEmail })
-      : new Map<string, ProjectMemberRow[]>();
-
-    const members = item.access.permissions.includes('project.members.view')
-      ? membersMap.get(createdId) ?? []
-      : null;
-
-    const project = toProjectListItem(item.project, item.access, members);
 
     await this.events.created({
       projectId: createdId,
@@ -156,5 +128,39 @@ export class ProjectsService {
     });
 
     return { project };
+  }
+
+  /**
+   * The one place that decides which member data a viewer gets: only for
+   * projects where they hold project.members.view, emails only with
+   * workspace.members.email.view (RQ INV-06, INV-07).
+   */
+  private async withMembers(
+    rows: readonly AccessibleProject[],
+    workspace: MemberWorkspace,
+  ): Promise<ProjectListItem[]> {
+    const visible = rows
+      .filter((r) => r.access.permissions.includes('project.members.view'))
+      .map((r) => r.project.id);
+    const previews =
+      visible.length === 0
+        ? new Map<string, ProjectMembersPreview>()
+        : await this.repository.membersOf(visible, {
+            includeEmail: workspace.permissions.includes(
+              'workspace.members.email.view',
+            ),
+            limitPerProject: PROJECT_MEMBER_PREVIEW_MAX,
+          });
+    const canSee = new Set(visible);
+
+    return rows.map(({ project, access }) =>
+      toProjectListItem(
+        project,
+        access,
+        canSee.has(project.id)
+          ? (previews.get(project.id) ?? { members: [], total: 0 })
+          : null,
+      ),
+    );
   }
 }

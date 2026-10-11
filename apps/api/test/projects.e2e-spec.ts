@@ -1,8 +1,15 @@
 import request from 'supertest';
 import { describe, beforeAll, beforeEach, afterAll, it, expect } from 'vitest';
-import { DEFAULT_PROJECT_COVER, DEFAULT_PROJECT_ICON, DEFAULT_PROJECT_ICON_COLOR } from '@repo/contracts';
+import {
+  DEFAULT_PROJECT_COVER,
+  DEFAULT_PROJECT_ICON,
+  DEFAULT_PROJECT_ICON_COLOR,
+  PROJECT_LIST_MAX,
+  PROJECT_MEMBER_PREVIEW_MAX,
+} from '@repo/contracts';
 import { AppendOnlyViolationError } from '../src/database/appendOnly.js';
 import { CreateProjectTables1791605000000 } from '../src/database/migrations/1791605000000-CreateProjectTables.js';
+import { AddProjectForeignKeyIndexes1791606000000 } from '../src/database/migrations/1791606000000-AddProjectForeignKeyIndexes.js';
 import { ProjectMemberRoleHistory } from '../src/projects/entities/projectMemberRoleHistory.entity.js';
 import { createE2eApp, type E2eApp } from './createE2eApp.js';
 import {
@@ -108,12 +115,18 @@ describe('Projects (e2e)', () => {
   describe('Database integrity (B6)', () => {
     it('T-DB-01: migration up/down/up runs cleanly and down drops all 3 tables', async () => {
       const migration = new CreateProjectTables1791605000000();
+      // Later migrations on these tables are reverted first and re-applied last,
+      // so the e2e database ends in the same state for the following tests.
+      const indexes = new AddProjectForeignKeyIndexes1791606000000();
       const qr = e2e.dataSource.createQueryRunner();
       await qr.connect();
       try {
+        await indexes.down(qr);
         await migration.down(qr);
 
-        const tablesAfterDown = await e2e.dataSource.query<{ tablename: string }[]>(
+        const tablesAfterDown = await e2e.dataSource.query<
+          { tablename: string }[]
+        >(
           `SELECT tablename FROM pg_tables
            WHERE schemaname = 'public'
              AND tablename IN ('projects', 'project_members', 'project_member_role_history')`,
@@ -122,25 +135,97 @@ describe('Projects (e2e)', () => {
 
         await migration.up(qr);
 
-        const tablesAfterUp = await e2e.dataSource.query<{ tablename: string }[]>(
+        const tablesAfterUp = await e2e.dataSource.query<
+          { tablename: string }[]
+        >(
           `SELECT tablename FROM pg_tables
            WHERE schemaname = 'public'
              AND tablename IN ('projects', 'project_members', 'project_member_role_history')`,
         );
         expect(tablesAfterUp).toHaveLength(3);
+        await indexes.up(qr);
       } finally {
         await qr.release();
       }
     });
 
+    it('T-DB-09: every FK column a parent delete searches has a full (non-partial) index', async () => {
+      const rows = await e2e.dataSource.query<
+        { indexname: string; indexdef: string }[]
+      >(
+        `SELECT indexname, indexdef FROM pg_indexes
+         WHERE schemaname = 'public'
+           AND tablename IN ('projects', 'project_members', 'project_member_role_history')`,
+      );
+      const fullIndexes = rows.filter((r) => !/ WHERE /i.test(r.indexdef));
+      const leadingColumns = fullIndexes.map((r) => {
+        const cols = /\(([^)]*)\)/.exec(r.indexdef)?.[1] ?? '';
+        return cols.split(',').map((c) => c.trim());
+      });
+      const covered = (table: string, cols: string[]) =>
+        fullIndexes.some(
+          (r, i) =>
+            r.indexdef.includes(` ON public.${table} `) &&
+            cols.every((c, k) => leadingColumns[i]![k] === c),
+        );
+
+      expect(covered('projects', ['workspace_id'])).toBe(true);
+      expect(covered('projects', ['created_by_id'])).toBe(true);
+      expect(covered('projects', ['updated_by_id'])).toBe(true);
+      expect(covered('project_members', ['workspace_id', 'member_id'])).toBe(
+        true,
+      );
+      expect(covered('project_members', ['created_by_id'])).toBe(true);
+      expect(covered('project_member_role_history', ['workspace_id'])).toBe(
+        true,
+      );
+      expect(covered('project_member_role_history', ['member_id'])).toBe(true);
+      expect(covered('project_member_role_history', ['actor_id'])).toBe(true);
+      expect(covered('project_member_role_history', ['project_id'])).toBe(true);
+    });
+
+    it("T-DB-10: a history row cannot name a workspace other than its project's", async () => {
+      const { workspace, ownerId } = await seedWorkspace(
+        'ws-tdb10@openplany.dev',
+        'tdb10-ws',
+      );
+      const { workspace: other } = await seedWorkspace(
+        'other-tdb10@openplany.dev',
+        'tdb10-other',
+      );
+      const projectId = await insertProject(
+        workspace.id,
+        'History Project',
+        'HIST',
+      );
+
+      await expect(
+        e2e.dataSource.query(
+          `INSERT INTO project_member_role_history (workspace_id, project_id, member_id, to_role, change_type)
+           VALUES ($1, $2, $3, 'admin', 'project_created')`,
+          [other.id, projectId, ownerId],
+        ),
+      ).rejects.toMatchObject({
+        driverError: { constraint: 'pmrh_project_fkey' },
+      });
+    });
+
     it('T-DB-03: inserting project_members for non-workspace-member fails foreign key constraint', async () => {
-      const { workspace } = await seedWorkspace('t-db-03-admin@openplany.dev', 'tdb03-ws');
+      const { workspace } = await seedWorkspace(
+        't-db-03-admin@openplany.dev',
+        'tdb03-ws',
+      );
       const outsiderId = await createUser('t-db-03-outsider@openplany.dev');
       const projectId = await insertProject(workspace.id, 'Project A', 'PA');
 
       let error: { driverError?: { code?: string }; code?: string } | undefined;
       try {
-        await insertProjectMember(projectId, workspace.id, outsiderId, 'contributor');
+        await insertProjectMember(
+          projectId,
+          workspace.id,
+          outsiderId,
+          'contributor',
+        );
       } catch (err) {
         error = err as { driverError?: { code?: string }; code?: string };
       }
@@ -150,8 +235,14 @@ describe('Projects (e2e)', () => {
     });
 
     it('T-DB-04: duplicate name case-insensitively in same workspace fails; different workspace succeeds', async () => {
-      const { workspace: ws1 } = await seedWorkspace('t-db-04-1@openplany.dev', 'tdb04-ws1');
-      const { workspace: ws2 } = await seedWorkspace('t-db-04-2@openplany.dev', 'tdb04-ws2');
+      const { workspace: ws1 } = await seedWorkspace(
+        't-db-04-1@openplany.dev',
+        'tdb04-ws1',
+      );
+      const { workspace: ws2 } = await seedWorkspace(
+        't-db-04-2@openplany.dev',
+        'tdb04-ws2',
+      );
 
       await insertProject(ws1.id, 'Web', 'WEB');
 
@@ -171,27 +262,45 @@ describe('Projects (e2e)', () => {
     });
 
     it('T-DB-05: invalid identifier fails projects_identifier_check constraint', async () => {
-      const { workspace } = await seedWorkspace('t-db-05@openplany.dev', 'tdb05-ws');
+      const { workspace } = await seedWorkspace(
+        't-db-05@openplany.dev',
+        'tdb05-ws',
+      );
 
       for (const invalidIdentifier of ['dam', '1AB', 'ABCDEF']) {
-        let error: { driverError?: { code?: string }; code?: string } | undefined;
+        let error:
+          { driverError?: { code?: string }; code?: string } | undefined;
         try {
-          await insertProject(workspace.id, `Project ${invalidIdentifier}`, invalidIdentifier);
+          await insertProject(
+            workspace.id,
+            `Project ${invalidIdentifier}`,
+            invalidIdentifier,
+          );
         } catch (err) {
           error = err as { driverError?: { code?: string }; code?: string };
         }
         expect(error).toBeDefined();
-        expect(['23514', '22001']).toContain(error?.driverError?.code || error?.code);
+        expect(['23514', '22001']).toContain(
+          error?.driverError?.code || error?.code,
+        );
       }
     });
 
     it('T-DB-06: history row constraints check shape and valid role foreign key', async () => {
-      const { workspace, ownerId } = await seedWorkspace('t-db-06@openplany.dev', 'tdb06-ws');
-      const projectId = await insertProject(workspace.id, 'History Check', 'HC');
+      const { workspace, ownerId } = await seedWorkspace(
+        't-db-06@openplany.dev',
+        'tdb06-ws',
+      );
+      const projectId = await insertProject(
+        workspace.id,
+        'History Check',
+        'HC',
+      );
       await insertProjectMember(projectId, workspace.id, ownerId, 'admin');
 
       // project_created with from_role != null fails pmrh_shape_check
-      let shapeErr: { driverError?: { code?: string }; code?: string } | undefined;
+      let shapeErr:
+        { driverError?: { code?: string }; code?: string } | undefined;
       try {
         await e2e.dataSource.query(
           `INSERT INTO project_member_role_history
@@ -222,7 +331,10 @@ describe('Projects (e2e)', () => {
     });
 
     it('T-DB-07: updating or deleting ProjectMemberRoleHistory via TypeORM throws AppendOnlyViolationError', async () => {
-      const { workspace, ownerId } = await seedWorkspace('t-db-07@openplany.dev', 'tdb07-ws');
+      const { workspace, ownerId } = await seedWorkspace(
+        't-db-07@openplany.dev',
+        'tdb07-ws',
+      );
       const projectId = await insertProject(workspace.id, 'Append Only', 'AO');
       await insertProjectMember(projectId, workspace.id, ownerId, 'admin');
 
@@ -247,7 +359,10 @@ describe('Projects (e2e)', () => {
     });
 
     it('T-DB-08: soft-deleting a project allows creating another with identical name and identifier', async () => {
-      const { workspace } = await seedWorkspace('t-db-08@openplany.dev', 'tdb08-ws');
+      const { workspace } = await seedWorkspace(
+        't-db-08@openplany.dev',
+        'tdb08-ws',
+      );
 
       const oldId = await insertProject(workspace.id, 'Web', 'WEB', new Date());
       expect(oldId).toBeDefined();
@@ -260,12 +375,20 @@ describe('Projects (e2e)', () => {
 
   describe('GET /api/workspaces/:slug/projects', () => {
     it('returns 401 UNAUTHENTICATED without session cookie', async () => {
-      const { workspace } = await seedWorkspace('unauth@openplany.dev', 'unauth-ws');
-      await http().get(`/api/workspaces/${workspace.slug}/projects`).expect(401);
+      const { workspace } = await seedWorkspace(
+        'unauth@openplany.dev',
+        'unauth-ws',
+      );
+      await http()
+        .get(`/api/workspaces/${workspace.slug}/projects`)
+        .expect(401);
     });
 
     it('returns 404 NOT_FOUND when requesting nonexistent workspace or non-member', async () => {
-      const { workspace } = await seedWorkspace('owner-404@openplany.dev', 'ws-404');
+      const { workspace } = await seedWorkspace(
+        'owner-404@openplany.dev',
+        'ws-404',
+      );
       await createUser('outsider@openplany.dev');
       const outsiderCookie = await signInCookie('outsider@openplany.dev');
 
@@ -281,7 +404,10 @@ describe('Projects (e2e)', () => {
     });
 
     it('AC-09: member only sees projects they belong to; total matches', async () => {
-      const { workspace, ownerId } = await seedWorkspace('ws-ac09@openplany.dev', 'ac09-ws');
+      const { workspace, ownerId } = await seedWorkspace(
+        'ws-ac09@openplany.dev',
+        'ac09-ws',
+      );
       const memberId = await createUser('member-ac09@openplany.dev');
       const memberCookie = await signInCookie('member-ac09@openplany.dev');
       await addWorkspaceMember(workspace.id, memberId, 'member');
@@ -307,10 +433,11 @@ describe('Projects (e2e)', () => {
     });
 
     it('AC-10: workspace admin sees all projects even if not a member of them, and is not in members array', async () => {
-      const { workspace, ownerId, cookie: adminCookie } = await seedWorkspace(
-        'ws-ac10@openplany.dev',
-        'ac10-ws',
-      );
+      const {
+        workspace,
+        ownerId,
+        cookie: adminCookie,
+      } = await seedWorkspace('ws-ac10@openplany.dev', 'ac10-ws');
       const memberId = await createUser('member-ac10@openplany.dev');
       await addWorkspaceMember(workspace.id, memberId, 'member');
 
@@ -327,13 +454,18 @@ describe('Projects (e2e)', () => {
       expect(res.body.projects[0].name).toBe('Adminless Project');
       expect(res.body.projects[0].role).toBe('admin');
       // Admin is not in members array:
-      const memberUserIds = res.body.projects[0].members.map((m: { userId: string }) => m.userId);
+      const memberUserIds = res.body.projects[0].members.map(
+        (m: { userId: string }) => m.userId,
+      );
       expect(memberUserIds).not.toContain(ownerId);
       expect(memberUserIds).toContain(memberId);
     });
 
     it('AC-11: guest with no projects gets empty list and total 0', async () => {
-      const { workspace } = await seedWorkspace('ws-ac11@openplany.dev', 'ac11-ws');
+      const { workspace } = await seedWorkspace(
+        'ws-ac11@openplany.dev',
+        'ac11-ws',
+      );
       const guestId = await createUser('guest-ac11@openplany.dev');
       const guestCookie = await signInCookie('guest-ac11@openplany.dev');
       await addWorkspaceMember(workspace.id, guestId, 'guest');
@@ -355,32 +487,56 @@ describe('Projects (e2e)', () => {
     });
 
     it('AC-12: deactivated account shows accountActive false; deactivated workspace member is excluded', async () => {
-      const { workspace, ownerId, cookie: adminCookie } = await seedWorkspace(
-        'ws-ac12@openplany.dev',
-        'ac12-ws',
-      );
+      const {
+        workspace,
+        ownerId,
+        cookie: adminCookie,
+      } = await seedWorkspace('ws-ac12@openplany.dev', 'ac12-ws');
       const userActiveId = await createUser('active-u@openplany.dev');
-      const userDeactivatedId = await createUser('deactivated-u@openplany.dev', {
-        is_active: false,
-      });
-      const wsMemberDeactivatedId = await createUser('ws-deactivated-u@openplany.dev');
+      const userDeactivatedId = await createUser(
+        'deactivated-u@openplany.dev',
+        {
+          is_active: false,
+        },
+      );
+      const wsMemberDeactivatedId = await createUser(
+        'ws-deactivated-u@openplany.dev',
+      );
 
       await addWorkspaceMember(workspace.id, userActiveId, 'member', true);
       await addWorkspaceMember(workspace.id, userDeactivatedId, 'member', true);
-      await addWorkspaceMember(workspace.id, wsMemberDeactivatedId, 'member', false);
+      await addWorkspaceMember(
+        workspace.id,
+        wsMemberDeactivatedId,
+        'member',
+        false,
+      );
 
       const p1 = await insertProject(workspace.id, 'Activity Project', 'ACT');
       await insertProjectMember(p1, workspace.id, ownerId, 'admin');
       await insertProjectMember(p1, workspace.id, userActiveId, 'contributor');
-      await insertProjectMember(p1, workspace.id, userDeactivatedId, 'contributor');
-      await insertProjectMember(p1, workspace.id, wsMemberDeactivatedId, 'contributor');
+      await insertProjectMember(
+        p1,
+        workspace.id,
+        userDeactivatedId,
+        'contributor',
+      );
+      await insertProjectMember(
+        p1,
+        workspace.id,
+        wsMemberDeactivatedId,
+        'contributor',
+      );
 
       const res = await http()
         .get(`/api/workspaces/${workspace.slug}/projects`)
         .set('Cookie', adminCookie)
         .expect(200);
 
-      const members = res.body.projects[0].members as { userId: string; accountActive: boolean }[];
+      const members = res.body.projects[0].members as {
+        userId: string;
+        accountActive: boolean;
+      }[];
       const memberIds = members.map((m) => m.userId);
 
       expect(memberIds).toContain(userActiveId);
@@ -388,7 +544,9 @@ describe('Projects (e2e)', () => {
       // Inactive workspace member is excluded:
       expect(memberIds).not.toContain(wsMemberDeactivatedId);
 
-      const deactivatedEntry = members.find((m) => m.userId === userDeactivatedId);
+      const deactivatedEntry = members.find(
+        (m) => m.userId === userDeactivatedId,
+      );
       expect(deactivatedEntry?.accountActive).toBe(false);
 
       const activeEntry = members.find((m) => m.userId === userActiveId);
@@ -396,10 +554,11 @@ describe('Projects (e2e)', () => {
     });
 
     it('AC-13: email is omitted from JSON for viewer without email.view, included for viewer with permission', async () => {
-      const { workspace, ownerId, cookie: adminCookie } = await seedWorkspace(
-        'ws-ac13@openplany.dev',
-        'ac13-ws',
-      );
+      const {
+        workspace,
+        ownerId,
+        cookie: adminCookie,
+      } = await seedWorkspace('ws-ac13@openplany.dev', 'ac13-ws');
       const memberId = await createUser('member-ac13@openplany.dev');
       const memberCookie = await signInCookie('member-ac13@openplany.dev');
       await addWorkspaceMember(workspace.id, memberId, 'member');
@@ -425,13 +584,79 @@ describe('Projects (e2e)', () => {
       expect(JSON.stringify(memberRes.body)).not.toContain('"email"');
     });
 
+    it('returns at most PROJECT_MEMBER_PREVIEW_MAX members per project with the real memberCount', async () => {
+      const {
+        workspace,
+        ownerId,
+        cookie: adminCookie,
+      } = await seedWorkspace('owner-preview@openplany.dev', 'preview-ws');
+      const projectId = await insertProject(workspace.id, 'Crowded', 'CROWD');
+      await insertProjectMember(projectId, workspace.id, ownerId, 'admin');
+      const extra = PROJECT_MEMBER_PREVIEW_MAX + 4;
+      for (let i = 0; i < extra; i++) {
+        const userId = await createUser(`preview-${i}@openplany.dev`);
+        await addWorkspaceMember(workspace.id, userId, 'member');
+        await insertProjectMember(
+          projectId,
+          workspace.id,
+          userId,
+          'contributor',
+        );
+      }
+
+      const res = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', adminCookie)
+        .expect(200);
+
+      const project = res.body.projects[0];
+      expect(project.members).toHaveLength(PROJECT_MEMBER_PREVIEW_MAX);
+      expect(project.memberCount).toBe(extra + 1);
+      expect(project.members[0].userId).toBe(ownerId);
+    });
+
+    it('reports the real total when the list is cut at PROJECT_LIST_MAX', async () => {
+      const { workspace, cookie: adminCookie } = await seedWorkspace(
+        'owner-total@openplany.dev',
+        'total-ws',
+      );
+      const count = PROJECT_LIST_MAX + 7;
+      await e2e.dataSource.query(
+        `INSERT INTO projects (workspace_id, name, identifier, description, icon_name, icon_color, cover_key)
+         SELECT $1, 'Project ' || g, 'P' || g, '', $2, $3, $4 FROM generate_series(1, $5) AS g`,
+        [
+          workspace.id,
+          DEFAULT_PROJECT_ICON,
+          DEFAULT_PROJECT_ICON_COLOR,
+          DEFAULT_PROJECT_COVER,
+          count,
+        ],
+      );
+
+      const res = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', adminCookie)
+        .expect(200);
+
+      expect(res.body.projects).toHaveLength(PROJECT_LIST_MAX);
+      expect(res.body.total).toBe(count);
+      expect(res.body.truncated).toBe(true);
+    });
+
     it('AC-14: user lacking project.members.view sees members: null', async () => {
-      const { workspace } = await seedWorkspace('ws-ac14@openplany.dev', 'ac14-ws');
+      const { workspace } = await seedWorkspace(
+        'ws-ac14@openplany.dev',
+        'ac14-ws',
+      );
       const guestId = await createUser('guest-ac14@openplany.dev');
       const guestCookie = await signInCookie('guest-ac14@openplany.dev');
       await addWorkspaceMember(workspace.id, guestId, 'guest');
 
-      const p1 = await insertProject(workspace.id, 'Secret Members Project', 'SMP');
+      const p1 = await insertProject(
+        workspace.id,
+        'Secret Members Project',
+        'SMP',
+      );
       // Assign guest role to the guest user in the project
       await insertProjectMember(p1, workspace.id, guestId, 'guest');
 
@@ -442,15 +667,17 @@ describe('Projects (e2e)', () => {
 
       expect(res.body.total).toBe(1);
       expect(res.body.projects[0].members).toBeNull();
+      expect(res.body.projects[0].memberCount).toBeNull();
     });
   });
 
   describe('POST /api/workspaces/:slug/projects', () => {
     it('AC-01 & AC-23: admin creates project -> 201; 1 member (creator, admin); 1 history row; response matches GET', async () => {
-      const { workspace, ownerId, cookie: adminCookie } = await seedWorkspace(
-        'admin-create@openplany.dev',
-        'create-ws',
-      );
+      const {
+        workspace,
+        ownerId,
+        cookie: adminCookie,
+      } = await seedWorkspace('admin-create@openplany.dev', 'create-ws');
 
       const res = await http()
         .post(`/api/workspaces/${workspace.slug}/projects`)
@@ -479,21 +706,23 @@ describe('Projects (e2e)', () => {
       expect(proj.members[0].userId).toBe(ownerId);
 
       // Verify DB tables
-      const projectsInDb = await e2e.dataSource.query<{ id: string; name: string }[]>(
-        `SELECT id, name FROM projects WHERE id = $1`,
-        [proj.id],
-      );
+      const projectsInDb = await e2e.dataSource.query<
+        { id: string; name: string }[]
+      >(`SELECT id, name FROM projects WHERE id = $1`, [proj.id]);
       expect(projectsInDb).toHaveLength(1);
 
-      const membersInDb = await e2e.dataSource.query<{ member_id: string; role: string }[]>(
-        `SELECT member_id, role FROM project_members WHERE project_id = $1`,
-        [proj.id],
-      );
+      const membersInDb = await e2e.dataSource.query<
+        { member_id: string; role: string }[]
+      >(`SELECT member_id, role FROM project_members WHERE project_id = $1`, [
+        proj.id,
+      ]);
       expect(membersInDb).toHaveLength(1);
       expect(membersInDb[0]!.member_id).toBe(ownerId);
       expect(membersInDb[0]!.role).toBe('admin');
 
-      const historyInDb = await e2e.dataSource.query<{ change_type: string; request_id: string; to_role: string }[]>(
+      const historyInDb = await e2e.dataSource.query<
+        { change_type: string; request_id: string; to_role: string }[]
+      >(
         `SELECT change_type, request_id, to_role FROM project_member_role_history WHERE project_id = $1`,
         [proj.id],
       );
@@ -512,7 +741,10 @@ describe('Projects (e2e)', () => {
     });
 
     it('AC-03: standard member calling POST gets 403; GET /workspaces/:slug lacks workspace.projects.create', async () => {
-      const { workspace } = await seedWorkspace('owner-ac03@openplany.dev', 'ac03-ws');
+      const { workspace } = await seedWorkspace(
+        'owner-ac03@openplany.dev',
+        'ac03-ws',
+      );
       const memberId = await createUser('member-ac03@openplany.dev');
       const memberCookie = await signInCookie('member-ac03@openplany.dev');
       await addWorkspaceMember(workspace.id, memberId, 'member');
@@ -538,7 +770,10 @@ describe('Projects (e2e)', () => {
     });
 
     it('AC-04: granting workspace.projects.create allows member to create project as project admin', async () => {
-      const { workspace } = await seedWorkspace('owner-ac04@openplany.dev', 'ac04-ws');
+      const { workspace } = await seedWorkspace(
+        'owner-ac04@openplany.dev',
+        'ac04-ws',
+      );
       const memberId = await createUser('member-ac04@openplany.dev');
       const memberCookie = await signInCookie('member-ac04@openplany.dev');
       await addWorkspaceMember(workspace.id, memberId, 'member');
@@ -604,7 +839,9 @@ describe('Projects (e2e)', () => {
         .expect(409);
 
       expect(dupNameRes.body.code).toBe('PROJECT_NAME_TAKEN');
-      expect(dupNameRes.body.fields.name).toBe('A project with this name already exists');
+      expect(dupNameRes.body.fields.name).toBe(
+        'A project with this name already exists',
+      );
 
       // Duplicate name in Unicode NFD form:
       const nfdName = 'Dự án Mobile'.normalize('NFD');
@@ -635,7 +872,9 @@ describe('Projects (e2e)', () => {
         .expect(409);
 
       expect(dupIdRes.body.code).toBe('PROJECT_IDENTIFIER_TAKEN');
-      expect(dupIdRes.body.fields.identifier).toBe('This project ID is already used');
+      expect(dupIdRes.body.fields.identifier).toBe(
+        'This project ID is already used',
+      );
 
       // Concurrent POST race:
       const [res1, res2] = await Promise.all([
@@ -700,6 +939,72 @@ describe('Projects (e2e)', () => {
         .expect(400);
 
       expect(extraRes.body.fields).toBeDefined();
+    });
+
+    it('rejects a missing, array or empty icon with 400, not 500', async () => {
+      const { workspace, cookie: adminCookie } = await seedWorkspace(
+        'owner-icon400@openplany.dev',
+        'icon400-ws',
+      );
+      const base = {
+        name: 'Icon Shape',
+        identifier: 'ICON',
+        coverKey: 'cover-01',
+      };
+
+      for (const icon of [
+        undefined,
+        [],
+        [{ name: 'home', color: '#000000' }],
+        null,
+        'home',
+      ]) {
+        const res = await http()
+          .post(`/api/workspaces/${workspace.slug}/projects`)
+          .set('Cookie', adminCookie)
+          .set('Origin', ORIGIN)
+          .send(icon === undefined ? base : { ...base, icon })
+          .expect(400);
+        expect(res.body.code).toBe('VALIDATION_ERROR');
+        expect(res.body.fields.icon).toBe('Choose an icon');
+      }
+
+      const projects = await e2e.dataSource.query<{ count: string }[]>(
+        `SELECT count(*) FROM projects WHERE workspace_id = $1`,
+        [workspace.id],
+      );
+      expect(Number(projects[0]!.count)).toBe(0);
+    });
+
+    it('rejects control characters in the description with 400 and accepts multi-line text', async () => {
+      const { workspace, cookie: adminCookie } = await seedWorkspace(
+        'owner-desc400@openplany.dev',
+        'desc400-ws',
+      );
+      const base = {
+        name: 'Described',
+        identifier: 'DESC',
+        icon: { name: 'star', color: '#FAB005' },
+        coverKey: 'cover-01',
+      };
+
+      const nul = await http()
+        .post(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', adminCookie)
+        .set('Origin', ORIGIN)
+        .send({ ...base, description: 'abc\u0000' })
+        .expect(400);
+      expect(nul.body.fields.description).toBe(
+        "Contains characters that aren't allowed",
+      );
+
+      const ok = await http()
+        .post(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', adminCookie)
+        .set('Origin', ORIGIN)
+        .send({ ...base, description: 'Line 1\nLine 2\tTabbed' })
+        .expect(201);
+      expect(ok.body.project.description).toBe('Line 1\nLine 2\tTabbed');
     });
 
     it('AC-19: trims whitespace and normalizes project name before saving', async () => {

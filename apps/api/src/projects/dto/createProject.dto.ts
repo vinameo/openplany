@@ -1,6 +1,8 @@
 import { Type, Transform } from 'class-transformer';
 import {
+  IsDefined,
   IsIn,
+  IsObject,
   IsOptional,
   IsString,
   Length,
@@ -12,7 +14,9 @@ import {
   NO_HIDDEN_CHARS,
   normalizeProjectName,
   PROJECT_COVER_KEYS,
+  PROJECT_DESCRIPTION_ALLOWED_CHARS,
   PROJECT_DESCRIPTION_MAX,
+  PROJECT_ERROR_MESSAGES,
   PROJECT_ICON_COLOR_PATTERN,
   PROJECT_ICON_NAMES,
   PROJECT_IDENTIFIER_PATTERN,
@@ -55,11 +59,19 @@ export class CreateProjectDto implements CreateProjectRequest {
 
   @IsOptional()
   @IsString()
+  // NUL and other control characters would fail the INSERT (text columns reject 0x00).
+  @Matches(PROJECT_DESCRIPTION_ALLOWED_CHARS, {
+    message: PROJECT_ERROR_MESSAGES.descriptionChars,
+  })
   @MaxLength(PROJECT_DESCRIPTION_MAX, {
     message: `Keep the description under ${PROJECT_DESCRIPTION_MAX} characters`,
   })
   description?: string;
 
+  // @ValidateNested skips undefined and walks arrays element by element, so the
+  // shape itself must be checked: a missing icon or `icon: []` is a 400, not a 500.
+  @IsDefined({ message: 'Choose an icon' })
+  @IsObject({ message: 'Choose an icon' })
   @ValidateNested()
   @Type(() => ProjectIconDto)
   icon!: ProjectIconDto;

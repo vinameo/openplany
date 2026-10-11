@@ -1,26 +1,17 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
-import {
-  PROJECT_CREATOR_ROLE,
-  PROJECT_ROLES,
-  resolveProjectAccess,
-  workspaceRolesWithImplicitProjectAccess,
-  type ProjectAccess,
-  type ProjectRole,
-  type WorkspaceRole,
-} from '@repo/contracts';
+import { PROJECT_CREATOR_ROLE } from '@repo/contracts';
 import { DataSource, In } from 'typeorm';
 import { User } from '../../auth/entities/user.entity.js';
 import {
   isTransactionConflict,
   isUniqueViolation,
 } from '../../common/databaseErrors.js';
-import {
-  loadRolePermissions,
-  rolePermissionsKey,
-} from '../../roles/rolePermissionsQuery.js';
 import { WorkspaceMember } from '../../workspaces/entities/workspaceMember.entity.js';
-import type { ProjectMemberRow, ProjectRow } from '../dto/projectResponse.js';
+import type {
+  ProjectMemberRow,
+  ProjectMembersPreview,
+} from '../dto/projectResponse.js';
 import { Project } from '../entities/project.entity.js';
 import { ProjectMember } from '../entities/projectMember.entity.js';
 import { ProjectMemberRoleHistory } from '../entities/projectMemberRoleHistory.entity.js';
@@ -28,7 +19,7 @@ import {
   ProjectIdentifierTakenError,
   ProjectNameTakenError,
 } from '../projectErrors.js';
-import { ACTIVE_PROJECT, ACTIVE_PROJECT_MEMBER } from '../projectFilters.js';
+import { ACTIVE_PROJECT_MEMBER } from '../projectFilters.js';
 import {
   ProjectsRepository,
   type CreateProjectInput,
@@ -47,54 +38,68 @@ export class TypeOrmProjectsRepository extends ProjectsRepository {
 
   async membersOf(
     projectIds: readonly string[],
-    opts: { includeEmail: boolean },
-  ): Promise<Map<string, ProjectMemberRow[]>> {
-    const result = new Map<string, ProjectMemberRow[]>();
+    opts: { includeEmail: boolean; limitPerProject: number },
+  ): Promise<Map<string, ProjectMembersPreview>> {
+    const result = new Map<string, ProjectMembersPreview>();
     if (projectIds.length === 0) return result;
 
-    const qb = this.dataSource.manager
-      .createQueryBuilder(ProjectMember, 'pm')
-      .innerJoin(
-        WorkspaceMember,
-        'wm',
-        'wm.workspaceId = pm.workspaceId AND wm.memberId = pm.memberId',
-      )
-      .innerJoin(User, 'u', 'u.id = pm.memberId')
-      .select('pm.projectId', 'projectId')
-      .addSelect('pm.memberId', 'userId')
-      .addSelect('pm.createdAt', 'addedAt')
-      .addSelect('u.firstName', 'firstName')
-      .addSelect('u.lastName', 'lastName')
-      .addSelect('u.displayName', 'displayName')
-      .addSelect('u.isActive', 'accountActive')
-      .where({ projectId: In(projectIds), ...ACTIVE_PROJECT_MEMBER })
-      .andWhere('wm.isActive = :wmActive', { wmActive: true })
-      .orderBy('pm.projectId', 'ASC')
-      .addOrderBy('pm.createdAt', 'ASC')
-      .addOrderBy('pm.memberId', 'ASC');
-
-    if (opts.includeEmail) {
-      qb.addSelect('u.email', 'email');
-    }
-
-    const rows = await qb.getRawMany<{
-      projectId: string;
-      userId: string;
-      addedAt: Date;
-      firstName: string | null;
-      lastName: string | null;
-      displayName: string | null;
-      email?: string | null;
-      accountActive: boolean;
-    }>();
+    // Rank members inside each project and keep only the first N, so the
+    // payload is bounded by projects × limit, not projects × members.
+    const rows = await this.dataSource.manager
+      .createQueryBuilder()
+      .select('ranked.*')
+      .from((sub) => {
+        const members = sub
+          .from(ProjectMember, 'pm')
+          .innerJoin(
+            WorkspaceMember,
+            'wm',
+            'wm.workspaceId = pm.workspaceId AND wm.memberId = pm.memberId',
+          )
+          .innerJoin(User, 'u', 'u.id = pm.memberId')
+          .select('pm.projectId', 'projectId')
+          .addSelect('pm.memberId', 'userId')
+          .addSelect('pm.createdAt', 'addedAt')
+          .addSelect('u.firstName', 'firstName')
+          .addSelect('u.lastName', 'lastName')
+          .addSelect('u.displayName', 'displayName')
+          .addSelect('u.isActive', 'accountActive')
+          .addSelect(
+            'ROW_NUMBER() OVER (PARTITION BY pm.projectId ORDER BY pm.createdAt ASC, pm.memberId ASC)',
+            'member_rank',
+          )
+          .addSelect(
+            'COUNT(*) OVER (PARTITION BY pm.projectId)',
+            'member_total',
+          )
+          .where({ projectId: In(projectIds), ...ACTIVE_PROJECT_MEMBER })
+          .andWhere('wm.isActive = :wmActive', { wmActive: true });
+        // Email is only selected when the viewer may see it (DB B5.2).
+        return opts.includeEmail
+          ? members.addSelect('u.email', 'email')
+          : members;
+      }, 'ranked')
+      .where('ranked.member_rank <= :limit', { limit: opts.limitPerProject })
+      .orderBy('ranked.member_rank', 'ASC')
+      .getRawMany<{
+        projectId: string;
+        userId: string;
+        addedAt: Date;
+        firstName: string | null;
+        lastName: string | null;
+        displayName: string | null;
+        email?: string | null;
+        accountActive: boolean;
+        member_total: string | number;
+      }>();
 
     for (const row of rows) {
-      let list = result.get(row.projectId);
-      if (!list) {
-        list = [];
-        result.set(row.projectId, list);
+      let preview = result.get(row.projectId);
+      if (preview === undefined) {
+        preview = { members: [], total: Number(row.member_total) };
+        result.set(row.projectId, preview);
       }
-      const memberRow: ProjectMemberRow = {
+      const member: ProjectMemberRow = {
         projectId: row.projectId,
         userId: row.userId,
         addedAt: row.addedAt,
@@ -103,10 +108,10 @@ export class TypeOrmProjectsRepository extends ProjectsRepository {
         displayName: row.displayName ?? '',
         accountActive: row.accountActive,
       };
-      if (opts.includeEmail && row.email !== undefined && row.email !== null) {
-        memberRow.email = row.email;
+      if (opts.includeEmail && typeof row.email === 'string') {
+        member.email = row.email;
       }
-      list.push(memberRow);
+      preview.members.push(member);
     }
 
     return result;
@@ -195,69 +200,5 @@ export class TypeOrmProjectsRepository extends ProjectsRepository {
     }
 
     throw new Error('Project creation failed after retries');
-  }
-
-  async findAccessible(input: {
-    workspaceId: string;
-    userId: string;
-    workspaceRole: WorkspaceRole;
-    projectId: string;
-  }): Promise<{ project: ProjectRow; access: ProjectAccess } | null> {
-    const { workspaceId, userId, workspaceRole, projectId } = input;
-    const manager = this.dataSource.manager;
-
-    const project = await manager.findOne(Project, {
-      where: { ...ACTIVE_PROJECT, workspaceId, id: projectId },
-    });
-    if (!project) return null;
-
-    const membership = await manager.findOne(ProjectMember, {
-      select: { role: true },
-      where: {
-        ...ACTIVE_PROJECT_MEMBER,
-        workspaceId,
-        projectId,
-        memberId: userId,
-      },
-    });
-
-    const assignedRole = membership?.role ?? null;
-    const hasImplicitAccess =
-      workspaceRolesWithImplicitProjectAccess().includes(workspaceRole);
-
-    if (!hasImplicitAccess && assignedRole === null) {
-      return null;
-    }
-
-    const permMap = await loadRolePermissions(
-      manager,
-      PROJECT_ROLES.map((key) => ({ scope: 'project', key })),
-    );
-
-    const matrix = {} as Record<ProjectRole, readonly string[]>;
-    for (const roleKey of PROJECT_ROLES) {
-      matrix[roleKey] =
-        permMap.get(rolePermissionsKey('project', roleKey)) ?? [];
-    }
-
-    const access = resolveProjectAccess(
-      { workspaceRole, assignedRole },
-      matrix,
-    );
-    if (!access) return null;
-
-    return {
-      project: {
-        id: project.id,
-        name: project.name,
-        identifier: project.identifier,
-        description: project.description,
-        iconName: project.iconName,
-        iconColor: project.iconColor,
-        coverKey: project.coverKey,
-        createdAt: project.createdAt,
-      },
-      access,
-    };
   }
 }

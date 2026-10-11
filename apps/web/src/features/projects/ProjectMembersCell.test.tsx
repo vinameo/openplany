@@ -31,7 +31,7 @@ describe("ProjectMembersCell", () => {
   it("renders a dash with 'Hidden for your role' hint when members is null", () => {
     render(
       <AppUiProvider>
-        <ProjectMembersCell members={null} />
+        <ProjectMembersCell members={null} memberCount={null} />
       </AppUiProvider>,
     );
     expect(
@@ -43,7 +43,7 @@ describe("ProjectMembersCell", () => {
   it("renders a plain dash when members is empty array", () => {
     render(
       <AppUiProvider>
-        <ProjectMembersCell members={[]} />
+        <ProjectMembersCell members={[]} memberCount={0} />
       </AppUiProvider>,
     );
     expect(screen.getByText("—")).toBeInTheDocument();
@@ -60,7 +60,7 @@ describe("ProjectMembersCell", () => {
 
     render(
       <AppUiProvider>
-        <ProjectMembersCell members={[member]} />
+        <ProjectMembersCell members={[member]} memberCount={1} />
       </AppUiProvider>,
     );
 
@@ -78,7 +78,7 @@ describe("ProjectMembersCell", () => {
 
     render(
       <AppUiProvider>
-        <ProjectMembersCell members={[member]} />
+        <ProjectMembersCell members={[member]} memberCount={1} />
       </AppUiProvider>,
     );
 
@@ -95,7 +95,11 @@ describe("ProjectMembersCell", () => {
 
     render(
       <AppUiProvider>
-        <ProjectMembersCell members={members} currentUserId="u-me" />
+        <ProjectMembersCell
+          members={members}
+          memberCount={members.length}
+          currentUserId="u-me"
+        />
       </AppUiProvider>,
     );
 
@@ -124,21 +128,51 @@ describe("ProjectMembersCell", () => {
 
     render(
       <AppUiProvider>
-        <ProjectMembersCell members={sevenMembers} />
+        <ProjectMembersCell members={sevenMembers} memberCount={7} />
       </AppUiProvider>,
     );
 
-    expect(screen.getByRole("button", { name: /Kai Tran/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Nam Nguyen/ })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Kai Tran/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Nam Nguyen/ }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /An Le/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Binh Pham/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Cuong Vu/ })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Binh Pham/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Cuong Vu/ }),
+    ).toBeInTheDocument();
 
     const overflowButton = screen.getByRole("button", {
       name: "+2: Dung Hoang, Em Do",
     });
     expect(overflowButton).toBeInTheDocument();
     expect(screen.getByText("+2")).toBeInTheDocument();
+  });
+
+  it("counts members past the API preview in +N and says how many are not named", () => {
+    const preview: ProjectMemberSummary[] = [
+      makeMember("u-1", "Kai", "Tran"),
+      makeMember("u-2", "Nam", "Nguyen"),
+      makeMember("u-3", "An", "Le"),
+      makeMember("u-4", "Binh", "Pham"),
+      makeMember("u-5", "Cuong", "Vu"),
+      makeMember("u-6", "Dung", "Hoang"),
+    ];
+
+    render(
+      <AppUiProvider>
+        <ProjectMembersCell members={preview} memberCount={300} />
+      </AppUiProvider>,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "+295: Dung Hoang, and 294 more" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("+295")).toBeInTheDocument();
   });
 
   describe("Desktop tooltip", () => {
@@ -152,7 +186,7 @@ describe("ProjectMembersCell", () => {
 
       render(
         <AppUiProvider>
-          <ProjectMembersCell members={[member]} />
+          <ProjectMembersCell members={[member]} memberCount={1} />
         </AppUiProvider>,
       );
 
@@ -176,7 +210,7 @@ describe("ProjectMembersCell", () => {
 
       render(
         <AppUiProvider>
-          <ProjectMembersCell members={[member]} />
+          <ProjectMembersCell members={[member]} memberCount={1} />
         </AppUiProvider>,
       );
 

@@ -1,9 +1,6 @@
 import type { ProjectListItem } from "@repo/contracts";
 import { describe, expect, it } from "vitest";
-import {
-  applyProjectListQuery,
-  DEFAULT_PROJECT_SORT,
-} from "./projectListView";
+import { applyProjectListQuery, DEFAULT_PROJECT_SORT } from "./projectListView";
 
 function makeProject(
   id: string,
@@ -21,6 +18,7 @@ function makeProject(
     role: "admin",
     permissions: ["project.members.view"],
     members: null,
+    memberCount: null,
     createdAt,
   };
 }
@@ -118,8 +116,18 @@ describe("projectListView", () => {
   });
 
   it("breaks ties by createdAt desc, then id when sorting by name", () => {
-    const dup1 = makeProject("a-id", "Same Name", "ID1", "2026-10-01T00:00:00Z");
-    const dup2 = makeProject("b-id", "Same Name", "ID2", "2026-10-02T00:00:00Z");
+    const dup1 = makeProject(
+      "a-id",
+      "Same Name",
+      "ID1",
+      "2026-10-01T00:00:00Z",
+    );
+    const dup2 = makeProject(
+      "b-id",
+      "Same Name",
+      "ID2",
+      "2026-10-02T00:00:00Z",
+    );
 
     const result = applyProjectListQuery([dup1, dup2], {
       search: "",
