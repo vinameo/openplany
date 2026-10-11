@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import type { DataSource, EntityManager } from 'typeorm';
+import { acquireTransactionLock } from '../../database/advisoryLock.js';
 import {
   LoginAttempt,
   type LoginReason,
@@ -123,11 +124,7 @@ export class TypeOrmLoginAttemptsRepository extends LoginAttemptsRepository {
     work: (attempts: LockedLoginAttempts) => Promise<T>,
   ): Promise<T> {
     return this.dataSource.transaction(async (manager) => {
-      // TypeORM has no advisory-lock API; the key is a bound parameter.
-      await manager.query(
-        `SELECT pg_advisory_xact_lock(hashtextextended('login-attempts:' || $1, 0))`,
-        [ip],
-      );
+      await acquireTransactionLock(manager, 'login-attempts', ip);
       return work(new TypeOrmLockedLoginAttempts(manager));
     });
   }

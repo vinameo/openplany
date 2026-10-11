@@ -41,7 +41,7 @@ const mockMembers: WorkspaceMemberResponse[] = [
 ];
 
 describe("MembersTable", () => {
-  it("renders with 100% width and proportional colgroup when email is visible", () => {
+  it("renders an email column when email is visible", () => {
     const onSortChange = vi.fn();
     const { container } = render(
       <AppUiProvider>
@@ -58,12 +58,8 @@ describe("MembersTable", () => {
     expect(table).toBeInTheDocument();
 
     const cols = container.querySelectorAll("colgroup col");
+    // Widths live in MembersTable.module.css (not applied by jsdom).
     expect(cols).toHaveLength(5);
-    expect(cols[0]).toHaveStyle({ width: "26%" });
-    expect(cols[1]).toHaveStyle({ width: "20%" });
-    expect(cols[2]).toHaveStyle({ width: "24%" });
-    expect(cols[3]).toHaveStyle({ width: "14%" });
-    expect(cols[4]).toHaveStyle({ width: "16%" });
 
     // Verify rows rendered
     expect(screen.getAllByText("Kai Tran")).toHaveLength(2);
@@ -71,7 +67,7 @@ describe("MembersTable", () => {
     expect(screen.getByText("Deactivated")).toBeInTheDocument();
   });
 
-  it("renders with adjusted colgroup when email is hidden", () => {
+  it("renders no email column when email is hidden", () => {
     const onSortChange = vi.fn();
     const { container } = render(
       <AppUiProvider>
@@ -86,10 +82,6 @@ describe("MembersTable", () => {
 
     const cols = container.querySelectorAll("colgroup col");
     expect(cols).toHaveLength(4);
-    expect(cols[0]).toHaveStyle({ width: "35%" });
-    expect(cols[1]).toHaveStyle({ width: "27%" });
-    expect(cols[2]).toHaveStyle({ width: "18%" });
-    expect(cols[3]).toHaveStyle({ width: "20%" });
 
     expect(screen.queryByText("kai@openplany.dev")).not.toBeInTheDocument();
   });

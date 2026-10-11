@@ -1,8 +1,11 @@
 import type { WorkspaceRole } from '@repo/contracts';
 import type { EntityManager } from 'typeorm';
+import {
+  WorkspaceMemberRoleHistory,
+  type WorkspaceRoleChangeType,
+} from '../entities/workspaceMemberRoleHistory.entity.js';
 
-export type WorkspaceRoleChangeType =
-  'workspace_created' | 'member_added' | 'role_changed' | 'member_removed';
+export type { WorkspaceRoleChangeType };
 
 export interface WorkspaceRoleHistoryEntry {
   workspaceId: string;
@@ -17,7 +20,7 @@ export interface WorkspaceRoleHistoryEntry {
 
 /**
  * Ghi trong transaction của người gọi. Không bao giờ tự mở transaction.
- * Cố ý không có entity cho bảng này (DB-14): không ai `save()`/`remove()` được sổ.
+ * Bảng chỉ ghi thêm: entity mang @AppendOnly(), mọi update/delete qua TypeORM bị chặn.
  */
 export async function recordWorkspaceRoleChanges(
   manager: EntityManager,
@@ -25,30 +28,17 @@ export async function recordWorkspaceRoleChanges(
 ): Promise<void> {
   if (entries.length === 0) return;
 
-  await manager
-    .createQueryBuilder()
-    .insert()
-    .into('workspace_member_role_history', [
-      'workspace_id',
-      'member_id',
-      'from_role',
-      'to_role',
-      'change_type',
-      'actor_id',
-      'request_id',
-      'created_at',
-    ])
-    .values(
-      entries.map((e) => ({
-        workspace_id: e.workspaceId,
-        member_id: e.memberId,
-        from_role: e.fromRole,
-        to_role: e.toRole,
-        change_type: e.changeType,
-        actor_id: e.actorId,
-        request_id: e.requestId,
-        created_at: e.at,
-      })),
-    )
-    .execute();
+  await manager.insert(
+    WorkspaceMemberRoleHistory,
+    entries.map((e) => ({
+      workspaceId: e.workspaceId,
+      memberId: e.memberId,
+      fromRole: e.fromRole,
+      toRole: e.toRole,
+      changeType: e.changeType,
+      actorId: e.actorId,
+      requestId: e.requestId,
+      createdAt: e.at,
+    })),
+  );
 }

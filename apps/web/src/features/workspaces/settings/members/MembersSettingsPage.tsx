@@ -9,10 +9,7 @@ import {
   Text,
   Title,
 } from "@mantine/core";
-import {
-  WORKSPACE_CREATOR_ROLE,
-  type WorkspaceRole,
-} from "@repo/contracts";
+import { isWorkspaceAdminRole, type WorkspaceRole } from "@repo/contracts";
 import { useCurrentWorkspace } from "../../currentWorkspace/useCurrentWorkspace";
 import { AddMembersModal } from "./AddMembersModal";
 import {
@@ -90,9 +87,7 @@ export function MembersSettingsPage() {
 
   const { data } = state;
 
-  const adminMembers = data.members.filter(
-    (m) => m.role === WORKSPACE_CREATOR_ROLE,
-  );
+  const adminMembers = data.members.filter((m) => isWorkspaceAdminRole(m.role));
   const hasActiveAdmin = adminMembers.some((m) => m.accountActive);
   const showNoActiveAdmin = !data.truncated && !hasActiveAdmin;
 

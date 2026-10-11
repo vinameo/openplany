@@ -35,12 +35,12 @@ export function MembersTable({
         <Table.Caption>
           <VisuallyHidden>Workspace members</VisuallyHidden>
         </Table.Caption>
-        <colgroup>
-          <col style={{ width: canSeeEmail ? "26%" : "35%" }} />
-          <col style={{ width: canSeeEmail ? "20%" : "27%" }} />
-          {canSeeEmail && <col style={{ width: "24%" }} />}
-          <col style={{ width: canSeeEmail ? "14%" : "18%" }} />
-          <col style={{ width: canSeeEmail ? "16%" : "20%" }} />
+        <colgroup className={canSeeEmail ? classes.withEmail : undefined}>
+          <col className={classes.colFullName} />
+          <col className={classes.colDisplayName} />
+          {canSeeEmail && <col className={classes.colEmail} />}
+          <col className={classes.colRole} />
+          <col className={classes.colJoined} />
         </colgroup>
         <Table.Thead>
           <Table.Tr>

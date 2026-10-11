@@ -47,6 +47,15 @@ export function isRoleLocked(role: RoleRef): boolean {
   );
 }
 
+/**
+ * True for the workspace's Admin role: the locked role that always keeps its
+ * full default permissions. For displaying data (e.g. "No active Admin"), not
+ * for permission decisions, which use enforced permissions.
+ */
+export function isWorkspaceAdminRole(role: WorkspaceRole): boolean {
+  return isRoleLocked({ scope: 'workspace', key: role });
+}
+
 export function scopeOfPermission(permission: string): RoleScope | null {
   if (typeof permission !== 'string' || !permission.includes('.')) {
     return null;

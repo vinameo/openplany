@@ -1,5 +1,5 @@
 <!--
-  CLAUDE.md — project instructions for Claude Code (and a quick reference for humans).
+  CLAUDE.md | AGENTS.md — project instructions for Claude Code (and a quick reference for humans).
   Claude loads this file automatically at the start of every session in this repo.
   Keep it accurate: when tooling, scripts, or conventions change, update this file in the same PR.
   Items marked (planned) describe target conventions that are not wired up yet.
@@ -218,6 +218,13 @@ export class CreateIssueDto {
 - Entities: `*.entity.ts` in their feature module, registered with `TypeOrmModule.forFeature()` (`autoLoadEntities` is on).
 - Config is validated at startup by `src/config/env.validation.ts` — add new env vars there and to `.env.example`.
 - **Repository pattern:** services talk to repositories, never to the ORM client directly from controllers.
+- **No hand-written SQL in app code — use TypeORM through entities.** A column rename must only touch the entity's `@Column({ name })` and a migration, never repositories. Preference order:
+  1. `find`/`findOne`/`insert`/`update`/`delete`/`increment` with `FindOptionsWhere` objects and operators (`In`, `IsNull`, `Not`, `Or`, `LessThan`, …); locks via `lock: { mode: 'pessimistic_read' | 'pessimistic_write' }`.
+  2. QueryBuilder on entity classes (`createQueryBuilder(WorkspaceMember, 'm')`) referring to **entity property paths** (`'m.memberId'`, `'u.isActive'`), never database column names (`member_id`, `is_active`). Prefer object `.where({ ... })` over strings.
+  3. Reusable helpers in `src/database/` when TypeORM lacks an API: `equalsLowercase()` (`lower(col) = value` via `Raw`), `acquireTransactionLock()` (advisory lock). Add a helper there rather than inlining SQL.
+  - ❌ `dataSource.query()` / `manager.query()` / `queryRunner.query()` with table or column names, `insert().into('table_name')`, `.returning('column_name')`, `.set({ x: () => 'column_name + 1' })`. Exceptions: migrations, and e2e tests that inspect the catalog or bypass the app on purpose.
+  - Every table the app reads or writes has an entity. Append-only tables (history/audit) carry `@AppendOnly()` (`src/database/appendOnly.ts`); its subscriber rejects update/delete through TypeORM.
+  - Shared filters ("who is addable", "active user") live in one `FindOptionsWhere` constant reused by every query, not copied between queries.
 - **Migrations only:** every schema change ships as a migration. Never use `synchronize: true` / `db push` outside throwaway local DBs.
 - **Transactions:** wrap multi-write operations in a transaction; keep transactions short and free of external HTTP calls.
 
@@ -250,6 +257,7 @@ export class CreateIssueDto {
 - ❌ Importing from `apps/*` inside `packages/*`, or from one app into another.
 - ❌ Putting business logic, DB queries, or authorization decisions in controllers.
 - ❌ Forgetting the `.js` extension on relative imports in `apps/api` — it compiles but fails at runtime.
+- ❌ Raw SQL or database column names in repositories (`manager.query('SELECT … FROM users')`, `'user.is_active = true'`) — use entities and property paths (§5 Database).
 - ❌ Using `any` to silence the compiler.
 - ❌ Empty `catch` blocks or un-awaited promises.
 - ❌ Hardcoding credentials, API keys, or connection strings.
@@ -261,10 +269,26 @@ export class CreateIssueDto {
 ### Branch naming
 
 ```
-feat/<short-description>      # feat/issue-labels
-fix/<short-description>       # fix/login-redirect
+feature/<short-description>      # feature/1-issue-labels
+fix/<short-description>       # fix/2-login-redirect
+review/<short-description>       # review/3-issue-labels
 chore/ | refactor/ | docs/ | test/
 ```
+
+### Branch workflow for agents (one branch per feature spec)
+
+`<short-description>` is the feature's directory name under `packages/docs/` — e.g. coding `packages/docs/1-login-page/` happens on `feature/1-login-page`.
+
+1. **Before writing any code**, run `git fetch` (if a remote exists) and check whether `feature/<docs-dir>` exists locally or on the remote (`git branch -a --list '*feature/<docs-dir>'`).
+   - Exists → `git switch feature/<docs-dir>` and continue there.
+   - Missing → branch from an up-to-date `develop`: `git switch develop && git pull --ff-only` (when a remote exists), then `git switch -c feature/<docs-dir>`.
+   - Uncommitted changes in the working tree → stop and ask the user before switching.
+2. Commit on the feature branch in small Conventional Commits (one per ticket where possible).
+3. **When the work is done** and `pnpm lint && pnpm typecheck && pnpm test` (plus `test:e2e` for API changes) pass: `git switch develop && git merge --no-ff feature/<docs-dir>` so the feature shows up as one merge commit to review. Keep the feature branch (don't delete it).
+4. On merge conflicts, or if any check fails, stop and report — never force, rebase shared history, or merge with failing checks.
+5. Never push, and never touch `main`, unless the user asks.
+
+Work that isn't tied to one `packages/docs/<n>-…` directory (cross-cutting fixes, review follow-ups) uses `fix/` / `refactor/` / `chore/` with a short description and the same flow.
 
 ### Commit messages — Conventional Commits
 
@@ -276,7 +300,7 @@ fix(web): keep filters when navigating back
 chore(ui): bump mantine to 9.7
 ```
 
-Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `perf`, `build`, `ci`. Scopes: `api`, `web`, `ui`, `contracts`, `repo`.
+Types: `feature`, `review`, `fix`, `refactor`, `test`, `docs`, `chore`, `perf`, `build`, `ci`. Scopes: `api`, `web`, `ui`, `contracts`, `repo`.
 
 ### Before every commit
 

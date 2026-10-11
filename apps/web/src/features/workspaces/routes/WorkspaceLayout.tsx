@@ -98,7 +98,10 @@ export function WorkspaceLayout() {
     } catch (err: unknown) {
       if (err instanceof ApiRequestError && err.status === 401) {
         expireSession();
+        return;
       }
+      // Keep the current workspace on screen; callers fall back to their own error state.
+      console.error("Could not reload workspace", err);
     }
   }, [workspaceSlug, replace, expireSession]);
 

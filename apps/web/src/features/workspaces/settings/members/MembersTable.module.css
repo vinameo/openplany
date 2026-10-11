@@ -33,3 +33,15 @@
   white-space: nowrap;
 }
 
+
+/* Column widths; the email column only exists for viewers who may see it. */
+.colFullName { width: 35%; }
+.colDisplayName { width: 27%; }
+.colRole { width: 18%; }
+.colJoined { width: 20%; }
+
+.withEmail .colFullName { width: 26%; }
+.withEmail .colDisplayName { width: 20%; }
+.withEmail .colEmail { width: 24%; }
+.withEmail .colRole { width: 14%; }
+.withEmail .colJoined { width: 16%; }

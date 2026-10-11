@@ -2,6 +2,8 @@ import { QueryFailedError } from 'typeorm';
 
 const UNIQUE_VIOLATION = '23505';
 const FOREIGN_KEY_VIOLATION = '23503';
+const SERIALIZATION_FAILURE = '40001';
+const DEADLOCK_DETECTED = '40P01';
 
 function driverErrorOf(
   error: unknown,
@@ -25,4 +27,10 @@ export function isUniqueViolation(error: unknown, constraint: string): boolean {
 /** True when `error` is any Postgres foreign key violation. */
 export function isForeignKeyViolation(error: unknown): boolean {
   return driverErrorOf(error)?.code === FOREIGN_KEY_VIOLATION;
+}
+
+/** True when Postgres aborted the transaction to resolve a concurrency conflict; safe to retry. */
+export function isTransactionConflict(error: unknown): boolean {
+  const code = driverErrorOf(error)?.code;
+  return code === DEADLOCK_DETECTED || code === SERIALIZATION_FAILURE;
 }

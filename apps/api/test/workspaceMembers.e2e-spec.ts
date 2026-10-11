@@ -899,5 +899,67 @@ describe('WorkspaceMembers (e2e)', () => {
     expect(resB.body.code).toBe('MEMBERS_NOT_ADDABLE');
     expect(resB.body.fields['members.0.userId']).toBe('Already a member of this workspace');
   });
+
+  it('14b. RQ R-2: add blocked by an uncommitted insert of the same person returns 409 after it commits', async () => {
+    const { workspace, cookie: adminCookie } = await seedWorkspace(
+      'admin-race2@openplany.dev',
+      'wm-add-race2',
+    );
+    const targetUser = await createUser('target-race2@openplany.dev', { is_superuser: false });
+
+    const runnerA = e2e.dataSource.createQueryRunner();
+    await runnerA.connect();
+    await runnerA.startTransaction();
+    try {
+      await runnerA.query(
+        `INSERT INTO workspace_members (workspace_id, member_id, role, is_active, joined_at, created_at, updated_at)
+         VALUES ($1, $2, 'member', true, now(), now(), now())`,
+        [workspace.id, targetUser],
+      );
+
+      // B waits on the unique index until A commits, then hits the violation and retries.
+      const pendingB = http()
+        .post(`/api/workspaces/${workspace.slug}/members`)
+        .set('Cookie', adminCookie)
+        .set('Origin', ORIGIN)
+        .send({ members: [{ userId: targetUser, role: 'member' }] })
+        .then((res) => res);
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      await runnerA.commitTransaction();
+
+      const resB = await pendingB;
+      expect(resB.status).toBe(409);
+      expect(resB.body.fields['members.0.userId']).toBe('Already a member of this workspace');
+    } finally {
+      if (runnerA.isTransactionActive) await runnerA.rollbackTransaction();
+      await runnerA.release();
+    }
+  });
+
+  it('14c. RQ R-2: two concurrent batches with the same people in opposite order never fail with 500', async () => {
+    const { workspace, cookie: adminCookie } = await seedWorkspace(
+      'admin-race3@openplany.dev',
+      'wm-add-race3',
+    );
+    const userA = await createUser('race3-a@openplany.dev', { is_superuser: false });
+    const userB = await createUser('race3-b@openplany.dev', { is_superuser: false });
+
+    const add = (ids: string[]) =>
+      http()
+        .post(`/api/workspaces/${workspace.slug}/members`)
+        .set('Cookie', adminCookie)
+        .set('Origin', ORIGIN)
+        .send({ members: ids.map((userId) => ({ userId, role: 'member' })) })
+        .then((res) => res);
+
+    const responses = await Promise.all([add([userA, userB]), add([userB, userA])]);
+
+    expect(responses.map((r) => r.status).sort((a, b) => a - b)).toEqual([201, 409]);
+    const rows = await e2e.dataSource.query<{ count: number }[]>(
+      `SELECT count(*)::int AS count FROM workspace_members WHERE workspace_id = $1 AND is_active`,
+      [workspace.id],
+    );
+    expect(rows[0]!.count).toBe(3);
+  });
 });
 

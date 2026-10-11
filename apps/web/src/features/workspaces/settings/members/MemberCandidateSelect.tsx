@@ -16,6 +16,7 @@ import { useAuth } from "../../../auth/useAuth";
 import { MemberAvatar } from "./MemberAvatar";
 import { memberDisplayName } from "./memberListView";
 import { useMemberCandidates } from "./useMemberCandidates";
+import classes from "./MemberCandidateSelect.module.css";
 
 interface MemberCandidateSelectProps {
   slug: string;
@@ -101,9 +102,9 @@ export function MemberCandidateSelect({
             />
           ) : undefined
         }
-        style={{ flex: 1 }}
+        className={classes.input}
       >
-        <Group gap="xs" wrap="nowrap" align="center" style={{ height: "100%" }}>
+        <Group gap="xs" wrap="nowrap" align="center" className={classes.selectedValue}>
           <MemberAvatar
             avatarUrl={value.avatarUrl}
             name={name}
@@ -236,7 +237,7 @@ export function MemberCandidateSelect({
           onClick={() => combobox.openDropdown()}
           onFocus={() => combobox.openDropdown()}
           onKeyDown={handleKeyDown}
-          style={{ flex: 1 }}
+          className={classes.input}
         />
       </Combobox.Target>
 

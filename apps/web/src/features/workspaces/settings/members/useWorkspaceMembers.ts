@@ -10,6 +10,11 @@ export type MembersState =
   | { status: "error"; message: string }
   | { status: "ready"; data: WorkspaceMemberListResponse };
 
+const FORBIDDEN_STATE: MembersState = {
+  status: "error",
+  message: "You no longer have permission to view members.",
+};
+
 export function useWorkspaceMembers(slug: string): {
   state: MembersState;
   reload: () => Promise<void>;
@@ -46,7 +51,10 @@ export function useWorkspaceMembers(slug: string): {
             return;
           }
           if (err.status === 403) {
-            void reloadWorkspace();
+            // Refresh permissions (the page may then leave), and never stay on the skeleton.
+            void reloadWorkspace().then(() => {
+              if (!cancelled) setState(FORBIDDEN_STATE);
+            });
             return;
           }
         }
@@ -81,6 +89,7 @@ export function useWorkspaceMembers(slug: string): {
         }
         if (err.status === 403) {
           await reloadWorkspace();
+          setState(FORBIDDEN_STATE);
           return;
         }
       }

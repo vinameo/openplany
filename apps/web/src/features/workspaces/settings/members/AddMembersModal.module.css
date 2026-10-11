@@ -1,0 +1,16 @@
+.candidateField {
+  flex: 1;
+  min-width: rem(280px);
+
+  @media (max-width: $mantine-breakpoint-sm) {
+    min-width: 100%;
+  }
+}
+
+.roleGroup {
+  min-width: rem(160px);
+}
+
+.roleSelect {
+  width: rem(140px);
+}

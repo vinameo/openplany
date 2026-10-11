@@ -1,20 +1,14 @@
 import type {
+  MemberNotAddableReason,
   WorkspaceRole,
   WorkspacePermission,
 } from '@repo/contracts';
-import type { WorkspaceMemberRow } from './dto/workspaceMemberResponse.dto.js';
+import type {
+  MemberCandidateRow,
+  WorkspaceMemberRow,
+} from './dto/workspaceMemberResponse.dto.js';
 
-export interface MemberCandidateRow {
-  userId: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  displayName: string;
-  avatarUrl: string | null;
-  alreadyMember: boolean;
-}
-
-export type MemberNotAddableReason = 'already_member' | 'unavailable';
+export type { MemberCandidateRow };
 
 export type AddMembersResult =
   | { status: 'added'; members: WorkspaceMemberRow[]; reactivatedCount: number }
@@ -50,4 +44,3 @@ export abstract class WorkspaceMembersRepository {
     }) => boolean;
   }): Promise<AddMembersResult>;
 }
-

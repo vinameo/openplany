@@ -32,14 +32,10 @@ export function NoWorkspaceHome() {
     setLoading(true);
     setError(false);
     lastCheckRef.current = Date.now();
-    try {
-      await refresh();
-    } catch {
-      setError(true);
-    } finally {
-      setLoading(false);
-      isCheckingRef.current = false;
-    }
+    const loaded = await refresh();
+    setError(!loaded);
+    setLoading(false);
+    isCheckingRef.current = false;
   }, [refresh]);
 
   useEffect(() => {

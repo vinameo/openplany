@@ -7,8 +7,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module.js';
 import { NoStoreMiddleware } from '../auth/noStore.middleware.js';
 import { InMemorySlidingWindowLimiter } from '../common/slidingWindowLimiter.js';
+import { User } from '../auth/entities/user.entity.js';
 import { Workspace } from './entities/workspace.entity.js';
 import { WorkspaceMember } from './entities/workspaceMember.entity.js';
+import { WorkspaceMemberRoleHistory } from './entities/workspaceMemberRoleHistory.entity.js';
 import { RolePermission } from '../roles/entities/rolePermission.entity.js';
 import { LoggingWorkspaceEvents } from './events/loggingWorkspaceEvents.js';
 import { WorkspaceEvents } from './events/workspaceEvents.js';
@@ -33,7 +35,13 @@ import { TypeOrmWorkspaceMembersRepository } from './members/typeOrmWorkspaceMem
 @Module({
   imports: [
     AuthModule,
-    TypeOrmModule.forFeature([Workspace, WorkspaceMember, RolePermission]),
+    TypeOrmModule.forFeature([
+      User,
+      Workspace,
+      WorkspaceMember,
+      WorkspaceMemberRoleHistory,
+      RolePermission,
+    ]),
   ],
   controllers: [WorkspacesController, WorkspaceMembersController],
   providers: [

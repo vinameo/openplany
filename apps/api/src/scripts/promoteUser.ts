@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { AppDataSource } from '../database/dataSource.js';
 import { User } from '../auth/entities/user.entity.js';
+import { equalsLowercase } from '../database/findOperators.js';
 
 // CLI helper to elevate an existing user to instance admin (Q-DB1, Ticket 10):
 //   pnpm --filter @repo/api user:promote an@openplany.dev
@@ -17,11 +18,10 @@ async function main(): Promise<void> {
   try {
     const users = AppDataSource.getRepository(User);
     // Matches the users_email_lower_key expression index exactly.
-    const user = await users
-      .createQueryBuilder('user')
-      .select(['user.id', 'user.isSuperuser'])
-      .where('lower(user.email) = :email', { email })
-      .getOne();
+    const user = await users.findOne({
+      select: { id: true, isSuperuser: true },
+      where: { email: equalsLowercase(email) },
+    });
 
     if (user === null) {
       process.stderr.write(`User not found: ${email}\n`);

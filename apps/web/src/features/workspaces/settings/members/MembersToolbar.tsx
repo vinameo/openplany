@@ -2,6 +2,7 @@ import { Button, Group, TextInput } from "@mantine/core";
 import type { WorkspaceRole } from "@repo/contracts";
 import { SearchIcon } from "../../icons";
 import { RoleFilter } from "./RoleFilter";
+import classes from "./MembersToolbar.module.css";
 
 interface MembersToolbarProps {
   search: string;
@@ -28,7 +29,7 @@ export function MembersToolbar({
         leftSection={<SearchIcon width={14} height={14} />}
         value={search}
         onChange={(e) => onSearchChange(e.currentTarget.value)}
-        style={{ flexGrow: 1, minWidth: 200 }}
+        className={classes.search}
       />
       <RoleFilter selectedRoles={selectedRoles} onChange={onRolesChange} />
       {canAddMember && <Button onClick={onAddMember}>Add member</Button>}

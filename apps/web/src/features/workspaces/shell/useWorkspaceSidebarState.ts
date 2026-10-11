@@ -14,7 +14,7 @@ import type {
 
 export function useWorkspaceSidebarState(): WorkspaceSidebarValue {
   const isDesktop = useIsDesktop();
-  const { pathname } = useLocation();
+  const { key: locationKey } = useLocation();
   const sidebarId = useId();
 
   // Use defaultValue: undefined so Mantine does not proactively write default value to storage on mount (INV-02 / AC-11)
@@ -26,14 +26,22 @@ export function useWorkspaceSidebarState(): WorkspaceSidebarValue {
     serialize: (val) => serializeSidebarCollapsed(val === true),
   });
 
-  // Mobile: drawer is only open on the exact path where it was opened -> navigating closes it without an effect
-  const [drawerOpenedAt, setDrawerOpenedAt] = useState<string | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Mobile: every navigation closes the drawer, including a tap on the link of
+  // the current page and Back/Forward (each gets a new location key). Adjusted
+  // during render, so there is no effect and no flash of the open drawer.
+  const [prevLocationKey, setPrevLocationKey] = useState(locationKey);
+  if (prevLocationKey !== locationKey) {
+    setPrevLocationKey(locationKey);
+    setDrawerOpen(false);
+  }
 
   // When breakpoint changes, drawer closes (adjust state during render pattern)
   const [prevIsDesktop, setPrevIsDesktop] = useState(isDesktop);
   if (prevIsDesktop !== isDesktop) {
     setPrevIsDesktop(isDesktop);
-    setDrawerOpenedAt(null);
+    setDrawerOpen(false);
   }
 
   const collapseButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -49,23 +57,23 @@ export function useWorkspaceSidebarState(): WorkspaceSidebarValue {
 
   const mode: WorkspaceSidebarMode = isDesktop ? "desktop" : "mobile";
   const isCollapsed = collapsed === true;
-  const isOpen = isDesktop ? !isCollapsed : drawerOpenedAt === pathname;
+  const isOpen = isDesktop ? !isCollapsed : drawerOpen;
 
   const open = useCallback(() => {
     if (isDesktop) {
       pendingFocus.current = "collapse";
       setCollapsed(false);
     } else {
-      setDrawerOpenedAt(pathname);
+      setDrawerOpen(true);
     }
-  }, [isDesktop, pathname, setCollapsed]);
+  }, [isDesktop, setCollapsed]);
 
   const close = useCallback(() => {
     if (isDesktop) {
       pendingFocus.current = "expand";
       setCollapsed(true);
     } else {
-      setDrawerOpenedAt(null);
+      setDrawerOpen(false);
     }
   }, [isDesktop, setCollapsed]);
 

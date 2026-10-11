@@ -1,4 +1,5 @@
 import { Avatar } from "@mantine/core";
+import classes from "./MemberAvatar.module.css";
 
 interface MemberAvatarProps {
   avatarUrl?: string | null;
@@ -19,7 +20,7 @@ export function MemberAvatar({
       alt=""
       radius="xl"
       size={size}
-      style={{ flexShrink: 0 }}
+      className={classes.avatar}
     >
       {initial}
     </Avatar>

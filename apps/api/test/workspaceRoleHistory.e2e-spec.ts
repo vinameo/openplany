@@ -1,5 +1,8 @@
 import request from 'supertest';
 import { describe, beforeAll, beforeEach, afterAll, it, expect } from 'vitest';
+import { AppendOnlyViolationError } from '../src/database/appendOnly.js';
+import { RolePermissionHistory } from '../src/roles/entities/rolePermissionHistory.entity.js';
+import { WorkspaceMemberRoleHistory } from '../src/workspaces/entities/workspaceMemberRoleHistory.entity.js';
 import { createE2eApp, type E2eApp } from './createE2eApp.js';
 import {
   createUser as createE2eUser,
@@ -191,6 +194,35 @@ describe('WorkspaceRoleHistory (e2e)', () => {
       [res.body.id],
     );
     expect(history[0]!.request_id).toBe(longRequestId);
+  });
+
+  it('INV-09: update and delete on the history entity are rejected by the append-only guard', async () => {
+    await createUser('history-append-only@openplany.dev');
+    const cookie = await signInCookie('history-append-only@openplany.dev');
+    const res = await http()
+      .post('/api/workspaces')
+      .set('Cookie', cookie)
+      .set('Origin', ORIGIN)
+      .send({
+        name: 'Append Only WS',
+        slug: 'append-only-ws',
+        organizationSize: 'Just myself',
+      })
+      .expect(201);
+
+    const manager = e2e.dataSource.manager;
+    const where = { workspaceId: res.body.id as string };
+    await expect(
+      manager.update(WorkspaceMemberRoleHistory, where, { requestId: 'tampered' }),
+    ).rejects.toBeInstanceOf(AppendOnlyViolationError);
+    await expect(
+      manager.delete(WorkspaceMemberRoleHistory, where),
+    ).rejects.toBeInstanceOf(AppendOnlyViolationError);
+    await expect(
+      manager.delete(RolePermissionHistory, { roleKey: 'admin' }),
+    ).rejects.toBeInstanceOf(AppendOnlyViolationError);
+
+    expect(await manager.countBy(WorkspaceMemberRoleHistory, where)).toBe(1);
   });
 
   describe('AC-17: rejects invalid row shapes directly inserted via 23514 constraint errors', () => {
