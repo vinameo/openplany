@@ -45,6 +45,21 @@ _Avoid_: Inactive member (that would be a Former member)
 
 ### Projects and work
 
+**Project**:
+A place inside one workspace where a group of people track work items together. Every project belongs to exactly one workspace and has a name that is unique within it. A project is private: only its project members and the workspace's Admins can see it; nobody can join one on their own.
+
+**Project ID**:
+The short uppercase code of a project, unique within its workspace, that will prefix its work items' numbers (for example `OPS-12`). Suggested from the project name when the project is created.
+_Avoid_: Key, prefix, identifier (in user-facing text)
+
+**Project member**:
+A workspace member who has been placed in a project with a project role. Workspace Admins can act in every project without being project members.
+_Avoid_: Participant
+
+**Project cover**:
+The picture shown at the top of a project, chosen from a fixed set that comes with OpenPlany.
+_Avoid_: Banner
+
 **Work item**:
 One unit of work tracked inside a project, whatever its kind. It is what people create, assign and move through states.
 _Avoid_: Issue, ticket
