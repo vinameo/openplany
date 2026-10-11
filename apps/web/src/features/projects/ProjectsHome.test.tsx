@@ -160,4 +160,86 @@ describe("ProjectsHome", () => {
     // Created Date in Asia/Ho_Chi_Minh: 2026-10-11T10:00:00Z -> Oct 11, 2026
     expect(screen.getByText("Oct 11, 2026")).toBeInTheDocument();
   });
+
+  it("renders empty state with Add project button when user has workspace.projects.create", async () => {
+    const wsWithCreate = { ...testWorkspace, permissions: ["workspace.projects.create"] };
+    renderHomeApp({
+      "GET /api/workspaces/acme": () => jsonResponse(200, wsWithCreate),
+      "GET /api/workspaces/acme/projects": () =>
+        jsonResponse(200, {
+          projects: [],
+          total: 0,
+          truncated: false,
+        } satisfies ProjectListResponse),
+    });
+
+    expect(await screen.findByText("No projects yet")).toBeInTheDocument();
+    expect(
+      screen.getByText("Create a project to start tracking work."),
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Add project" }).length).toBeGreaterThan(0);
+  });
+
+  it("AC-03: hides Add project button when viewer lacks workspace.projects.create", async () => {
+    const wsWithoutCreate = { ...testWorkspace, permissions: [] };
+    renderHomeApp({
+      "GET /api/workspaces/acme": () => jsonResponse(200, wsWithoutCreate),
+      "GET /api/workspaces/acme/projects": () =>
+        jsonResponse(200, {
+          projects: [sampleProject],
+          total: 1,
+          truncated: false,
+        } satisfies ProjectListResponse),
+    });
+
+    expect(await screen.findByRole("heading", { name: "Projects" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add project" })).not.toBeInTheDocument();
+  });
+
+  it("AC-23: creating a project prepends row to table and increments total badge", async () => {
+    const user = userEvent.setup();
+    const wsWithCreate = { ...testWorkspace, permissions: ["workspace.projects.create"] };
+
+    const newCreatedProject: ProjectListItem = {
+      id: "p-new",
+      name: "Brand New App",
+      identifier: "BNA",
+      description: "",
+      icon: { name: "rocket", color: "#15AABF" },
+      coverKey: "cover-01",
+      createdAt: "2026-10-11T15:00:00.000Z",
+      members: [],
+      role: "admin",
+      permissions: ["project.members.view"],
+    };
+
+    renderHomeApp({
+      "GET /api/workspaces/acme": () => jsonResponse(200, wsWithCreate),
+      "GET /api/workspaces/acme/projects": () =>
+        jsonResponse(200, {
+          projects: [sampleProject],
+          total: 1,
+          truncated: false,
+        } satisfies ProjectListResponse),
+      "POST /api/workspaces/acme/projects": () =>
+        jsonResponse(201, { project: newCreatedProject }),
+    });
+
+    expect(await screen.findByRole("heading", { name: "Projects" })).toBeInTheDocument();
+    expect(screen.getByText("1")).toBeInTheDocument();
+
+    const addBtn = screen.getByRole("button", { name: "Add project" });
+    await user.click(addBtn);
+
+    // Modal is opened
+    expect(await screen.findByRole("heading", { name: "Create project" })).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("Project name"), "Brand New App");
+    await user.click(screen.getByRole("button", { name: "Create project" }));
+
+    // Modal closes and new project is rendered at top
+    expect(await screen.findByText("Brand New App")).toBeInTheDocument();
+    expect(screen.getByText("BNA")).toBeInTheDocument();
+    expect(screen.getByText("2")).toBeInTheDocument();
+  });
 });

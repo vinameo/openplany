@@ -444,4 +444,283 @@ describe('Projects (e2e)', () => {
       expect(res.body.projects[0].members).toBeNull();
     });
   });
+
+  describe('POST /api/workspaces/:slug/projects', () => {
+    it('AC-01 & AC-23: admin creates project -> 201; 1 member (creator, admin); 1 history row; response matches GET', async () => {
+      const { workspace, ownerId, cookie: adminCookie } = await seedWorkspace(
+        'admin-create@openplany.dev',
+        'create-ws',
+      );
+
+      const res = await http()
+        .post(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', adminCookie)
+        .set('Origin', ORIGIN)
+        .set('X-Request-Id', 'req-create-1')
+        .send({
+          name: 'Mobile App',
+          identifier: 'MAPP',
+          description: 'A mobile application',
+          icon: { name: 'rocket', color: '#15AABF' },
+          coverKey: 'cover-02',
+        })
+        .expect(201);
+
+      expect(res.body.project).toBeDefined();
+      const proj = res.body.project;
+      expect(proj.name).toBe('Mobile App');
+      expect(proj.identifier).toBe('MAPP');
+      expect(proj.description).toBe('A mobile application');
+      expect(proj.icon).toEqual({ name: 'rocket', color: '#15AABF' });
+      expect(proj.coverKey).toBe('cover-02');
+      expect(proj.role).toBe('admin');
+      expect(proj.permissions).toContain('project.members.view');
+      expect(proj.members).toHaveLength(1);
+      expect(proj.members[0].userId).toBe(ownerId);
+
+      // Verify DB tables
+      const projectsInDb = await e2e.dataSource.query<{ id: string; name: string }[]>(
+        `SELECT id, name FROM projects WHERE id = $1`,
+        [proj.id],
+      );
+      expect(projectsInDb).toHaveLength(1);
+
+      const membersInDb = await e2e.dataSource.query<{ member_id: string; role: string }[]>(
+        `SELECT member_id, role FROM project_members WHERE project_id = $1`,
+        [proj.id],
+      );
+      expect(membersInDb).toHaveLength(1);
+      expect(membersInDb[0]!.member_id).toBe(ownerId);
+      expect(membersInDb[0]!.role).toBe('admin');
+
+      const historyInDb = await e2e.dataSource.query<{ change_type: string; request_id: string; to_role: string }[]>(
+        `SELECT change_type, request_id, to_role FROM project_member_role_history WHERE project_id = $1`,
+        [proj.id],
+      );
+      expect(historyInDb).toHaveLength(1);
+      expect(historyInDb[0]!.change_type).toBe('project_created');
+      expect(historyInDb[0]!.request_id).toBe('req-create-1');
+      expect(historyInDb[0]!.to_role).toBe('admin');
+
+      // Verify AC-23: GET response row matches POST response
+      const getRes = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', adminCookie)
+        .expect(200);
+
+      expect(getRes.body.projects[0]).toEqual(proj);
+    });
+
+    it('AC-03: standard member calling POST gets 403; GET /workspaces/:slug lacks workspace.projects.create', async () => {
+      const { workspace } = await seedWorkspace('owner-ac03@openplany.dev', 'ac03-ws');
+      const memberId = await createUser('member-ac03@openplany.dev');
+      const memberCookie = await signInCookie('member-ac03@openplany.dev');
+      await addWorkspaceMember(workspace.id, memberId, 'member');
+
+      const wsRes = await http()
+        .get(`/api/workspaces/${workspace.slug}`)
+        .set('Cookie', memberCookie)
+        .expect(200);
+
+      expect(wsRes.body.permissions).not.toContain('workspace.projects.create');
+
+      await http()
+        .post(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', memberCookie)
+        .set('Origin', ORIGIN)
+        .send({
+          name: 'Forbidden Project',
+          identifier: 'FORB',
+          icon: { name: 'star', color: '#FAB005' },
+          coverKey: 'cover-01',
+        })
+        .expect(403);
+    });
+
+    it('AC-04: granting workspace.projects.create allows member to create project as project admin', async () => {
+      const { workspace } = await seedWorkspace('owner-ac04@openplany.dev', 'ac04-ws');
+      const memberId = await createUser('member-ac04@openplany.dev');
+      const memberCookie = await signInCookie('member-ac04@openplany.dev');
+      await addWorkspaceMember(workspace.id, memberId, 'member');
+
+      // Grant workspace.projects.create to workspace member role in role_permissions
+      await e2e.dataSource.query(
+        `INSERT INTO role_permissions (scope, role_key, permission_key, created_at)
+         VALUES ('workspace', 'member', 'workspace.projects.create', now())`,
+      );
+
+      const wsRes = await http()
+        .get(`/api/workspaces/${workspace.slug}`)
+        .set('Cookie', memberCookie)
+        .expect(200);
+
+      expect(wsRes.body.permissions).toContain('workspace.projects.create');
+
+      const res = await http()
+        .post(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', memberCookie)
+        .set('Origin', ORIGIN)
+        .send({
+          name: 'Member Project',
+          identifier: 'MEMB',
+          icon: { name: 'heart', color: '#FF8787' },
+          coverKey: 'cover-03',
+        })
+        .expect(201);
+
+      expect(res.body.project.role).toBe('admin');
+      expect(res.body.project.members[0].userId).toBe(memberId);
+    });
+
+    it('AC-05: duplicate name or identifier returns 409; concurrent creations result in one 201 and one 409', async () => {
+      const { workspace, cookie: adminCookie } = await seedWorkspace(
+        'owner-ac05@openplany.dev',
+        'ac05-ws',
+      );
+
+      await http()
+        .post(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', adminCookie)
+        .set('Origin', ORIGIN)
+        .send({
+          name: 'Dự án Mobile',
+          identifier: 'DAM',
+          icon: { name: 'rocket', color: '#15AABF' },
+          coverKey: 'cover-01',
+        })
+        .expect(201);
+
+      // Duplicate name (case difference):
+      const dupNameRes = await http()
+        .post(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', adminCookie)
+        .set('Origin', ORIGIN)
+        .send({
+          name: 'dự án mobile',
+          identifier: 'DAM2',
+          icon: { name: 'rocket', color: '#15AABF' },
+          coverKey: 'cover-01',
+        })
+        .expect(409);
+
+      expect(dupNameRes.body.code).toBe('PROJECT_NAME_TAKEN');
+      expect(dupNameRes.body.fields.name).toBe('A project with this name already exists');
+
+      // Duplicate name in Unicode NFD form:
+      const nfdName = 'Dự án Mobile'.normalize('NFD');
+      const dupNfdRes = await http()
+        .post(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', adminCookie)
+        .set('Origin', ORIGIN)
+        .send({
+          name: nfdName,
+          identifier: 'DAM3',
+          icon: { name: 'rocket', color: '#15AABF' },
+          coverKey: 'cover-01',
+        })
+        .expect(409);
+      expect(dupNfdRes.body.code).toBe('PROJECT_NAME_TAKEN');
+
+      // Duplicate identifier:
+      const dupIdRes = await http()
+        .post(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', adminCookie)
+        .set('Origin', ORIGIN)
+        .send({
+          name: 'Another Project',
+          identifier: 'DAM',
+          icon: { name: 'rocket', color: '#15AABF' },
+          coverKey: 'cover-01',
+        })
+        .expect(409);
+
+      expect(dupIdRes.body.code).toBe('PROJECT_IDENTIFIER_TAKEN');
+      expect(dupIdRes.body.fields.identifier).toBe('This project ID is already used');
+
+      // Concurrent POST race:
+      const [res1, res2] = await Promise.all([
+        http()
+          .post(`/api/workspaces/${workspace.slug}/projects`)
+          .set('Cookie', adminCookie)
+          .set('Origin', ORIGIN)
+          .send({
+            name: 'Parallel Project',
+            identifier: 'PAR1',
+            icon: { name: 'rocket', color: '#15AABF' },
+            coverKey: 'cover-01',
+          }),
+        http()
+          .post(`/api/workspaces/${workspace.slug}/projects`)
+          .set('Cookie', adminCookie)
+          .set('Origin', ORIGIN)
+          .send({
+            name: 'Parallel Project',
+            identifier: 'PAR2',
+            icon: { name: 'rocket', color: '#15AABF' },
+            coverKey: 'cover-01',
+          }),
+      ]);
+
+      const statuses = [res1.status, res2.status].sort((a, b) => a - b);
+      expect(statuses).toEqual([201, 409]);
+    });
+
+    it('AC-08 & AC-15: invalid fields and unexpected properties are rejected with 400', async () => {
+      const { workspace, cookie: adminCookie } = await seedWorkspace(
+        'owner-ac08@openplany.dev',
+        'ac08-ws',
+      );
+
+      // Invalid identifier (lowercase)
+      await http()
+        .post(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', adminCookie)
+        .set('Origin', ORIGIN)
+        .send({
+          name: 'Bad ID Project',
+          identifier: 'bad',
+          icon: { name: 'star', color: '#FAB005' },
+          coverKey: 'cover-01',
+        })
+        .expect(400);
+
+      // Unexpected fields (visibility, leadId)
+      const extraRes = await http()
+        .post(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', adminCookie)
+        .set('Origin', ORIGIN)
+        .send({
+          name: 'Extra Fields',
+          identifier: 'EXTRA',
+          icon: { name: 'star', color: '#FAB005' },
+          coverKey: 'cover-01',
+          visibility: 'public',
+          leadId: 'u-1',
+        })
+        .expect(400);
+
+      expect(extraRes.body.fields).toBeDefined();
+    });
+
+    it('AC-19: trims whitespace and normalizes project name before saving', async () => {
+      const { workspace, cookie: adminCookie } = await seedWorkspace(
+        'owner-ac19@openplany.dev',
+        'ac19-ws',
+      );
+
+      const res = await http()
+        .post(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', adminCookie)
+        .set('Origin', ORIGIN)
+        .send({
+          name: '  Trimmed Project  ',
+          identifier: 'TRIM',
+          icon: { name: 'rocket', color: '#15AABF' },
+          coverKey: 'cover-01',
+        })
+        .expect(201);
+
+      expect(res.body.project.name).toBe('Trimmed Project');
+    });
+  });
 });

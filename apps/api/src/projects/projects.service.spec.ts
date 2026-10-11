@@ -234,6 +234,36 @@ describe('ProjectsService', () => {
       expect(events.createdEvents[0]!.projectId).toBe('project-new-id');
     });
 
+    it('defaults description to empty string when omitted', async () => {
+      const { service, repository } = makeSetup();
+      const ws = makeMemberWorkspace();
+      repository.accessibleProject = {
+        project: {
+          id: 'p-default',
+          name: 'Default',
+          identifier: 'DEF',
+          description: '',
+          iconName: DEFAULT_PROJECT_ICON,
+          iconColor: DEFAULT_PROJECT_ICON_COLOR,
+          coverKey: DEFAULT_PROJECT_COVER,
+          createdAt: new Date(),
+        },
+        access: {
+          role: 'admin',
+          permissions: ['project.members.view'],
+        },
+      };
+
+      await service.create(ws, 'u-1', {
+        name: 'Default',
+        identifier: 'DEF',
+        icon: { name: DEFAULT_PROJECT_ICON, color: DEFAULT_PROJECT_ICON_COLOR },
+        coverKey: DEFAULT_PROJECT_COVER,
+      });
+
+      expect(repository.createdProjects[0]!.description).toBe('');
+    });
+
     it('translates ProjectNameTakenError into 409 ApiException (AC-05)', async () => {
       const { service, repository } = makeSetup();
       const ws = makeMemberWorkspace();
