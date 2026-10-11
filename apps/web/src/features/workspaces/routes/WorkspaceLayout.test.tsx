@@ -76,12 +76,14 @@ describe("WorkspaceLayout", () => {
         fetchCount++;
         return jsonResponse(200, ws1);
       },
+      "GET /api/workspaces/alpha/projects": () =>
+        jsonResponse(200, { projects: [], total: 0, truncated: false }),
     });
 
     renderApp("/alpha");
 
     expect(
-      await screen.findByRole("heading", { name: "Alpha" }),
+      await screen.findByRole("heading", { name: "Projects" }),
     ).toBeInTheDocument();
     expect(fetchCount).toBe(1);
   });

@@ -1,0 +1,11 @@
+.memberButton {
+  border-radius: 9999px;
+  cursor: default;
+  display: inline-flex;
+  padding: 0;
+}
+
+.memberButton:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: 1px;
+}

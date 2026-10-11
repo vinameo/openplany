@@ -1,10 +1,11 @@
-import { Alert, Container, Title } from "@mantine/core";
+import { Alert, Container } from "@mantine/core";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { useAuth } from "../auth/useAuth";
+import { ProjectsHome } from "../projects/ProjectsHome";
 import { useCurrentWorkspace } from "../workspaces/currentWorkspace/useCurrentWorkspace";
 import classes from "./HomePage.module.css";
 
-/** Landing page after sign-in; displays current workspace title. */
+/** Landing page after sign-in; displays Projects list. */
 export function HomePage() {
   const { state } = useAuth();
   const { workspace } = useCurrentWorkspace();
@@ -22,9 +23,7 @@ export function HomePage() {
           Check your inbox for a verification link from OpenPlany.
         </Alert>
       )}
-      <Title order={1} size="h3" style={{ wordBreak: "break-word" }}>
-        {workspace.name}
-      </Title>
+      <ProjectsHome />
     </Container>
   );
 }
