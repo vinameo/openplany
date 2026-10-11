@@ -75,21 +75,3 @@
   cursor: default;
 }
 
-.projectsGroup {
-  margin-top: 16px;
-  padding: 0 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.projectsHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  color: var(--mantine-color-dimmed);
-}
-
-.projectsEmpty {
-  color: var(--mantine-color-dimmed);
-}

@@ -3,7 +3,6 @@ import { Link, useLocation } from "react-router";
 import { ComingSoonHint } from "../../layout/ComingSoonHint";
 import { useCurrentWorkspace } from "../currentWorkspace/useCurrentWorkspace";
 import {
-  ChevronDownIcon,
   HomeIcon,
   PanelLeftIcon,
   SettingsIcon,
@@ -101,22 +100,6 @@ export function WorkspaceSidebarContent() {
               />
             </li>
           </ul>
-
-          <div
-            role="group"
-            aria-label="Projects"
-            className={classes.projectsGroup}
-          >
-            <div className={classes.projectsHeader}>
-              <Text size="xs" c="dimmed" tt="none">
-                Projects
-              </Text>
-              <ChevronDownIcon width={14} height={14} aria-hidden />
-            </div>
-            <Text size="sm" c="dimmed" className={classes.projectsEmpty}>
-              No projects yet
-            </Text>
-          </div>
         </div>
       </ScrollArea>
     </>
