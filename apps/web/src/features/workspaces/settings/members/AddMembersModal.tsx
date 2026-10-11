@@ -20,6 +20,7 @@ import {
   type WorkspaceRole,
 } from "@repo/contracts";
 import { ApiRequestError } from "../../../../lib/apiClient";
+import { ConfirmDiscardModal } from "../../ConfirmDiscardModal";
 import { useCurrentWorkspace } from "../../currentWorkspace/useCurrentWorkspace";
 import { PlusIcon } from "../../icons";
 import {
@@ -291,31 +292,11 @@ export function AddMembersModal({
         </Stack>
       </Modal>
 
-      <Modal
+      <ConfirmDiscardModal
         opened={confirmDiscardOpened}
         onClose={() => setConfirmDiscardOpened(false)}
-        title="Discard changes?"
-        centered
-        size="sm"
-        withinPortal={false}
-      >
-        <Stack gap="md">
-          <Text size="sm">
-            You have unsaved changes. Are you sure you want to discard them?
-          </Text>
-          <Group justify="flex-end" gap="xs">
-            <Button
-              variant="default"
-              onClick={() => setConfirmDiscardOpened(false)}
-            >
-              Keep editing
-            </Button>
-            <Button color="red" onClick={handleForceClose}>
-              Discard
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
+        onDiscard={handleForceClose}
+      />
     </>
   );
 }
