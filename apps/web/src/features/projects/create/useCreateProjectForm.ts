@@ -1,7 +1,6 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useForm } from "@mantine/form";
 import {
-  DEFAULT_PROJECT_COVER,
   DEFAULT_PROJECT_ICON,
   DEFAULT_PROJECT_ICON_COLOR,
   NO_HIDDEN_CHARS,
@@ -15,6 +14,7 @@ import {
   type ProjectCoverKey,
   type ProjectIcon,
 } from "@repo/contracts";
+import { pickRandomCover } from "../projectCovers";
 
 export interface CreateProjectFormValues {
   name: string;
@@ -36,7 +36,7 @@ export function useCreateProjectForm() {
         name: DEFAULT_PROJECT_ICON,
         color: DEFAULT_PROJECT_ICON_COLOR,
       },
-      coverKey: DEFAULT_PROJECT_COVER,
+      coverKey: pickRandomCover(),
     },
     validate: {
       name: (val) => {
@@ -87,10 +87,20 @@ export function useCreateProjectForm() {
     form.setFieldValue("identifier", upper);
   };
 
-  const resetForm = () => {
-    form.reset();
+  const resetForm = useCallback(() => {
+    form.setValues({
+      name: "",
+      identifier: "",
+      description: "",
+      icon: {
+        name: DEFAULT_PROJECT_ICON,
+        color: DEFAULT_PROJECT_ICON_COLOR,
+      },
+      coverKey: pickRandomCover(),
+    });
+    form.resetDirty();
     setIdentifierTouched(false);
-  };
+  }, [form]);
 
   const isDirty =
     form.values.name.trim() !== "" ||

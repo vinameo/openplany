@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Button,
@@ -19,6 +19,8 @@ import { useIsDesktop } from "../../layout/useIsDesktop";
 import { ConfirmDiscardModal } from "../../workspaces/ConfirmDiscardModal";
 import { useCurrentWorkspace } from "../../workspaces/currentWorkspace/useCurrentWorkspace";
 import { projectsApi } from "../api/projectsApi";
+import { ProjectCoverPicker } from "../ProjectCoverPicker";
+import { projectCover } from "../projectCovers";
 import { ProjectIcon } from "../ProjectIcon";
 import { ProjectIconPicker } from "../ProjectIconPicker";
 import { useCreateProjectForm } from "./useCreateProjectForm";
@@ -53,6 +55,14 @@ export function CreateProjectModal({
     isDirty,
     toRequest,
   } = useCreateProjectForm();
+
+  const wasOpened = useRef(opened);
+  useEffect(() => {
+    if (opened && !wasOpened.current) {
+      resetForm();
+    }
+    wasOpened.current = opened;
+  }, [opened, resetForm]);
 
   const handleRequestClose = () => {
     if (isDirty) {
@@ -133,6 +143,11 @@ export function CreateProjectModal({
       >
         <form onSubmit={handleSubmit}>
           <div className={classes.coverHeader}>
+            <img
+              src={projectCover(form.values.coverKey).full}
+              alt=""
+              className={classes.coverImage}
+            />
             <VisuallyHidden>
               <h2 id="create-project-title">Create project</h2>
             </VisuallyHidden>
@@ -156,6 +171,22 @@ export function CreateProjectModal({
                 </UnstyledButton>
               )}
             </ProjectIconPicker>
+            <ProjectCoverPicker
+              value={form.values.coverKey}
+              onChange={(newCover) => form.setFieldValue("coverKey", newCover)}
+            >
+              {({ onClick }) => (
+                <Button
+                  type="button"
+                  size="xs"
+                  variant="default"
+                  onClick={onClick}
+                  className={classes.changeCoverButton}
+                >
+                  Change cover
+                </Button>
+              )}
+            </ProjectCoverPicker>
           </div>
 
           <div className={classes.body}>

@@ -244,4 +244,59 @@ describe("CreateProjectModal", () => {
       color: "#15AABF",
     });
   });
+
+  it("allows selecting a cover preset via Change cover button and sends coverKey in body (AC-20)", async () => {
+    let capturedBody: CreateProjectRequest | undefined;
+
+    mockFetch({
+      "POST /api/workspaces/acme/projects": (init) => {
+        capturedBody = JSON.parse(init?.body as string) as CreateProjectRequest;
+        return jsonResponse(201, {
+          project: {
+            id: "p-cover",
+            name: "Cover Project",
+            identifier: "CP",
+            description: "",
+            icon: { name: "square-check", color: "#868E96" },
+            coverKey: "cover-03",
+            createdAt: new Date().toISOString(),
+            members: [],
+            role: "admin",
+            permissions: ["project.members.view"],
+          },
+        });
+      },
+    });
+
+    const { user } = renderModal();
+
+    await user.type(screen.getByLabelText("Project name"), "Cover Project");
+
+    // Click Change cover to open picker
+    await user.click(screen.getByRole("button", { name: "Change cover" }));
+
+    // Select Cover 3
+    await user.click(screen.getByRole("radio", { name: "Cover 3" }));
+
+    // Submit form
+    await user.click(screen.getByRole("button", { name: "Create project" }));
+
+    await waitFor(() => expect(capturedBody).toBeDefined());
+    expect(capturedBody!.coverKey).toBe("cover-03");
+  });
+
+  it("does not show discard confirmation when closing modal if no text was entered", async () => {
+    const { user, onClose } = renderModal();
+
+    // Changing cover should not make the form dirty
+    await user.click(screen.getByRole("button", { name: "Change cover" }));
+    await user.click(screen.getByRole("radio", { name: "Cover 2" }));
+
+    // Click Close (×)
+    await user.click(screen.getByLabelText("Close"));
+
+    // Discard modal should not appear
+    expect(screen.queryByText(/discard changes/i)).not.toBeInTheDocument();
+    expect(onClose).toHaveBeenCalled();
+  });
 });
