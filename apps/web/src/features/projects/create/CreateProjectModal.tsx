@@ -137,8 +137,8 @@ export function CreateProjectModal({
         withCloseButton={false}
         padding={0}
         size="xl"
+        centered
         fullScreen={!isDesktop}
-        withinPortal={false}
         aria-labelledby="create-project-title"
       >
         <form onSubmit={handleSubmit}>

@@ -18,7 +18,6 @@ export function ConfirmDiscardModal({
       title="Discard changes?"
       centered
       size="sm"
-      withinPortal={false}
     >
       <Stack gap="md">
         <Text size="sm">
