@@ -17,3 +17,5 @@ packages/*/node_modules
 apps/web/.vite
 apps/web/dist
 apps/api/dist
+# TypeScript incremental build cache
+*.tsbuildinfo
