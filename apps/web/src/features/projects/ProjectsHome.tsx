@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Alert,
   Badge,
@@ -11,17 +11,32 @@ import {
 } from "@mantine/core";
 import { useCurrentWorkspace } from "../workspaces/currentWorkspace/useCurrentWorkspace";
 import { CreateProjectModal } from "./create/CreateProjectModal";
+import {
+  applyProjectListQuery,
+  DEFAULT_PROJECT_SORT,
+  type ProjectSortKey,
+} from "./projectListView";
 import { ProjectsTable } from "./ProjectsTable";
+import { ProjectsToolbar } from "./ProjectsToolbar";
 import { useProjects } from "./useProjects";
+import type { SortState } from "../workspaces/table/SortableHeader";
 
 export function ProjectsHome() {
   const { workspace } = useCurrentWorkspace();
   const { state, reload, addProject } = useProjects(workspace.slug);
   const [createModalOpened, setCreateModalOpened] = useState(false);
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<SortState<ProjectSortKey>>(DEFAULT_PROJECT_SORT);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const canCreate = workspace.permissions.includes(
     "workspace.projects.create",
   );
+
+  const handleClearSearch = () => {
+    setSearch("");
+    searchInputRef.current?.focus();
+  };
 
   if (state.status === "loading") {
     return (
@@ -60,22 +75,16 @@ export function ProjectsHome() {
 
   const { data } = state;
   const formattedTotal = new Intl.NumberFormat("en-US").format(data.total);
+  const displayedProjects = applyProjectListQuery(data.projects, { search, sort });
 
   return (
     <>
       <Stack gap="md">
-        <Group justify="space-between" align="center">
-          <Group gap="xs" align="center">
-            <Title order={2}>Projects</Title>
-            <Badge variant="light" color="gray" size="sm">
-              {data.total}
-            </Badge>
-          </Group>
-          {canCreate && (
-            <Button onClick={() => setCreateModalOpened(true)}>
-              Add project
-            </Button>
-          )}
+        <Group gap="xs" align="center">
+          <Title order={2}>Projects</Title>
+          <Badge variant="light" color="gray" size="sm">
+            {data.total}
+          </Badge>
         </Group>
 
         {data.truncated && (
@@ -105,7 +114,37 @@ export function ProjectsHome() {
             </Stack>
           )
         ) : (
-          <ProjectsTable projects={data.projects} timeZone={workspace.timezone} />
+          <>
+            <ProjectsToolbar
+              ref={searchInputRef}
+              search={search}
+              onSearchChange={setSearch}
+              canCreate={canCreate}
+              onAddProject={() => setCreateModalOpened(true)}
+            />
+
+            {displayedProjects.length === 0 ? (
+              <Stack align="center" gap="xs" py="xl">
+                <Text size="sm" c="dimmed">
+                  {`No projects match "${search}"`}
+                </Text>
+                <Button
+                  variant="subtle"
+                  size="sm"
+                  onClick={handleClearSearch}
+                >
+                  Clear search
+                </Button>
+              </Stack>
+            ) : (
+              <ProjectsTable
+                projects={displayedProjects}
+                timeZone={workspace.timezone}
+                sort={sort}
+                onSortChange={setSort}
+              />
+            )}
+          </>
         )}
       </Stack>
 

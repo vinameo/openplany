@@ -1,0 +1,4 @@
+.search {
+  flex-grow: 1;
+  min-width: rem(200px);
+}

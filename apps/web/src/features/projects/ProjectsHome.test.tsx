@@ -242,4 +242,107 @@ describe("ProjectsHome", () => {
     expect(screen.getByText("BNA")).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument();
   });
+
+  it("AC-17: searching filters table rows while keeping the badge total intact", async () => {
+    const user = userEvent.setup();
+    const secondProject: ProjectListItem = {
+      ...sampleProject,
+      id: "p-2",
+      name: "Backend Service",
+      identifier: "BES",
+      createdAt: "2026-10-10T10:00:00.000Z",
+    };
+
+    renderHomeApp({
+      "GET /api/workspaces/acme": () => jsonResponse(200, testWorkspace),
+      "GET /api/workspaces/acme/projects": () =>
+        jsonResponse(200, {
+          projects: [sampleProject, secondProject],
+          total: 2,
+          truncated: false,
+        } satisfies ProjectListResponse),
+    });
+
+    expect(await screen.findByText("Frontend Redesign")).toBeInTheDocument();
+    expect(screen.getByText("Backend Service")).toBeInTheDocument();
+    expect(screen.getByText("2")).toBeInTheDocument();
+
+    const searchInput = screen.getByRole("textbox", { name: "Search projects" });
+    await user.type(searchInput, "Frontend");
+
+    expect(screen.getByText("Frontend Redesign")).toBeInTheDocument();
+    expect(screen.queryByText("Backend Service")).not.toBeInTheDocument();
+    // Badge remains initial total 2
+    expect(screen.getByText("2")).toBeInTheDocument();
+  });
+
+  it("shows 'No projects match' and Clear search button resets query and focuses search input", async () => {
+    const user = userEvent.setup();
+    renderHomeApp({
+      "GET /api/workspaces/acme": () => jsonResponse(200, testWorkspace),
+      "GET /api/workspaces/acme/projects": () =>
+        jsonResponse(200, {
+          projects: [sampleProject],
+          total: 1,
+          truncated: false,
+        } satisfies ProjectListResponse),
+    });
+
+    expect(await screen.findByText("Frontend Redesign")).toBeInTheDocument();
+
+    const searchInput = screen.getByRole("textbox", { name: "Search projects" });
+    await user.type(searchInput, "unknown keyword");
+
+    expect(
+      screen.getByText('No projects match "unknown keyword"'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Frontend Redesign")).not.toBeInTheDocument();
+
+    const clearBtn = screen.getByRole("button", { name: "Clear search" });
+    await user.click(clearBtn);
+
+    expect(searchInput).toHaveValue("");
+    expect(searchInput).toHaveFocus();
+    expect(screen.getByText("Frontend Redesign")).toBeInTheDocument();
+  });
+
+  it("AC-18: sorts by Project Name when sort option changed", async () => {
+    const user = userEvent.setup();
+    const secondProject: ProjectListItem = {
+      ...sampleProject,
+      id: "p-2",
+      name: "Alpha Project",
+      identifier: "ALP",
+      createdAt: "2026-10-09T10:00:00.000Z",
+    };
+
+    renderHomeApp({
+      "GET /api/workspaces/acme": () => jsonResponse(200, testWorkspace),
+      "GET /api/workspaces/acme/projects": () =>
+        jsonResponse(200, {
+          projects: [sampleProject, secondProject],
+          total: 2,
+          truncated: false,
+        } satisfies ProjectListResponse),
+    });
+
+    expect(await screen.findByText("Frontend Redesign")).toBeInTheDocument();
+    expect(screen.getByText("Alpha Project")).toBeInTheDocument();
+
+    // Default is createdAt desc -> sampleProject (Oct 11) comes before secondProject (Oct 09)
+    let rows = screen.getAllByRole("row");
+    expect(rows[1]).toHaveTextContent("Frontend Redesign");
+    expect(rows[2]).toHaveTextContent("Alpha Project");
+
+    // Click sort by Project Name -> Ascending
+    const sortBtn = screen.getByRole("button", { name: "Sort by Project Name" });
+    await user.click(sortBtn);
+    const ascOption = await screen.findByRole("menuitem", { name: "Ascending" });
+    await user.click(ascOption);
+
+    rows = screen.getAllByRole("row");
+    // "Alpha Project" should now be before "Frontend Redesign"
+    expect(rows[1]).toHaveTextContent("Alpha Project");
+    expect(rows[2]).toHaveTextContent("Frontend Redesign");
+  });
 });

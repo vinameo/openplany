@@ -1,23 +1,39 @@
 import { Group, Table, Text, VisuallyHidden } from "@mantine/core";
 import type { ProjectListItem } from "@repo/contracts";
 import { formatCalendarDate } from "../workspaces/table/formatCalendarDate";
+import {
+  SortableHeader,
+  type SortState,
+} from "../workspaces/table/SortableHeader";
 import dataTableClasses from "../workspaces/table/dataTable.module.css";
 import { ProjectMembersCell } from "./ProjectMembersCell";
+import type { ProjectSortKey } from "./projectListView";
 import classes from "./ProjectsTable.module.css";
 
 interface ProjectsTableProps {
   projects: readonly ProjectListItem[];
   timeZone?: string;
+  sort: SortState<ProjectSortKey>;
+  onSortChange: (sort: SortState<ProjectSortKey>) => void;
 }
 
-export function ProjectsTable({ projects, timeZone }: ProjectsTableProps) {
+export function ProjectsTable({
+  projects,
+  timeZone,
+  sort,
+  onSortChange,
+}: ProjectsTableProps) {
   return (
     <Table.ScrollContainer
       minWidth={600}
       type="native"
       className={dataTableClasses.scrollContainer}
     >
-      <Table verticalSpacing="sm" className={dataTableClasses.table} aria-label="Projects">
+      <Table
+        verticalSpacing="sm"
+        className={dataTableClasses.table}
+        aria-label="Projects"
+      >
         <Table.Caption>
           <VisuallyHidden>Projects</VisuallyHidden>
         </Table.Caption>
@@ -28,9 +44,20 @@ export function ProjectsTable({ projects, timeZone }: ProjectsTableProps) {
         </colgroup>
         <Table.Thead>
           <Table.Tr>
-            <Table.Th className={dataTableClasses.stickyHeader}>Project Name</Table.Th>
+            <SortableHeader<ProjectSortKey>
+              title="Project Name"
+              sortKey="name"
+              currentSort={sort}
+              onSortChange={onSortChange}
+              className={dataTableClasses.stickyHeader}
+            />
             <Table.Th>Members</Table.Th>
-            <Table.Th>Created Date</Table.Th>
+            <SortableHeader<ProjectSortKey>
+              title="Created Date"
+              sortKey="createdAt"
+              currentSort={sort}
+              onSortChange={onSortChange}
+            />
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
@@ -50,7 +77,9 @@ export function ProjectsTable({ projects, timeZone }: ProjectsTableProps) {
                 <ProjectMembersCell members={project.members} />
               </Table.Td>
               <Table.Td className={classes.dateCell}>
-                <Text size="sm">{formatCalendarDate(project.createdAt, timeZone)}</Text>
+                <Text size="sm">
+                  {formatCalendarDate(project.createdAt, timeZone)}
+                </Text>
               </Table.Td>
             </Table.Tr>
           ))}
