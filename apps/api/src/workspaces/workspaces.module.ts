@@ -87,6 +87,7 @@ import { TypeOrmWorkspaceMembersRepository } from './members/typeOrmWorkspaceMem
     WorkspaceMemberGuard,
     WorkspacePermissionGuard,
     WorkspaceWriteRateLimitGuard,
+    WORKSPACE_WRITE_LIMITER,
     MemberCandidateRateLimitGuard,
   ],
 })

@@ -491,6 +491,7 @@ describe('Workspaces (e2e)', () => {
         'workspace.members.view',
         'workspace.members.email.view',
         'workspace.members.add',
+        'workspace.projects.create',
       ]);
       expect(res.body.updatedAt).toBeDefined();
 
@@ -803,6 +804,7 @@ describe('Workspaces (e2e)', () => {
         'workspace.members.view',
         'workspace.members.email.view',
         'workspace.members.add',
+        'workspace.projects.create',
       ]);
       expect(ownerRes.body.updatedAt).toBeDefined();
 
@@ -823,13 +825,14 @@ describe('Workspaces (e2e)', () => {
         [workspace.id, memberId, 'member'],
       );
 
-      // Default state: Admin has 4 permissions, Member has workspace.members.view
+      // Default state: Admin has 5 permissions, Member has workspace.members.view
       let adminRes = await http().get('/api/workspaces/ws-perm-db').set('Cookie', adminCookie).expect(200);
       expect(adminRes.body.permissions).toEqual([
         'workspace.settings.update',
         'workspace.members.view',
         'workspace.members.email.view',
         'workspace.members.add',
+        'workspace.projects.create',
       ]);
       let memberRes = await http().get('/api/workspaces/ws-perm-db').set('Cookie', memberCookie).expect(200);
       expect(memberRes.body.permissions).toEqual(['workspace.members.view']);
@@ -845,6 +848,7 @@ describe('Workspaces (e2e)', () => {
         'workspace.members.view',
         'workspace.members.email.view',
         'workspace.members.add',
+        'workspace.projects.create',
       ]);
 
       // Admin trying to update workspace settings gets 403 FORBIDDEN immediately

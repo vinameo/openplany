@@ -2,7 +2,11 @@ import type { ProjectRole } from './projectRoles.js';
 
 export type ProjectPermission = string;
 
-export type EnforcedProjectPermission = never;
+export const ENFORCED_PROJECT_PERMISSIONS = [
+  'project.members.view',
+] as const satisfies readonly ProjectPermission[];
+export type EnforcedProjectPermission =
+  (typeof ENFORCED_PROJECT_PERMISSIONS)[number];
 
 export type ProjectRolePermissions = Readonly<
   Record<ProjectRole, readonly ProjectPermission[]>
@@ -23,9 +27,10 @@ export function parseProjectPermissions(
 }
 
 export function enforcedProjectPermissions(
-  _granted: readonly ProjectPermission[],
+  granted: readonly ProjectPermission[],
 ): EnforcedProjectPermission[] {
-  return [];
+  const set = new Set<ProjectPermission>(granted);
+  return ENFORCED_PROJECT_PERMISSIONS.filter((p) => set.has(p));
 }
 
 export type ProjectOwnershipBase =

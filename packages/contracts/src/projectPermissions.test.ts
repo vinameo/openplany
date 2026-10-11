@@ -20,10 +20,17 @@ describe('projectPermissions', () => {
     ).toEqual(['project.archive', 'project.settings.view']);
   });
 
-  it('enforcedProjectPermissions returns []', () => {
+  it('enforcedProjectPermissions filters to ENFORCED_PROJECT_PERMISSIONS', () => {
     expect(enforcedProjectPermissions([])).toEqual([]);
     expect(
       enforcedProjectPermissions(['project.settings.view', 'project.archive']),
     ).toEqual([]);
+    expect(
+      enforcedProjectPermissions([
+        'project.settings.view',
+        'project.members.view',
+        'project.archive',
+      ]),
+    ).toEqual(['project.members.view']);
   });
 });

@@ -16,14 +16,14 @@ function renderApp(initialPath: string) {
   const router = createMemoryRouter(appRoutes, {
     initialEntries: [initialPath],
   });
-  render(
+  const view = render(
     <AppUiProvider>
       <AuthProvider>
         <RouterProvider router={router} />
       </AuthProvider>
     </AppUiProvider>,
   );
-  return { router };
+  return { router, ...view };
 }
 
 describe("WorkspaceShell (desktop)", () => {
@@ -60,7 +60,7 @@ describe("WorkspaceShell (desktop)", () => {
     expect(settingsLink).not.toHaveAttribute("aria-current");
 
     expect(within(nav).getByRole("button", { name: "New work item" })).toBeInTheDocument();
-    expect(within(nav).getByRole("group", { name: "Projects" })).toBeInTheDocument();
+    expect(within(nav).queryByRole("group", { name: "Projects" })).not.toBeInTheDocument();
 
     expect(screen.getByText("Home", { selector: "header *" })).toBeInTheDocument();
     expect(
@@ -94,7 +94,7 @@ describe("WorkspaceShell (desktop)", () => {
     expect(router.state.location.pathname).toBe("/openstudy");
   });
 
-  it("AC-03: Projects group has no button or link, displays dimmed empty label", async () => {
+  it("AC-22: Projects group is removed from workspace sidebar (desktop and mobile drawer)", async () => {
     const ws = makeWorkspace({ slug: "openstudy", name: "OpenStudy" });
     mockFetch({
       "GET /api/auth/session": () => jsonResponse(200, makeSession()),
@@ -103,13 +103,19 @@ describe("WorkspaceShell (desktop)", () => {
       "GET /api/workspaces/openstudy": () => jsonResponse(200, ws),
     });
 
-    renderApp("/openstudy");
+    const { unmount } = renderApp("/openstudy");
+    await screen.findByRole("navigation", { name: "Workspace" });
+    expect(screen.queryByRole("group", { name: "Projects" })).not.toBeInTheDocument();
+    unmount();
 
-    const projectsGroup = await screen.findByRole("group", { name: "Projects" });
-    expect(projectsGroup).toBeInTheDocument();
-    expect(within(projectsGroup).queryByRole("button")).not.toBeInTheDocument();
-    expect(within(projectsGroup).queryByRole("link")).not.toBeInTheDocument();
-    expect(within(projectsGroup).getByText("No projects yet")).toBeInTheDocument();
+    // Mobile drawer
+    stubMatchMedia(false);
+    const user = userEvent.setup();
+    renderApp("/openstudy");
+    const openBtn = await screen.findByRole("button", { name: "Open sidebar" });
+    await user.click(openBtn);
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).queryByRole("group", { name: "Projects" })).not.toBeInTheDocument();
   });
 
   it("AC-04: navigating to Settings hides Workspace sidebar, Back button restores it", async () => {

@@ -1,0 +1,6 @@
+.dropdown {
+  background-color: var(--app-color-surface, #ffffff);
+  border: 1px solid var(--app-color-border, #e0e0e0);
+  border-radius: var(--mantine-radius-sm);
+  padding: 6px 10px;
+}

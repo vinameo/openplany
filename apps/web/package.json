@@ -29,6 +29,7 @@
     "@mantine/tiptap": "^9.6.3",
     "@repo/contracts": "workspace:*",
     "@repo/ui": "workspace:*",
+    "@tabler/icons-react": "^3.49.0",
     "@tiptap/extension-link": "^3.31.3",
     "@tiptap/pm": "^3.31.3",
     "@tiptap/react": "^3.31.3",

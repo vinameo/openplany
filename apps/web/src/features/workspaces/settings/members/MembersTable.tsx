@@ -10,6 +10,7 @@ import {
   type MemberSort,
 } from "./memberListView";
 import { SortableHeader } from "./SortableHeader";
+import dataTableClasses from "../../table/dataTable.module.css";
 import classes from "./MembersTable.module.css";
 
 interface MembersTableProps {
@@ -29,9 +30,9 @@ export function MembersTable({
     <Table.ScrollContainer
       minWidth={760}
       type="native"
-      className={classes.scrollContainer}
+      className={dataTableClasses.scrollContainer}
     >
-      <Table verticalSpacing="sm" className={classes.table}>
+      <Table verticalSpacing="sm" className={dataTableClasses.table}>
         <Table.Caption>
           <VisuallyHidden>Workspace members</VisuallyHidden>
         </Table.Caption>
@@ -49,7 +50,7 @@ export function MembersTable({
               sortKey="fullName"
               currentSort={currentSort}
               onSortChange={onSortChange}
-              className={classes.stickyHeader}
+              className={dataTableClasses.stickyHeader}
             />
             <SortableHeader
               title="Display name"
@@ -86,7 +87,7 @@ export function MembersTable({
             const name = memberDisplayName(member);
             return (
               <Table.Tr key={member.userId}>
-                <Table.Td className={classes.stickyColumn}>
+                <Table.Td className={dataTableClasses.stickyColumn}>
                   <Group gap="sm" wrap="nowrap">
                     <MemberAvatar
                       avatarUrl={member.avatarUrl}

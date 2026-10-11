@@ -1,5 +1,7 @@
 import type { WorkspaceMemberResponse, WorkspaceRole } from "@repo/contracts";
 import { normalizeForSearch, WORKSPACE_ROLE_RANK } from "@repo/contracts";
+import type { SortState } from "../../table/SortableHeader";
+import { formatCalendarDate } from "../../table/formatCalendarDate";
 
 export type MemberSortKey =
   | "fullName"
@@ -8,10 +10,7 @@ export type MemberSortKey =
   | "role"
   | "joinedAt";
 
-export interface MemberSort {
-  key: MemberSortKey;
-  direction: "asc" | "desc";
-}
+export type MemberSort = SortState<MemberSortKey>;
 
 export const DEFAULT_MEMBER_SORT = {
   key: "role",
@@ -37,23 +36,9 @@ export function memberDisplayName(member: {
   return full.length > 0 ? full : member.displayName;
 }
 
-const formatterCache = new Map<string, Intl.DateTimeFormat>();
-
+export { formatCalendarDate };
 /** "Oct 08, 2026", múi giờ trình duyệt (RQ Q-M1, WEB-26). */
-export function formatJoiningDate(iso: string, timeZone?: string): string {
-  const key = timeZone ?? "default";
-  let formatter = formatterCache.get(key);
-  if (!formatter) {
-    formatter = new Intl.DateTimeFormat("en-US", {
-      month: "short",
-      day: "2-digit",
-      year: "numeric",
-      ...(timeZone ? { timeZone } : {}),
-    });
-    formatterCache.set(key, formatter);
-  }
-  return formatter.format(new Date(iso));
-}
+export const formatJoiningDate = formatCalendarDate;
 
 const collator = new Intl.Collator("vi", { sensitivity: "base" });
 

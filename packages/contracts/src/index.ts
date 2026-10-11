@@ -10,11 +10,13 @@ export * from './projectRoles.js';
 export {
   parseProjectPermissions,
   enforcedProjectPermissions,
+  ENFORCED_PROJECT_PERMISSIONS,
   type ProjectPermission,
   type EnforcedProjectPermission,
   type ProjectRolePermissions,
   type ProjectOwnershipBase,
 } from './projectPermissions.js';
+export * from './project.js';
 export {
   PROJECT_CREATOR_ROLE,
   projectRoleCeilingOf,

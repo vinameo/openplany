@@ -1,0 +1,66 @@
+.memberButton {
+  border-radius: 9999px;
+  cursor: default;
+  display: inline-flex;
+  padding: 0;
+}
+
+.memberButton:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: 1px;
+}
+
+.deactivated {
+  opacity: 0.45;
+}
+
+.hiddenButton {
+  background: none;
+  border: none;
+  cursor: default;
+  display: inline-flex;
+  padding: 0;
+}
+
+.hiddenButton:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: 1px;
+}
+
+.hintContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+}
+
+.hintName {
+  font-weight: 500;
+  font-size: var(--mantine-font-size-sm);
+  white-space: nowrap;
+}
+
+.hintEmail {
+  color: var(--mantine-color-dimmed);
+  font-size: var(--mantine-font-size-xs);
+  white-space: nowrap;
+}
+
+.hintDeactivated {
+  color: var(--mantine-color-red-filled, #fa5252);
+  font-size: var(--mantine-font-size-xs);
+  font-style: italic;
+  white-space: nowrap;
+}
+
+.overflowList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+}
+
+.overflowName {
+  font-size: var(--mantine-font-size-sm);
+  white-space: nowrap;
+}

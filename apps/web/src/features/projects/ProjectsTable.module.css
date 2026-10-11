@@ -1,0 +1,15 @@
+.colProjectName {
+  min-width: 240px;
+}
+
+.colMembers {
+  min-width: 180px;
+}
+
+.colCreatedDate {
+  min-width: 140px;
+}
+
+.dateCell {
+  white-space: nowrap;
+}
