@@ -7,9 +7,10 @@ import {
   type RoleScope,
   type WorkspaceRole,
 } from '@repo/contracts';
-import { DataSource, IsNull, type EntityManager } from 'typeorm';
+import { DataSource, IsNull, Not, Or, type EntityManager } from 'typeorm';
 import { User } from '../../auth/entities/user.entity.js';
 import { isUniqueViolation } from '../../common/databaseErrors.js';
+import { acquireTransactionLock } from '../../database/advisoryLock.js';
 import {
   loadRolePermissions,
   rolePermissionsKey,
@@ -61,12 +62,8 @@ export class TypeOrmWorkspacesRepository implements WorkspacesRepository {
     requestId: string | null,
   ): Promise<CreateWorkspaceResult> {
     return this.dataSource.transaction(async (manager) => {
-      // 1. Serialize concurrent creates by the same user. TypeORM has no
-      //    advisory-lock API; the key is a bound parameter.
-      await manager.query(
-        `SELECT pg_advisory_xact_lock(hashtextextended('workspace-create:' || $1, 0))`,
-        [userId],
-      );
+      // 1. Serialize concurrent creates by the same user.
+      await acquireTransactionLock(manager, 'workspace-create', userId);
 
       // 2. At most CREATE_LIMIT workspaces per rolling hour.
       const recent = await manager
@@ -219,15 +216,12 @@ export class TypeOrmWorkspacesRepository implements WorkspacesRepository {
     userId: string,
     workspaceId: string,
   ): Promise<void> {
-    await this.dataSource
-      .createQueryBuilder()
-      .update(User)
-      .set({ lastWorkspaceId: workspaceId })
-      .where('id = :userId', { userId })
-      .andWhere('last_workspace_id IS DISTINCT FROM :workspaceId', {
-        workspaceId,
-      })
-      .execute();
+    // Skip the write when it is already the last one (IS DISTINCT FROM).
+    await this.dataSource.manager.update(
+      User,
+      { id: userId, lastWorkspaceId: Or(IsNull(), Not(workspaceId)) },
+      { lastWorkspaceId: workspaceId },
+    );
   }
 
   async update(
@@ -247,17 +241,12 @@ export class TypeOrmWorkspacesRepository implements WorkspacesRepository {
       throw new Error('update called without changes');
     }
 
-    const result = await this.dataSource
-      .createQueryBuilder()
-      .update(Workspace)
-      .set({ ...editable, updatedById: actorId, updatedAt: now })
-      .where('id = :workspaceId', { workspaceId })
-      .andWhere('deleted_at IS NULL')
-      .returning('updated_at')
-      .execute();
-
-    const [row] = result.raw as { updated_at: Date }[];
-    return row === undefined ? null : { updatedAt: new Date(row.updated_at) };
+    const result = await this.dataSource.manager.update(
+      Workspace,
+      { id: workspaceId, deletedAt: IsNull() },
+      { ...editable, updatedById: actorId, updatedAt: now },
+    );
+    return result.affected === 0 ? null : { updatedAt: now };
   }
 }
 

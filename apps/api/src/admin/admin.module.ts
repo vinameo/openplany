@@ -27,12 +27,19 @@ import { USER_CREATE_LIMITER } from './tokens.js';
 import { Permission } from '../roles/entities/permission.entity.js';
 import { Role } from '../roles/entities/role.entity.js';
 import { RolePermission } from '../roles/entities/rolePermission.entity.js';
+import { RolePermissionHistory } from '../roles/entities/rolePermissionHistory.entity.js';
 import { UserCreateRateLimitGuard } from './userCreateRateLimitGuard.js';
 
 @Module({
   imports: [
     AuthModule,
-    TypeOrmModule.forFeature([User, Role, Permission, RolePermission]),
+    TypeOrmModule.forFeature([
+      User,
+      Role,
+      Permission,
+      RolePermission,
+      RolePermissionHistory,
+    ]),
   ],
   controllers: [AdminUsersController, AdminRolesController],
   providers: [

@@ -4,6 +4,7 @@ import { DataSource, type EntityManager } from 'typeorm';
 import { Permission } from '../../../roles/entities/permission.entity.js';
 import { Role } from '../../../roles/entities/role.entity.js';
 import { RolePermission } from '../../../roles/entities/rolePermission.entity.js';
+import { RolePermissionHistory } from '../../../roles/entities/rolePermissionHistory.entity.js';
 import {
   loadRolePermissions,
   rolePermissionsKey,
@@ -84,44 +85,32 @@ export class TypeOrmRolePermissionsRepository implements RolePermissionsReposito
         );
       }
 
-      // 4. One history row per grant and revoke. No entity for this table on
-      //    purpose (DB-14): the append-only log is never save()d or remove()d.
+      // 4. One history row per grant and revoke (append-only entity).
       const history = [
         ...plan.grants.map((g) => ({ ...g, changeType: 'granted' as const })),
         ...plan.revokes.map((r) => ({ ...r, changeType: 'revoked' as const })),
       ];
       if (history.length > 0) {
-        await manager
-          .createQueryBuilder()
-          .insert()
-          .into('role_permission_history')
-          .values(
-            history.map((h) => ({
-              scope: h.scope,
-              role_key: h.key,
-              permission_key: h.permission,
-              change_type: h.changeType,
-              actor_id: context.actorId,
-              request_id: context.requestId,
-              created_at: context.now,
-            })),
-          )
-          .execute();
+        await manager.insert(
+          RolePermissionHistory,
+          history.map((h) => ({
+            scope: h.scope,
+            roleKey: h.key,
+            permissionKey: h.permission,
+            changeType: h.changeType,
+            actorId: context.actorId,
+            requestId: context.requestId,
+            createdAt: context.now,
+          })),
+        );
       }
 
       // 5. Bump permissions_version for changed roles only.
-      if (plan.changedRoles.length > 0) {
-        await manager
-          .createQueryBuilder()
-          .update(Role)
-          .set({
-            permissionsVersion: () => 'permissions_version + 1',
-            updatedAt: context.now,
-          })
-          .whereInIds(
-            plan.changedRoles.map((r) => ({ scope: r.scope, key: r.key })),
-          )
-          .execute();
+      //    The rows are already locked in step 1, so per-role writes are safe.
+      for (const changed of plan.changedRoles) {
+        const role = { scope: changed.scope, key: changed.key };
+        await manager.increment(Role, role, 'permissionsVersion', 1);
+        await manager.update(Role, role, { updatedAt: context.now });
       }
 
       return plan;
