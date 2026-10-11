@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AppUiProvider } from "@repo/ui";
 import { createMemoryRouter } from "react-router";
@@ -526,6 +526,30 @@ describe("WorkspaceShell (mobile)", () => {
       screen.queryByRole("dialog", { name: "Workspace" }),
     ).not.toBeInTheDocument();
     expect(localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY)).toBeNull();
+  });
+
+  it("tapping Home while already on Home closes the drawer", async () => {
+    const user = userEvent.setup();
+    const ws = makeWorkspace({ slug: "openstudy", name: "OpenStudy" });
+    mockFetch({
+      "GET /api/auth/session": () => jsonResponse(200, makeSession()),
+      "GET /api/workspaces": () =>
+        jsonResponse(200, { workspaces: [ws], lastWorkspaceSlug: ws.slug }),
+      "GET /api/workspaces/openstudy": () => jsonResponse(200, ws),
+    });
+
+    renderApp("/openstudy");
+
+    await user.click(await screen.findByRole("button", { name: "Open sidebar" }));
+    const dialog = await screen.findByRole("dialog", { name: "Workspace" });
+
+    await user.click(within(dialog).getByRole("link", { name: "Home" }));
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Workspace" }),
+      ).not.toBeInTheDocument(),
+    );
   });
 
   it("AC-02 (mobile): tapping New work item inside drawer shows Coming soon status and keeps drawer open", async () => {

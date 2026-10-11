@@ -12,7 +12,8 @@ export type WorkspacesState =
 
 export interface WorkspacesContextValue {
   state: WorkspacesState;
-  refresh: () => Promise<void>;
+  /** Reloads the list; resolves `false` (never rejects) when it failed. */
+  refresh: () => Promise<boolean>;
   add: (workspace: WorkspaceResponse) => void;
   replace: (workspace: WorkspaceResponse) => void;
 }

@@ -29,7 +29,9 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
   const { expireSession } = useAuth();
   const [state, setState] = useState<WorkspacesState>({ status: "loading" });
 
-  const loadWorkspaces = useCallback(async () => {
+  // Never rejects: failures are logged and reported as `false`, so callers can
+  // fire-and-forget without leaving an unhandled rejection.
+  const loadWorkspaces = useCallback(async (): Promise<boolean> => {
     try {
       const data = await workspaceApi.list();
       setState({
@@ -37,14 +39,15 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
         workspaces: sortWorkspaces(data.workspaces),
         lastWorkspaceSlug: data.lastWorkspaceSlug,
       });
+      return true;
     } catch (error: unknown) {
       if (error instanceof ApiRequestError && error.status === 401) {
         expireSession();
-        return;
+        return false;
       }
       console.error("Could not load workspaces", error);
       setState((prev) => (prev.status === "ready" ? prev : { status: "error" }));
-      throw error;
+      return false;
     }
   }, [expireSession]);
 

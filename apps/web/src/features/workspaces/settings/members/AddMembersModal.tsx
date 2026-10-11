@@ -14,7 +14,7 @@ import { notifications } from "@mantine/notifications";
 import {
   ADD_MEMBERS_MAX,
   DEFAULT_ADDED_WORKSPACE_ROLE,
-  WORKSPACE_CREATOR_ROLE,
+  isWorkspaceAdminRole,
   WORKSPACE_ROLE_LABELS,
   WORKSPACE_ROLE_RANK,
   type WorkspaceRole,
@@ -31,6 +31,7 @@ import {
 } from "./addMembersRows";
 import { membersApi } from "./api/membersApi";
 import { MemberCandidateSelect } from "./MemberCandidateSelect";
+import classes from "./AddMembersModal.module.css";
 
 interface AddMembersModalProps {
   opened: boolean;
@@ -184,7 +185,7 @@ export function AddMembersModal({
             {rows.map((row) => {
               const isAdminNotice =
                 row.role === highestAddableRole &&
-                row.role === WORKSPACE_CREATOR_ROLE;
+                isWorkspaceAdminRole(row.role);
 
               const otherSelectedIds = rows
                 .filter((r) => r.id !== row.id && r.candidate !== null)
@@ -197,7 +198,7 @@ export function AddMembersModal({
                     align="flex-start"
                     wrap={isMobile ? "wrap" : "nowrap"}
                   >
-                    <div style={{ flex: 1, minWidth: isMobile ? "100%" : 280 }}>
+                    <div className={classes.candidateField}>
                       <MemberCandidateSelect
                         slug={slug}
                         value={row.candidate}
@@ -214,7 +215,7 @@ export function AddMembersModal({
                       />
                     </div>
 
-                    <Group gap="xs" wrap="nowrap" style={{ minWidth: 160 }}>
+                    <Group gap="xs" wrap="nowrap" className={classes.roleGroup}>
                       <Select
                         aria-label="Role"
                         data={roleOptions}
@@ -231,7 +232,7 @@ export function AddMembersModal({
                         disabled={isSubmitting}
                         comboboxProps={{ withinPortal: false }}
                         allowDeselect={false}
-                        style={{ width: 140 }}
+                        className={classes.roleSelect}
                       />
 
                       {rows.length > 1 && (

@@ -49,6 +49,7 @@ const baseMembersResponse: WorkspaceMemberListResponse = {
 function renderMembersApp(
   wsOverrides = {},
   membersData: WorkspaceMemberListResponse | (() => Response) = baseMembersResponse,
+  overrideRoutes: Record<string, () => Response> = {},
 ) {
   const ws = makeWorkspace({
     id: "ws-1",
@@ -77,6 +78,7 @@ function renderMembersApp(
       typeof membersData === "function"
         ? membersData
         : () => jsonResponse(200, membersData),
+    ...overrideRoutes,
   });
 
   render(
@@ -226,6 +228,36 @@ describe("MembersSettingsPage", () => {
     await waitFor(() => {
       expect(screen.getByText("Admin Alice")).toBeInTheDocument();
     });
+  });
+
+  it("leaves the skeleton with an error when GET /members is 403 and the workspace reload fails", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    let workspaceCalls = 0;
+    const ws = makeWorkspace({
+      id: "ws-1",
+      slug: "openstudy",
+      name: "OpenStudy",
+      permissions: ["workspace.members.view"],
+    });
+
+    renderMembersApp(
+      { permissions: ["workspace.members.view"] },
+      () => apiError(403, "FORBIDDEN", "You don't have permission to do this"),
+      {
+        "GET /api/workspaces/openstudy": () => {
+          workspaceCalls += 1;
+          return workspaceCalls === 1
+            ? jsonResponse(200, ws)
+            : apiError(500, "INTERNAL_ERROR", "Database connection lost");
+        },
+      },
+    );
+
+    const errorAlert = await screen.findByRole("alert");
+    expect(errorAlert).toHaveTextContent("Couldn't load members.");
+    expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
+    expect(workspaceCalls).toBe(2);
+    consoleError.mockRestore();
   });
 
   it("AC-18: search input filters members live and shows empty state when no match", async () => {
