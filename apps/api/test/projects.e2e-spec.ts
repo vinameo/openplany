@@ -12,7 +12,7 @@ import { CreateProjectTables1791605000000 } from '../src/database/migrations/179
 import { AddProjectForeignKeyIndexes1791606000000 } from '../src/database/migrations/1791606000000-AddProjectForeignKeyIndexes.js';
 import { ReserveProjectIdentifiers1791607000000 } from '../src/database/migrations/1791607000000-ReserveProjectIdentifiers.js';
 import { ProjectMemberRoleHistory } from '../src/projects/entities/projectMemberRoleHistory.entity.js';
-import { ProjectsRepository } from '../src/projects/repositories/projects.repository.js';
+import { ProjectAccessResolver } from '../src/projects/access/projectAccessResolver.js';
 import { createE2eApp, type E2eApp } from './createE2eApp.js';
 import {
   createUser as createE2eUser,
@@ -439,8 +439,8 @@ describe('Projects (e2e)', () => {
       expect(rows[0].indexdef).not.toContain('WHERE');
     });
 
-    it('T-DB-23: findIdByIdentifier returns id if active, null if deleted, null if other workspace, null if lowercased', async () => {
-      const { workspace: ws1 } = await seedWorkspace(
+    it('T-DB-23: forIdentifier finds only active projects of the workspace by exact Project ID and splits forbidden from not found', async () => {
+      const { workspace: ws1, ownerId } = await seedWorkspace(
         'ws1-tdb23@openplany.dev',
         'ws1-tdb23',
       );
@@ -448,9 +448,12 @@ describe('Projects (e2e)', () => {
         'ws2-tdb23@openplany.dev',
         'ws2-tdb23',
       );
-      const repo = e2e.app.get(ProjectsRepository);
+      const memberId = await createUser('member-tdb23@openplany.dev');
+      await addWorkspaceMember(ws1.id, memberId, 'member');
+      const resolver = e2e.app.get(ProjectAccessResolver);
 
       const activeId = await insertProject(ws1.id, 'Active Proj', 'ACT1');
+      await insertProjectMember(activeId, ws1.id, ownerId, 'admin');
       await insertProject(
         ws1.id,
         'Deleted Proj',
@@ -458,14 +461,50 @@ describe('Projects (e2e)', () => {
         new Date('2026-10-01T00:00:00Z'),
       );
 
-      // active in ws1 -> returns id
-      expect(await repo.findIdByIdentifier(ws1.id, 'ACT1')).toBe(activeId);
-      // deleted in ws1 -> returns null
-      expect(await repo.findIdByIdentifier(ws1.id, 'DEL1')).toBeNull();
-      // other workspace -> returns null
-      expect(await repo.findIdByIdentifier(ws2.id, 'ACT1')).toBeNull();
-      // lowercase exact match -> returns null
-      expect(await repo.findIdByIdentifier(ws1.id, 'act1')).toBeNull();
+      const asOwner = { workspaceId: ws1.id, userId: ownerId, workspaceRole: 'admin' as const };
+      const asMember = { workspaceId: ws1.id, userId: memberId, workspaceRole: 'member' as const };
+
+      const found = await resolver.forIdentifier({ ...asOwner, identifier: 'ACT1' });
+      expect(found.kind).toBe('accessible');
+      expect(found.kind === 'accessible' && found.project.project.id).toBe(activeId);
+
+      expect(await resolver.forIdentifier({ ...asMember, identifier: 'ACT1' })).toEqual({
+        kind: 'forbidden',
+        projectId: activeId,
+      });
+      // deleted, other workspace, lowercase -> not found
+      expect(await resolver.forIdentifier({ ...asOwner, identifier: 'DEL1' })).toEqual({ kind: 'not_found' });
+      expect(
+        await resolver.forIdentifier({ ...asOwner, workspaceId: ws2.id, identifier: 'ACT1' }),
+      ).toEqual({ kind: 'not_found' });
+      expect(await resolver.forIdentifier({ ...asOwner, identifier: 'act1' })).toEqual({ kind: 'not_found' });
+    });
+
+    it('T-DB-24: ReserveProjectIdentifiers reports Project IDs shared with soft-deleted projects instead of failing on the index', async () => {
+      const { workspace } = await seedWorkspace(
+        'owner-tdb24@openplany.dev',
+        'ws-tdb24',
+      );
+      const reserve = new ReserveProjectIdentifiers1791607000000();
+      const qr = e2e.dataSource.createQueryRunner();
+      await qr.connect();
+      try {
+        await reserve.down(qr);
+        await insertProject(workspace.id, 'Old Web', 'WEB', new Date('2026-10-01T00:00:00Z'));
+        await insertProject(workspace.id, 'Web', 'WEB');
+
+        await expect(reserve.up(qr)).rejects.toThrow(
+          /1 Project ID\(s\) are shared.*identifier WEB \(2 rows\)/,
+        );
+      } finally {
+        // Restore the reserved index for the following tests.
+        await e2e.dataSource.query(
+          `DELETE FROM projects WHERE workspace_id = $1 AND deleted_at IS NOT NULL`,
+          [workspace.id],
+        );
+        await reserve.up(qr);
+        await qr.release();
+      }
     });
   });
 
@@ -1398,6 +1437,40 @@ describe('Projects (e2e)', () => {
         .set('Cookie', userCookie)
         .expect(403);
       expect(res2.body.code).toBe('FORBIDDEN');
+    });
+
+    it('answers 429 after 30 failed lookups, so 403 and 404 can no longer be told apart, while accessible projects still open (BR1)', async () => {
+      const { workspace, ownerId } = await seedWorkspace(
+        'owner-probe@openplany.dev',
+        'ws-probe',
+      );
+      const proberId = await createUser('prober@openplany.dev');
+      await addWorkspaceMember(workspace.id, proberId, 'member');
+      const proberCookie = await signInCookie('prober@openplany.dev');
+
+      const secret = await insertProject(workspace.id, 'Secret', 'HR');
+      await insertProjectMember(secret, workspace.id, ownerId, 'admin');
+      const open = await insertProject(workspace.id, 'Open', 'OPEN');
+      await insertProjectMember(open, workspace.id, proberId, 'contributor');
+
+      for (let i = 0; i < 30; i += 1) {
+        await http()
+          .get(`/api/workspaces/${workspace.slug}/projects/NO${i}`)
+          .set('Cookie', proberCookie)
+          .expect(404);
+      }
+
+      const hidden = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/HR`)
+        .set('Cookie', proberCookie)
+        .expect(429);
+      expect(hidden.body.code).toBe('TOO_MANY_ATTEMPTS');
+      expect(JSON.stringify(hidden.body)).not.toContain('Secret');
+
+      await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/OPEN`)
+        .set('Cookie', proberCookie)
+        .expect(200);
     });
   });
 });

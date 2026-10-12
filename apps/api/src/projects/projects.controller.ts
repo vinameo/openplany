@@ -4,7 +4,6 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  Param,
   Post,
   Req,
   UseGuards,
@@ -21,6 +20,12 @@ import { CurrentWorkspace } from '../workspaces/currentWorkspace.decorator.js';
 import type { MemberWorkspace } from '../workspaces/repositories/workspaces.repository.js';
 import { WorkspaceWrite } from '../workspaces/workspaceAccess.decorator.js';
 import { WorkspaceMemberGuard } from '../workspaces/workspaceMemberGuard.js';
+import {
+  CurrentProject,
+  ProjectRead,
+} from './access/projectAccess.decorator.js';
+import { PROJECT_ROUTE_PARAM } from './access/projectAccessGuard.js';
+import type { AccessibleProject } from './access/projectAccessResolver.js';
 import { CreateProjectDto } from './dto/createProject.dto.js';
 import { ProjectsService } from './projects.service.js';
 
@@ -39,15 +44,13 @@ export class ProjectsController {
     return this.service.list(ws, userId, req.requestId);
   }
 
-  @Get('projects/:identifier')
-  @UseGuards(WorkspaceMemberGuard)
+  @Get(`projects/:${PROJECT_ROUTE_PARAM}`)
+  @ProjectRead()
   get(
     @CurrentWorkspace() ws: MemberWorkspace,
-    @CurrentUserId() userId: string,
-    @Param('identifier') identifier: string,
-    @Req() req: Request & { requestId?: string },
+    @CurrentProject() project: AccessibleProject,
   ): Promise<ProjectResponse> {
-    return this.service.get(ws, userId, identifier, req.requestId);
+    return this.service.get(ws, project);
   }
 
   @Post('projects')

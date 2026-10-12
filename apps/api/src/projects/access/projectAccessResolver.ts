@@ -43,6 +43,15 @@ export interface AccessibleProjectList {
 }
 
 /**
+ * Outcome of opening a project by its Project ID. `forbidden` means the
+ * project exists in the workspace but the viewer cannot access it (RQ D11).
+ */
+export type ProjectLookup =
+  | { kind: 'not_found' }
+  | { kind: 'forbidden'; projectId: string }
+  | { kind: 'accessible'; project: AccessibleProject };
+
+/**
  * The single place that decides which projects a viewer can access (DB B5.1).
  * Public projects / self-join will extend `accessScope` only; list and single
  * project lookups share it, so they can never disagree.
@@ -54,6 +63,15 @@ export abstract class ProjectAccessResolver {
   abstract forProject(
     viewer: ProjectViewer & { projectId: string },
   ): Promise<AccessibleProject | null>;
+
+  /**
+   * One active project by its exact Project ID. Existence and access are
+   * decided on the same row, so a project can never be both missing and
+   * forbidden within one lookup.
+   */
+  abstract forIdentifier(
+    viewer: ProjectViewer & { identifier: string },
+  ): Promise<ProjectLookup>;
 }
 
 interface AccessScope {
@@ -106,6 +124,29 @@ export class TypeOrmProjectAccessResolver extends ProjectAccessResolver {
 
     const matrix = await loadProjectRoleMatrix(manager);
     return toAccessibleProject(project, viewer, scope, matrix)[0] ?? null;
+  }
+
+  async forIdentifier(
+    viewer: ProjectViewer & { identifier: string },
+  ): Promise<ProjectLookup> {
+    const manager = this.dataSource.manager;
+    const project = await manager.findOne(Project, {
+      where: {
+        ...ACTIVE_PROJECT,
+        workspaceId: viewer.workspaceId,
+        identifier: viewer.identifier,
+      },
+    });
+    if (project === null) return { kind: 'not_found' };
+
+    const scope = await accessScope(manager, viewer, project.id);
+    if (scope === null) return { kind: 'forbidden', projectId: project.id };
+
+    const matrix = await loadProjectRoleMatrix(manager);
+    const [accessible] = toAccessibleProject(project, viewer, scope, matrix);
+    return accessible === undefined
+      ? { kind: 'forbidden', projectId: project.id }
+      : { kind: 'accessible', project: accessible };
   }
 }
 

@@ -3,6 +3,7 @@ import {
   ProjectAccessResolver,
   type AccessibleProject,
   type AccessibleProjectList,
+  type ProjectLookup,
   type ProjectViewer,
 } from '../../src/projects/access/projectAccessResolver.js';
 import type {
@@ -14,6 +15,7 @@ import {
   type ProjectAccessDeniedEvent,
   type ProjectCreatedEvent,
   type ProjectListTruncatedEvent,
+  type ProjectLookupRateLimitedEvent,
 } from '../../src/projects/events/projectEvents.js';
 import {
   ProjectsRepository,
@@ -42,6 +44,17 @@ export class FakeProjectAccessResolver extends ProjectAccessResolver {
   ): Promise<AccessibleProject | null> {
     this.lastInput = viewer;
     return this.project;
+  }
+
+  /** What forIdentifier returns. */
+  public lookup: ProjectLookup = { kind: 'not_found' };
+  public lastLookupInput?: ProjectViewer & { identifier: string };
+
+  async forIdentifier(
+    viewer: ProjectViewer & { identifier: string },
+  ): Promise<ProjectLookup> {
+    this.lastLookupInput = viewer;
+    return this.lookup;
   }
 }
 
@@ -79,23 +92,13 @@ export class FakeProjectsRepository extends ProjectsRepository {
     this.createdProjects.push(input);
     return { projectId: 'project-new-id' };
   }
-
-  public idsByIdentifier = new Map<string, string>();
-  public lastFindIdQuery?: { workspaceId: string; identifier: string };
-
-  async findIdByIdentifier(
-    workspaceId: string,
-    identifier: string,
-  ): Promise<string | null> {
-    this.lastFindIdQuery = { workspaceId, identifier };
-    return this.idsByIdentifier.get(`${workspaceId}:${identifier}`) ?? null;
-  }
 }
 
 export class FakeProjectEvents extends ProjectEvents {
   public createdEvents: ProjectCreatedEvent[] = [];
   public truncatedEvents: ProjectListTruncatedEvent[] = [];
   public accessDeniedEvents: ProjectAccessDeniedEvent[] = [];
+  public rateLimitedEvents: ProjectLookupRateLimitedEvent[] = [];
 
   async created(event: ProjectCreatedEvent): Promise<void> {
     this.createdEvents.push(event);
@@ -107,5 +110,9 @@ export class FakeProjectEvents extends ProjectEvents {
 
   async accessDenied(event: ProjectAccessDeniedEvent): Promise<void> {
     this.accessDeniedEvents.push(event);
+  }
+
+  async lookupRateLimited(event: ProjectLookupRateLimitedEvent): Promise<void> {
+    this.rateLimitedEvents.push(event);
   }
 }

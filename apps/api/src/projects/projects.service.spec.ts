@@ -14,6 +14,7 @@ import {
 } from '../../test/fakes/projectsFakes.js';
 import { makeMemberWorkspace } from '../../test/fakes/workspacesFakes.js';
 import { ApiException } from '../common/apiException.js';
+import type { AccessibleProject } from './access/projectAccessResolver.js';
 import {
   ProjectIdentifierTakenError,
   ProjectNameTakenError,
@@ -374,75 +375,11 @@ describe('ProjectsService', () => {
   });
 
   describe('get', () => {
-    it('throws 404 PROJECT_NOT_FOUND when identifier format is invalid without calling repository (AC-12)', async () => {
-      const { service, repository, events } = makeSetup();
-      const ws = makeMemberWorkspace();
-
-      for (const invalid of ['tfp11', 'abc-12345', '1AB', '']) {
-        await expect(service.get(ws, 'u-1', invalid)).rejects.toMatchObject({
-          status: 404,
-          code: 'PROJECT_NOT_FOUND',
-        });
-      }
-      expect(repository.lastFindIdQuery).toBeUndefined();
-      expect(events.accessDeniedEvents).toHaveLength(0);
-    });
-
-    it('throws 404 PROJECT_NOT_FOUND when project does not exist without calling resolver (AC-13)', async () => {
-      const { service, repository, resolver, events } = makeSetup();
-      const ws = makeMemberWorkspace();
-
-      repository.idsByIdentifier.clear();
-
-      await expect(service.get(ws, 'u-1', 'PROJ1')).rejects.toMatchObject({
-        status: 404,
-        code: 'PROJECT_NOT_FOUND',
-      });
-      expect(repository.lastFindIdQuery).toEqual({
-        workspaceId: ws.id,
-        identifier: 'PROJ1',
-      });
-      expect(resolver.lastInput).toBeUndefined();
-      expect(events.accessDeniedEvents).toHaveLength(0);
-    });
-
-    it('throws 403 FORBIDDEN and logs accessDenied when user has no access to project (AC-14, M-05)', async () => {
-      const { service, repository, resolver, events } = makeSetup();
-      const ws = makeMemberWorkspace();
-
-      repository.idsByIdentifier.set(`${ws.id}:PROJ1`, 'p-1');
-      resolver.project = null;
-
-      await expect(
-        service.get(ws, 'u-1', 'PROJ1', 'req-999'),
-      ).rejects.toMatchObject({
-        status: 403,
-        code: 'FORBIDDEN',
-      });
-      expect(resolver.lastInput).toEqual({
-        workspaceId: ws.id,
-        userId: 'u-1',
-        workspaceRole: ws.role,
-        projectId: 'p-1',
-      });
-      expect(events.accessDeniedEvents).toEqual([
-        {
-          projectId: 'p-1',
-          workspaceId: ws.id,
-          userId: 'u-1',
-          requestId: 'req-999',
-        },
-      ]);
-    });
-
-    it('returns project item matching toProjectListItem on success (AC-24)', async () => {
-      const { service, repository, resolver } = makeSetup();
-      const ws = makeMemberWorkspace({
-        permissions: ['workspace.members.email.view'],
-      });
-
-      repository.idsByIdentifier.set(`${ws.id}:PROJ1`, 'p-1');
-      resolver.project = {
+    function accessible(
+      permissions: AccessibleProject['access']['permissions'],
+      role: AccessibleProject['access']['role'] = 'admin',
+    ): AccessibleProject {
+      return {
         project: {
           id: 'p-1',
           name: 'Project One',
@@ -453,11 +390,15 @@ describe('ProjectsService', () => {
           coverKey: DEFAULT_PROJECT_COVER,
           createdAt: new Date('2026-10-01T00:00:00Z'),
         },
-        access: {
-          role: 'admin',
-          permissions: ['project.members.view'],
-        },
+        access: { role, permissions },
       };
+    }
+
+    it('returns project item matching toProjectListItem on success (AC-24)', async () => {
+      const { service, repository } = makeSetup();
+      const ws = makeMemberWorkspace({
+        permissions: ['workspace.members.email.view'],
+      });
 
       repository.membersByProjectId.set('p-1', [
         {
@@ -472,7 +413,7 @@ describe('ProjectsService', () => {
         },
       ]);
 
-      const res = await service.get(ws, 'u-1', 'PROJ1');
+      const res = await service.get(ws, accessible(['project.members.view']));
       expect(res.project.id).toBe('p-1');
       expect(res.project.name).toBe('Project One');
       expect(res.project.identifier).toBe('PROJ1');
@@ -482,28 +423,10 @@ describe('ProjectsService', () => {
     });
 
     it('sets members: null when viewer lacks project.members.view (AC-27)', async () => {
-      const { service, repository, resolver } = makeSetup();
+      const { service, repository } = makeSetup();
       const ws = makeMemberWorkspace();
 
-      repository.idsByIdentifier.set(`${ws.id}:PROJ1`, 'p-1');
-      resolver.project = {
-        project: {
-          id: 'p-1',
-          name: 'Project One',
-          identifier: 'PROJ1',
-          description: 'Desc',
-          iconName: DEFAULT_PROJECT_ICON,
-          iconColor: DEFAULT_PROJECT_ICON_COLOR,
-          coverKey: DEFAULT_PROJECT_COVER,
-          createdAt: new Date('2026-10-01T00:00:00Z'),
-        },
-        access: {
-          role: 'guest',
-          permissions: [],
-        },
-      };
-
-      const res = await service.get(ws, 'u-1', 'PROJ1');
+      const res = await service.get(ws, accessible([], 'guest'));
       expect(res.project.members).toBeNull();
       expect(repository.lastMembersOfQuery).toBeUndefined();
     });
