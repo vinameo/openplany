@@ -22,6 +22,9 @@ import { WorkspaceChrome } from "./features/workspaces/shell/WorkspaceChrome";
 import { WorkspaceShell } from "./features/workspaces/shell/WorkspaceShell";
 import type { WorkspacePageHandle } from "./features/workspaces/shell/workspacePageHandle";
 import { WorkspaceProvider } from "./features/workspaces/WorkspaceProvider";
+import { ProjectLayout } from "./features/projects/detail/ProjectLayout";
+import { ProjectHomePage } from "./features/projects/detail/ProjectHomePage";
+import type { ProjectPageHandle } from "./features/projects/detail/projectPageHandle";
 
 export const appRoutes: RouteObject[] = [
   { path: SIGN_IN_PATH, element: <SignInRoute /> },
@@ -108,6 +111,19 @@ export const appRoutes: RouteObject[] = [
                       ).then((m) => ({
                         Component: m.SettingsSectionNotFound,
                       })),
+                  },
+                ],
+              },
+              {
+                path: "projects/:projectIdentifier",
+                element: <ProjectLayout />,
+                children: [
+                  {
+                    index: true,
+                    element: <ProjectHomePage />,
+                    handle: {
+                      projectPage: { title: "Home" },
+                    } satisfies ProjectPageHandle,
                   },
                 ],
               },

@@ -1,4 +1,5 @@
-import { Group, Table, Text, VisuallyHidden } from "@mantine/core";
+import { Anchor, Group, Table, Text, VisuallyHidden } from "@mantine/core";
+import { Link } from "react-router";
 import type { ProjectListItem } from "@repo/contracts";
 import { formatCalendarDate } from "../workspaces/table/formatCalendarDate";
 import {
@@ -9,10 +10,12 @@ import dataTableClasses from "../workspaces/table/dataTable.module.css";
 import { ProjectMembersCell } from "./ProjectMembersCell";
 import type { ProjectSortKey } from "./projectListView";
 import { ProjectIcon } from "./ProjectIcon";
+import { projectPath } from "./projectPaths";
 import classes from "./ProjectsTable.module.css";
 
 interface ProjectsTableProps {
   projects: readonly ProjectListItem[];
+  workspaceSlug: string;
   timeZone?: string;
   sort: SortState<ProjectSortKey>;
   onSortChange: (sort: SortState<ProjectSortKey>) => void;
@@ -20,6 +23,7 @@ interface ProjectsTableProps {
 
 export function ProjectsTable({
   projects,
+  workspaceSlug,
   timeZone,
   sort,
   onSortChange,
@@ -66,10 +70,23 @@ export function ProjectsTable({
             <Table.Tr key={project.id}>
               <Table.Td className={dataTableClasses.stickyColumn}>
                 <Group gap="xs" wrap="nowrap">
-                  <ProjectIcon icon={project.icon} size={18} />
-                  <Text size="sm" fw={500} lineClamp={1} title={project.name}>
-                    {project.name}
-                  </Text>
+                  <Anchor
+                    component={Link}
+                    to={projectPath(workspaceSlug, project.identifier)}
+                    underline="hover"
+                    c="inherit"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 8,
+                      minWidth: 0,
+                    }}
+                  >
+                    <ProjectIcon icon={project.icon} size={18} />
+                    <Text size="sm" fw={500} lineClamp={1} title={project.name}>
+                      {project.name}
+                    </Text>
+                  </Anchor>
                   <Text size="xs" c="dimmed">
                     {project.identifier}
                   </Text>

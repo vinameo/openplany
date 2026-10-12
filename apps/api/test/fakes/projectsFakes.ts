@@ -78,6 +78,17 @@ export class FakeProjectsRepository extends ProjectsRepository {
     this.createdProjects.push(input);
     return { projectId: 'project-new-id' };
   }
+
+  public idsByIdentifier = new Map<string, string>();
+  public lastFindIdQuery?: { workspaceId: string; identifier: string };
+
+  async findIdByIdentifier(
+    workspaceId: string,
+    identifier: string,
+  ): Promise<string | null> {
+    this.lastFindIdQuery = { workspaceId, identifier };
+    return this.idsByIdentifier.get(`${workspaceId}:${identifier}`) ?? null;
+  }
 }
 
 export class FakeProjectEvents extends ProjectEvents {

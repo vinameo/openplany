@@ -12,6 +12,7 @@ import { CreateProjectTables1791605000000 } from '../src/database/migrations/179
 import { AddProjectForeignKeyIndexes1791606000000 } from '../src/database/migrations/1791606000000-AddProjectForeignKeyIndexes.js';
 import { ReserveProjectIdentifiers1791607000000 } from '../src/database/migrations/1791607000000-ReserveProjectIdentifiers.js';
 import { ProjectMemberRoleHistory } from '../src/projects/entities/projectMemberRoleHistory.entity.js';
+import { ProjectsRepository } from '../src/projects/repositories/projects.repository.js';
 import { createE2eApp, type E2eApp } from './createE2eApp.js';
 import {
   createUser as createE2eUser,
@@ -436,6 +437,35 @@ describe('Projects (e2e)', () => {
       );
       expect(rows).toHaveLength(1);
       expect(rows[0].indexdef).not.toContain('WHERE');
+    });
+
+    it('T-DB-23: findIdByIdentifier returns id if active, null if deleted, null if other workspace, null if lowercased', async () => {
+      const { workspace: ws1 } = await seedWorkspace(
+        'ws1-tdb23@openplany.dev',
+        'ws1-tdb23',
+      );
+      const { workspace: ws2 } = await seedWorkspace(
+        'ws2-tdb23@openplany.dev',
+        'ws2-tdb23',
+      );
+      const repo = e2e.app.get(ProjectsRepository);
+
+      const activeId = await insertProject(ws1.id, 'Active Proj', 'ACT1');
+      await insertProject(
+        ws1.id,
+        'Deleted Proj',
+        'DEL1',
+        new Date('2026-10-01T00:00:00Z'),
+      );
+
+      // active in ws1 -> returns id
+      expect(await repo.findIdByIdentifier(ws1.id, 'ACT1')).toBe(activeId);
+      // deleted in ws1 -> returns null
+      expect(await repo.findIdByIdentifier(ws1.id, 'DEL1')).toBeNull();
+      // other workspace -> returns null
+      expect(await repo.findIdByIdentifier(ws2.id, 'ACT1')).toBeNull();
+      // lowercase exact match -> returns null
+      expect(await repo.findIdByIdentifier(ws1.id, 'act1')).toBeNull();
     });
   });
 
@@ -1094,4 +1124,85 @@ describe('Projects (e2e)', () => {
       expect(res.body.project.name).toBe('Trimmed Project');
     });
   });
+
+  describe('GET /api/workspaces/:slug/projects/:identifier', () => {
+    it('returns 401 UNAUTHENTICATED without session cookie (AC-18)', async () => {
+      const { workspace } = await seedWorkspace(
+        'unauth-get@openplany.dev',
+        'unauth-get-ws',
+      );
+      await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/PONE`)
+        .expect(401);
+    });
+
+    it('returns 404 NOT_FOUND when requesting nonexistent workspace or non-member (AC-17)', async () => {
+      const { workspace } = await seedWorkspace(
+        'owner-404-get@openplany.dev',
+        'ws-404-get',
+      );
+      await createUser('outsider-get@openplany.dev');
+      const outsiderCookie = await signInCookie('outsider-get@openplany.dev');
+
+      await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/PONE`)
+        .set('Cookie', outsiderCookie)
+        .expect(404);
+
+      await http()
+        .get('/api/workspaces/nonexistent-slug/projects/PONE')
+        .set('Cookie', outsiderCookie)
+        .expect(404);
+    });
+
+    it('returns 404 PROJECT_NOT_FOUND when project does not exist or lowercase (AC-11, AC-13)', async () => {
+      const { workspace, cookie } = await seedWorkspace(
+        'owner-pnotfound@openplany.dev',
+        'ws-pnotfound',
+      );
+      await insertProject(workspace.id, 'My Project', 'MYPR');
+
+      const res404 = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/NOPE`)
+        .set('Cookie', cookie)
+        .expect(404);
+      expect(res404.body.code).toBe('PROJECT_NOT_FOUND');
+      expect(res404.body.message).toBe("This project doesn't exist.");
+
+      // lowercase doesn't match
+      const resLower = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/mypr`)
+        .set('Cookie', cookie)
+        .expect(404);
+      expect(resLower.body.code).toBe('PROJECT_NOT_FOUND');
+    });
+
+    it('returns 200 with project item matching GET .../projects element exactly (AC-24, INV-01)', async () => {
+      const { workspace, ownerId, cookie } = await seedWorkspace(
+        'owner-match@openplany.dev',
+        'ws-match',
+      );
+      const pId = await insertProject(workspace.id, 'Alpha Project', 'ALPHA');
+      await insertProjectMember(pId, workspace.id, ownerId, 'admin');
+
+      const listRes = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', cookie)
+        .expect(200);
+
+      const listItem = listRes.body.projects.find(
+        (p: { identifier: string }) => p.identifier === 'ALPHA',
+      );
+      expect(listItem).toBeDefined();
+
+      const getRes = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/ALPHA`)
+        .set('Cookie', cookie)
+        .expect(200);
+
+      expect(getRes.headers['cache-control']).toBe('no-store');
+      expect(getRes.body).toEqual({ project: listItem });
+    });
+  });
 });
+

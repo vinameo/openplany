@@ -12,6 +12,7 @@ import {
   PROJECT_ICON_NAMES,
   PROJECT_ICON_PRESET_COLORS,
   PROJECT_IDENTIFIER_PATTERN,
+  PROJECT_ERROR_MESSAGES,
   suggestProjectIdentifier,
 } from "./project.js";
 
@@ -104,6 +105,17 @@ describe("project contracts", () => {
       expect(PROJECT_DESCRIPTION_ALLOWED_CHARS.test("abc\u0000")).toBe(false);
       expect(PROJECT_DESCRIPTION_ALLOWED_CHARS.test("bell\u0007")).toBe(false);
       expect(PROJECT_DESCRIPTION_ALLOWED_CHARS.test("del\u007f")).toBe(false);
+    });
+  });
+
+  describe("PROJECT_ERROR_MESSAGES", () => {
+    it("contains expected messages including notFound and forbidden", () => {
+      expect(PROJECT_ERROR_MESSAGES.notFound).toBe(
+        "This project doesn't exist.",
+      );
+      expect(PROJECT_ERROR_MESSAGES.forbidden).toBe(
+        "You don't have access to this project.",
+      );
     });
   });
 });

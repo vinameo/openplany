@@ -167,8 +167,12 @@ describe("ProjectsHome", () => {
       screen.getByRole("columnheader", { name: "Created Date" }),
     ).toBeInTheDocument();
 
-    // Project Name and ID
-    expect(screen.getByText("Frontend Redesign")).toBeInTheDocument();
+    // Project Name link and ID
+    const projectLink = screen.getByRole("link", {
+      name: /Frontend Redesign/i,
+    });
+    expect(projectLink).toHaveAttribute("href", "/acme/projects/FED");
+    expect(projectLink).not.toHaveTextContent("FED");
     expect(screen.getByText("FED")).toBeInTheDocument();
 
     // Member Avatar

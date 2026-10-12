@@ -17,6 +17,7 @@ export const API_ERROR_CODES = [
   'MEMBERS_NOT_ADDABLE',
   'PROJECT_NAME_TAKEN',
   'PROJECT_IDENTIFIER_TAKEN',
+  'PROJECT_NOT_FOUND',
   'INTERNAL_ERROR',
 ] as const;
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number];

@@ -372,4 +372,129 @@ describe('ProjectsService', () => {
       ).rejects.toThrow(ApiException);
     });
   });
+
+  describe('get', () => {
+    it('throws 404 PROJECT_NOT_FOUND when identifier format is invalid without calling repository (AC-12)', async () => {
+      const { service, repository } = makeSetup();
+      const ws = makeMemberWorkspace();
+
+      for (const invalid of ['tfp11', 'abc-12345', '1AB', '']) {
+        await expect(service.get(ws, 'u-1', invalid)).rejects.toMatchObject({
+          status: 404,
+          code: 'PROJECT_NOT_FOUND',
+        });
+      }
+      expect(repository.lastFindIdQuery).toBeUndefined();
+    });
+
+    it('throws 404 PROJECT_NOT_FOUND when project does not exist without calling resolver (AC-13)', async () => {
+      const { service, repository, resolver } = makeSetup();
+      const ws = makeMemberWorkspace();
+
+      repository.idsByIdentifier.clear();
+
+      await expect(service.get(ws, 'u-1', 'PROJ1')).rejects.toMatchObject({
+        status: 404,
+        code: 'PROJECT_NOT_FOUND',
+      });
+      expect(repository.lastFindIdQuery).toEqual({
+        workspaceId: ws.id,
+        identifier: 'PROJ1',
+      });
+      expect(resolver.lastInput).toBeUndefined();
+    });
+
+    it('throws 403 FORBIDDEN when user has no access to project', async () => {
+      const { service, repository, resolver } = makeSetup();
+      const ws = makeMemberWorkspace();
+
+      repository.idsByIdentifier.set(`${ws.id}:PROJ1`, 'p-1');
+      resolver.project = null;
+
+      await expect(service.get(ws, 'u-1', 'PROJ1')).rejects.toMatchObject({
+        status: 403,
+        code: 'FORBIDDEN',
+      });
+      expect(resolver.lastInput).toEqual({
+        workspaceId: ws.id,
+        userId: 'u-1',
+        workspaceRole: ws.role,
+        projectId: 'p-1',
+      });
+    });
+
+    it('returns project item matching toProjectListItem on success (AC-24)', async () => {
+      const { service, repository, resolver } = makeSetup();
+      const ws = makeMemberWorkspace({
+        permissions: ['workspace.members.email.view'],
+      });
+
+      repository.idsByIdentifier.set(`${ws.id}:PROJ1`, 'p-1');
+      resolver.project = {
+        project: {
+          id: 'p-1',
+          name: 'Project One',
+          identifier: 'PROJ1',
+          description: 'Desc',
+          iconName: DEFAULT_PROJECT_ICON,
+          iconColor: DEFAULT_PROJECT_ICON_COLOR,
+          coverKey: DEFAULT_PROJECT_COVER,
+          createdAt: new Date('2026-10-01T00:00:00Z'),
+        },
+        access: {
+          role: 'admin',
+          permissions: ['project.members.view'],
+        },
+      };
+
+      repository.membersByProjectId.set('p-1', [
+        {
+          projectId: 'p-1',
+          userId: 'u-1',
+          addedAt: new Date('2026-10-01T00:00:00Z'),
+          firstName: 'An',
+          lastName: 'Nguyen',
+          displayName: 'an',
+          email: 'an@example.com',
+          accountActive: true,
+        },
+      ]);
+
+      const res = await service.get(ws, 'u-1', 'PROJ1');
+      expect(res.project.id).toBe('p-1');
+      expect(res.project.name).toBe('Project One');
+      expect(res.project.identifier).toBe('PROJ1');
+      expect(res.project.role).toBe('admin');
+      expect(res.project.members).toHaveLength(1);
+      expect(res.project.members![0]!.email).toBe('an@example.com');
+    });
+
+    it('sets members: null when viewer lacks project.members.view (AC-27)', async () => {
+      const { service, repository, resolver } = makeSetup();
+      const ws = makeMemberWorkspace();
+
+      repository.idsByIdentifier.set(`${ws.id}:PROJ1`, 'p-1');
+      resolver.project = {
+        project: {
+          id: 'p-1',
+          name: 'Project One',
+          identifier: 'PROJ1',
+          description: 'Desc',
+          iconName: DEFAULT_PROJECT_ICON,
+          iconColor: DEFAULT_PROJECT_ICON_COLOR,
+          coverKey: DEFAULT_PROJECT_COVER,
+          createdAt: new Date('2026-10-01T00:00:00Z'),
+        },
+        access: {
+          role: 'guest',
+          permissions: [],
+        },
+      };
+
+      const res = await service.get(ws, 'u-1', 'PROJ1');
+      expect(res.project.members).toBeNull();
+      expect(repository.lastMembersOfQuery).toBeUndefined();
+    });
+  });
 });
+
