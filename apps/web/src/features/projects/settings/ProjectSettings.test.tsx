@@ -175,7 +175,102 @@ describe("ProjectSettings", () => {
     expect(
       screen.queryByRole("button", { name: "Update project" }),
     ).not.toBeInTheDocument();
+
+    expect(
+      screen.queryByRole("button", { name: "Change cover" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Change icon" }),
+    ).not.toBeInTheDocument();
   });
+
+  it("AC-11: clicking Change cover opens cover picker and selecting new cover enables submit and updates preview", async () => {
+    const user = userEvent.setup();
+    let patchedBody: unknown = null;
+
+    renderProjectSettingsApp({
+      initialEntries: ["/the-firsts/projects/TFP11/settings/general"],
+      onPatchProject: (body) => {
+        patchedBody = body;
+        return {
+          project: {
+            ...sampleProject,
+            coverKey: "cover-02",
+            updatedAt: "2026-10-12T10:05:00.000Z",
+          },
+        };
+      },
+    });
+
+    const changeCoverBtn = await screen.findByRole("button", {
+      name: "Change cover",
+    });
+    const submitBtn = screen.getByRole("button", { name: "Update project" });
+    expect(submitBtn).toBeDisabled();
+
+    await user.click(changeCoverBtn);
+
+    const cover2Radio = screen.getByRole("radio", { name: "Cover 2" });
+    await user.click(cover2Radio);
+
+    expect(submitBtn).toBeEnabled();
+
+    await user.click(submitBtn);
+
+    await waitFor(() => {
+      expect(patchedBody).toEqual({
+        coverKey: "cover-02",
+      });
+    });
+
+    await waitFor(() => {
+      expect(submitBtn).toBeDisabled();
+    });
+  });
+
+  it("AC-12: clicking Change icon opens icon picker and selecting icon/color enables submit", async () => {
+    const user = userEvent.setup();
+    let patchedBody: unknown = null;
+
+    renderProjectSettingsApp({
+      initialEntries: ["/the-firsts/projects/TFP11/settings/general"],
+      onPatchProject: (body) => {
+        patchedBody = body;
+        return {
+          project: {
+            ...sampleProject,
+            icon: { name: "star", color: sampleProject.icon.color },
+            updatedAt: "2026-10-12T10:05:00.000Z",
+          },
+        };
+      },
+    });
+
+    const changeIconBtn = await screen.findByRole("button", {
+      name: "Change icon",
+    });
+    const submitBtn = screen.getByRole("button", { name: "Update project" });
+    expect(submitBtn).toBeDisabled();
+
+    await user.click(changeIconBtn);
+
+    const starRadio = screen.getByRole("radio", { name: "star" });
+    await user.click(starRadio);
+
+    expect(submitBtn).toBeEnabled();
+
+    await user.click(submitBtn);
+
+    await waitFor(() => {
+      expect(patchedBody).toEqual({
+        icon: {
+          name: "star",
+          color: sampleProject.icon.color,
+        },
+      });
+    });
+  });
+
 
   it("AC-06 & AC-08 & AC-09: can edit project name and description, Project ID is read-only with tooltip, and saves successfully", async () => {
     const user = userEvent.setup();

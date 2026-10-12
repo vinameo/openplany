@@ -46,6 +46,19 @@ export function ProjectGeneralSettingsForm({
       <ProjectCoverHeader
         coverKey={form.values.coverKey}
         icon={{ name: form.values.iconName, color: form.values.iconColor }}
+        onCoverChange={
+          canEdit
+            ? (newCover) => form.setFieldValue("coverKey", newCover)
+            : undefined
+        }
+        onIconChange={
+          canEdit
+            ? (newIcon) => {
+                form.setFieldValue("iconName", newIcon.name);
+                form.setFieldValue("iconColor", newIcon.color);
+              }
+            : undefined
+        }
         variant="page"
       >
         <div className={classes.coverOverlay}>
@@ -55,6 +68,7 @@ export function ProjectGeneralSettingsForm({
           </div>
         </div>
       </ProjectCoverHeader>
+
 
       <form className={classes.formSection} onSubmit={handleSubmit} noValidate>
         {!canEdit && (

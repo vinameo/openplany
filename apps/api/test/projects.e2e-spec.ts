@@ -4,9 +4,11 @@ import {
   DEFAULT_PROJECT_COVER,
   DEFAULT_PROJECT_ICON,
   DEFAULT_PROJECT_ICON_COLOR,
+  PROJECT_FIELD_MESSAGES,
   PROJECT_LIST_MAX,
   PROJECT_MEMBER_PREVIEW_MAX,
 } from '@repo/contracts';
+
 import { AppendOnlyViolationError } from '../src/database/appendOnly.js';
 import { CreateProjectTables1791605000000 } from '../src/database/migrations/1791605000000-CreateProjectTables.js';
 import { AddProjectForeignKeyIndexes1791606000000 } from '../src/database/migrations/1791606000000-AddProjectForeignKeyIndexes.js';
@@ -1783,6 +1785,94 @@ describe('Projects (e2e)', () => {
 
       expect(res.body.project.updatedAt).toBe(initialUpdatedAt);
     });
+
+    it('B6 rows 14-18: validates icon and coverKey inputs on PATCH', async () => {
+      const { workspace, ownerId, cookie } = await seedWorkspace(
+        'patch-iconcover@openplany.dev',
+        'iconcover-ws',
+      );
+      const pId = await insertProject(
+        workspace.id,
+        'Icon Cover Project',
+        'ICCV',
+      );
+      await insertProjectMember(pId, workspace.id, ownerId, 'admin');
+
+      // Row 14: icon: null
+      const res14 = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/ICCV`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ icon: null })
+        .expect(400);
+      expect(res14.body.fields?.icon).toBe(PROJECT_FIELD_MESSAGES.iconRequired);
+
+      // Row 15: icon: { name: "nope", color: "#FFFFFF" }
+      const res15 = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/ICCV`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ icon: { name: 'nope', color: '#FFFFFF' } })
+        .expect(400);
+      expect(res15.body.fields?.['icon.name']).toBe(
+        PROJECT_FIELD_MESSAGES.iconRequired,
+      );
+
+      // Row 16: icon: { name: "star", color: "red" }
+      const res16 = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/ICCV`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ icon: { name: 'star', color: 'red' } })
+        .expect(400);
+      expect(res16.body.fields?.['icon.color']).toBe(
+        PROJECT_FIELD_MESSAGES.iconColorInvalid,
+      );
+
+      // Row 17: icon: { name: "star", color: "#abcdef" } saves uppercase #ABCDEF
+      const res17 = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/ICCV`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ icon: { name: 'star', color: '#abcdef' } })
+        .expect(200);
+      expect(res17.body.project.icon).toEqual({
+        name: 'star',
+        color: '#ABCDEF',
+      });
+      const updatedAt17 = res17.body.project.updatedAt;
+
+      // Unchanged icon with different case (#ABCDEF vs #abcdef) does not write
+      const res17NoChange = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/ICCV`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ icon: { name: 'star', color: '#abcdef' } })
+        .expect(200);
+      expect(res17NoChange.body.project.updatedAt).toBe(updatedAt17);
+
+      // Row 18: coverKey: "cover-99" and null
+      const res18Invalid = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/ICCV`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ coverKey: 'cover-99' })
+        .expect(400);
+      expect(res18Invalid.body.fields?.coverKey).toBe(
+        PROJECT_FIELD_MESSAGES.coverRequired,
+      );
+
+      const res18Null = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/ICCV`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ coverKey: null })
+        .expect(400);
+      expect(res18Null.body.fields?.coverKey).toBe(
+        PROJECT_FIELD_MESSAGES.coverRequired,
+      );
+    });
+
 
     it('AC-23 & B6 row 27: two identical concurrent PATCH requests both succeed with 200 and identical result', async () => {
       const { workspace, ownerId, cookie } = await seedWorkspace(
