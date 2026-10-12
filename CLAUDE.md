@@ -320,7 +320,19 @@ Each of those features passed every ticket's acceptance criteria and its checks,
 - Prefer running `/code-review` on the branch. Otherwise, review it yourself against the same lists. Also run it right after the tracer-bullet ticket: later tickets copy whatever the tracer establishes.
 - Write the report to `.claude/reviews/<branch with "/" as "__">.md` (untracked) after the last commit. A PreToolUse hook (`.claude/hooks/requireBranchReview.mjs`) refuses `git merge` of a `feature/`, `fix/`, `refactor/`, `chore/` or `review/` branch whose report is missing or older than its tip.
 
-**Feature workflow skills** (`.claude/skills/`): `write-feature-spec` (grill → five spec files → `spec-reviewer` subagent → tickets) and `implement-ticket` (one ticket, and the final self-review and merge).
+### Spec review: OpenPlany checks
+
+The `spec-review` skill (user-level, shared across projects) reads this section. Specs live in `packages/docs/<n>-<feature>/`, written in Vietnamese. The five components map to `1-requirement-spec.md` (R), `2-business-analytics-spec.md` (B), `3-database-spec.md` (D), `4-api-spec.md` (A) and `5-web-spec.md` (W). Part B of each file is what agents implement. Add these checks to the skill's list:
+
+- **P1 Access seams.** Routes under `/workspaces/:slug` use `WorkspaceMemberGuard` (`@WorkspaceRead`/`@WorkspaceWrite`). Routes under `/projects/:identifier` use `@ProjectRead()`/`@ProjectWrite()` with `@CurrentProject()`. Project access is decided only in `ProjectAccessResolver`. `apps/api/src/architecture.spec.ts` enforces this.
+- **P2 Permissions.** Permissions follow §5 "Permissions": read from `role_permissions` through `@repo/contracts` helpers, with no role-name comparisons.
+- **P3 Data access.** Data access follows §5 "Database": no hand-written SQL in app code; hand-written migrations, each added to `MIGRATIONS` in `apps/api/test/e2eGlobalSetup.ts`.
+- **P4 Adversarial inputs.** Each new JSON write endpoint gets a case in `apps/api/test/adversarialInputs.e2e-spec.ts`.
+- **P5 Web building blocks.** URLs come from `workspacePath`/`workspaceSettingsPath`/`projectPath`. Route meta uses `useRouteHandleMeta`. Sidebars use `SidebarNavItem`. Page headers use `pageHeader.module.css`. Server state uses TanStack Query, with keys in the feature's `api/*Queries.ts`.
+- **P6 Shared copy.** Validation and error messages are `@repo/contracts` constants, used by both the API DTO and the web form.
+- **P7 Glossary.** Terms follow `/CONTEXT.md`. The product the drafts imitate is never named.
+
+**Feature workflow skills** (`.claude/skills/`): `write-feature-spec` (grill → five spec files → `spec-reviewer` subagent, which runs the user-level `spec-review` skill with the checks above → tickets) and `implement-ticket` (one ticket, and the final self-review and merge).
 
 Work that isn't tied to one `packages/docs/<n>-…` directory (cross-cutting fixes, review follow-ups) uses `fix/` / `refactor/` / `chore/` with a short description and the same flow.
 
