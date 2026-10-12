@@ -19,7 +19,7 @@ import {
   loadRolePermissions,
   rolePermissionsKey,
 } from '../../roles/rolePermissionsQuery.js';
-import type { ProjectRow } from '../dto/projectResponse.js';
+import { toProjectRow, type ProjectRow } from '../dto/projectResponse.js';
 import { Project } from '../entities/project.entity.js';
 import { ProjectMember } from '../entities/projectMember.entity.js';
 import { ACTIVE_PROJECT, ACTIVE_PROJECT_MEMBER } from '../projectFilters.js';
@@ -220,16 +220,7 @@ function toAccessibleProject(
   if (access === null) return [];
   return [
     {
-      project: {
-        id: project.id,
-        name: project.name,
-        identifier: project.identifier,
-        description: project.description,
-        iconName: project.iconName,
-        iconColor: project.iconColor,
-        coverKey: project.coverKey,
-        createdAt: project.createdAt,
-      },
+      project: toProjectRow(project),
       access,
     },
   ];

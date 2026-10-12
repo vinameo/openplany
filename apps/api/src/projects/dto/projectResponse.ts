@@ -5,6 +5,8 @@ import {
   type ProjectMemberSummary,
 } from '@repo/contracts';
 
+import type { Project } from '../entities/project.entity.js';
+
 export interface ProjectRow {
   id: string;
   name: string;
@@ -14,6 +16,19 @@ export interface ProjectRow {
   iconColor: string;
   coverKey: string;
   createdAt: Date;
+}
+
+export function toProjectRow(project: Project): ProjectRow {
+  return {
+    id: project.id,
+    name: project.name,
+    identifier: project.identifier,
+    description: project.description,
+    iconName: project.iconName,
+    iconColor: project.iconColor,
+    coverKey: project.coverKey,
+    createdAt: project.createdAt,
+  };
 }
 
 export interface ProjectMemberRow {

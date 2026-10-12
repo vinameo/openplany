@@ -7,6 +7,7 @@ import {
   WORKSPACE_NAME_MAX,
   WORKSPACE_NAME_MESSAGES,
   WORKSPACE_TIMEZONES,
+  TIMEZONE_MESSAGES,
 } from '@repo/contracts';
 import { Transform } from 'class-transformer';
 import {
@@ -43,7 +44,7 @@ export class UpdateWorkspaceDto {
   organizationSize?: OrganizationSize;
 
   @ValidateIf(isProvided)
-  @IsIn(WORKSPACE_TIMEZONES, { message: 'Select a valid timezone' })
+  @IsIn(WORKSPACE_TIMEZONES, { message: TIMEZONE_MESSAGES.invalid })
   timezone?: string;
 }
 

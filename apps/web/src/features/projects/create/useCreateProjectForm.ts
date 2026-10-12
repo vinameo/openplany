@@ -3,14 +3,11 @@ import { useForm } from "@mantine/form";
 import {
   DEFAULT_PROJECT_ICON,
   DEFAULT_PROJECT_ICON_COLOR,
-  NO_HIDDEN_CHARS,
   normalizeProjectName,
-  PROJECT_DESCRIPTION_ALLOWED_CHARS,
-  PROJECT_DESCRIPTION_MAX,
-  PROJECT_ERROR_MESSAGES,
+  projectDescriptionProblem,
   PROJECT_IDENTIFIER_MAX,
   PROJECT_IDENTIFIER_PATTERN,
-  PROJECT_NAME_MAX,
+  projectNameProblem,
   suggestProjectIdentifier,
   type CreateProjectRequest,
   type ProjectCoverKey,
@@ -41,19 +38,7 @@ export function useCreateProjectForm() {
       coverKey: pickRandomCover(),
     },
     validate: {
-      name: (val) => {
-        const normalized = normalizeProjectName(val);
-        if (!normalized) {
-          return "Enter a project name";
-        }
-        if (normalized.length > PROJECT_NAME_MAX) {
-          return `Enter a project name (up to ${PROJECT_NAME_MAX} characters)`;
-        }
-        if (!NO_HIDDEN_CHARS.test(normalized)) {
-          return "Contains characters that aren't allowed";
-        }
-        return null;
-      },
+      name: (val) => projectNameProblem(val),
       identifier: (val) => {
         const trimmed = val.trim();
         if (!trimmed) {
@@ -64,15 +49,7 @@ export function useCreateProjectForm() {
         }
         return null;
       },
-      description: (val) => {
-        if (val && val.length > PROJECT_DESCRIPTION_MAX) {
-          return `Keep the description under ${PROJECT_DESCRIPTION_MAX} characters`;
-        }
-        if (val && !PROJECT_DESCRIPTION_ALLOWED_CHARS.test(val)) {
-          return PROJECT_ERROR_MESSAGES.descriptionChars;
-        }
-        return null;
-      },
+      description: (val) => projectDescriptionProblem(val),
     },
   });
 
