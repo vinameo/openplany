@@ -18,9 +18,13 @@ import { HomeIcon } from "./features/workspaces/icons";
 import { HomeRedirect } from "./features/workspaces/routes/HomeRedirect";
 import { WorkspaceLayout } from "./features/workspaces/routes/WorkspaceLayout";
 import { WorkspaceNotFound } from "./features/workspaces/routes/WorkspaceNotFound";
+import { WorkspaceChrome } from "./features/workspaces/shell/WorkspaceChrome";
 import { WorkspaceShell } from "./features/workspaces/shell/WorkspaceShell";
 import type { WorkspacePageHandle } from "./features/workspaces/shell/workspacePageHandle";
 import { WorkspaceProvider } from "./features/workspaces/WorkspaceProvider";
+import { ProjectLayout } from "./features/projects/detail/ProjectLayout";
+import { ProjectHomePage } from "./features/projects/detail/ProjectHomePage";
+import type { ProjectPageHandle } from "./features/projects/detail/projectPageHandle";
 
 export const appRoutes: RouteObject[] = [
   { path: SIGN_IN_PATH, element: <SignInRoute /> },
@@ -45,17 +49,24 @@ export const appRoutes: RouteObject[] = [
             element: <WorkspaceLayout />,
             children: [
               {
-                element: <WorkspaceShell />,
+                element: (
+                  <WorkspaceChrome>
+                    <Outlet />
+                  </WorkspaceChrome>
+                ),
                 children: [
                   {
-                    index: true,
-                    element: <HomePage />,
-                    handle: {
-                      workspacePage: { title: "Home", icon: HomeIcon },
-                    } satisfies WorkspacePageHandle,
+                    element: <WorkspaceShell />,
+                    children: [
+                      {
+                        index: true,
+                        element: <HomePage />,
+                        handle: {
+                          workspacePage: { title: "Home", icon: HomeIcon },
+                        } satisfies WorkspacePageHandle,
+                      },
+                    ],
                   },
-                ],
-              },
               {
                 path: "settings",
                 lazy: () =>
@@ -105,6 +116,21 @@ export const appRoutes: RouteObject[] = [
               },
             ],
           },
+          {
+            path: "projects/:projectIdentifier",
+            element: <ProjectLayout />,
+            children: [
+              {
+                index: true,
+                element: <ProjectHomePage />,
+                handle: {
+                  projectPage: { title: "Home" },
+                } satisfies ProjectPageHandle,
+              },
+            ],
+          },
+        ],
+      },
         ],
       },
     ],

@@ -60,6 +60,10 @@ _Avoid_: Participant
 The picture shown at the top of a project, chosen from a fixed set that comes with OpenPlany.
 _Avoid_: Banner
 
+**Project home**:
+The first page a person lands on when opening a project. Distinct from the workspace's Home, which lists the workspace's projects.
+_Avoid_: Project overview, project dashboard
+
 **Work item**:
 One unit of work tracked inside a project, whatever its kind. It is what people create, assign and move through states.
 _Avoid_: Issue, ticket

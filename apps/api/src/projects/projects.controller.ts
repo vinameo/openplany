@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Param,
   Post,
   Req,
   UseGuards,
@@ -11,6 +12,7 @@ import {
 import type {
   CreateProjectResponse,
   ProjectListResponse,
+  ProjectResponse,
 } from '@repo/contracts';
 import type { Request } from 'express';
 import { CurrentUserId } from '../auth/currentUser.decorator.js';
@@ -35,6 +37,17 @@ export class ProjectsController {
     @Req() req: Request & { requestId?: string },
   ): Promise<ProjectListResponse> {
     return this.service.list(ws, userId, req.requestId);
+  }
+
+  @Get('projects/:identifier')
+  @UseGuards(WorkspaceMemberGuard)
+  get(
+    @CurrentWorkspace() ws: MemberWorkspace,
+    @CurrentUserId() userId: string,
+    @Param('identifier') identifier: string,
+    @Req() req: Request & { requestId?: string },
+  ): Promise<ProjectResponse> {
+    return this.service.get(ws, userId, identifier, req.requestId);
   }
 
   @Post('projects')

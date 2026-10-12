@@ -1,0 +1,57 @@
+.pageHeader {
+  height: var(--workspace-page-header-height);
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--app-color-border);
+  background: var(--app-color-surface);
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.titleGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.breadcrumbNav {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.breadcrumbs {
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+
+.breadcrumbItem {
+  min-width: 0;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.breadcrumbLink {
+  min-width: 0;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: inherit;
+}
+
+.breadcrumbProjectName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

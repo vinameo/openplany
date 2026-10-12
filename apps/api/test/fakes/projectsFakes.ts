@@ -11,6 +11,7 @@ import type {
 } from '../../src/projects/dto/projectResponse.js';
 import {
   ProjectEvents,
+  type ProjectAccessDeniedEvent,
   type ProjectCreatedEvent,
   type ProjectListTruncatedEvent,
 } from '../../src/projects/events/projectEvents.js';
@@ -78,11 +79,23 @@ export class FakeProjectsRepository extends ProjectsRepository {
     this.createdProjects.push(input);
     return { projectId: 'project-new-id' };
   }
+
+  public idsByIdentifier = new Map<string, string>();
+  public lastFindIdQuery?: { workspaceId: string; identifier: string };
+
+  async findIdByIdentifier(
+    workspaceId: string,
+    identifier: string,
+  ): Promise<string | null> {
+    this.lastFindIdQuery = { workspaceId, identifier };
+    return this.idsByIdentifier.get(`${workspaceId}:${identifier}`) ?? null;
+  }
 }
 
 export class FakeProjectEvents extends ProjectEvents {
   public createdEvents: ProjectCreatedEvent[] = [];
   public truncatedEvents: ProjectListTruncatedEvent[] = [];
+  public accessDeniedEvents: ProjectAccessDeniedEvent[] = [];
 
   async created(event: ProjectCreatedEvent): Promise<void> {
     this.createdEvents.push(event);
@@ -90,5 +103,9 @@ export class FakeProjectEvents extends ProjectEvents {
 
   async listTruncated(event: ProjectListTruncatedEvent): Promise<void> {
     this.truncatedEvents.push(event);
+  }
+
+  async accessDenied(event: ProjectAccessDeniedEvent): Promise<void> {
+    this.accessDeniedEvents.push(event);
   }
 }

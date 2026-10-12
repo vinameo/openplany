@@ -211,8 +211,15 @@ export interface CreateProjectResponse {
   project: ProjectListItem;
 }
 
+/** GET /workspaces/:slug/projects/:identifier (RQ D16). */
+export interface ProjectResponse {
+  project: ProjectListItem;
+}
+
 export const PROJECT_ERROR_MESSAGES = {
   nameTaken: "A project with this name already exists",
   identifierTaken: "This project ID is already used",
   descriptionChars: "Contains characters that aren't allowed",
+  notFound: "This project doesn't exist.",
+  forbidden: "You don't have access to this project.",
 } as const;

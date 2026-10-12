@@ -1,48 +1,26 @@
-import { ActionIcon, Button, NavLink, ScrollArea, Text, Tooltip } from "@mantine/core";
+import { Button, NavLink, ScrollArea, Text } from "@mantine/core";
 import { Link, useLocation } from "react-router";
 import { ComingSoonHint } from "../../layout/ComingSoonHint";
 import { useCurrentWorkspace } from "../currentWorkspace/useCurrentWorkspace";
 import {
   HomeIcon,
-  PanelLeftIcon,
   SettingsIcon,
   SquarePenIcon,
 } from "../icons";
-import { useWorkspaceSidebar } from "./useWorkspaceSidebar";
-import classes from "./WorkspaceSidebarContent.module.css";
+import { SidebarCollapseButton } from "./SidebarCollapseButton";
+import classes from "./sidebarContent.module.css";
 
 export function WorkspaceSidebarContent() {
   const { workspace } = useCurrentWorkspace();
   const { pathname } = useLocation();
-  const {
-    mode,
-    isOpen,
-    close,
-    sidebarId,
-    collapseButtonRef,
-  } = useWorkspaceSidebar();
 
   const isHome = pathname.replace(/\/+$/, "") === `/${workspace.slug}`;
-  const label = mode === "mobile" ? "Close sidebar" : "Collapse sidebar";
 
   return (
     <>
       <div className={classes.headerRow}>
         <Text className={classes.heading}>Workspace</Text>
-        <Tooltip label={label} withArrow position="right">
-          <ActionIcon
-            ref={collapseButtonRef}
-            variant="subtle"
-            color="gray"
-            size="md"
-            aria-label={label}
-            aria-expanded={isOpen}
-            aria-controls={sidebarId}
-            onClick={close}
-          >
-            <PanelLeftIcon width={18} height={18} />
-          </ActionIcon>
-        </Tooltip>
+        <SidebarCollapseButton />
       </div>
 
       <ScrollArea

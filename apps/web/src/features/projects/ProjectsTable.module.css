@@ -13,3 +13,10 @@
 .dateCell {
   white-space: nowrap;
 }
+
+.projectNameLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+  min-width: 0;
+}

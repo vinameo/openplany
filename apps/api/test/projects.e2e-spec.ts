@@ -10,7 +10,9 @@ import {
 import { AppendOnlyViolationError } from '../src/database/appendOnly.js';
 import { CreateProjectTables1791605000000 } from '../src/database/migrations/1791605000000-CreateProjectTables.js';
 import { AddProjectForeignKeyIndexes1791606000000 } from '../src/database/migrations/1791606000000-AddProjectForeignKeyIndexes.js';
+import { ReserveProjectIdentifiers1791607000000 } from '../src/database/migrations/1791607000000-ReserveProjectIdentifiers.js';
 import { ProjectMemberRoleHistory } from '../src/projects/entities/projectMemberRoleHistory.entity.js';
+import { ProjectsRepository } from '../src/projects/repositories/projects.repository.js';
 import { createE2eApp, type E2eApp } from './createE2eApp.js';
 import {
   createUser as createE2eUser,
@@ -118,9 +120,11 @@ describe('Projects (e2e)', () => {
       // Later migrations on these tables are reverted first and re-applied last,
       // so the e2e database ends in the same state for the following tests.
       const indexes = new AddProjectForeignKeyIndexes1791606000000();
+      const reserve = new ReserveProjectIdentifiers1791607000000();
       const qr = e2e.dataSource.createQueryRunner();
       await qr.connect();
       try {
+        await reserve.down(qr);
         await indexes.down(qr);
         await migration.down(qr);
 
@@ -144,6 +148,7 @@ describe('Projects (e2e)', () => {
         );
         expect(tablesAfterUp).toHaveLength(3);
         await indexes.up(qr);
+        await reserve.up(qr);
       } finally {
         await qr.release();
       }
@@ -358,7 +363,7 @@ describe('Projects (e2e)', () => {
       );
     });
 
-    it('T-DB-08: soft-deleting a project allows creating another with identical name and identifier', async () => {
+    it('T-DB-08: soft-deleting a project keeps its identifier reserved but frees its name', async () => {
       const { workspace } = await seedWorkspace(
         't-db-08@openplany.dev',
         'tdb08-ws',
@@ -367,9 +372,100 @@ describe('Projects (e2e)', () => {
       const oldId = await insertProject(workspace.id, 'Web', 'WEB', new Date());
       expect(oldId).toBeDefined();
 
-      const newId = await insertProject(workspace.id, 'Web', 'WEB');
-      expect(newId).toBeDefined();
-      expect(newId).not.toBe(oldId);
+      const newIdWithSameName = await insertProject(workspace.id, 'Web', 'WEB2');
+      expect(newIdWithSameName).toBeDefined();
+
+      let error:
+        | { driverError?: { code?: string; constraint?: string }; code?: string }
+        | undefined;
+      try {
+        await insertProject(workspace.id, 'Web App', 'WEB');
+      } catch (err) {
+        error = err as {
+          driverError?: { code?: string; constraint?: string };
+          code?: string;
+        };
+      }
+      expect(error).toBeDefined();
+      expect(error?.driverError?.code || error?.code).toBe('23505');
+      expect(error?.driverError?.constraint).toBe('projects_workspace_identifier_key');
+    });
+
+    it('T-DB-20: creating via API rejects taken identifier of soft-deleted project with 409 and accepts recycled name', async () => {
+      const { workspace, cookie } = await seedWorkspace(
+        't-db-20@openplany.dev',
+        'tdb20-ws',
+      );
+
+      await insertProject(workspace.id, 'Deleted Project', 'TFP11', new Date());
+
+      const conflictRes = await http()
+        .post(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({
+          name: 'New Project',
+          identifier: 'TFP11',
+          icon: { name: 'rocket', color: '#15AABF' },
+          coverKey: 'cover-01',
+        })
+        .expect(409);
+
+      expect(conflictRes.body.code).toBe('PROJECT_IDENTIFIER_TAKEN');
+      expect(conflictRes.body.fields?.identifier).toBeDefined();
+
+      const createRes = await http()
+        .post(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({
+          name: 'Deleted Project',
+          identifier: 'NEW11',
+          icon: { name: 'rocket', color: '#15AABF' },
+          coverKey: 'cover-01',
+        })
+        .expect(201);
+
+      expect(createRes.body.project.name).toBe('Deleted Project');
+      expect(createRes.body.project.identifier).toBe('NEW11');
+    });
+
+    it('T-DB-22: catalog check confirms projects_workspace_identifier_key has no WHERE predicate', async () => {
+      const rows = await e2e.dataSource.query(
+        `SELECT indexdef FROM pg_indexes
+         WHERE tablename = 'projects' AND indexname = 'projects_workspace_identifier_key'`,
+      );
+      expect(rows).toHaveLength(1);
+      expect(rows[0].indexdef).not.toContain('WHERE');
+    });
+
+    it('T-DB-23: findIdByIdentifier returns id if active, null if deleted, null if other workspace, null if lowercased', async () => {
+      const { workspace: ws1 } = await seedWorkspace(
+        'ws1-tdb23@openplany.dev',
+        'ws1-tdb23',
+      );
+      const { workspace: ws2 } = await seedWorkspace(
+        'ws2-tdb23@openplany.dev',
+        'ws2-tdb23',
+      );
+      const repo = e2e.app.get(ProjectsRepository);
+
+      const activeId = await insertProject(ws1.id, 'Active Proj', 'ACT1');
+      await insertProject(
+        ws1.id,
+        'Deleted Proj',
+        'DEL1',
+        new Date('2026-10-01T00:00:00Z'),
+      );
+
+      // active in ws1 -> returns id
+      expect(await repo.findIdByIdentifier(ws1.id, 'ACT1')).toBe(activeId);
+      // deleted in ws1 -> returns null
+      expect(await repo.findIdByIdentifier(ws1.id, 'DEL1')).toBeNull();
+      // other workspace -> returns null
+      expect(await repo.findIdByIdentifier(ws2.id, 'ACT1')).toBeNull();
+      // lowercase exact match -> returns null
+      expect(await repo.findIdByIdentifier(ws1.id, 'act1')).toBeNull();
     });
   });
 
@@ -1028,4 +1124,281 @@ describe('Projects (e2e)', () => {
       expect(res.body.project.name).toBe('Trimmed Project');
     });
   });
+
+  describe('GET /api/workspaces/:slug/projects/:identifier', () => {
+    it('returns 401 UNAUTHENTICATED without session cookie (AC-18)', async () => {
+      const { workspace } = await seedWorkspace(
+        'unauth-get@openplany.dev',
+        'unauth-get-ws',
+      );
+      await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/PONE`)
+        .expect(401);
+    });
+
+    it('returns 404 NOT_FOUND when requesting nonexistent workspace or non-member (AC-17)', async () => {
+      const { workspace } = await seedWorkspace(
+        'owner-404-get@openplany.dev',
+        'ws-404-get',
+      );
+      await createUser('outsider-get@openplany.dev');
+      const outsiderCookie = await signInCookie('outsider-get@openplany.dev');
+
+      await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/PONE`)
+        .set('Cookie', outsiderCookie)
+        .expect(404);
+
+      await http()
+        .get('/api/workspaces/nonexistent-slug/projects/PONE')
+        .set('Cookie', outsiderCookie)
+        .expect(404);
+    });
+
+    it('returns 404 PROJECT_NOT_FOUND when project does not exist or lowercase (AC-11, AC-13)', async () => {
+      const { workspace, cookie } = await seedWorkspace(
+        'owner-pnotfound@openplany.dev',
+        'ws-pnotfound',
+      );
+      await insertProject(workspace.id, 'My Project', 'MYPR');
+
+      const res404 = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/NOPE`)
+        .set('Cookie', cookie)
+        .expect(404);
+      expect(res404.body.code).toBe('PROJECT_NOT_FOUND');
+      expect(res404.body.message).toBe("This project doesn't exist.");
+
+      // lowercase doesn't match
+      const resLower = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/mypr`)
+        .set('Cookie', cookie)
+        .expect(404);
+      expect(resLower.body.code).toBe('PROJECT_NOT_FOUND');
+    });
+
+    it('returns 200 with project item matching GET .../projects element exactly (AC-24, INV-01)', async () => {
+      const { workspace, ownerId, cookie } = await seedWorkspace(
+        'owner-match@openplany.dev',
+        'ws-match',
+      );
+      const pId = await insertProject(workspace.id, 'Alpha Project', 'ALPHA');
+      await insertProjectMember(pId, workspace.id, ownerId, 'admin');
+
+      const listRes = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', cookie)
+        .expect(200);
+
+      const listItem = listRes.body.projects.find(
+        (p: { identifier: string }) => p.identifier === 'ALPHA',
+      );
+      expect(listItem).toBeDefined();
+
+      const getRes = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/ALPHA`)
+        .set('Cookie', cookie)
+        .expect(200);
+
+      expect(getRes.headers['cache-control']).toBe('no-store');
+      expect(getRes.body).toEqual({ project: listItem });
+    });
+
+    it('returns 404 PROJECT_NOT_FOUND when project has been soft-deleted (AC-19)', async () => {
+      const { workspace, ownerId, cookie } = await seedWorkspace(
+        'owner-del@openplany.dev',
+        'ws-del',
+      );
+      const pId = await insertProject(
+        workspace.id,
+        'Deleted Proj',
+        'DEL1',
+        new Date(),
+      );
+      await insertProjectMember(pId, workspace.id, ownerId, 'admin');
+
+      const res = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/DEL1`)
+        .set('Cookie', cookie)
+        .expect(404);
+
+      expect(res.body.code).toBe('PROJECT_NOT_FOUND');
+      expect(res.body.message).toBe("This project doesn't exist.");
+    });
+
+    it('returns 403 FORBIDDEN without project data when workspace member does not belong to project (AC-14)', async () => {
+      const { workspace, ownerId } = await seedWorkspace(
+        'owner-priv@openplany.dev',
+        'ws-priv',
+      );
+      const memberId = await createUser('member-priv@openplany.dev');
+      const memberCookie = await signInCookie('member-priv@openplany.dev');
+      await addWorkspaceMember(workspace.id, memberId, 'member');
+
+      const pId = await insertProject(
+        workspace.id,
+        'Super Secret Name',
+        'SEC1',
+      );
+      await insertProjectMember(pId, workspace.id, ownerId, 'admin');
+
+      const res = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/SEC1`)
+        .set('Cookie', memberCookie)
+        .expect(403);
+
+      expect(res.body.code).toBe('FORBIDDEN');
+      expect(res.body.message).toBe("You don't have access to this project.");
+      expect(res.body).not.toHaveProperty('project');
+      expect(JSON.stringify(res.body)).not.toContain('Super Secret Name');
+    });
+
+    it('returns 200 with role="admin" when workspace admin is not a project member (AC-15)', async () => {
+      const { workspace, cookie: adminCookie } = await seedWorkspace(
+        'admin-nonmember@openplany.dev',
+        'ws-admin-nm',
+      );
+      const memberId = await createUser('member-nm@openplany.dev');
+      await addWorkspaceMember(workspace.id, memberId, 'member');
+
+      const pId = await insertProject(
+        workspace.id,
+        'Member Only Proj',
+        'MOP1',
+      );
+      await insertProjectMember(pId, workspace.id, memberId, 'contributor');
+
+      const res = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/MOP1`)
+        .set('Cookie', adminCookie)
+        .expect(200);
+
+      expect(res.body.project.role).toBe('admin');
+      expect(res.body.project.identifier).toBe('MOP1');
+    });
+
+    it('returns 200 for guest in project, 403 for guest not in project (AC-16)', async () => {
+      const { workspace, ownerId } = await seedWorkspace(
+        'owner-gst@openplany.dev',
+        'ws-gst',
+      );
+      const guestId = await createUser('guest-user@openplany.dev');
+      const guestCookie = await signInCookie('guest-user@openplany.dev');
+      await addWorkspaceMember(workspace.id, guestId, 'guest');
+
+      const p1Id = await insertProject(workspace.id, 'Guest Allowed', 'GST1');
+      await insertProjectMember(p1Id, workspace.id, ownerId, 'admin');
+      await insertProjectMember(p1Id, workspace.id, guestId, 'guest');
+
+      const p2Id = await insertProject(workspace.id, 'Guest Denied', 'GST2');
+      await insertProjectMember(p2Id, workspace.id, ownerId, 'admin');
+
+      // Guest in p1 -> 200
+      const res1 = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/GST1`)
+        .set('Cookie', guestCookie)
+        .expect(200);
+      expect(res1.body.project.identifier).toBe('GST1');
+
+      // Guest not in p2 -> 403
+      const res2 = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/GST2`)
+        .set('Cookie', guestCookie)
+        .expect(403);
+      expect(res2.body.code).toBe('FORBIDDEN');
+    });
+
+    it('returns members: null and memberCount: null when viewer has project role guest (AC-27)', async () => {
+      const { workspace, ownerId } = await seedWorkspace(
+        'owner-gprev@openplany.dev',
+        'ws-gprev',
+      );
+      const guestId = await createUser('guest-prev@openplany.dev');
+      const guestCookie = await signInCookie('guest-prev@openplany.dev');
+      await addWorkspaceMember(workspace.id, guestId, 'guest');
+
+      const pId = await insertProject(workspace.id, 'Guest Project', 'GPR1');
+      await insertProjectMember(pId, workspace.id, ownerId, 'admin');
+      await insertProjectMember(pId, workspace.id, guestId, 'guest');
+
+      const res = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/GPR1`)
+        .set('Cookie', guestCookie)
+        .expect(200);
+
+      expect(res.body.project.members).toBeNull();
+      expect(res.body.project.memberCount).toBeNull();
+    });
+
+    it('omits email from JSON for member viewer, includes email for admin viewer (AC-24)', async () => {
+      const {
+        workspace,
+        ownerId,
+        cookie: adminCookie,
+      } = await seedWorkspace('owner-email@openplany.dev', 'ws-email');
+      const memberId = await createUser('member-email@openplany.dev');
+      const memberCookie = await signInCookie('member-email@openplany.dev');
+      await addWorkspaceMember(workspace.id, memberId, 'member');
+
+      const pId = await insertProject(workspace.id, 'Email Proj', 'EML1');
+      await insertProjectMember(pId, workspace.id, ownerId, 'admin');
+      await insertProjectMember(pId, workspace.id, memberId, 'contributor');
+
+      // Admin sees email
+      const adminRes = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/EML1`)
+        .set('Cookie', adminCookie)
+        .expect(200);
+      expect(JSON.stringify(adminRes.body)).toContain('"email"');
+
+      // Member does not see email
+      const memberRes = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/EML1`)
+        .set('Cookie', memberCookie)
+        .expect(200);
+      expect(JSON.stringify(memberRes.body)).not.toContain('"email"');
+    });
+
+    it('isolates same identifier in different workspaces (INV-02)', async () => {
+      const { workspace: ws1, ownerId: owner1 } = await seedWorkspace(
+        'owner-ws1@openplany.dev',
+        'ws-iso-1',
+      );
+      const { workspace: ws2, ownerId: owner2 } = await seedWorkspace(
+        'owner-ws2@openplany.dev',
+        'ws-iso-2',
+      );
+
+      const userId = await createUser('user-cross@openplany.dev');
+      const userCookie = await signInCookie('user-cross@openplany.dev');
+
+      // User is in both workspaces as 'member'
+      await addWorkspaceMember(ws1.id, userId, 'member');
+      await addWorkspaceMember(ws2.id, userId, 'member');
+
+      // Identifier SHARE in WS1 -> user is project contributor
+      const p1 = await insertProject(ws1.id, 'Share One', 'SHARE');
+      await insertProjectMember(p1, ws1.id, owner1, 'admin');
+      await insertProjectMember(p1, ws1.id, userId, 'contributor');
+
+      // Identifier SHARE in WS2 -> user is NOT project member
+      const p2 = await insertProject(ws2.id, 'Share Two', 'SHARE');
+      await insertProjectMember(p2, ws2.id, owner2, 'admin');
+
+      // Access ws1 -> 200
+      const res1 = await http()
+        .get(`/api/workspaces/${ws1.slug}/projects/SHARE`)
+        .set('Cookie', userCookie)
+        .expect(200);
+      expect(res1.body.project.name).toBe('Share One');
+
+      // Access ws2 -> 403
+      const res2 = await http()
+        .get(`/api/workspaces/${ws2.slug}/projects/SHARE`)
+        .set('Cookie', userCookie)
+        .expect(403);
+      expect(res2.body.code).toBe('FORBIDDEN');
+    });
+  });
 });
+

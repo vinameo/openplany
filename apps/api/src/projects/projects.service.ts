@@ -1,10 +1,12 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import {
   PROJECT_ERROR_MESSAGES,
+  PROJECT_IDENTIFIER_PATTERN,
   PROJECT_MEMBER_PREVIEW_MAX,
   type CreateProjectResponse,
   type ProjectListItem,
   type ProjectListResponse,
+  type ProjectResponse,
 } from '@repo/contracts';
 import { Clock } from '../auth/clock.js';
 import { ApiException } from '../common/apiException.js';
@@ -60,6 +62,52 @@ export class ProjectsService {
       total,
       truncated,
     };
+  }
+
+  async get(
+    workspace: MemberWorkspace,
+    userId: string,
+    identifier: string,
+    requestId?: string,
+  ): Promise<ProjectResponse> {
+    if (!PROJECT_IDENTIFIER_PATTERN.test(identifier)) {
+      throw projectNotFound();
+    }
+
+    const projectId = await this.repository.findIdByIdentifier(
+      workspace.id,
+      identifier,
+    );
+    if (projectId === null) {
+      throw projectNotFound();
+    }
+
+    const accessible = await this.resolver.forProject({
+      workspaceId: workspace.id,
+      userId,
+      workspaceRole: workspace.role,
+      projectId,
+    });
+    if (accessible === null) {
+      await this.events.accessDenied({
+        projectId,
+        workspaceId: workspace.id,
+        userId,
+        requestId,
+      });
+      throw new ApiException(
+        HttpStatus.FORBIDDEN,
+        'FORBIDDEN',
+        PROJECT_ERROR_MESSAGES.forbidden,
+      );
+    }
+
+    const [project] = await this.withMembers([accessible], workspace);
+    if (project === undefined) {
+      throw new Error(`Accessible project ${projectId} produced no list item`);
+    }
+
+    return { project };
   }
 
   async create(
@@ -163,4 +211,12 @@ export class ProjectsService {
       ),
     );
   }
+}
+
+function projectNotFound(): ApiException {
+  return new ApiException(
+    HttpStatus.NOT_FOUND,
+    'PROJECT_NOT_FOUND',
+    PROJECT_ERROR_MESSAGES.notFound,
+  );
 }
