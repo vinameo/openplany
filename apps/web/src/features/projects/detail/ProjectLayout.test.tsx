@@ -48,7 +48,7 @@ function renderProjectApp({
   projectError?: { status: number; code: string; message: string };
   delayProject?: Promise<void>;
   isDesktop?: boolean;
-  workspaces?: typeof testWorkspace[];
+  workspaces?: (typeof testWorkspace)[];
 } = {}) {
   stubMatchMedia(isDesktop);
   const router = createMemoryRouter(appRoutes, {
@@ -128,10 +128,7 @@ describe("ProjectLayout (Ticket 04 tracer bullet)", () => {
     const homeNavLink = screen.getByRole("link", { name: "Home" });
     expect(homeNavLink).toBeInTheDocument();
     expect(homeNavLink).toHaveAttribute("aria-current", "page");
-    expect(homeNavLink).toHaveAttribute(
-      "href",
-      "/the-firsts/projects/TFP11",
-    );
+    expect(homeNavLink).toHaveAttribute("href", "/the-firsts/projects/TFP11");
 
     // Sidebar collapse button
     expect(
@@ -150,10 +147,7 @@ describe("ProjectLayout (Ticket 04 tracer bullet)", () => {
     const projectLink = await screen.findByRole("link", {
       name: /The First Project/i,
     });
-    expect(projectLink).toHaveAttribute(
-      "href",
-      "/the-firsts/projects/TFP11",
-    );
+    expect(projectLink).toHaveAttribute("href", "/the-firsts/projects/TFP11");
 
     // Current page in breadcrumb
     const homeBreadcrumb = screen.getByText("Home", { selector: "p" });
@@ -175,9 +169,7 @@ describe("ProjectLayout (Ticket 04 tracer bullet)", () => {
     expect(await screen.findByText("Project")).toBeInTheDocument();
 
     // Breadcrumb skeleton is present
-    expect(
-      screen.getByLabelText("Loading project"),
-    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Loading project")).toBeInTheDocument();
 
     // Title has not changed to project title yet
     expect(document.title).not.toContain("The First Project");
@@ -217,20 +209,43 @@ describe("ProjectLayout (Ticket 04 tracer bullet)", () => {
     const projectLink = await screen.findByRole("link", {
       name: /The First Project/i,
     });
-    expect(projectLink).toHaveAttribute(
-      "href",
-      "/the-firsts/projects/TFP11",
-    );
+    expect(projectLink).toHaveAttribute("href", "/the-firsts/projects/TFP11");
 
     // Click project link
     await user.click(projectLink);
 
     // Navigated to /the-firsts/projects/TFP11
-    expect(router.state.location.pathname).toBe(
-      "/the-firsts/projects/TFP11",
-    );
+    expect(router.state.location.pathname).toBe("/the-firsts/projects/TFP11");
     expect(await screen.findByText("Project")).toBeInTheDocument();
     expect(document.title).toBe("The First Project · The Firsts");
+  });
+
+  it("opened from the Home list, shows the project at once and still re-checks it with the server", async () => {
+    const user = userEvent.setup();
+    let releaseDetail: () => void = () => {};
+    const detailGate = new Promise<void>((resolve) => {
+      releaseDetail = resolve;
+    });
+    const { fetchMock } = renderProjectApp({
+      initialEntries: ["/the-firsts"],
+      delayProject: detailGate,
+    });
+
+    await user.click(
+      await screen.findByRole("link", { name: /The First Project/i }),
+    );
+
+    // The list row is shown while the detail request is still pending.
+    const breadcrumb = await screen.findByRole("navigation", {
+      name: "Breadcrumb",
+    });
+    expect(breadcrumb).toHaveTextContent("The First Project");
+    expect(screen.queryByLabelText("Loading project")).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toContain(
+      "/api/workspaces/the-firsts/projects/TFP11",
+    );
+
+    releaseDetail();
   });
 
   it("AC-14: renders standalone 403 Forbidden page without header or sidebar", async () => {
@@ -254,9 +269,15 @@ describe("ProjectLayout (Ticket 04 tracer bullet)", () => {
 
     // Standalone page: NO header (banner), NO project nav or workspace nav
     expect(screen.queryByRole("banner")).not.toBeInTheDocument();
-    expect(screen.queryByRole("navigation", { name: "Project" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("navigation", { name: "Workspace" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("navigation", { name: "Breadcrumb" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("navigation", { name: "Project" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("navigation", { name: "Workspace" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("navigation", { name: "Breadcrumb" }),
+    ).not.toBeInTheDocument();
 
     // Tab title
     expect(document.title).toBe("Forbidden · OpenPlany");
@@ -283,16 +304,20 @@ describe("ProjectLayout (Ticket 04 tracer bullet)", () => {
     expect(
       await screen.findByRole("heading", { name: "Not Found", level: 1 }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText("This project doesn't exist."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("This project doesn't exist.")).toBeInTheDocument();
     expect(screen.getByText("404")).toHaveAttribute("aria-hidden", "true");
 
     // Standalone page: NO header, NO sidebar
     expect(screen.queryByRole("banner")).not.toBeInTheDocument();
-    expect(screen.queryByRole("navigation", { name: "Project" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("navigation", { name: "Workspace" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("navigation", { name: "Breadcrumb" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("navigation", { name: "Project" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("navigation", { name: "Workspace" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("navigation", { name: "Breadcrumb" }),
+    ).not.toBeInTheDocument();
 
     // Tab title
     expect(document.title).toBe("Not found · OpenPlany");
@@ -324,9 +349,7 @@ describe("ProjectLayout (Ticket 04 tracer bullet)", () => {
     const projectCalls = fetchMock.mock.calls
       .map(([url]) => String(url))
       .filter((url) => url.includes("/projects/"));
-    expect(projectCalls).toEqual([
-      "/api/workspaces/the-firsts/projects/TFP11",
-    ]);
+    expect(projectCalls).toEqual(["/api/workspaces/the-firsts/projects/TFP11"]);
   });
 
   it("AC-12: renders 404 immediately for invalid project identifier format without calling API", async () => {
@@ -469,9 +492,7 @@ describe("ProjectLayout (Ticket 04 tracer bullet)", () => {
 
     for (const btn of comingSoonButtons) {
       await user.click(btn);
-      expect(router.state.location.pathname).toBe(
-        "/the-firsts/projects/TFP11",
-      );
+      expect(router.state.location.pathname).toBe("/the-firsts/projects/TFP11");
     }
   });
 
@@ -528,7 +549,9 @@ describe("ProjectLayout (Ticket 04 tracer bullet)", () => {
     await user.click(homeInDrawer);
 
     // Drawer closes
-    expect(screen.queryByRole("dialog", { name: "Project" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("dialog", { name: "Project" }),
+    ).not.toBeInTheDocument();
   });
 
   it("AC-09: collapsing sidebar in project keeps it collapsed in workspace home, and expanding in workspace keeps it expanded in project", async () => {
@@ -576,9 +599,7 @@ describe("ProjectLayout (Ticket 04 tracer bullet)", () => {
       name: /The First Project/i,
     });
     await user.click(projectLink);
-    expect(router.state.location.pathname).toBe(
-      "/the-firsts/projects/TFP11",
-    );
+    expect(router.state.location.pathname).toBe("/the-firsts/projects/TFP11");
 
     // In project, sidebar is also expanded
     expect(

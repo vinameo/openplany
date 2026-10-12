@@ -20,7 +20,9 @@ export async function createE2eApp(): Promise<E2eApp> {
     logger: false,
   });
   configureApp(app);
-  await app.init();
+  // Listen once, so supertest reuses this server instead of starting and
+  // stopping an ephemeral one per request.
+  await app.listen(0, '127.0.0.1');
 
   const dataSource = app.get(DataSource);
   return {

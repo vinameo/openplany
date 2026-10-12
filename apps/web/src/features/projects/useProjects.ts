@@ -1,14 +1,18 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ProjectListItem, ProjectListResponse } from "@repo/contracts";
 import { ApiRequestError } from "../../lib/apiClient";
 import { useAuth } from "../auth/useAuth";
 import { useCurrentWorkspace } from "../workspaces/currentWorkspace/useCurrentWorkspace";
 import { projectsApi } from "./api/projectsApi";
+import { projectKeys } from "./api/projectQueries";
 
 export type ProjectsState =
   | { status: "loading" }
   | { status: "error"; message: string }
   | { status: "ready"; data: ProjectListResponse };
+
+const LOAD_ERROR = "Couldn't load projects.";
 
 export function useProjects(slug: string): {
   state: ProjectsState;
@@ -17,104 +21,48 @@ export function useProjects(slug: string): {
 } {
   const { reload: reloadWorkspace } = useCurrentWorkspace();
   const { expireSession } = useAuth();
-  const [state, setState] = useState<ProjectsState>({ status: "loading" });
-  const [prevSlug, setPrevSlug] = useState(slug);
-  const activeControllerRef = useRef<AbortController | null>(null);
+  const queryClient = useQueryClient();
+  const query = useQuery({
+    queryKey: projectKeys.list(slug),
+    queryFn: ({ signal }) => projectsApi.list(slug, signal),
+  });
 
-  if (slug !== prevSlug) {
-    setPrevSlug(slug);
-    setState({ status: "loading" });
-  }
-
+  // 401 ends the session; 403/404 mean the workspace changed under us.
+  const { error } = query;
   useEffect(() => {
-    let cancelled = false;
-    const controller = new AbortController();
-    activeControllerRef.current = controller;
-
-    projectsApi.list(slug, controller.signal).then(
-      (data) => {
-        if (!cancelled) {
-          setState({ status: "ready", data });
-        }
-      },
-      (err: unknown) => {
-        if (cancelled || controller.signal.aborted) {
-          return;
-        }
-        if (err instanceof ApiRequestError) {
-          if (err.status === 401) {
-            expireSession();
-            return;
-          }
-          if (err.status === 403 || err.status === 404) {
-            void reloadWorkspace().then(() => {
-              if (!cancelled) {
-                setState({
-                  status: "error",
-                  message: "Couldn't load projects.",
-                });
-              }
-            });
-            return;
-          }
-        }
-        const message =
-          err instanceof Error ? err.message : "Couldn't load projects.";
-        setState({ status: "error", message });
-      },
-    );
-
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
-  }, [expireSession, reloadWorkspace, slug]);
-
-  const reload = useCallback(async () => {
-    activeControllerRef.current?.abort();
-    const controller = new AbortController();
-    activeControllerRef.current = controller;
-
-    try {
-      const data = await projectsApi.list(slug, controller.signal);
-      setState({ status: "ready", data });
-    } catch (err: unknown) {
-      if (controller.signal.aborted) {
-        return;
-      }
-      if (err instanceof ApiRequestError) {
-        if (err.status === 401) {
-          expireSession();
-          return;
-        }
-        if (err.status === 403 || err.status === 404) {
-          await reloadWorkspace();
-          setState({
-            status: "error",
-            message: "Couldn't load projects.",
-          });
-          return;
-        }
-      }
-      const message =
-        err instanceof Error ? err.message : "Couldn't load projects.";
-      setState({ status: "error", message });
+    if (!(error instanceof ApiRequestError)) return;
+    if (error.status === 401) expireSession();
+    else if (error.status === 403 || error.status === 404) {
+      void reloadWorkspace();
     }
-  }, [expireSession, reloadWorkspace, slug]);
+  }, [error, expireSession, reloadWorkspace]);
 
-  const addProject = useCallback((item: ProjectListItem) => {
-    setState((curr) => {
-      if (curr.status !== "ready") return curr;
-      return {
-        status: "ready",
-        data: {
-          ...curr.data,
-          projects: [item, ...curr.data.projects],
-          total: curr.data.total + 1,
-        },
-      };
-    });
-  }, []);
+  const { refetch } = query;
+  const reload = useCallback(async () => {
+    await refetch();
+  }, [refetch]);
+
+  const addProject = useCallback(
+    (item: ProjectListItem) => {
+      queryClient.setQueryData<ProjectListResponse>(
+        projectKeys.list(slug),
+        (curr) =>
+          curr && {
+            ...curr,
+            projects: [item, ...curr.projects],
+            total: curr.total + 1,
+          },
+      );
+      queryClient.setQueryData(projectKeys.detail(slug, item.identifier), item);
+    },
+    [queryClient, slug],
+  );
+
+  const state: ProjectsState = query.isSuccess
+    ? { status: "ready", data: query.data }
+    : query.isError
+      ? { status: "error", message: LOAD_ERROR }
+      : { status: "loading" };
 
   return { state, reload, addProject };
 }

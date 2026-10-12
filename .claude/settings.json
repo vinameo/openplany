@@ -9,5 +9,20 @@
     "agentic-bundle-business-analyst@agentic-awesome-skills": true,
     "postgres-skills@postgres-skills": true,
     "mattpocock-skills@claude-plugins-official": true
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/requireBranchReview.mjs\"",
+            "timeout": 10,
+            "statusMessage": "Checking branch review before merge"
+          }
+        ]
+      }
+    ]
   }
 }

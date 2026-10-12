@@ -11,6 +11,7 @@ export default defineConfig({
     include: ['**/*.e2e-spec.ts'],
     env: e2eEnv(),
     globalSetup: ['./test/e2eGlobalSetup.ts'],
+    setupFiles: ['./test/e2eSetup.ts'],
     // Suites share one database and truncate it between tests.
     fileParallelism: false,
     testTimeout: 15000,

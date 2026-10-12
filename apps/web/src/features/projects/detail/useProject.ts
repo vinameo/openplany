@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import type { ProjectListItem } from "@repo/contracts";
+import { useCallback, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { ProjectListItem, ProjectListResponse } from "@repo/contracts";
 import { ApiRequestError } from "../../../lib/apiClient";
 import { useAuth } from "../../auth/useAuth";
 import { projectsApi } from "../api/projectsApi";
+import { projectKeys } from "../api/projectQueries";
 
 export type ProjectState =
   | { status: "idle" }
@@ -12,23 +14,13 @@ export type ProjectState =
   | { status: "not_found" }
   | { status: "error" };
 
-/** 403/404 end on an error page; 401 ends the session; anything else is retryable. */
-type FailedLoad =
-  | { kind: "state"; state: ProjectState }
-  | { kind: "unauthenticated" }
-  | { kind: "retryable" };
-
-function classifyFailure(err: unknown): FailedLoad {
+/** 403/404 end on an error page; anything but 401 is otherwise retryable. */
+function errorState(err: unknown): ProjectState | null {
   if (err instanceof ApiRequestError) {
-    if (err.status === 401) return { kind: "unauthenticated" };
-    if (err.status === 403) {
-      return { kind: "state", state: { status: "forbidden" } };
-    }
-    if (err.status === 404) {
-      return { kind: "state", state: { status: "not_found" } };
-    }
+    if (err.status === 403) return { status: "forbidden" };
+    if (err.status === 404) return { status: "not_found" };
   }
-  return { kind: "retryable" };
+  return null;
 }
 
 export interface UseProjectResult {
@@ -50,93 +42,74 @@ export function useProject(
   identifier: string | null,
 ): UseProjectResult {
   const { expireSession } = useAuth();
-  const [state, setState] = useState<ProjectState>(() =>
-    identifier ? { status: "loading" } : { status: "idle" },
-  );
-  const [prevKey, setPrevKey] = useState(`${slug}:${identifier ?? ""}`);
-  const [retrySeq, setRetrySeq] = useState(0);
-  const reloadControllerRef = useRef<AbortController | null>(null);
-  /** Key of the project on screen; a reload that finishes after it changed is dropped. */
-  const currentKeyRef = useRef(`${slug}:${identifier ?? ""}`);
+  const queryClient = useQueryClient();
+  const query = useQuery({
+    queryKey: projectKeys.detail(slug, identifier ?? ""),
+    queryFn: ({ signal }) =>
+      projectsApi.get(slug, identifier ?? "", signal).then((r) => r.project),
+    enabled: identifier !== null,
+    // Opened from the list: show that row at once, then let the server
+    // re-check access (staleTime 0) before anything else is trusted.
+    initialData: () =>
+      queryClient
+        .getQueryData<ProjectListResponse>(projectKeys.list(slug))
+        ?.projects.find((p) => p.identifier === identifier),
+    initialDataUpdatedAt: () =>
+      queryClient.getQueryState(projectKeys.list(slug))?.dataUpdatedAt,
+    staleTime: 0,
+  });
 
-  const key = `${slug}:${identifier ?? ""}`;
-  if (key !== prevKey) {
-    setPrevKey(key);
-    setState(identifier ? { status: "loading" } : { status: "idle" });
-  }
+  const { error } = query;
+  useEffect(() => {
+    if (error instanceof ApiRequestError && error.status === 401) {
+      expireSession();
+    }
+  }, [error, expireSession]);
 
   const retry = useCallback(() => {
-    setState({ status: "loading" });
-    setRetrySeq((s) => s + 1);
-  }, []);
+    void queryClient.resetQueries({
+      queryKey: projectKeys.detail(slug, identifier ?? ""),
+      exact: true,
+    });
+  }, [queryClient, slug, identifier]);
 
-  useEffect(() => {
-    if (!identifier) {
-      return;
-    }
-
-    currentKeyRef.current = `${slug}:${identifier}`;
-    let cancelled = false;
-    const controller = new AbortController();
-
-    projectsApi.get(slug, identifier, controller.signal).then(
-      (res) => {
-        if (!cancelled) {
-          setState({ status: "ready", project: res.project });
-        }
-      },
-      (err: unknown) => {
-        if (cancelled || controller.signal.aborted) {
-          return;
-        }
-        const failure = classifyFailure(err);
-        if (failure.kind === "unauthenticated") {
-          expireSession();
-        } else if (failure.kind === "state") {
-          setState(failure.state);
-        } else {
-          setState({ status: "error" });
-        }
-      },
-    );
-
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
-  }, [expireSession, identifier, retrySeq, slug]);
-
+  const { refetch } = query;
   const reload = useCallback(async () => {
-    if (!identifier) return;
-    reloadControllerRef.current?.abort();
-    const controller = new AbortController();
-    reloadControllerRef.current = controller;
-    const requestKey = `${slug}:${identifier}`;
-    const isStale = () =>
-      controller.signal.aborted || currentKeyRef.current !== requestKey;
+    const result = await refetch();
+    if (result.error && errorState(result.error) === null) throw result.error;
+  }, [refetch]);
 
-    try {
-      const res = await projectsApi.get(slug, identifier, controller.signal);
-      if (isStale()) return;
-      setState({ status: "ready", project: res.project });
-    } catch (err: unknown) {
-      if (isStale()) return;
-      const failure = classifyFailure(err);
-      if (failure.kind === "unauthenticated") {
-        expireSession();
-        return;
-      }
-      if (failure.kind === "state") {
-        setState(failure.state);
-        return;
-      }
-      throw err;
-    }
-  }, [expireSession, identifier, slug]);
+  const replace = useCallback(
+    (project: ProjectListItem) => {
+      queryClient.setQueryData(
+        projectKeys.detail(slug, project.identifier),
+        project,
+      );
+      queryClient.setQueryData<ProjectListResponse>(
+        projectKeys.list(slug),
+        (curr) =>
+          curr && {
+            ...curr,
+            projects: curr.projects.map((p) =>
+              p.id === project.id ? project : p,
+            ),
+          },
+      );
+    },
+    [queryClient, slug],
+  );
 
-  const replace = useCallback((project: ProjectListItem) => {
-    setState({ status: "ready", project });
-  }, []);
+  let state: ProjectState;
+  if (identifier === null) state = { status: "idle" };
+  else if (query.isError) {
+    // A failed reload keeps the project on screen unless access was lost.
+    state =
+      errorState(query.error) ??
+      (query.data
+        ? { status: "ready", project: query.data }
+        : { status: "error" });
+  } else if (query.isSuccess) state = { status: "ready", project: query.data };
+  else state = { status: "loading" };
 
   return { state, retry, reload, replace };
 }
