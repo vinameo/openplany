@@ -9,6 +9,8 @@ import { appRoutes } from "./routes";
 import { makeSession } from "./test/authFixtures";
 import { apiError, jsonResponse, mockFetch } from "./test/fetchMock";
 
+import { makeWorkspace } from "./features/workspaces/test/workspaceFixtures";
+
 const signedOut = () => apiError(401, "UNAUTHENTICATED", "Sign in to continue");
 
 function renderApp(path: string) {
@@ -141,5 +143,34 @@ describe("app routes", () => {
       "/api/auth/sign-out",
       expect.objectContaining({ method: "POST" }),
     );
+  });
+
+  it("renders exactly one banner at /:slug", async () => {
+    const ws = makeWorkspace({ id: "ws-1", name: "Alpha", slug: "alpha" });
+    mockFetch({
+      "GET /api/auth/session": () => jsonResponse(200, makeSession()),
+      "GET /api/workspaces": () =>
+        jsonResponse(200, { workspaces: [ws], lastWorkspaceSlug: "alpha" }),
+      "GET /api/workspaces/alpha": () => jsonResponse(200, ws),
+      "GET /api/workspaces/alpha/projects": () =>
+        jsonResponse(200, { projects: [], total: 0, truncated: false }),
+    });
+
+    renderApp("/alpha");
+    expect(await screen.findAllByRole("banner")).toHaveLength(1);
+  });
+
+  it("renders exactly one banner at /:slug/settings/general", async () => {
+    const ws = makeWorkspace({ id: "ws-1", name: "Alpha", slug: "alpha" });
+    mockFetch({
+      "GET /api/auth/session": () => jsonResponse(200, makeSession()),
+      "GET /api/workspaces": () =>
+        jsonResponse(200, { workspaces: [ws], lastWorkspaceSlug: "alpha" }),
+      "GET /api/workspaces/alpha": () => jsonResponse(200, ws),
+    });
+
+    const { router } = renderApp("/alpha/settings/general");
+    expect(await screen.findAllByRole("banner")).toHaveLength(1);
+    expect(router.state.location.pathname).toBe("/alpha/settings/general");
   });
 });

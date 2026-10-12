@@ -18,6 +18,7 @@ import { HomeIcon } from "./features/workspaces/icons";
 import { HomeRedirect } from "./features/workspaces/routes/HomeRedirect";
 import { WorkspaceLayout } from "./features/workspaces/routes/WorkspaceLayout";
 import { WorkspaceNotFound } from "./features/workspaces/routes/WorkspaceNotFound";
+import { WorkspaceChrome } from "./features/workspaces/shell/WorkspaceChrome";
 import { WorkspaceShell } from "./features/workspaces/shell/WorkspaceShell";
 import type { WorkspacePageHandle } from "./features/workspaces/shell/workspacePageHandle";
 import { WorkspaceProvider } from "./features/workspaces/WorkspaceProvider";
@@ -45,17 +46,24 @@ export const appRoutes: RouteObject[] = [
             element: <WorkspaceLayout />,
             children: [
               {
-                element: <WorkspaceShell />,
+                element: (
+                  <WorkspaceChrome>
+                    <Outlet />
+                  </WorkspaceChrome>
+                ),
                 children: [
                   {
-                    index: true,
-                    element: <HomePage />,
-                    handle: {
-                      workspacePage: { title: "Home", icon: HomeIcon },
-                    } satisfies WorkspacePageHandle,
+                    element: <WorkspaceShell />,
+                    children: [
+                      {
+                        index: true,
+                        element: <HomePage />,
+                        handle: {
+                          workspacePage: { title: "Home", icon: HomeIcon },
+                        } satisfies WorkspacePageHandle,
+                      },
+                    ],
                   },
-                ],
-              },
               {
                 path: "settings",
                 lazy: () =>
@@ -105,6 +113,8 @@ export const appRoutes: RouteObject[] = [
               },
             ],
           },
+        ],
+      },
         ],
       },
     ],

@@ -10,7 +10,6 @@ import {
   CurrentWorkspaceContext,
   type CurrentWorkspaceValue,
 } from "../currentWorkspace/currentWorkspaceContext";
-import { WorkspaceFrame } from "../shell/WorkspaceFrame";
 import { useWorkspaces } from "../useWorkspaces";
 import { WorkspaceNotFound } from "./WorkspaceNotFound";
 import classes from "./WorkspaceLayout.module.css";
@@ -129,10 +128,7 @@ export function WorkspaceLayout() {
 
   return (
     <CurrentWorkspaceContext value={contextValue}>
-      <AppHeader currentWorkspace={workspace} variant="workspace" />
-      <WorkspaceFrame>
-        <Outlet />
-      </WorkspaceFrame>
+      <Outlet />
     </CurrentWorkspaceContext>
   );
 }
