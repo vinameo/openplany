@@ -5,6 +5,7 @@ import {
   Group,
   SimpleGrid,
   Stack,
+  Text,
   Textarea,
   TextInput,
   Tooltip,
@@ -15,8 +16,13 @@ import {
 } from "@repo/contracts";
 import { InfoIcon } from "../../../workspaces/icons";
 import { SETTINGS_MESSAGES } from "../../../settings/settingsMessages";
+import { useCurrentWorkspace } from "../../../workspaces/currentWorkspace/useCurrentWorkspace";
+import { formatCalendarDate } from "../../../workspaces/table/formatCalendarDate";
+import { TimezoneSelect } from "../../../timezones/TimezoneSelect";
+import { timezoneOptionLabel } from "../../../timezones/timezoneOptions";
 import { ProjectCoverHeader } from "../../ProjectCoverHeader";
 import { PROJECT_SETTINGS_MESSAGES } from "../projectSettingsMessages";
+import { FOLLOW_WORKSPACE_TIMEZONE } from "../projectSettingsValues";
 import { useProjectGeneralSettingsForm } from "./useProjectGeneralSettingsForm";
 import classes from "./ProjectGeneralSettingsForm.module.css";
 
@@ -27,6 +33,7 @@ interface ProjectGeneralSettingsFormProps {
 export function ProjectGeneralSettingsForm({
   project,
 }: ProjectGeneralSettingsFormProps) {
+  const { workspace } = useCurrentWorkspace();
   const {
     form,
     hasChanges,
@@ -35,6 +42,7 @@ export function ProjectGeneralSettingsForm({
     handleSubmit,
     canEdit,
   } = useProjectGeneralSettingsForm(project);
+
 
   const nameLength = form.values.name ? form.values.name.length : 0;
   const remaining = PROJECT_NAME_MAX - nameLength;
@@ -89,6 +97,7 @@ export function ProjectGeneralSettingsForm({
 
           <Textarea
             label="Description"
+            placeholder="Enter project description"
             minRows={4}
             maxRows={10}
             readOnly={!canEdit}
@@ -119,6 +128,20 @@ export function ProjectGeneralSettingsForm({
                 </Tooltip>
               }
             />
+
+            <TimezoneSelect
+              label="Project Timezone"
+              description="Dates in this project, such as due dates, are read in this time zone."
+              value={form.values.timezone}
+              onChange={(val) => form.setFieldValue("timezone", val)}
+              readOnly={!canEdit}
+              disabled={!canEdit}
+              error={form.errors.timezone}
+              followOption={{
+                value: FOLLOW_WORKSPACE_TIMEZONE,
+                label: `Workspace timezone · ${timezoneOptionLabel(workspace.timezone)}`,
+              }}
+            />
           </SimpleGrid>
 
           {submitError && (
@@ -127,8 +150,8 @@ export function ProjectGeneralSettingsForm({
             </Alert>
           )}
 
-          {canEdit && (
-            <Group justify="flex-start" mt="md">
+          <Group justify="space-between" align="center" mt="md">
+            {canEdit ? (
               <Button
                 type="submit"
                 loading={isSaving}
@@ -136,8 +159,14 @@ export function ProjectGeneralSettingsForm({
               >
                 Update project
               </Button>
-            </Group>
-          )}
+            ) : (
+              <div />
+            )}
+            <Text c="dimmed" fs="italic" size="sm">
+              {"Created on " +
+                formatCalendarDate(project.createdAt, project.effectiveTimezone)}
+            </Text>
+          </Group>
         </Stack>
       </form>
     </div>

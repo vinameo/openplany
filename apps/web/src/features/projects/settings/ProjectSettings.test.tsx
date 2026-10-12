@@ -1,7 +1,11 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AppUiProvider } from "@repo/ui";
-import type { ProjectListItem, ProjectResponse } from "@repo/contracts";
+import {
+  effectiveProjectTimezone,
+  type ProjectListItem,
+  type ProjectResponse,
+} from "@repo/contracts";
 import { createMemoryRouter } from "react-router";
 import { RouterProvider } from "react-router/dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -355,6 +359,117 @@ describe("ProjectSettings", () => {
     expect(headings.length).toBeGreaterThan(0);
   });
 
+
+  it("AC-17: timezone select shows workspace follow option, updates to Asia/Tokyo, then reverts to null", async () => {
+    const user = userEvent.setup();
+    const patchCalls: unknown[] = [];
+
+    renderProjectSettingsApp({
+      initialEntries: ["/the-firsts/projects/TFP11/settings/general"],
+      onPatchProject: (body) => {
+        patchCalls.push(body);
+        const b = body as { timezone?: string | null };
+        const newTz = b.timezone !== undefined ? b.timezone : null;
+        return {
+          project: {
+            ...sampleProject,
+            timezone: newTz,
+            effectiveTimezone: effectiveProjectTimezone(
+              newTz,
+              testWorkspace.timezone,
+            ),
+            updatedAt: "2026-10-12T10:05:00.000Z",
+          },
+        };
+      },
+    });
+
+    const tzInput = await screen.findByRole("combobox", {
+      name: "Project Timezone",
+    });
+    expect(tzInput).toBeInTheDocument();
+
+    // Click to open dropdown
+    fireEvent.click(tzInput);
+
+    const wsOptions = screen.getAllByRole("option", {
+      name: /Workspace timezone/i,
+      hidden: true,
+    });
+    expect(wsOptions).toHaveLength(1);
+    expect(wsOptions[0]?.textContent).toContain(
+      "Workspace timezone · (UTC+07:00) Asia/Ho_Chi_Minh",
+    );
+    expect(wsOptions[0]?.textContent).not.toContain("(current)");
+
+    // Select Asia/Tokyo
+    fireEvent.change(tzInput, { target: { value: "tokyo" } });
+    const tokyoOption = screen.getByRole("option", {
+      name: /Asia\/Tokyo/i,
+      hidden: true,
+    });
+    fireEvent.click(tokyoOption);
+
+    const submitBtn = screen.getByRole("button", { name: "Update project" });
+    expect(submitBtn).toBeEnabled();
+    await user.click(submitBtn);
+
+    await waitFor(() => {
+      expect(patchCalls[0]).toEqual({ timezone: "Asia/Tokyo" });
+    });
+
+    // Now change back to workspace
+    fireEvent.click(tzInput);
+    fireEvent.change(tzInput, { target: { value: "workspace" } });
+    const wsOption = screen.getByRole("option", {
+      name: /Workspace timezone/i,
+      hidden: true,
+    });
+    fireEvent.click(wsOption);
+
+    expect(submitBtn).toBeEnabled();
+    await user.click(submitBtn);
+
+    await waitFor(() => {
+      expect(patchCalls[1]).toEqual({ timezone: null });
+    });
+  });
+
+  it("AC-19: Created on displays formatted date using effectiveTimezone", async () => {
+    const tokyoProject: ProjectListItem = {
+      ...sampleProject,
+      createdAt: "2026-10-10T23:30:00.000Z",
+      timezone: "Asia/Tokyo",
+      effectiveTimezone: "Asia/Tokyo",
+    };
+
+    renderProjectSettingsApp({
+      initialEntries: ["/the-firsts/projects/TFP11/settings/general"],
+      project: tokyoProject,
+    });
+
+    expect(
+      await screen.findByText("Created on Oct 11, 2026"),
+    ).toBeInTheDocument();
+
+    cleanup();
+
+    const utcProject: ProjectListItem = {
+      ...sampleProject,
+      createdAt: "2026-10-10T23:30:00.000Z",
+      timezone: "UTC",
+      effectiveTimezone: "UTC",
+    };
+
+    renderProjectSettingsApp({
+      initialEntries: ["/the-firsts/projects/TFP11/settings/general"],
+      project: utcProject,
+    });
+
+    expect(
+      await screen.findByText("Created on Oct 10, 2026"),
+    ).toBeInTheDocument();
+  });
 
   it("AC-37: document title reflects section and project name", async () => {
     renderProjectSettingsApp({
