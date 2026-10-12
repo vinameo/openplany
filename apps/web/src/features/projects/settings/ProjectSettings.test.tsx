@@ -20,7 +20,7 @@ import { PROJECT_SETTINGS_MESSAGES } from "./projectSettingsMessages";
 const testWorkspace = makeWorkspace({
   id: "ws-1",
   slug: "the-firsts",
-  name: "The Firsts",
+  name: "The Firsts Workspace",
   timezone: "Asia/Ho_Chi_Minh",
   role: "admin",
   permissions: [],
@@ -43,6 +43,10 @@ const sampleProject: ProjectListItem = {
   permissions: ["project.settings.view", "project.settings.update"],
 };
 
+function makeProject(overrides: Partial<ProjectListItem> = {}): ProjectListItem {
+  return { ...sampleProject, ...overrides };
+}
+
 function renderProjectSettingsApp({
   initialEntries = ["/the-firsts/projects/TFP11/settings"],
   project = sampleProject,
@@ -56,7 +60,7 @@ function renderProjectSettingsApp({
   project?: ProjectListItem;
   workspace?: ReturnType<typeof makeWorkspace>;
   onPatchProject?: (body: unknown) => ProjectResponse | Response;
-  onGetProject?: () => ProjectResponse | Response;
+  onGetProject?: () => ProjectResponse | Response | Promise<Response>;
   onDeleteProject?: () => Response | Promise<Response>;
   customRoutes?: Record<string, (init?: RequestInit) => Response | Promise<Response>>;
 } = {}) {
@@ -74,7 +78,7 @@ function renderProjectSettingsApp({
     "GET /api/workspaces/the-firsts/projects/TFP11": () => {
       if (onGetProject) {
         const res = onGetProject();
-        if (res instanceof Response) return res;
+        if (res instanceof Response || res instanceof Promise) return res;
         currentProject = res.project;
         return jsonResponse(200, res);
       }
@@ -587,7 +591,7 @@ describe("ProjectSettings", () => {
     let getProjectsCount = 0;
 
     const { router } = renderProjectSettingsApp({
-      initialEntries: ["/the-firsts/projects/TFP11/settings/general"],
+      initialEntries: ["/the-firsts"],
       onPatchProject: () =>
         apiError(404, "PROJECT_NOT_FOUND", "This project doesn't exist."),
       customRoutes: {
@@ -600,6 +604,11 @@ describe("ProjectSettings", () => {
         },
       },
     });
+
+    expect(await screen.findByText("The First Project")).toBeInTheDocument();
+    expect(getProjectsCount).toBe(1);
+
+    await router.navigate("/the-firsts/projects/TFP11/settings/general");
 
     const nameInput = await screen.findByRole("textbox", {
       name: /Project name/i,
@@ -619,8 +628,17 @@ describe("ProjectSettings", () => {
         }),
       );
       expect(router.state.location.pathname).toBe("/the-firsts");
-      expect(getProjectsCount).toBe(0);
+      expect(getProjectsCount).toBe(1);
     });
+
+    await waitFor(() => {
+      expect(screen.queryAllByText("The First Project")).toHaveLength(0);
+    });
+    expect(
+      await screen.findByText(
+        "You haven't been added to any projects yet.",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("AC-26: 429 TOO_MANY_ATTEMPTS with retryAfterSeconds displays rate limit message", async () => {
@@ -917,5 +935,205 @@ describe("ProjectSettings", () => {
       await screen.findByText("Too many changes. Try again in 2 minutes."),
     ).toBeInTheDocument();
     expect(confirmDeleteBtn).toBeEnabled();
+  });
+
+  it("AC-37: document title on project home is <project> · <workspace>", async () => {
+    renderProjectSettingsApp({
+      initialEntries: ["/the-firsts/projects/TFP11"],
+    });
+
+    await waitFor(() => {
+      expect(document.title).toBe("The First Project · The Firsts Workspace");
+    });
+  });
+
+  it("AC-06: user without project.settings.view has no Settings in project sidebar", async () => {
+    const projectWithoutSettings = makeProject({
+      identifier: "TFP11",
+      name: "The First Project",
+      permissions: ["project.members.view"],
+    });
+
+    renderProjectSettingsApp({
+      initialEntries: ["/the-firsts/projects/TFP11"],
+      project: projectWithoutSettings,
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("link", { name: "Settings" }),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  it("AC-06 & AC-50: /settings without permission displays noAccess message and sets title to <project> settings", async () => {
+    const projectWithoutSettings = makeProject({
+      identifier: "TFP11",
+      name: "The First Project",
+      permissions: ["project.members.view"],
+    });
+
+    renderProjectSettingsApp({
+      initialEntries: ["/the-firsts/projects/TFP11/settings"],
+      project: projectWithoutSettings,
+    });
+
+    expect(
+      await screen.findByText("You don't have access to project settings."),
+    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(document.title).toBe("The First Project settings");
+    });
+  });
+
+  it("AC-06: /settings/general without permission displays Access Denied", async () => {
+    const projectWithoutSettings = makeProject({
+      identifier: "TFP11",
+      name: "The First Project",
+      permissions: ["project.members.view"],
+    });
+
+    renderProjectSettingsApp({
+      initialEntries: ["/the-firsts/projects/TFP11/settings/general"],
+      project: projectWithoutSettings,
+    });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Access Denied");
+  });
+
+  it("AC-36: mobile navigation frame renders Back to project link, heading, section select with disabled Members item", async () => {
+    renderProjectSettingsApp({
+      initialEntries: ["/the-firsts/projects/TFP11/settings/general"],
+    });
+
+    const backLinks = await screen.findAllByRole("link", {
+      name: "Back to project",
+    });
+    expect(backLinks.length).toBeGreaterThan(0);
+    expect(backLinks[0]).toHaveAttribute("href", "/the-firsts/projects/TFP11");
+
+    const select = screen.getByRole("combobox", { name: "Settings section" });
+    expect(select).toHaveValue("General");
+
+    fireEvent.click(select);
+    const membersOption = screen.getByRole("option", {
+      name: "Members (Coming soon)",
+      hidden: true,
+    });
+    expect(membersOption).toBeInTheDocument();
+    expect(membersOption).toHaveAttribute("data-combobox-disabled", "true");
+  });
+
+  it("AC-38: direct navigation renders loading skeleton immediately while fetching project", async () => {
+    let resolveGetProject!: (res: Response) => void;
+    const pendingPromise = new Promise<Response>((resolve) => {
+      resolveGetProject = resolve;
+    });
+
+    renderProjectSettingsApp({
+      initialEntries: ["/the-firsts/projects/TFP11/settings/general"],
+      onGetProject: () => pendingPromise,
+    });
+
+    expect(
+      await screen.findByRole("navigation", { name: "Project settings" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("status", { name: "Loading project" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "General" })).toBeInTheDocument();
+
+    resolveGetProject(jsonResponse(200, { project: sampleProject }));
+  });
+
+  it("AC-38: 500 error displays error alert with Retry button that recovers on success", async () => {
+    const user = userEvent.setup();
+    let getCalls = 0;
+    let allowSuccess = false;
+
+    renderProjectSettingsApp({
+      initialEntries: ["/the-firsts/projects/TFP11/settings/general"],
+      onGetProject: () => {
+        getCalls++;
+        if (!allowSuccess) {
+          return jsonResponse(500, { message: "Internal server error" });
+        }
+        return jsonResponse(200, { project: sampleProject });
+      },
+    });
+
+    expect(
+      await screen.findByText("Couldn't load this project."),
+    ).toBeInTheDocument();
+    const retryBtn = screen.getByRole("button", { name: "Retry" });
+    expect(retryBtn).toBeInTheDocument();
+
+    allowSuccess = true;
+    await user.click(retryBtn);
+
+    expect(
+      await screen.findByRole("button", { name: "Update project" }),
+    ).toBeInTheDocument();
+    expect(getCalls).toBeGreaterThanOrEqual(2);
+  });
+
+  it("AC-38: 404 on project get displays Project Not Found error page", async () => {
+    renderProjectSettingsApp({
+      initialEntries: ["/the-firsts/projects/TFP11/settings/general"],
+      onGetProject: () =>
+        jsonResponse(404, { code: "PROJECT_NOT_FOUND", message: "Not found" }),
+    });
+
+    expect(
+      await screen.findByText("This project doesn't exist."),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Not Found" }),
+    ).toBeInTheDocument();
+  });
+
+  it("AC-38: 403 on project get displays Forbidden error page", async () => {
+    renderProjectSettingsApp({
+      initialEntries: ["/the-firsts/projects/TFP11/settings/general"],
+      onGetProject: () =>
+        jsonResponse(403, { code: "FORBIDDEN", message: "Forbidden" }),
+    });
+
+    expect(
+      await screen.findByText("You don't have access to this project."),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Forbidden" }),
+    ).toBeInTheDocument();
+  });
+
+  it("AC-41 & AC-50: /settings/foo displays Settings page not found and updates document title", async () => {
+    renderProjectSettingsApp({
+      initialEntries: ["/the-firsts/projects/TFP11/settings/foo"],
+    });
+
+    expect(
+      await screen.findByRole("heading", { name: "Settings page not found" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("This settings section doesn't exist or you don't have access to it."),
+    ).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(document.title).toBe("The First Project settings");
+    });
+  });
+
+  it("AC-42: lowercase /tfp11/settings/general normalizes to /TFP11/settings/general", async () => {
+    const { router } = renderProjectSettingsApp({
+      initialEntries: ["/the-firsts/projects/tfp11/settings/general"],
+    });
+
+    expect(
+      await screen.findByRole("button", { name: "Update project" }),
+    ).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe(
+      "/the-firsts/projects/TFP11/settings/general",
+    );
   });
 });
