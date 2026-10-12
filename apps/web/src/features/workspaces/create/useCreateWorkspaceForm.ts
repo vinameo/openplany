@@ -25,6 +25,7 @@ import { useAuth } from "../../auth/useAuth";
 import { workspaceApi } from "../api/workspaceApi";
 import { useWorkspaces } from "../useWorkspaces";
 import { useSlugAvailability } from "./useSlugAvailability";
+import { workspacePath } from "../workspacePaths";
 
 export function useCreateWorkspaceForm() {
   const navigate = useNavigate();
@@ -143,7 +144,7 @@ export function useCreateWorkspaceForm() {
       });
 
       add(created);
-      navigate(`/${created.slug}`, { replace: true });
+      navigate(workspacePath(created.slug), { replace: true });
     } catch (error: unknown) {
       if (error instanceof ApiRequestError) {
         if (error.status === 400 && error.fields) {

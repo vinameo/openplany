@@ -1,5 +1,5 @@
 import type { ComponentType, SVGProps } from "react";
-import { useMatches } from "react-router";
+import { useRouteHandleMeta } from "../../../hooks/useRouteHandleMeta";
 
 export interface WorkspacePageMeta {
   title: string;
@@ -10,26 +10,16 @@ export interface WorkspacePageHandle {
   workspacePage: WorkspacePageMeta;
 }
 
-export function isWorkspacePageHandle(handle: unknown): handle is WorkspacePageHandle {
-  if (typeof handle !== "object" || handle === null || !("workspacePage" in handle)) return false;
-  const page: unknown = (handle as { workspacePage: unknown }).workspacePage;
+function isWorkspacePageMeta(value: unknown): value is WorkspacePageMeta {
+  if (typeof value !== "object" || value === null) return false;
+  const { title, icon } = value as { title?: unknown; icon?: unknown };
   return (
-    typeof page === "object" &&
-    page !== null &&
-    "title" in page &&
-    typeof (page as { title: unknown }).title === "string" &&
-    "icon" in page &&
-    (typeof (page as { icon: unknown }).icon === "function" ||
-      (typeof (page as { icon: unknown }).icon === "object" && (page as { icon: unknown }).icon !== null))
+    typeof title === "string" &&
+    (typeof icon === "function" || (typeof icon === "object" && icon !== null))
   );
 }
 
 /** Meta of the deepest matched route that declares `workspacePage`. */
 export function useWorkspacePageMeta(): WorkspacePageMeta | null {
-  const matches = useMatches();
-  for (let i = matches.length - 1; i >= 0; i -= 1) {
-    const { handle } = matches[i];
-    if (isWorkspacePageHandle(handle)) return handle.workspacePage;
-  }
-  return null;
+  return useRouteHandleMeta("workspacePage", isWorkspacePageMeta);
 }

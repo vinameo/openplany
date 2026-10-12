@@ -24,9 +24,4 @@ export abstract class ProjectsRepository {
   ): Promise<Map<string, ProjectMembersPreview>>;
 
   abstract create(input: CreateProjectInput): Promise<{ projectId: string }>;
-
-  abstract findIdByIdentifier(
-    workspaceId: string,
-    identifier: string,
-  ): Promise<string | null>;
 }

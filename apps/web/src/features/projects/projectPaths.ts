@@ -1,7 +1,9 @@
 import { PROJECT_IDENTIFIER_PATTERN } from "@repo/contracts";
+import { workspacePath } from "../workspaces/workspacePaths";
 
+/** The Project home of one project. */
 export function projectPath(workspaceSlug: string, identifier: string): string {
-  return `/${workspaceSlug}/projects/${identifier}`;
+  return `${workspacePath(workspaceSlug)}/projects/${encodeURIComponent(identifier)}`;
 }
 
 export type CanonicalProjectIdentifier =

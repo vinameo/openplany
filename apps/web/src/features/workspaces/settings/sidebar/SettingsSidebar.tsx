@@ -11,6 +11,7 @@ import type {
 import { SettingsNavGroups } from "./SettingsNavGroups";
 import classes from "./SettingsSidebar.module.css";
 import { useSettingsNavigation } from "./useSettingsNavigation";
+import { workspacePath } from "../../workspacePaths";
 
 interface SettingsSidebarProps {
   sections?: readonly WorkspaceSettingsSection[];
@@ -31,7 +32,7 @@ export function SettingsSidebar({ sections, groups }: SettingsSidebarProps) {
       <div className={classes.headerRow}>
         <ActionIcon
           component={Link}
-          to={`/${workspace.slug}`}
+          to={workspacePath(workspace.slug)}
           variant="subtle"
           color="gray"
           size="md"

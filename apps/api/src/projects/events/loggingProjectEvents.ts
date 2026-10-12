@@ -4,6 +4,7 @@ import {
   type ProjectAccessDeniedEvent,
   type ProjectCreatedEvent,
   type ProjectListTruncatedEvent,
+  type ProjectLookupRateLimitedEvent,
 } from './projectEvents.js';
 
 @Injectable()
@@ -25,6 +26,12 @@ export class LoggingProjectEvents extends ProjectEvents {
   async accessDenied(event: ProjectAccessDeniedEvent): Promise<void> {
     this.logger.log(
       `project.access_denied projectId=${event.projectId} workspaceId=${event.workspaceId} userId=${event.userId} requestId=${event.requestId ?? ''}`,
+    );
+  }
+
+  async lookupRateLimited(event: ProjectLookupRateLimitedEvent): Promise<void> {
+    this.logger.warn(
+      `project.lookup.rate_limited workspaceId=${event.workspaceId} userId=${event.userId} requestId=${event.requestId ?? ''}`,
     );
   }
 }

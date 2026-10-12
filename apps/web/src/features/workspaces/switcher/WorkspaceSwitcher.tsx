@@ -15,6 +15,7 @@ import {
 import { useWorkspaces } from "../useWorkspaces";
 import { WorkspaceAvatar } from "../WorkspaceAvatar";
 import classes from "./WorkspaceSwitcher.module.css";
+import { workspacePath, workspaceSettingsPath } from "../workspacePaths";
 
 interface WorkspaceSwitcherProps {
   currentWorkspace?: WorkspaceResponse;
@@ -100,7 +101,7 @@ export function WorkspaceSwitcher({
                 title={`${origin}/${ws.slug}`}
                 onClick={() => {
                   if (!isCurrent) {
-                    navigate(`/${ws.slug}`);
+                    navigate(workspacePath(ws.slug));
                   }
                 }}
               >
@@ -130,7 +131,7 @@ export function WorkspaceSwitcher({
                   <Menu.Item
                     component={Link}
                     role="menuitem"
-                    to={`/${ws.slug}/settings`}
+                    to={workspaceSettingsPath(ws.slug)}
                     leftSection={<SettingsIcon width={14} height={14} />}
                     className={classes.settingsChip}
                   >

@@ -7,7 +7,9 @@ import { ProjectIcon } from "../ProjectIcon";
 import { projectPath } from "../projectPaths";
 import { useCurrentProject } from "./currentProjectContext";
 import { useProjectPageMeta } from "./projectPageHandle";
+import headerClasses from "../../workspaces/shell/pageHeader.module.css";
 import classes from "./ProjectPageHeader.module.css";
+import { workspacePath } from "../../workspaces/workspacePaths";
 
 export function ProjectPageHeader() {
   const { workspace } = useCurrentWorkspace();
@@ -16,8 +18,8 @@ export function ProjectPageHeader() {
   const pageMeta = useProjectPageMeta();
 
   return (
-    <header className={classes.pageHeader}>
-      <div className={classes.titleGroup}>
+    <header className={headerClasses.pageHeader}>
+      <div className={headerClasses.titleGroup}>
         <SidebarExpandButton />
         <nav aria-label="Breadcrumb" className={classes.breadcrumbNav}>
           <Breadcrumbs
@@ -28,7 +30,7 @@ export function ProjectPageHeader() {
             {mode === "desktop" && (
               <Anchor
                 component={Link}
-                to={`/${workspace.slug}`}
+                to={workspacePath(workspace.slug)}
                 className={classes.breadcrumbLink}
                 title={workspace.name}
                 underline="hover"

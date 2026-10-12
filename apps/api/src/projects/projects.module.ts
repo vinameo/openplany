@@ -5,11 +5,13 @@ import {
 } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module.js';
+import { InMemorySlidingWindowLimiter } from '../common/slidingWindowLimiter.js';
 import { NoStoreMiddleware } from '../auth/noStore.middleware.js';
 import { User } from '../auth/entities/user.entity.js';
 import { RolePermission } from '../roles/entities/rolePermission.entity.js';
 import { WorkspaceMember } from '../workspaces/entities/workspaceMember.entity.js';
 import { WorkspacesModule } from '../workspaces/workspaces.module.js';
+import { ProjectAccessGuard } from './access/projectAccessGuard.js';
 import {
   ProjectAccessResolver,
   TypeOrmProjectAccessResolver,
@@ -23,6 +25,10 @@ import { ProjectsController } from './projects.controller.js';
 import { ProjectsService } from './projects.service.js';
 import { ProjectsRepository } from './repositories/projects.repository.js';
 import { TypeOrmProjectsRepository } from './repositories/typeOrmProjects.repository.js';
+import {
+  PROJECT_LOOKUP_ALERT_LIMITER,
+  PROJECT_LOOKUP_LIMITER,
+} from './tokens.js';
 
 @Module({
   imports: [
@@ -52,8 +58,27 @@ import { TypeOrmProjectsRepository } from './repositories/typeOrmProjects.reposi
       provide: ProjectEvents,
       useClass: LoggingProjectEvents,
     },
+    {
+      provide: PROJECT_LOOKUP_LIMITER,
+      useFactory: () =>
+        new InMemorySlidingWindowLimiter({ limit: 30, windowMs: 600_000 }),
+    },
+    {
+      provide: PROJECT_LOOKUP_ALERT_LIMITER,
+      useFactory: () =>
+        new InMemorySlidingWindowLimiter({ limit: 1, windowMs: 600_000 }),
+    },
+    ProjectAccessGuard,
   ],
-  exports: [ProjectsService, ProjectsRepository, ProjectAccessResolver],
+  exports: [
+    ProjectsService,
+    ProjectsRepository,
+    ProjectAccessResolver,
+    ProjectAccessGuard,
+    ProjectEvents,
+    PROJECT_LOOKUP_LIMITER,
+    PROJECT_LOOKUP_ALERT_LIMITER,
+  ],
 })
 export class ProjectsModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {

@@ -19,10 +19,7 @@ import {
   ProjectIdentifierTakenError,
   ProjectNameTakenError,
 } from '../projectErrors.js';
-import {
-  ACTIVE_PROJECT,
-  ACTIVE_PROJECT_MEMBER,
-} from '../projectFilters.js';
+import { ACTIVE_PROJECT_MEMBER } from '../projectFilters.js';
 import {
   ProjectsRepository,
   type CreateProjectInput,
@@ -203,16 +200,5 @@ export class TypeOrmProjectsRepository extends ProjectsRepository {
     }
 
     throw new Error('Project creation failed after retries');
-  }
-
-  async findIdByIdentifier(
-    workspaceId: string,
-    identifier: string,
-  ): Promise<string | null> {
-    const row = await this.dataSource.manager.findOne(Project, {
-      select: { id: true },
-      where: { ...ACTIVE_PROJECT, workspaceId, identifier },
-    });
-    return row?.id ?? null;
   }
 }

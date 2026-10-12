@@ -1,20 +1,19 @@
-import { Button, NavLink, ScrollArea, Text } from "@mantine/core";
-import { Link, useLocation } from "react-router";
-import { ComingSoonHint } from "../../layout/ComingSoonHint";
+import { ScrollArea, Text } from "@mantine/core";
+import { useLocation } from "react-router";
 import { useCurrentWorkspace } from "../currentWorkspace/useCurrentWorkspace";
-import {
-  HomeIcon,
-  SettingsIcon,
-  SquarePenIcon,
-} from "../icons";
+import { HomeIcon, SettingsIcon } from "../icons";
+import { workspacePath, workspaceSettingsPath } from "../workspacePaths";
+import { NewWorkItemButton } from "./NewWorkItemButton";
 import { SidebarCollapseButton } from "./SidebarCollapseButton";
+import { SidebarNavItem } from "./SidebarNavItem";
 import classes from "./sidebarContent.module.css";
 
 export function WorkspaceSidebarContent() {
   const { workspace } = useCurrentWorkspace();
   const { pathname } = useLocation();
 
-  const isHome = pathname.replace(/\/+$/, "") === `/${workspace.slug}`;
+  const homePath = workspacePath(workspace.slug);
+  const isHome = pathname.replace(/\/+$/, "") === homePath;
 
   return (
     <>
@@ -29,52 +28,22 @@ export function WorkspaceSidebarContent() {
         className={classes.scrollArea}
       >
         <div className={classes.scrollContent}>
-          <ComingSoonHint>
-            {(trigger) => (
-              <Button
-                variant="default"
-                fullWidth
-                justify="flex-start"
-                leftSection={<SquarePenIcon width={16} height={16} />}
-                data-disabled
-                aria-disabled="true"
-                onClick={(e) => {
-                  trigger.onClick(e);
-                  e.preventDefault();
-                }}
-                className={classes.newWorkItemBtn}
-              >
-                New work item
-              </Button>
-            )}
-          </ComingSoonHint>
+          <NewWorkItemButton />
 
           <ul role="list" className={classes.navList}>
             <li>
-              <NavLink
-                component={Link}
-                to={`/${workspace.slug}`}
+              <SidebarNavItem
                 label="Home"
-                leftSection={<HomeIcon width={16} height={16} />}
+                icon={<HomeIcon width={16} height={16} />}
+                to={homePath}
                 active={isHome}
-                color="gray"
-                variant="light"
-                aria-current={isHome ? "page" : undefined}
-                title="Home"
-                className={classes.navItem}
               />
             </li>
             <li>
-              <NavLink
-                component={Link}
-                to={`/${workspace.slug}/settings`}
+              <SidebarNavItem
                 label="Settings"
-                leftSection={<SettingsIcon width={16} height={16} />}
-                active={false}
-                color="gray"
-                variant="light"
-                title="Settings"
-                className={classes.navItem}
+                icon={<SettingsIcon width={16} height={16} />}
+                to={workspaceSettingsPath(workspace.slug)}
               />
             </li>
           </ul>
