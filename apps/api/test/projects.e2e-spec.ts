@@ -16,6 +16,7 @@ import { ReserveProjectIdentifiers1791607000000 } from '../src/database/migratio
 import { AddProjectTimezone1791608000000 } from '../src/database/migrations/1791608000000-AddProjectTimezone.js';
 import { ProjectMemberRoleHistory } from '../src/projects/entities/projectMemberRoleHistory.entity.js';
 import { ProjectAccessResolver } from '../src/projects/access/projectAccessResolver.js';
+import { ProjectsRepository } from '../src/projects/repositories/projects.repository.js';
 import { createE2eApp, type E2eApp } from './createE2eApp.js';
 import {
   createUser as createE2eUser,
@@ -1963,7 +1964,7 @@ describe('Projects (e2e)', () => {
       expect(res.body.code).toBe('PROJECT_NOT_FOUND');
     });
 
-    it('B6 row 24: soft-deleted project returns 404 PROJECT_NOT_FOUND', async () => {
+    it('AC-34 & T-DB-04 & B6 row 24: soft-deleted project returns 404 PROJECT_NOT_FOUND and repository update returns null', async () => {
       const { workspace, ownerId, cookie } = await seedWorkspace(
         'patch-softdel@openplany.dev',
         'softdel-ws',
@@ -1976,6 +1977,18 @@ describe('Projects (e2e)', () => {
       );
       await insertProjectMember(pId, workspace.id, ownerId, 'admin');
 
+      // Direct repository update returns null (T-DB-04)
+      const repo = e2e.app.get<ProjectsRepository>(ProjectsRepository);
+      const updateResult = await repo.update({
+        projectId: pId,
+        workspaceId: workspace.id,
+        actorId: ownerId,
+        now: new Date(),
+        changes: { name: 'Direct Update' },
+      });
+      expect(updateResult).toBeNull();
+
+      // API returns 404 PROJECT_NOT_FOUND (AC-34)
       const res = await http()
         .patch(`/api/workspaces/${workspace.slug}/projects/DELT`)
         .set('Cookie', cookie)

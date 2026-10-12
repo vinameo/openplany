@@ -8,11 +8,12 @@ import {
 } from "@repo/contracts";
 import { createMemoryRouter } from "react-router";
 import { RouterProvider } from "react-router/dom";
+import { notifications } from "@mantine/notifications";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "../../auth/AuthProvider";
 import { appRoutes } from "../../../routes";
 import { makeSession } from "../../../test/authFixtures";
-import { jsonResponse, mockFetch } from "../../../test/fetchMock";
+import { apiError, jsonResponse, mockFetch } from "../../../test/fetchMock";
 import { makeWorkspace } from "../../workspaces/test/workspaceFixtures";
 import { PROJECT_SETTINGS_MESSAGES } from "./projectSettingsMessages";
 
@@ -46,10 +47,14 @@ function renderProjectSettingsApp({
   initialEntries = ["/the-firsts/projects/TFP11/settings"],
   project = sampleProject,
   onPatchProject,
+  onGetProject,
+  customRoutes = {},
 }: {
   initialEntries?: string[];
   project?: ProjectListItem;
-  onPatchProject?: (body: unknown) => ProjectResponse;
+  onPatchProject?: (body: unknown) => ProjectResponse | Response;
+  onGetProject?: () => ProjectResponse | Response;
+  customRoutes?: Record<string, (init?: RequestInit) => Response | Promise<Response>>;
 } = {}) {
   let currentProject = project;
 
@@ -61,15 +66,22 @@ function renderProjectSettingsApp({
         lastWorkspaceSlug: "the-firsts",
       }),
     "GET /api/workspaces/the-firsts": () => jsonResponse(200, testWorkspace),
-    "GET /api/workspaces/the-firsts/projects/TFP11": () =>
-      jsonResponse(200, { project: currentProject }),
+    "GET /api/workspaces/the-firsts/projects/TFP11": () => {
+      if (onGetProject) {
+        const res = onGetProject();
+        if (res instanceof Response) return res;
+        currentProject = res.project;
+        return jsonResponse(200, res);
+      }
+      return jsonResponse(200, { project: currentProject });
+    },
     "PATCH /api/workspaces/the-firsts/projects/TFP11": (req) => {
       const body = req?.body;
       const parsedBody =
         typeof body === "string" ? JSON.parse(body) : body;
       if (onPatchProject) {
-
         const res = onPatchProject(parsedBody);
+        if (res instanceof Response) return res;
         currentProject = res.project;
         return jsonResponse(200, res);
       }
@@ -81,6 +93,7 @@ function renderProjectSettingsApp({
       currentProject = updated;
       return jsonResponse(200, { project: updated });
     },
+    ...customRoutes,
   });
 
   const router = createMemoryRouter(appRoutes, {
@@ -479,5 +492,169 @@ describe("ProjectSettings", () => {
     await waitFor(() => {
       expect(document.title).toBe("General · The First Project settings");
     });
+  });
+
+  it("AC-13: 409 PROJECT_NAME_TAKEN sets error under name input, focuses input, and saves nothing", async () => {
+    const user = userEvent.setup();
+    renderProjectSettingsApp({
+      initialEntries: ["/the-firsts/projects/TFP11/settings/general"],
+      onPatchProject: () =>
+        apiError(
+          409,
+          "PROJECT_NAME_TAKEN",
+          "A project with this name already exists",
+          {
+            fields: { name: "A project with this name already exists" },
+          },
+        ),
+    });
+
+    const nameInput = await screen.findByRole("textbox", {
+      name: /Project name/i,
+    });
+    const submitBtn = screen.getByRole("button", { name: "Update project" });
+
+    await user.clear(nameInput);
+    await user.type(nameInput, "web");
+
+    expect(submitBtn).toBeEnabled();
+    await user.click(submitBtn);
+
+    expect(
+      await screen.findByText("A project with this name already exists"),
+    ).toBeInTheDocument();
+    expect(nameInput).toHaveFocus();
+  });
+
+  it("AC-24: 403 FORBIDDEN shows permission lost, reloads project, and switches form to read-only", async () => {
+    const user = userEvent.setup();
+    let reloaded = false;
+
+    renderProjectSettingsApp({
+      initialEntries: ["/the-firsts/projects/TFP11/settings/general"],
+      onPatchProject: () =>
+        apiError(403, "FORBIDDEN", "Forbidden"),
+      onGetProject: () => {
+        if (reloaded) {
+          return {
+            project: {
+              ...sampleProject,
+              permissions: ["project.settings.view"], // lacks update perm
+            },
+          };
+        }
+        return { project: sampleProject };
+      },
+    });
+
+    const nameInput = await screen.findByRole("textbox", {
+      name: /Project name/i,
+    });
+    const submitBtn = screen.getByRole("button", { name: "Update project" });
+
+    await user.type(nameInput, " Modified");
+    expect(submitBtn).toBeEnabled();
+
+    reloaded = true;
+    await user.click(submitBtn);
+
+    expect(
+      await screen.findByText("You no longer have permission to change these settings."),
+    ).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(nameInput).toHaveAttribute("readonly");
+      expect(
+        screen.queryByRole("button", { name: "Update project" }),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  it("AC-25 & AC-51: 404 on save notifies, navigates to workspace home, and removes project from cache without extra GET", async () => {
+    const user = userEvent.setup();
+    const notifySpy = vi.spyOn(notifications, "show");
+    let getProjectsCount = 0;
+
+    const { router } = renderProjectSettingsApp({
+      initialEntries: ["/the-firsts/projects/TFP11/settings/general"],
+      onPatchProject: () =>
+        apiError(404, "PROJECT_NOT_FOUND", "This project doesn't exist."),
+      customRoutes: {
+        "GET /api/workspaces/the-firsts/projects": () => {
+          getProjectsCount++;
+          return jsonResponse(200, {
+            projects: [sampleProject],
+            total: 1,
+          });
+        },
+      },
+    });
+
+    const nameInput = await screen.findByRole("textbox", {
+      name: /Project name/i,
+    });
+    const submitBtn = screen.getByRole("button", { name: "Update project" });
+
+    await user.type(nameInput, " Modified");
+    expect(submitBtn).toBeEnabled();
+
+    await user.click(submitBtn);
+
+    await waitFor(() => {
+      expect(notifySpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: "This project doesn't exist.",
+          color: "red",
+        }),
+      );
+      expect(router.state.location.pathname).toBe("/the-firsts");
+      expect(getProjectsCount).toBe(0);
+    });
+  });
+
+  it("AC-26: 429 TOO_MANY_ATTEMPTS with retryAfterSeconds displays rate limit message", async () => {
+    const user = userEvent.setup();
+    renderProjectSettingsApp({
+      initialEntries: ["/the-firsts/projects/TFP11/settings/general"],
+      onPatchProject: () =>
+        apiError(429, "TOO_MANY_ATTEMPTS", "Too many attempts", {
+          retryAfterSeconds: 90,
+        }),
+    });
+
+    const nameInput = await screen.findByRole("textbox", {
+      name: /Project name/i,
+    });
+    const submitBtn = screen.getByRole("button", { name: "Update project" });
+
+    await user.type(nameInput, " Modified");
+    await user.click(submitBtn);
+
+    expect(
+      await screen.findByText("Too many changes. Try again in 2 minutes."),
+    ).toBeInTheDocument();
+  });
+
+  it("AC-52: 400 with hidden field error displays message in alert", async () => {
+    const user = userEvent.setup();
+    renderProjectSettingsApp({
+      initialEntries: ["/the-firsts/projects/TFP11/settings/general"],
+      onPatchProject: () =>
+        apiError(400, "VALIDATION_ERROR", "Invalid color format", {
+          fields: { "icon.color": "Invalid color format" },
+        }),
+    });
+
+    const nameInput = await screen.findByRole("textbox", {
+      name: /Project name/i,
+    });
+    const submitBtn = screen.getByRole("button", { name: "Update project" });
+
+    await user.type(nameInput, " Modified");
+    await user.click(submitBtn);
+
+    expect(
+      await screen.findByRole("alert"),
+    ).toHaveTextContent("Invalid color format");
   });
 });
