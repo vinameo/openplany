@@ -289,4 +289,115 @@ describe("ProjectLayout (Ticket 04 tracer bullet)", () => {
     await user.click(homepageBtn);
     expect(router.state.location.pathname).toBe("/the-firsts");
   });
+
+  it("AC-11: normalizes lowercase identifier to uppercase, preserving query and hash, and fetches API only once with uppercase ID", async () => {
+    const { router, fetchMock } = renderProjectApp({
+      initialEntries: ["/the-firsts/projects/tfp11?filter=active#details"],
+    });
+
+    // Wait for project to be loaded
+    expect(
+      await screen.findByRole("link", { name: /The First Project/i }),
+    ).toBeInTheDocument();
+
+    // Check location
+    expect(router.state.location.pathname).toBe("/the-firsts/projects/TFP11");
+    expect(router.state.location.search).toBe("?filter=active");
+    expect(router.state.location.hash).toBe("#details");
+
+    // Only fetched with uppercase TFP11, never tfp11
+    const projectCalls = fetchMock.mock.calls
+      .map(([url]) => String(url))
+      .filter((url) => url.includes("/projects/"));
+    expect(projectCalls).toEqual([
+      "/api/workspaces/the-firsts/projects/TFP11",
+    ]);
+  });
+
+  it("AC-12: renders 404 immediately for invalid project identifier format without calling API", async () => {
+    for (const invalid of ["abc-12345", "1AB", "ABCDEF"]) {
+      cleanup();
+      const { fetchMock } = renderProjectApp({
+        initialEntries: [`/the-firsts/projects/${invalid}`],
+      });
+
+      expect(
+        await screen.findByRole("heading", { name: "Not Found", level: 1 }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText("This project doesn't exist."),
+      ).toBeInTheDocument();
+
+      const projectCalls = fetchMock.mock.calls
+        .map(([url]) => String(url))
+        .filter((url) => url.includes("/projects/"));
+      expect(projectCalls).toHaveLength(0);
+    }
+  });
+
+  it("AC-25: shows ProjectLoadError with Retry on 500/network error, and recovers on successful retry", async () => {
+    const user = userEvent.setup();
+    let callCount = 0;
+
+    stubMatchMedia(true);
+    const router = createMemoryRouter(appRoutes, {
+      initialEntries: ["/the-firsts/projects/TFP11"],
+    });
+
+    mockFetch({
+      "GET /api/auth/session": () => jsonResponse(200, makeSession()),
+      "GET /api/workspaces": () =>
+        jsonResponse(200, {
+          workspaces: [testWorkspace],
+          lastWorkspaceSlug: "the-firsts",
+        }),
+      "GET /api/workspaces/the-firsts": () => jsonResponse(200, testWorkspace),
+      "GET /api/workspaces/the-firsts/projects/TFP11": () => {
+        callCount++;
+        if (callCount === 1) {
+          return jsonResponse(500, {
+            code: "INTERNAL_ERROR",
+            message: "Internal server error",
+          });
+        }
+        return jsonResponse(200, { project: sampleProject });
+      },
+      "GET /api/workspaces/the-firsts/projects": () =>
+        jsonResponse(200, {
+          projects: [sampleProject],
+          total: 1,
+          truncated: false,
+        }),
+    });
+
+    render(
+      <AppUiProvider>
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
+      </AppUiProvider>,
+    );
+
+    // Frame and sidebar remain visible
+    expect(await screen.findByText("Project")).toBeInTheDocument();
+
+    // Error alert is rendered inside content area
+    expect(
+      await screen.findByText("Couldn't load this project."),
+    ).toBeInTheDocument();
+    const retryBtn = screen.getByRole("button", { name: "Retry" });
+    expect(retryBtn).toBeInTheDocument();
+
+    // Click retry
+    await user.click(retryBtn);
+
+    // Second call succeeds -> project loaded
+    expect(
+      await screen.findByRole("link", { name: /The First Project/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Couldn't load this project."),
+    ).not.toBeInTheDocument();
+    expect(document.title).toBe("The First Project · The Firsts");
+  });
 });

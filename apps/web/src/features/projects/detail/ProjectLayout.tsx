@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useParams } from "react-router";
+import { Navigate, useLocation, useParams } from "react-router";
 import type { ProjectListItem } from "@repo/contracts";
 import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
 import { useCurrentWorkspace } from "../../workspaces/currentWorkspace/useCurrentWorkspace";
@@ -27,6 +27,7 @@ function ProjectDocumentTitle({
 export function ProjectLayout() {
   const { projectIdentifier = "" } = useParams();
   const canonical = canonicalProjectIdentifier(projectIdentifier);
+  const location = useLocation();
   const { workspace } = useCurrentWorkspace();
   const { state, retry } = useProject(
     workspace.slug,
@@ -46,7 +47,33 @@ export function ProjectLayout() {
     };
   }, [state, retry]);
 
-  if (state.status === "not_found") {
+  if (canonical.kind === "redirect") {
+    const projectsIndex = location.pathname.indexOf("/projects/");
+    const prefix =
+      projectsIndex >= 0
+        ? location.pathname.slice(0, projectsIndex + "/projects/".length)
+        : `/${encodeURIComponent(workspace.slug)}/projects/`;
+    const rest =
+      projectsIndex >= 0
+        ? location.pathname.slice(projectsIndex + "/projects/".length)
+        : "";
+    const slashIdx = rest.indexOf("/");
+    const suffix = slashIdx >= 0 ? rest.slice(slashIdx) : "";
+    const newPathname = `${prefix}${canonical.identifier}${suffix}`;
+
+    return (
+      <Navigate
+        replace
+        to={{
+          pathname: newPathname,
+          search: location.search,
+          hash: location.hash,
+        }}
+      />
+    );
+  }
+
+  if (canonical.kind === "invalid" || state.status === "not_found") {
     return <ProjectErrorPage status={404} />;
   }
 
