@@ -49,7 +49,7 @@ _Avoid_: Inactive member (that would be a Former member)
 A place inside one workspace where a group of people track work items together. Every project belongs to exactly one workspace and has a name that is unique within it. A project is private: only its project members and the workspace's Admins can see it; nobody can join one on their own.
 
 **Project ID**:
-The short uppercase code of a project, unique within its workspace, that will prefix its work items' numbers (for example `OPS-12`). Suggested from the project name when the project is created.
+The short uppercase code of a project, unique within its workspace and never reused there, even after the project is deleted, that will prefix its work items' numbers (for example `OPS-12`). Suggested from the project name when the project is created. It appears in project URLs (`/<workspace>/projects/OPS`).
 _Avoid_: Key, prefix, identifier (in user-facing text)
 
 **Project member**:
@@ -59,6 +59,13 @@ _Avoid_: Participant
 **Project cover**:
 The picture shown at the top of a project, chosen from a fixed set that comes with OpenPlany.
 _Avoid_: Banner
+
+**Project timezone**:
+The time zone in which a project's dates (due dates, milestone dates, "today") are read. A project follows its workspace's time zone, including later changes to it, until someone sets a time zone for the project itself.
+
+**Delete project**:
+Removing a project for everyone at once. Nobody can open it afterwards and OpenPlany offers no way to restore it; its Project ID stays taken, while its name can be given to a new project. Only people allowed to delete projects in the workspace can do it, which by default means workspace Admins, not Project Admins.
+_Avoid_: Archive (a separate, reversible action not offered yet), remove project
 
 **Project home**:
 The first page a person lands on when opening a project. Distinct from the workspace's Home, which lists the workspace's projects.
