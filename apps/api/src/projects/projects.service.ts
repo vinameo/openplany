@@ -68,7 +68,7 @@ export class ProjectsService {
     workspace: MemberWorkspace,
     userId: string,
     identifier: string,
-    _requestId?: string,
+    requestId?: string,
   ): Promise<ProjectResponse> {
     if (!PROJECT_IDENTIFIER_PATTERN.test(identifier)) {
       throw projectNotFound();
@@ -89,6 +89,12 @@ export class ProjectsService {
       projectId,
     });
     if (accessible === null) {
+      await this.events.accessDenied({
+        projectId,
+        workspaceId: workspace.id,
+        userId,
+        requestId,
+      });
       throw new ApiException(
         HttpStatus.FORBIDDEN,
         'FORBIDDEN',

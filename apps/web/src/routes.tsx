@@ -114,18 +114,18 @@ export const appRoutes: RouteObject[] = [
                   },
                 ],
               },
+            ],
+          },
+          {
+            path: "projects/:projectIdentifier",
+            element: <ProjectLayout />,
+            children: [
               {
-                path: "projects/:projectIdentifier",
-                element: <ProjectLayout />,
-                children: [
-                  {
-                    index: true,
-                    element: <ProjectHomePage />,
-                    handle: {
-                      projectPage: { title: "Home" },
-                    } satisfies ProjectPageHandle,
-                  },
-                ],
+                index: true,
+                element: <ProjectHomePage />,
+                handle: {
+                  projectPage: { title: "Home" },
+                } satisfies ProjectPageHandle,
               },
             ],
           },

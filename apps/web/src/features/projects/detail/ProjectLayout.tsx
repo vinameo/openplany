@@ -9,6 +9,7 @@ import {
   CurrentProjectContext,
   type CurrentProjectValue,
 } from "./currentProjectContext";
+import { ProjectErrorPage } from "./ProjectErrorPage";
 import { ProjectShell } from "./ProjectShell";
 import { useProject } from "./useProject";
 
@@ -44,6 +45,14 @@ export function ProjectLayout() {
       retry,
     };
   }, [state, retry]);
+
+  if (state.status === "not_found") {
+    return <ProjectErrorPage status={404} />;
+  }
+
+  if (state.status === "forbidden") {
+    return <ProjectErrorPage status={403} />;
+  }
 
   return (
     <CurrentProjectContext value={contextValue}>

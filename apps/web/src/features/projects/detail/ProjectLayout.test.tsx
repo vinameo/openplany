@@ -38,10 +38,12 @@ const sampleProject: ProjectListItem = {
 function renderProjectApp({
   initialEntries = ["/the-firsts/projects/TFP11"],
   projectResponse = { project: sampleProject },
+  projectError,
   delayProject,
 }: {
   initialEntries?: string[];
   projectResponse?: ProjectResponse | null;
+  projectError?: { status: number; code: string; message: string };
   delayProject?: Promise<void>;
 } = {}) {
   stubMatchMedia(true);
@@ -60,6 +62,12 @@ function renderProjectApp({
     "GET /api/workspaces/the-firsts/projects/TFP11": async () => {
       if (delayProject) {
         await delayProject;
+      }
+      if (projectError) {
+        return jsonResponse(projectError.status, {
+          code: projectError.code,
+          message: projectError.message,
+        });
       }
       if (!projectResponse) {
         return jsonResponse(404, {
@@ -208,5 +216,77 @@ describe("ProjectLayout (Ticket 04 tracer bullet)", () => {
     );
     expect(await screen.findByText("Project")).toBeInTheDocument();
     expect(document.title).toBe("The First Project · The Firsts");
+  });
+
+  it("AC-14: renders standalone 403 Forbidden page without header or sidebar", async () => {
+    const user = userEvent.setup();
+    const { router } = renderProjectApp({
+      projectError: {
+        status: 403,
+        code: "FORBIDDEN",
+        message: "You don't have access to this project.",
+      },
+    });
+
+    // Heading and messages
+    expect(
+      await screen.findByRole("heading", { name: "Forbidden", level: 1 }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("You don't have access to this project."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("403")).toHaveAttribute("aria-hidden", "true");
+
+    // Standalone page: NO header (banner), NO project nav or workspace nav
+    expect(screen.queryByRole("banner")).not.toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Project" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Workspace" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Breadcrumb" })).not.toBeInTheDocument();
+
+    // Tab title
+    expect(document.title).toBe("Forbidden · OpenPlany");
+
+    // Homepage link
+    const homepageBtn = screen.getByRole("link", { name: "Homepage" });
+    expect(homepageBtn).toHaveAttribute("href", "/the-firsts");
+
+    await user.click(homepageBtn);
+    expect(router.state.location.pathname).toBe("/the-firsts");
+  });
+
+  it("AC-13, AC-17 & AC-21: renders standalone 404 Not Found page without header or sidebar", async () => {
+    const user = userEvent.setup();
+    const { router } = renderProjectApp({
+      projectError: {
+        status: 404,
+        code: "PROJECT_NOT_FOUND",
+        message: "This project doesn't exist.",
+      },
+    });
+
+    // Heading and messages
+    expect(
+      await screen.findByRole("heading", { name: "Not Found", level: 1 }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("This project doesn't exist."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("404")).toHaveAttribute("aria-hidden", "true");
+
+    // Standalone page: NO header, NO sidebar
+    expect(screen.queryByRole("banner")).not.toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Project" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Workspace" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Breadcrumb" })).not.toBeInTheDocument();
+
+    // Tab title
+    expect(document.title).toBe("Not found · OpenPlany");
+
+    // Homepage link
+    const homepageBtn = screen.getByRole("link", { name: "Homepage" });
+    expect(homepageBtn).toHaveAttribute("href", "/the-firsts");
+
+    await user.click(homepageBtn);
+    expect(router.state.location.pathname).toBe("/the-firsts");
   });
 });

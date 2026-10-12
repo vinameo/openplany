@@ -375,7 +375,7 @@ describe('ProjectsService', () => {
 
   describe('get', () => {
     it('throws 404 PROJECT_NOT_FOUND when identifier format is invalid without calling repository (AC-12)', async () => {
-      const { service, repository } = makeSetup();
+      const { service, repository, events } = makeSetup();
       const ws = makeMemberWorkspace();
 
       for (const invalid of ['tfp11', 'abc-12345', '1AB', '']) {
@@ -385,10 +385,11 @@ describe('ProjectsService', () => {
         });
       }
       expect(repository.lastFindIdQuery).toBeUndefined();
+      expect(events.accessDeniedEvents).toHaveLength(0);
     });
 
     it('throws 404 PROJECT_NOT_FOUND when project does not exist without calling resolver (AC-13)', async () => {
-      const { service, repository, resolver } = makeSetup();
+      const { service, repository, resolver, events } = makeSetup();
       const ws = makeMemberWorkspace();
 
       repository.idsByIdentifier.clear();
@@ -402,16 +403,19 @@ describe('ProjectsService', () => {
         identifier: 'PROJ1',
       });
       expect(resolver.lastInput).toBeUndefined();
+      expect(events.accessDeniedEvents).toHaveLength(0);
     });
 
-    it('throws 403 FORBIDDEN when user has no access to project', async () => {
-      const { service, repository, resolver } = makeSetup();
+    it('throws 403 FORBIDDEN and logs accessDenied when user has no access to project (AC-14, M-05)', async () => {
+      const { service, repository, resolver, events } = makeSetup();
       const ws = makeMemberWorkspace();
 
       repository.idsByIdentifier.set(`${ws.id}:PROJ1`, 'p-1');
       resolver.project = null;
 
-      await expect(service.get(ws, 'u-1', 'PROJ1')).rejects.toMatchObject({
+      await expect(
+        service.get(ws, 'u-1', 'PROJ1', 'req-999'),
+      ).rejects.toMatchObject({
         status: 403,
         code: 'FORBIDDEN',
       });
@@ -421,6 +425,14 @@ describe('ProjectsService', () => {
         workspaceRole: ws.role,
         projectId: 'p-1',
       });
+      expect(events.accessDeniedEvents).toEqual([
+        {
+          projectId: 'p-1',
+          workspaceId: ws.id,
+          userId: 'u-1',
+          requestId: 'req-999',
+        },
+      ]);
     });
 
     it('returns project item matching toProjectListItem on success (AC-24)', async () => {

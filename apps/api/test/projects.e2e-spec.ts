@@ -1203,6 +1203,202 @@ describe('Projects (e2e)', () => {
       expect(getRes.headers['cache-control']).toBe('no-store');
       expect(getRes.body).toEqual({ project: listItem });
     });
+
+    it('returns 404 PROJECT_NOT_FOUND when project has been soft-deleted (AC-19)', async () => {
+      const { workspace, ownerId, cookie } = await seedWorkspace(
+        'owner-del@openplany.dev',
+        'ws-del',
+      );
+      const pId = await insertProject(
+        workspace.id,
+        'Deleted Proj',
+        'DEL1',
+        new Date(),
+      );
+      await insertProjectMember(pId, workspace.id, ownerId, 'admin');
+
+      const res = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/DEL1`)
+        .set('Cookie', cookie)
+        .expect(404);
+
+      expect(res.body.code).toBe('PROJECT_NOT_FOUND');
+      expect(res.body.message).toBe("This project doesn't exist.");
+    });
+
+    it('returns 403 FORBIDDEN without project data when workspace member does not belong to project (AC-14)', async () => {
+      const { workspace, ownerId } = await seedWorkspace(
+        'owner-priv@openplany.dev',
+        'ws-priv',
+      );
+      const memberId = await createUser('member-priv@openplany.dev');
+      const memberCookie = await signInCookie('member-priv@openplany.dev');
+      await addWorkspaceMember(workspace.id, memberId, 'member');
+
+      const pId = await insertProject(
+        workspace.id,
+        'Super Secret Name',
+        'SEC1',
+      );
+      await insertProjectMember(pId, workspace.id, ownerId, 'admin');
+
+      const res = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/SEC1`)
+        .set('Cookie', memberCookie)
+        .expect(403);
+
+      expect(res.body.code).toBe('FORBIDDEN');
+      expect(res.body.message).toBe("You don't have access to this project.");
+      expect(res.body).not.toHaveProperty('project');
+      expect(JSON.stringify(res.body)).not.toContain('Super Secret Name');
+    });
+
+    it('returns 200 with role="admin" when workspace admin is not a project member (AC-15)', async () => {
+      const { workspace, cookie: adminCookie } = await seedWorkspace(
+        'admin-nonmember@openplany.dev',
+        'ws-admin-nm',
+      );
+      const memberId = await createUser('member-nm@openplany.dev');
+      await addWorkspaceMember(workspace.id, memberId, 'member');
+
+      const pId = await insertProject(
+        workspace.id,
+        'Member Only Proj',
+        'MOP1',
+      );
+      await insertProjectMember(pId, workspace.id, memberId, 'contributor');
+
+      const res = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/MOP1`)
+        .set('Cookie', adminCookie)
+        .expect(200);
+
+      expect(res.body.project.role).toBe('admin');
+      expect(res.body.project.identifier).toBe('MOP1');
+    });
+
+    it('returns 200 for guest in project, 403 for guest not in project (AC-16)', async () => {
+      const { workspace, ownerId } = await seedWorkspace(
+        'owner-gst@openplany.dev',
+        'ws-gst',
+      );
+      const guestId = await createUser('guest-user@openplany.dev');
+      const guestCookie = await signInCookie('guest-user@openplany.dev');
+      await addWorkspaceMember(workspace.id, guestId, 'guest');
+
+      const p1Id = await insertProject(workspace.id, 'Guest Allowed', 'GST1');
+      await insertProjectMember(p1Id, workspace.id, ownerId, 'admin');
+      await insertProjectMember(p1Id, workspace.id, guestId, 'guest');
+
+      const p2Id = await insertProject(workspace.id, 'Guest Denied', 'GST2');
+      await insertProjectMember(p2Id, workspace.id, ownerId, 'admin');
+
+      // Guest in p1 -> 200
+      const res1 = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/GST1`)
+        .set('Cookie', guestCookie)
+        .expect(200);
+      expect(res1.body.project.identifier).toBe('GST1');
+
+      // Guest not in p2 -> 403
+      const res2 = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/GST2`)
+        .set('Cookie', guestCookie)
+        .expect(403);
+      expect(res2.body.code).toBe('FORBIDDEN');
+    });
+
+    it('returns members: null and memberCount: null when viewer has project role guest (AC-27)', async () => {
+      const { workspace, ownerId } = await seedWorkspace(
+        'owner-gprev@openplany.dev',
+        'ws-gprev',
+      );
+      const guestId = await createUser('guest-prev@openplany.dev');
+      const guestCookie = await signInCookie('guest-prev@openplany.dev');
+      await addWorkspaceMember(workspace.id, guestId, 'guest');
+
+      const pId = await insertProject(workspace.id, 'Guest Project', 'GPR1');
+      await insertProjectMember(pId, workspace.id, ownerId, 'admin');
+      await insertProjectMember(pId, workspace.id, guestId, 'guest');
+
+      const res = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/GPR1`)
+        .set('Cookie', guestCookie)
+        .expect(200);
+
+      expect(res.body.project.members).toBeNull();
+      expect(res.body.project.memberCount).toBeNull();
+    });
+
+    it('omits email from JSON for member viewer, includes email for admin viewer (AC-24)', async () => {
+      const {
+        workspace,
+        ownerId,
+        cookie: adminCookie,
+      } = await seedWorkspace('owner-email@openplany.dev', 'ws-email');
+      const memberId = await createUser('member-email@openplany.dev');
+      const memberCookie = await signInCookie('member-email@openplany.dev');
+      await addWorkspaceMember(workspace.id, memberId, 'member');
+
+      const pId = await insertProject(workspace.id, 'Email Proj', 'EML1');
+      await insertProjectMember(pId, workspace.id, ownerId, 'admin');
+      await insertProjectMember(pId, workspace.id, memberId, 'contributor');
+
+      // Admin sees email
+      const adminRes = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/EML1`)
+        .set('Cookie', adminCookie)
+        .expect(200);
+      expect(JSON.stringify(adminRes.body)).toContain('"email"');
+
+      // Member does not see email
+      const memberRes = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/EML1`)
+        .set('Cookie', memberCookie)
+        .expect(200);
+      expect(JSON.stringify(memberRes.body)).not.toContain('"email"');
+    });
+
+    it('isolates same identifier in different workspaces (INV-02)', async () => {
+      const { workspace: ws1, ownerId: owner1 } = await seedWorkspace(
+        'owner-ws1@openplany.dev',
+        'ws-iso-1',
+      );
+      const { workspace: ws2, ownerId: owner2 } = await seedWorkspace(
+        'owner-ws2@openplany.dev',
+        'ws-iso-2',
+      );
+
+      const userId = await createUser('user-cross@openplany.dev');
+      const userCookie = await signInCookie('user-cross@openplany.dev');
+
+      // User is in both workspaces as 'member'
+      await addWorkspaceMember(ws1.id, userId, 'member');
+      await addWorkspaceMember(ws2.id, userId, 'member');
+
+      // Identifier SHARE in WS1 -> user is project contributor
+      const p1 = await insertProject(ws1.id, 'Share One', 'SHARE');
+      await insertProjectMember(p1, ws1.id, owner1, 'admin');
+      await insertProjectMember(p1, ws1.id, userId, 'contributor');
+
+      // Identifier SHARE in WS2 -> user is NOT project member
+      const p2 = await insertProject(ws2.id, 'Share Two', 'SHARE');
+      await insertProjectMember(p2, ws2.id, owner2, 'admin');
+
+      // Access ws1 -> 200
+      const res1 = await http()
+        .get(`/api/workspaces/${ws1.slug}/projects/SHARE`)
+        .set('Cookie', userCookie)
+        .expect(200);
+      expect(res1.body.project.name).toBe('Share One');
+
+      // Access ws2 -> 403
+      const res2 = await http()
+        .get(`/api/workspaces/${ws2.slug}/projects/SHARE`)
+        .set('Cookie', userCookie)
+        .expect(403);
+      expect(res2.body.code).toBe('FORBIDDEN');
+    });
   });
 });
 
