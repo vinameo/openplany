@@ -40,13 +40,15 @@ function renderProjectApp({
   projectResponse = { project: sampleProject },
   projectError,
   delayProject,
+  isDesktop = true,
 }: {
   initialEntries?: string[];
   projectResponse?: ProjectResponse | null;
   projectError?: { status: number; code: string; message: string };
   delayProject?: Promise<void>;
+  isDesktop?: boolean;
 } = {}) {
-  stubMatchMedia(true);
+  stubMatchMedia(isDesktop);
   const router = createMemoryRouter(appRoutes, {
     initialEntries,
   });
@@ -399,5 +401,178 @@ describe("ProjectLayout (Ticket 04 tracer bullet)", () => {
       screen.queryByText("Couldn't load this project."),
     ).not.toBeInTheDocument();
     expect(document.title).toBe("The First Project · The Firsts");
+  });
+
+  it("AC-05: verifies sidebar item order, icons, and that only Home is an anchor link", async () => {
+    renderProjectApp();
+
+    expect(await screen.findByText("Project")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Project options" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "New work item" }),
+    ).toBeInTheDocument();
+
+    const nav = screen.getByRole("navigation", { name: "Project" });
+    const listItems = nav.querySelectorAll("ul[role='list'] > li");
+    expect(listItems).toHaveLength(5);
+
+    const labels = Array.from(listItems).map((li) => li.textContent?.trim());
+    expect(labels).toEqual([
+      "Home",
+      "Work items",
+      "Milestones",
+      "Pages",
+      "Settings",
+    ]);
+
+    // Only Home has href
+    const homeLink = screen.getByRole("link", { name: "Home" });
+    expect(homeLink).toHaveAttribute("href", "/the-firsts/projects/TFP11");
+
+    // Other items are buttons with aria-disabled="true" and no href
+    for (const name of ["Work items", "Milestones", "Pages", "Settings"]) {
+      const btn = screen.getByRole("button", { name });
+      expect(btn).toHaveAttribute("aria-disabled", "true");
+      expect(btn).not.toHaveAttribute("href");
+    }
+  });
+
+  it("AC-06: clicking or focusing Coming soon items shows tooltip and does not change URL", async () => {
+    const user = userEvent.setup();
+    const { router } = renderProjectApp();
+
+    expect(await screen.findByText("Project")).toBeInTheDocument();
+
+    const comingSoonButtons = [
+      screen.getByRole("button", { name: "Project options" }),
+      screen.getByRole("button", { name: "New work item" }),
+      screen.getByRole("button", { name: "Work items" }),
+      screen.getByRole("button", { name: "Milestones" }),
+      screen.getByRole("button", { name: "Pages" }),
+      screen.getByRole("button", { name: "Settings" }),
+    ];
+
+    for (const btn of comingSoonButtons) {
+      await user.click(btn);
+      expect(router.state.location.pathname).toBe(
+        "/the-firsts/projects/TFP11",
+      );
+    }
+  });
+
+  it("AC-07: breadcrumb current page 'Home' has aria-current='page' and is not a link", async () => {
+    renderProjectApp();
+
+    expect(
+      await screen.findByRole("link", { name: /The First Project/i }),
+    ).toBeInTheDocument();
+
+    const breadcrumbNav = screen.getByRole("navigation", {
+      name: "Breadcrumb",
+    });
+    const wsLink = screen.getByRole("link", { name: "The Firsts" });
+    const projectLink = screen.getByRole("link", {
+      name: /The First Project/i,
+    });
+    expect(breadcrumbNav).toContainElement(wsLink);
+    expect(breadcrumbNav).toContainElement(projectLink);
+
+    // Current page is plain Text, not a link
+    const homeText = screen.getByText("Home", { selector: "p" });
+    expect(homeText).toHaveAttribute("aria-current", "page");
+    expect(homeText.closest("a")).toBeNull();
+  });
+
+  it("AC-08: mobile (< 48em) omits workspace name from breadcrumb, drawer opens with label 'Project', and clicking Home closes drawer", async () => {
+    const user = userEvent.setup();
+    renderProjectApp({ isDesktop: false });
+
+    // Project name is in breadcrumb
+    expect(
+      await screen.findByRole("link", { name: /The First Project/i }),
+    ).toBeInTheDocument();
+
+    // Workspace name is NOT in breadcrumb (DOM check)
+    expect(
+      screen.queryByRole("link", { name: "The Firsts" }),
+    ).not.toBeInTheDocument();
+
+    // Expand button is present
+    const openBtn = screen.getByRole("button", { name: "Open sidebar" });
+    expect(openBtn).toBeInTheDocument();
+
+    // Open drawer
+    await user.click(openBtn);
+
+    // Drawer with aria-label="Project" is opened
+    const drawer = screen.getByRole("dialog", { name: "Project" });
+    expect(drawer).toBeInTheDocument();
+
+    // Click Home link in drawer
+    const homeInDrawer = screen.getByRole("link", { name: "Home" });
+    await user.click(homeInDrawer);
+
+    // Drawer closes
+    expect(screen.queryByRole("dialog", { name: "Project" })).not.toBeInTheDocument();
+  });
+
+  it("AC-09: collapsing sidebar in project keeps it collapsed in workspace home, and expanding in workspace keeps it expanded in project", async () => {
+    const user = userEvent.setup();
+    const { router } = renderProjectApp();
+
+    expect(await screen.findByText("Project")).toBeInTheDocument();
+
+    // Collapse in project
+    const collapseBtn = screen.getByRole("button", {
+      name: "Collapse sidebar",
+    });
+    await user.click(collapseBtn);
+
+    // Sidebar is collapsed (Expand button is shown, Collapse button gone)
+    expect(
+      screen.getByRole("button", { name: "Expand sidebar" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Collapse sidebar" }),
+    ).not.toBeInTheDocument();
+
+    // Navigate to workspace home via breadcrumb
+    const wsLink = screen.getByRole("link", { name: "The Firsts" });
+    await user.click(wsLink);
+    expect(router.state.location.pathname).toBe("/the-firsts");
+
+    // In workspace home, sidebar is also collapsed
+    expect(
+      await screen.findByRole("button", { name: "Expand sidebar" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Collapse sidebar" }),
+    ).not.toBeInTheDocument();
+
+    // Expand in workspace home
+    const expandBtn = screen.getByRole("button", { name: "Expand sidebar" });
+    await user.click(expandBtn);
+    expect(
+      screen.getByRole("button", { name: "Collapse sidebar" }),
+    ).toBeInTheDocument();
+
+    // Navigate back to project via breadcrumb or table
+    const projectLink = await screen.findByRole("link", {
+      name: /The First Project/i,
+    });
+    await user.click(projectLink);
+    expect(router.state.location.pathname).toBe(
+      "/the-firsts/projects/TFP11",
+    );
+
+    // In project, sidebar is also expanded
+    expect(
+      await screen.findByRole("button", { name: "Collapse sidebar" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Expand sidebar" }),
+    ).not.toBeInTheDocument();
   });
 });
