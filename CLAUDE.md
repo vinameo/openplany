@@ -194,7 +194,7 @@ export class CreateIssueDto {
   - Authorize every endpoint (guards); check resource ownership, not just authentication.
   - Validate and whitelist all input; use parameterized queries only.
   - Keep CORS restricted: origins come from `CORS_ORIGIN`; the global `OriginGuard` rejects state-changing requests from any other `Origin`.
-  - Rate-limit auth and write endpoints; add security headers (Helmet).
+  - Rate-limit auth and write endpoints, and lookups whose 403/404 reveal whether a private resource exists; add security headers (Helmet).
   - Never log secrets, tokens, or personal data.
   - Keep dependencies patched (`pnpm audit`).
 - **Permissions:** quyền của vai trò đọc từ DB (`role_permissions`) rồi đưa vào hàm của `@repo/contracts`; không so sánh trực tiếp tên vai trò trong backend/frontend, không đọc bộ mặc định ở code chạy thật; dùng quyền đã thực thi và hàm trợ giúp từ contracts.
@@ -284,9 +284,33 @@ chore/ | refactor/ | docs/ | test/
    - Missing → branch from an up-to-date `develop`: `git switch develop && git pull --ff-only` (when a remote exists), then `git switch -c feature/<docs-dir>`.
    - Uncommitted changes in the working tree → stop and ask the user before switching.
 2. Commit on the feature branch in small Conventional Commits (one per ticket where possible).
-3. **When the work is done** and `pnpm lint && pnpm typecheck && pnpm test` (plus `test:e2e` for API changes) pass: `git switch develop && git merge --no-ff feature/<docs-dir>` so the feature shows up as one merge commit to review. Keep the feature branch (don't delete it).
+3. **When the work is done**, the self-review below is clean, and `pnpm lint && pnpm typecheck && pnpm test` (plus `test:e2e` for API changes) pass: `git switch develop && git merge --no-ff feature/<docs-dir>` so the feature shows up as one merge commit to review. Keep the feature branch (don't delete it).
 4. On merge conflicts, or if any check fails, stop and report — never force, rebase shared history, or merge with failing checks.
 5. Never push, and never touch `main`, unless the user asks.
+
+### Design pass and self-review (lessons from the reviews of features 7, 9 and 10)
+
+Each of those features passed every ticket's acceptance criteria and its checks, then needed a review-fix branch. Green tests prove the spec's happy paths; they do not prove the design. Run the design pass before coding each ticket and the self-review before step 3.
+
+**A spec's part B is a proposal, not a blueprint.** Its code sketches, algorithms and file lists were written without running code and have shipped flaws (a two-query lookup, URL parsing by string search, an access check that only one endpoint could use). Hold every sketch to the design pass. When the sound version differs, build it, and record the deviation in the commit message and in the spec.
+
+**Design pass** (per ticket, before writing code):
+
+1. **One decision, one seam.** A rule that a second endpoint or page will need (authorization, visibility, URL shape, page meta, shared copy) gets a reusable seam the first time it is written, sized for the features the spec's roadmap and `FC-` constraints already name:
+   - API: a child resource is loaded and authorized by a guard and a param decorator (`@ProjectRead()`/`@ProjectWrite()` with `@CurrentProject()`), never inside a service.
+   - Web: build URLs with the path helpers (`workspacePath`, `workspaceSettingsPath`, `projectPath`) and read route meta with `useRouteHandleMeta`.
+   - Context: one that exposes server data also exposes `reload()` and an apply-update function.
+2. **Read once, decide on that row.** Decide existence and permission from one read. Two queries for one decision can disagree (TOCTOU) and cost an extra round trip.
+3. **Bounded.** Give every collection in a response a limit (and the real count alongside it). Bound every response that leaks information (rate-limit 403/404 probing) and every log line an outsider can trigger.
+4. **Adversarial inputs.** For each endpoint, list and test: missing field, wrong type, array or `null` instead of object, empty string, control characters and NUL, over-long values, non-canonical case, an ID from another workspace, two concurrent identical writes. Each one answers 4xx, never 500. On the web, test path segments that collide with route words (e.g. a workspace slug `projects`).
+5. **Migrations meet real data.** Before adding a unique index or constraint, query for the rows that would violate it and stop with a message naming them. Partial indexes do not serve FK lookups: every FK column gets a full index.
+6. **Extract before you copy.** When new code would repeat a block (about 10 lines of logic, a JSX block, a CSS rule set) from existing code, extract it into a shared component, hook or helper in a prefactor commit, then use it in both places. Carry over only what the new code reads: no dead refs or state.
+7. **Copy from the spec.** User-facing text comes from the spec or `@repo/contracts` constants, never from `err.message`.
+
+**Self-review** (before step 3; done when every finding is fixed or listed in the merge commit with a reason):
+
+- Review `git diff develop...HEAD` as a whole branch, not ticket by ticket, against the design pass, the OWASP list (§5) and §7. Tickets built in separate contexts duplicate each other: look specifically for two implementations of the same idea across tickets.
+- Prefer running `/code-review` on the branch. Otherwise, review it yourself against the same lists.
 
 Work that isn't tied to one `packages/docs/<n>-…` directory (cross-cutting fixes, review follow-ups) uses `fix/` / `refactor/` / `chore/` with a short description and the same flow.
 
