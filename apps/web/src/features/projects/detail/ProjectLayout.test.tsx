@@ -41,12 +41,14 @@ function renderProjectApp({
   projectError,
   delayProject,
   isDesktop = true,
+  workspaces = [testWorkspace],
 }: {
   initialEntries?: string[];
   projectResponse?: ProjectResponse | null;
   projectError?: { status: number; code: string; message: string };
   delayProject?: Promise<void>;
   isDesktop?: boolean;
+  workspaces?: typeof testWorkspace[];
 } = {}) {
   stubMatchMedia(isDesktop);
   const router = createMemoryRouter(appRoutes, {
@@ -57,10 +59,21 @@ function renderProjectApp({
     "GET /api/auth/session": () => jsonResponse(200, makeSession()),
     "GET /api/workspaces": () =>
       jsonResponse(200, {
-        workspaces: [testWorkspace],
-        lastWorkspaceSlug: "the-firsts",
+        workspaces,
+        lastWorkspaceSlug: workspaces[0]?.slug ?? "the-firsts",
       }),
     "GET /api/workspaces/the-firsts": () => jsonResponse(200, testWorkspace),
+    "GET /api/workspaces/second-ws": () =>
+      jsonResponse(
+        200,
+        workspaces.find((w) => w.slug === "second-ws") ?? testWorkspace,
+      ),
+    "GET /api/workspaces/second-ws/projects": () =>
+      jsonResponse(200, {
+        projects: [],
+        total: 0,
+        truncated: false,
+      }),
     "GET /api/workspaces/the-firsts/projects/TFP11": async () => {
       if (delayProject) {
         await delayProject;
@@ -574,5 +587,57 @@ describe("ProjectLayout (Ticket 04 tracer bullet)", () => {
     expect(
       screen.queryByRole("button", { name: "Expand sidebar" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("AC-23: switching workspace from project detail navigates to new workspace home and does not call project API on new workspace", async () => {
+    const user = userEvent.setup();
+    const secondWs = makeWorkspace({
+      id: "ws-2",
+      slug: "second-ws",
+      name: "Second Workspace",
+      role: "admin",
+      permissions: [],
+    });
+
+    const { router, fetchMock } = renderProjectApp({
+      workspaces: [testWorkspace, secondWs],
+    });
+
+    // Project is loaded
+    expect(
+      await screen.findByRole("link", { name: /The First Project/i }),
+    ).toBeInTheDocument();
+
+    // Switcher trigger shows current workspace "The Firsts"
+    const switcherTrigger = screen.getByRole("button", {
+      name: "Switch workspace – The Firsts",
+    });
+    expect(switcherTrigger).toBeInTheDocument();
+
+    // Open switcher
+    await user.click(switcherTrigger);
+
+    // Menu shows Second Workspace
+    const secondWsOption = await screen.findByRole("menuitem", {
+      name: /Second Workspace/i,
+    });
+    expect(secondWsOption).toBeInTheDocument();
+
+    // Click Second Workspace
+    await user.click(secondWsOption);
+
+    // Navigates to /second-ws
+    expect(router.state.location.pathname).toBe("/second-ws");
+
+    // Renders new workspace home (Projects heading)
+    expect(
+      await screen.findByRole("heading", { name: "Projects" }),
+    ).toBeInTheDocument();
+
+    // No request to GET /api/workspaces/second-ws/projects/TFP11
+    const secondWsProjectDetailCalls = fetchMock.mock.calls
+      .map(([url]) => String(url))
+      .filter((url) => url.includes("/second-ws/projects/TFP11"));
+    expect(secondWsProjectDetailCalls).toHaveLength(0);
   });
 });
