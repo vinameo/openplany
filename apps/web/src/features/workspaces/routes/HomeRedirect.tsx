@@ -3,6 +3,7 @@ import { Navigate } from "react-router";
 import { AuthLayout } from "../../auth/AuthLayout";
 import { useWorkspaces } from "../useWorkspaces";
 import { NoWorkspaceHome } from "./NoWorkspaceHome";
+import { workspacePath } from "../workspacePaths";
 
 export function HomeRedirect() {
   const { state, refresh } = useWorkspaces();
@@ -34,6 +35,6 @@ export function HomeRedirect() {
   const destinationSlug =
     state.lastWorkspaceSlug ?? state.workspaces[0]!.slug;
 
-  return <Navigate to={`/${destinationSlug}`} replace />;
+  return <Navigate to={workspacePath(destinationSlug)} replace />;
 }
 

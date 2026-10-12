@@ -8,6 +8,7 @@ import type {
 } from "../settingsSections";
 import classes from "./SettingsSidebar.module.css";
 import { useSettingsNavigation } from "./useSettingsNavigation";
+import { workspacePath, workspaceSettingsPath } from "../../workspacePaths";
 
 interface SettingsMobileNavProps {
   sections?: readonly WorkspaceSettingsSection[];
@@ -35,7 +36,7 @@ export function SettingsMobileNav({
       <div className={classes.mobileHeader}>
         <ActionIcon
           component={Link}
-          to={`/${workspace.slug}`}
+          to={workspacePath(workspace.slug)}
           variant="subtle"
           color="gray"
           size="md"
@@ -58,7 +59,7 @@ export function SettingsMobileNav({
         checkIconPosition="right"
         onChange={(val) => {
           if (val) {
-            navigate(`/${workspace.slug}/settings/${val}`);
+            navigate(workspaceSettingsPath(workspace.slug, val));
           }
         }}
       />

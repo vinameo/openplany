@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import { useCurrentWorkspace } from "../../currentWorkspace/useCurrentWorkspace";
 import type { WorkspaceSettingsSection } from "../settingsSections";
 import classes from "./SettingsSidebar.module.css";
+import { workspaceSettingsPath } from "../../workspacePaths";
 
 interface SettingsNavItemProps {
   section: WorkspaceSettingsSection;
@@ -17,7 +18,7 @@ export function SettingsNavItem({ section, isActive }: SettingsNavItemProps) {
     <li>
       <NavLink
         component={Link}
-        to={`/${workspace.slug}/settings/${section.key}`}
+        to={workspaceSettingsPath(workspace.slug, section.key)}
         label={section.label}
         leftSection={<Icon width={16} height={16} />}
         active={isActive}

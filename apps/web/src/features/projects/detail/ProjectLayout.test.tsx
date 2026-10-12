@@ -641,3 +641,56 @@ describe("ProjectLayout (Ticket 04 tracer bullet)", () => {
     expect(secondWsProjectDetailCalls).toHaveLength(0);
   });
 });
+
+describe("ProjectLayout redirect for a workspace slug named 'projects'", () => {
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
+  it("uppercases the Project ID, not the workspace slug segment", async () => {
+    const projectsWorkspace = makeWorkspace({
+      id: "ws-p",
+      slug: "projects",
+      name: "Projects Team",
+      role: "admin",
+      permissions: [],
+    });
+    stubMatchMedia(true);
+    const router = createMemoryRouter(appRoutes, {
+      initialEntries: ["/projects/projects/tfp?view=all"],
+    });
+    const fetchMock = mockFetch({
+      "GET /api/auth/session": () => jsonResponse(200, makeSession()),
+      "GET /api/workspaces": () =>
+        jsonResponse(200, {
+          workspaces: [projectsWorkspace],
+          lastWorkspaceSlug: "projects",
+        }),
+      "GET /api/workspaces/projects": () =>
+        jsonResponse(200, projectsWorkspace),
+      "GET /api/workspaces/projects/projects/TFP": () =>
+        jsonResponse(200, {
+          project: { ...sampleProject, identifier: "TFP" },
+        }),
+    });
+
+    render(
+      <AppUiProvider>
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
+      </AppUiProvider>,
+    );
+
+    expect(
+      await screen.findByRole("link", { name: /The First Project/i }),
+    ).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/projects/projects/TFP");
+    expect(router.state.location.search).toBe("?view=all");
+    const projectCalls = fetchMock.mock.calls
+      .map(([url]) => String(url))
+      .filter((url) => url.startsWith("/api/workspaces/projects/projects/"));
+    expect(projectCalls).toEqual(["/api/workspaces/projects/projects/TFP"]);
+  });
+});

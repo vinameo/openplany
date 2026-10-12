@@ -1,28 +1,35 @@
-import {
-  ActionIcon,
-  Button,
-  Group,
-  NavLink,
-  ScrollArea,
-  Text,
-} from "@mantine/core";
+import type { ReactNode } from "react";
+import { ActionIcon, Group, ScrollArea, Text } from "@mantine/core";
 import {
   IconAdjustmentsHorizontal,
   IconFileText,
   IconFlag,
   IconStack2,
 } from "@tabler/icons-react";
-import { Link, useLocation, useParams } from "react-router";
+import { useLocation, useParams } from "react-router";
 import { ComingSoonHint } from "../../layout/ComingSoonHint";
 import { useCurrentWorkspace } from "../../workspaces/currentWorkspace/useCurrentWorkspace";
-import {
-  HomeIcon,
-  SettingsIcon,
-  SquarePenIcon,
-} from "../../workspaces/icons";
+import { HomeIcon, SettingsIcon } from "../../workspaces/icons";
+import { NewWorkItemButton } from "../../workspaces/shell/NewWorkItemButton";
 import { SidebarCollapseButton } from "../../workspaces/shell/SidebarCollapseButton";
+import { SidebarNavItem } from "../../workspaces/shell/SidebarNavItem";
 import classes from "../../workspaces/shell/sidebarContent.module.css";
 import { projectPath } from "../projectPaths";
+
+interface ProjectNavItem {
+  label: string;
+  icon: ReactNode;
+  /** Path below the Project home ("" is the Project home); absent until the page exists (RQ D4, BA FC-20). */
+  subPath?: string;
+}
+
+const PROJECT_NAV_ITEMS: readonly ProjectNavItem[] = [
+  { label: "Home", icon: <HomeIcon width={16} height={16} />, subPath: "" },
+  { label: "Work items", icon: <IconStack2 size={16} stroke={1.75} /> },
+  { label: "Milestones", icon: <IconFlag size={16} stroke={1.75} /> },
+  { label: "Pages", icon: <IconFileText size={16} stroke={1.75} /> },
+  { label: "Settings", icon: <SettingsIcon width={16} height={16} /> },
+];
 
 export function ProjectSidebarContent() {
   const { workspace } = useCurrentWorkspace();
@@ -30,7 +37,7 @@ export function ProjectSidebarContent() {
   const { pathname } = useLocation();
 
   const homePath = projectPath(workspace.slug, projectIdentifier);
-  const isHome = pathname.replace(/\/+$/, "") === homePath;
+  const currentPath = pathname.replace(/\/+$/, "");
 
   return (
     <>
@@ -63,125 +70,25 @@ export function ProjectSidebarContent() {
         className={classes.scrollArea}
       >
         <div className={classes.scrollContent}>
-          <ComingSoonHint>
-            {(trigger) => (
-              <Button
-                variant="default"
-                fullWidth
-                justify="flex-start"
-                leftSection={<SquarePenIcon width={16} height={16} />}
-                data-disabled
-                aria-disabled="true"
-                onClick={(e) => {
-                  trigger.onClick(e);
-                  e.preventDefault();
-                }}
-                className={classes.newWorkItemBtn}
-              >
-                New work item
-              </Button>
-            )}
-          </ComingSoonHint>
+          <NewWorkItemButton />
 
           <ul role="list" className={classes.navList}>
-            <li>
-              <NavLink
-                component={Link}
-                to={homePath}
-                label="Home"
-                leftSection={<HomeIcon width={16} height={16} />}
-                active={isHome}
-                color="gray"
-                variant="light"
-                aria-current={isHome ? "page" : undefined}
-                title="Home"
-                className={classes.navItem}
-              />
-            </li>
-            <li>
-              <ComingSoonHint>
-                {(trigger) => (
-                  <NavLink
-                    component="button"
-                    type="button"
-                    label="Work items"
-                    leftSection={<IconStack2 size={16} stroke={1.75} />}
-                    aria-disabled="true"
-                    color="gray"
-                    variant="light"
-                    title="Work items"
-                    className={classes.navItem}
-                    onClick={(e) => {
-                      trigger.onClick(e);
-                      e.preventDefault();
-                    }}
+            {PROJECT_NAV_ITEMS.map((item) => {
+              const to =
+                item.subPath === undefined
+                  ? undefined
+                  : `${homePath}${item.subPath}`;
+              return (
+                <li key={item.label}>
+                  <SidebarNavItem
+                    label={item.label}
+                    icon={item.icon}
+                    to={to}
+                    active={to !== undefined && currentPath === to}
                   />
-                )}
-              </ComingSoonHint>
-            </li>
-            <li>
-              <ComingSoonHint>
-                {(trigger) => (
-                  <NavLink
-                    component="button"
-                    type="button"
-                    label="Milestones"
-                    leftSection={<IconFlag size={16} stroke={1.75} />}
-                    aria-disabled="true"
-                    color="gray"
-                    variant="light"
-                    title="Milestones"
-                    className={classes.navItem}
-                    onClick={(e) => {
-                      trigger.onClick(e);
-                      e.preventDefault();
-                    }}
-                  />
-                )}
-              </ComingSoonHint>
-            </li>
-            <li>
-              <ComingSoonHint>
-                {(trigger) => (
-                  <NavLink
-                    component="button"
-                    type="button"
-                    label="Pages"
-                    leftSection={<IconFileText size={16} stroke={1.75} />}
-                    aria-disabled="true"
-                    color="gray"
-                    variant="light"
-                    title="Pages"
-                    className={classes.navItem}
-                    onClick={(e) => {
-                      trigger.onClick(e);
-                      e.preventDefault();
-                    }}
-                  />
-                )}
-              </ComingSoonHint>
-            </li>
-            <li>
-              <ComingSoonHint>
-                {(trigger) => (
-                  <NavLink
-                    component="button"
-                    type="button"
-                    label="Settings"
-                    leftSection={<SettingsIcon width={16} height={16} />}
-                    aria-disabled="true"
-                    color="gray"
-                    variant="light"
-                    title="Settings"
-                    className={classes.navItem}
-                    onClick={(e) => {
-                      trigger.onClick(e);
-                      e.preventDefault();
-                    }}
-                  />
-                )}
-              </ComingSoonHint>
-            </li>
+                </li>
+              );
+            })}
           </ul>
         </div>
       </ScrollArea>

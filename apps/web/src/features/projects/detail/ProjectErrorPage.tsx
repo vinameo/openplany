@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import { PROJECT_ERROR_MESSAGES } from "@repo/contracts";
 import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
 import { useCurrentWorkspace } from "../../workspaces/currentWorkspace/useCurrentWorkspace";
+import { workspacePath } from "../../workspaces/workspacePaths";
 
 export interface ProjectErrorPageProps {
   status: 403 | 404;
@@ -42,7 +43,7 @@ export function ProjectErrorPage({ status }: ProjectErrorPageProps) {
         </Text>
         <Button
           component={Link}
-          to={`/${encodeURIComponent(workspace.slug)}`}
+          to={workspacePath(workspace.slug)}
           variant="filled"
         >
           Homepage

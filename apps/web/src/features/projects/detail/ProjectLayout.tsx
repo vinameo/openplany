@@ -1,10 +1,15 @@
 import { useMemo } from "react";
-import { Navigate, useLocation, useParams } from "react-router";
+import {
+  Navigate,
+  useLocation,
+  useParams,
+  useResolvedPath,
+} from "react-router";
 import type { ProjectListItem } from "@repo/contracts";
 import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
 import { useCurrentWorkspace } from "../../workspaces/currentWorkspace/useCurrentWorkspace";
 import { WorkspaceChrome } from "../../workspaces/shell/WorkspaceChrome";
-import { canonicalProjectIdentifier } from "../projectPaths";
+import { canonicalProjectIdentifier, projectPath } from "../projectPaths";
 import {
   CurrentProjectContext,
   type CurrentProjectValue,
@@ -28,8 +33,11 @@ export function ProjectLayout() {
   const { projectIdentifier = "" } = useParams();
   const canonical = canonicalProjectIdentifier(projectIdentifier);
   const location = useLocation();
+  // Pathname this route matched (`/<slug>/projects/<as typed>`), so the part
+  // after it belongs to a child page, whatever the workspace slug is.
+  const matchedPathname = useResolvedPath(".").pathname;
   const { workspace } = useCurrentWorkspace();
-  const { state, retry } = useProject(
+  const { state, retry, reload, replace } = useProject(
     workspace.slug,
     canonical.kind === "canonical" ? canonical.identifier : null,
   );
@@ -44,28 +52,20 @@ export function ProjectLayout() {
             ? "error"
             : "loading",
       retry,
+      reload,
+      applyProjectUpdate: replace,
     };
-  }, [state, retry]);
+  }, [state, retry, reload, replace]);
 
   if (canonical.kind === "redirect") {
-    const projectsIndex = location.pathname.indexOf("/projects/");
-    const prefix =
-      projectsIndex >= 0
-        ? location.pathname.slice(0, projectsIndex + "/projects/".length)
-        : `/${encodeURIComponent(workspace.slug)}/projects/`;
-    const rest =
-      projectsIndex >= 0
-        ? location.pathname.slice(projectsIndex + "/projects/".length)
-        : "";
-    const slashIdx = rest.indexOf("/");
-    const suffix = slashIdx >= 0 ? rest.slice(slashIdx) : "";
-    const newPathname = `${prefix}${canonical.identifier}${suffix}`;
-
+    const childPath = location.pathname.startsWith(matchedPathname)
+      ? location.pathname.slice(matchedPathname.length)
+      : "";
     return (
       <Navigate
         replace
         to={{
-          pathname: newPathname,
+          pathname: `${projectPath(workspace.slug, canonical.identifier)}${childPath}`,
           search: location.search,
           hash: location.hash,
         }}
