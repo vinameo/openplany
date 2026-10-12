@@ -138,7 +138,6 @@ export function ProjectsHome() {
               <ProjectsTable
                 projects={displayedProjects}
                 workspaceSlug={workspace.slug}
-                timeZone={workspace.timezone}
                 sort={sort}
                 onSortChange={setSort}
               />

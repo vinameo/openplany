@@ -20,6 +20,9 @@ function makeProject(
     members: null,
     memberCount: null,
     createdAt,
+    updatedAt: createdAt,
+    timezone: null,
+    effectiveTimezone: "UTC",
   };
 }
 

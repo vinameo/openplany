@@ -21,6 +21,9 @@ function makeItem(id: string, identifier: string, name: string): ProjectListItem
     members: null,
     memberCount: null,
     createdAt: "2026-10-12T00:00:00Z",
+    updatedAt: "2026-10-12T00:00:00Z",
+    timezone: null,
+    effectiveTimezone: "UTC",
   };
 }
 

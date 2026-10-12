@@ -11,6 +11,7 @@ import { AppendOnlyViolationError } from '../src/database/appendOnly.js';
 import { CreateProjectTables1791605000000 } from '../src/database/migrations/1791605000000-CreateProjectTables.js';
 import { AddProjectForeignKeyIndexes1791606000000 } from '../src/database/migrations/1791606000000-AddProjectForeignKeyIndexes.js';
 import { ReserveProjectIdentifiers1791607000000 } from '../src/database/migrations/1791607000000-ReserveProjectIdentifiers.js';
+import { AddProjectTimezone1791608000000 } from '../src/database/migrations/1791608000000-AddProjectTimezone.js';
 import { ProjectMemberRoleHistory } from '../src/projects/entities/projectMemberRoleHistory.entity.js';
 import { ProjectAccessResolver } from '../src/projects/access/projectAccessResolver.js';
 import { createE2eApp, type E2eApp } from './createE2eApp.js';
@@ -29,6 +30,18 @@ describe('Projects (e2e)', () => {
 
   beforeAll(async () => {
     e2e = await createE2eApp();
+    const qr = e2e.dataSource.createQueryRunner();
+    await qr.connect();
+    try {
+      const cols = (await qr.query(
+        "SELECT 1 FROM information_schema.columns WHERE table_name = 'projects' AND column_name = 'timezone'",
+      )) as unknown[];
+      if (cols.length === 0) {
+        await new AddProjectTimezone1791608000000().up(qr);
+      }
+    } finally {
+      await qr.release();
+    }
   });
 
   beforeEach(async () => {
@@ -83,10 +96,11 @@ describe('Projects (e2e)', () => {
     name: string,
     identifier: string,
     deletedAt: Date | null = null,
+    timezone: string | null = null,
   ): Promise<string> {
     const res = await e2e.dataSource.query<{ id: string }[]>(
-      `INSERT INTO projects (workspace_id, name, identifier, description, icon_name, icon_color, cover_key, deleted_at)
-       VALUES ($1, $2, $3, '', $4, $5, $6, $7)
+      `INSERT INTO projects (workspace_id, name, identifier, description, icon_name, icon_color, cover_key, deleted_at, timezone)
+       VALUES ($1, $2, $3, '', $4, $5, $6, $7, $8)
        RETURNING id`,
       [
         workspaceId,
@@ -96,6 +110,7 @@ describe('Projects (e2e)', () => {
         DEFAULT_PROJECT_ICON_COLOR,
         DEFAULT_PROJECT_COVER,
         deletedAt,
+        timezone,
       ],
     );
     return res[0]!.id;
@@ -121,9 +136,11 @@ describe('Projects (e2e)', () => {
       // so the e2e database ends in the same state for the following tests.
       const indexes = new AddProjectForeignKeyIndexes1791606000000();
       const reserve = new ReserveProjectIdentifiers1791607000000();
+      const timezone = new AddProjectTimezone1791608000000();
       const qr = e2e.dataSource.createQueryRunner();
       await qr.connect();
       try {
+        await timezone.down(qr).catch(() => {});
         await reserve.down(qr);
         await indexes.down(qr);
         await migration.down(qr);
@@ -149,6 +166,7 @@ describe('Projects (e2e)', () => {
         expect(tablesAfterUp).toHaveLength(3);
         await indexes.up(qr);
         await reserve.up(qr);
+        await timezone.up(qr);
       } finally {
         await qr.release();
       }
@@ -839,6 +857,9 @@ describe('Projects (e2e)', () => {
       expect(proj.permissions).toContain('project.members.view');
       expect(proj.members).toHaveLength(1);
       expect(proj.members[0].userId).toBe(ownerId);
+      expect(proj.timezone).toBeNull();
+      expect(proj.effectiveTimezone).toBe('UTC');
+      expect(typeof proj.updatedAt).toBe('string');
 
       // Verify DB tables
       const projectsInDb = await e2e.dataSource.query<
@@ -1473,5 +1494,145 @@ describe('Projects (e2e)', () => {
         .expect(200);
     });
   });
+
+  describe('Project timezone data (Ticket 04: AC-18, AC-20, AC-21, T-DB-01)', () => {
+    it('T-DB-01: timezone column allows null, defaults to null, and rejects empty string due to CHECK constraint', async () => {
+      const { workspace } = await seedWorkspace(
+        'owner-tz-db@openplany.dev',
+        'ws-tz-db',
+      );
+
+      // Inserting with null succeeds
+      const p1 = await insertProject(
+        workspace.id,
+        'Project Null',
+        'PNULL',
+        null,
+        null,
+      );
+      const rows = await e2e.dataSource.query<
+        { timezone: string | null }[]
+      >(`SELECT timezone FROM projects WHERE id = $1`, [p1]);
+      expect(rows[0]!.timezone).toBeNull();
+
+      // Inserting with valid timezone string succeeds
+      const p2 = await insertProject(
+        workspace.id,
+        'Project Tokyo',
+        'PTOK',
+        null,
+        'Asia/Tokyo',
+      );
+      const rows2 = await e2e.dataSource.query<
+        { timezone: string | null }[]
+      >(`SELECT timezone FROM projects WHERE id = $1`, [p2]);
+      expect(rows2[0]!.timezone).toBe('Asia/Tokyo');
+
+      // Inserting empty string fails with CHECK constraint violation
+      await expect(
+        e2e.dataSource.query(
+          `INSERT INTO projects (workspace_id, name, identifier, description, icon_name, icon_color, cover_key, timezone)
+           VALUES ($1, 'Bad', 'BAD', '', 'square-check', '#868E96', 'cover-01', '')`,
+          [workspace.id],
+        ),
+      ).rejects.toThrow(/projects_timezone_not_blank/);
+    });
+
+    it('AC-20: Create project returns timezone: null, effectiveTimezone = workspace.timezone, and updatedAt', async () => {
+      const { workspace, cookie } = await seedWorkspace(
+        'owner-create-tz@openplany.dev',
+        'ws-create-tz',
+      );
+
+      const res = await http()
+        .post(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({
+          name: 'New Project',
+          identifier: 'NEWP',
+          icon: { name: 'rocket', color: '#15AABF' },
+          coverKey: 'cover-01',
+        })
+        .expect(201);
+
+      expect(res.body.project.timezone).toBeNull();
+      expect(res.body.project.effectiveTimezone).toBe('UTC');
+      expect(typeof res.body.project.updatedAt).toBe('string');
+    });
+
+    it('AC-18: given project with timezone=null and project with timezone="Asia/Tokyo", changing workspace timezone to Europe/Paris updates effectiveTimezone of null-timezone project while custom timezone is preserved, in both get and list (INV-01, INV-05)', async () => {
+      const { workspace, ownerId, cookie } = await seedWorkspace(
+        'owner-tz-ws@openplany.dev',
+        'ws-tz-ws',
+      );
+
+      const p1Id = await insertProject(
+        workspace.id,
+        'Project Null',
+        'TFP11',
+        null,
+        null,
+      );
+      await insertProjectMember(p1Id, workspace.id, ownerId, 'admin');
+
+      const p2Id = await insertProject(
+        workspace.id,
+        'Project Tokyo',
+        'TFP12',
+        null,
+        'Asia/Tokyo',
+      );
+      await insertProjectMember(p2Id, workspace.id, ownerId, 'admin');
+
+      // Update workspace timezone to Europe/Paris
+      await e2e.dataSource.query(
+        `UPDATE workspaces SET timezone = 'Europe/Paris' WHERE id = $1`,
+        [workspace.id],
+      );
+
+      // GET TFP11 -> effectiveTimezone: "Europe/Paris", timezone: null
+      const res1 = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/TFP11`)
+        .set('Cookie', cookie)
+        .expect(200);
+      expect(res1.body.project.timezone).toBeNull();
+      expect(res1.body.project.effectiveTimezone).toBe('Europe/Paris');
+      expect(typeof res1.body.project.updatedAt).toBe('string');
+
+      // GET TFP12 -> effectiveTimezone: "Asia/Tokyo", timezone: "Asia/Tokyo"
+      const res2 = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/TFP12`)
+        .set('Cookie', cookie)
+        .expect(200);
+      expect(res2.body.project.timezone).toBe('Asia/Tokyo');
+      expect(res2.body.project.effectiveTimezone).toBe('Asia/Tokyo');
+      expect(typeof res2.body.project.updatedAt).toBe('string');
+
+      // GET list -> both projects match get responses (INV-01)
+      const listRes = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', cookie)
+        .expect(200);
+
+      const listP1 = listRes.body.projects.find(
+        (p: { identifier: string }) => p.identifier === 'TFP11',
+      );
+      const listP2 = listRes.body.projects.find(
+        (p: { identifier: string }) => p.identifier === 'TFP12',
+      );
+
+      expect(listP1).toBeDefined();
+      expect(listP1.timezone).toBeNull();
+      expect(listP1.effectiveTimezone).toBe('Europe/Paris');
+      expect(listP1.updatedAt).toBe(res1.body.project.updatedAt);
+
+      expect(listP2).toBeDefined();
+      expect(listP2.timezone).toBe('Asia/Tokyo');
+      expect(listP2.effectiveTimezone).toBe('Asia/Tokyo');
+      expect(listP2.updatedAt).toBe(res2.body.project.updatedAt);
+    });
+  });
 });
+
 

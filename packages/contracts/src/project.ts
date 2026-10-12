@@ -192,12 +192,26 @@ export interface ProjectListItem {
   icon: { name: string; color: string };
   coverKey: string;
   createdAt: string;
+  updatedAt: string;
+  timezone: string | null;
+  effectiveTimezone: string;
   /** Oldest first, at most PROJECT_MEMBER_PREVIEW_MAX. null when the viewer lacks project.members.view. */
   members: ProjectMemberSummary[] | null;
   /** Real number of members; null exactly when `members` is null. */
   memberCount: number | null;
   role: ProjectRole;
   permissions: EnforcedProjectPermission[];
+}
+
+/**
+ * Resolves the effective timezone of a project against its workspace.
+ * RQ D8, INV-05.
+ */
+export function effectiveProjectTimezone(
+  projectTimezone: string | null,
+  workspaceTimezone: string,
+): string {
+  return projectTimezone ?? workspaceTimezone;
 }
 
 export interface ProjectListResponse {

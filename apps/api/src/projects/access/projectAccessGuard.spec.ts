@@ -26,6 +26,8 @@ const ACCESSIBLE: AccessibleProject = {
     iconColor: DEFAULT_PROJECT_ICON_COLOR,
     coverKey: DEFAULT_PROJECT_COVER,
     createdAt: new Date('2026-10-01T00:00:00Z'),
+    updatedAt: new Date('2026-10-01T00:00:00Z'),
+    timezone: null,
   },
   access: { role: 'contributor', permissions: ['project.members.view'] },
 };

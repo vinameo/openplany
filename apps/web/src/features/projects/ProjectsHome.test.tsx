@@ -28,6 +28,9 @@ const sampleProject: ProjectListItem = {
   icon: { name: "square-check", color: "#1A2B3C" },
   coverKey: "cover-01",
   createdAt: "2026-10-11T10:00:00.000Z",
+  updatedAt: "2026-10-11T10:00:00.000Z",
+  timezone: null,
+  effectiveTimezone: "Asia/Ho_Chi_Minh",
   members: [
     {
       userId: "u-1",
@@ -243,6 +246,9 @@ describe("ProjectsHome", () => {
       icon: { name: "rocket", color: "#15AABF" },
       coverKey: "cover-01",
       createdAt: "2026-10-11T15:00:00.000Z",
+      updatedAt: "2026-10-11T15:00:00.000Z",
+      timezone: null,
+      effectiveTimezone: "Asia/Ho_Chi_Minh",
       members: [],
       memberCount: 0,
       role: "admin",

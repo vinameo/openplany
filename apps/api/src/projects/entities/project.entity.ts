@@ -40,4 +40,7 @@ export class Project {
 
   @Column({ name: 'deleted_at', type: 'timestamptz', nullable: true })
   deletedAt!: Date | null;
+
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  timezone!: string | null;
 }

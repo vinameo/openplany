@@ -15,6 +15,7 @@ import {
 import { makeMemberWorkspace } from '../../test/fakes/workspacesFakes.js';
 import { ApiException } from '../common/apiException.js';
 import type { AccessibleProject } from './access/projectAccessResolver.js';
+import type { ProjectRow } from './dto/projectResponse.js';
 import {
   ProjectIdentifierTakenError,
   ProjectNameTakenError,
@@ -22,6 +23,22 @@ import {
 import { ProjectsService } from './projects.service.js';
 
 describe('ProjectsService', () => {
+  function makeProjectRow(overrides: Partial<ProjectRow> = {}): ProjectRow {
+    return {
+      id: 'p-1',
+      name: 'Project One',
+      identifier: 'PO',
+      description: 'Desc',
+      iconName: DEFAULT_PROJECT_ICON,
+      iconColor: DEFAULT_PROJECT_ICON_COLOR,
+      coverKey: DEFAULT_PROJECT_COVER,
+      createdAt: new Date('2026-10-01T00:00:00Z'),
+      updatedAt: new Date('2026-10-01T00:00:00Z'),
+      timezone: null,
+      ...overrides,
+    };
+  }
+
   function makeSetup() {
     const repository = new FakeProjectsRepository();
     const resolver = new FakeProjectAccessResolver();
@@ -50,7 +67,7 @@ describe('ProjectsService', () => {
 
       resolver.rows = [
         {
-          project: {
+          project: makeProjectRow({
             id: 'p-1',
             name: 'Project One',
             identifier: 'PO',
@@ -59,7 +76,7 @@ describe('ProjectsService', () => {
             iconColor: DEFAULT_PROJECT_ICON_COLOR,
             coverKey: DEFAULT_PROJECT_COVER,
             createdAt: new Date('2026-10-01T00:00:00Z'),
-          },
+          }),
           access: {
             role: 'admin',
             permissions: ['project.members.view'],
@@ -94,7 +111,7 @@ describe('ProjectsService', () => {
 
       resolver.rows = [
         {
-          project: {
+          project: makeProjectRow({
             id: 'p-guest',
             name: 'Guest Project',
             identifier: 'GP',
@@ -103,7 +120,7 @@ describe('ProjectsService', () => {
             iconColor: DEFAULT_PROJECT_ICON_COLOR,
             coverKey: DEFAULT_PROJECT_COVER,
             createdAt: new Date('2026-10-01T00:00:00Z'),
-          },
+          }),
           access: {
             role: 'guest',
             permissions: [],
@@ -122,7 +139,7 @@ describe('ProjectsService', () => {
       const ws = makeMemberWorkspace();
 
       resolver.rows = Array.from({ length: PROJECT_LIST_MAX }, (_, i) => ({
-        project: {
+        project: makeProjectRow({
           id: `p-${i}`,
           name: `Project ${i}`,
           identifier: 'P',
@@ -131,7 +148,7 @@ describe('ProjectsService', () => {
           iconColor: DEFAULT_PROJECT_ICON_COLOR,
           coverKey: DEFAULT_PROJECT_COVER,
           createdAt: new Date(),
-        },
+        }),
         access: { role: 'admin' as const, permissions: [] },
       }));
       resolver.total = 5000;
@@ -150,7 +167,7 @@ describe('ProjectsService', () => {
 
       resolver.rows = [
         {
-          project: {
+          project: makeProjectRow({
             id: 'p-big',
             name: 'Big',
             identifier: 'BIG',
@@ -159,7 +176,7 @@ describe('ProjectsService', () => {
             iconColor: DEFAULT_PROJECT_ICON_COLOR,
             coverKey: DEFAULT_PROJECT_COVER,
             createdAt: new Date(),
-          },
+          }),
           access: { role: 'admin', permissions: ['project.members.view'] },
         },
       ];
@@ -190,7 +207,7 @@ describe('ProjectsService', () => {
       const { service, resolver } = makeSetup();
       resolver.rows = [
         {
-          project: {
+          project: makeProjectRow({
             id: 'p-empty',
             name: 'Empty',
             identifier: 'EMP',
@@ -199,7 +216,7 @@ describe('ProjectsService', () => {
             iconColor: DEFAULT_PROJECT_ICON_COLOR,
             coverKey: DEFAULT_PROJECT_COVER,
             createdAt: new Date(),
-          },
+          }),
           access: { role: 'admin', permissions: ['project.members.view'] },
         },
       ];
@@ -217,7 +234,7 @@ describe('ProjectsService', () => {
 
       resolver.rows = [
         {
-          project: {
+          project: makeProjectRow({
             id: 'p-1',
             name: 'P1',
             identifier: 'P',
@@ -226,7 +243,7 @@ describe('ProjectsService', () => {
             iconColor: DEFAULT_PROJECT_ICON_COLOR,
             coverKey: DEFAULT_PROJECT_COVER,
             createdAt: new Date(),
-          },
+          }),
           access: {
             role: 'contributor' as const,
             permissions: ['project.members.view'],
@@ -258,7 +275,7 @@ describe('ProjectsService', () => {
       const ws = makeMemberWorkspace();
 
       resolver.project = {
-        project: {
+        project: makeProjectRow({
           id: 'project-new-id',
           name: 'New Project',
           identifier: 'NP',
@@ -267,7 +284,7 @@ describe('ProjectsService', () => {
           iconColor: DEFAULT_PROJECT_ICON_COLOR,
           coverKey: DEFAULT_PROJECT_COVER,
           createdAt: new Date('2026-10-11T12:00:00Z'),
-        },
+        }),
         access: {
           role: 'admin',
           permissions: ['project.members.view'],
@@ -307,7 +324,7 @@ describe('ProjectsService', () => {
       const { service, repository, resolver } = makeSetup();
       const ws = makeMemberWorkspace();
       resolver.project = {
-        project: {
+        project: makeProjectRow({
           id: 'p-default',
           name: 'Default',
           identifier: 'DEF',
@@ -316,7 +333,7 @@ describe('ProjectsService', () => {
           iconColor: DEFAULT_PROJECT_ICON_COLOR,
           coverKey: DEFAULT_PROJECT_COVER,
           createdAt: new Date(),
-        },
+        }),
         access: {
           role: 'admin',
           permissions: ['project.members.view'],
@@ -380,7 +397,7 @@ describe('ProjectsService', () => {
       role: AccessibleProject['access']['role'] = 'admin',
     ): AccessibleProject {
       return {
-        project: {
+        project: makeProjectRow({
           id: 'p-1',
           name: 'Project One',
           identifier: 'PROJ1',
@@ -389,7 +406,7 @@ describe('ProjectsService', () => {
           iconColor: DEFAULT_PROJECT_ICON_COLOR,
           coverKey: DEFAULT_PROJECT_COVER,
           createdAt: new Date('2026-10-01T00:00:00Z'),
-        },
+        }),
         access: { role, permissions },
       };
     }

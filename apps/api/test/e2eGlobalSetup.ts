@@ -11,6 +11,7 @@ import { AddWorkspaceMemberJoinedAt1791604000000 } from '../src/database/migrati
 import { CreateProjectTables1791605000000 } from '../src/database/migrations/1791605000000-CreateProjectTables.js';
 import { AddProjectForeignKeyIndexes1791606000000 } from '../src/database/migrations/1791606000000-AddProjectForeignKeyIndexes.js';
 import { ReserveProjectIdentifiers1791607000000 } from '../src/database/migrations/1791607000000-ReserveProjectIdentifiers.js';
+import { AddProjectTimezone1791608000000 } from '../src/database/migrations/1791608000000-AddProjectTimezone.js';
 import { e2eEnv } from './e2eEnv.js';
 
 export interface MigrationSeedSnapshot {
@@ -32,6 +33,7 @@ export const MIGRATIONS = [
   CreateProjectTables1791605000000,
   AddProjectForeignKeyIndexes1791606000000,
   ReserveProjectIdentifiers1791607000000,
+  AddProjectTimezone1791608000000,
 ];
 
 /** Creates the e2e database if needed and brings it to the latest migration. */

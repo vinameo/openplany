@@ -175,6 +175,7 @@ export class ProjectsService {
         canSee.has(project.id)
           ? (previews.get(project.id) ?? { members: [], total: 0 })
           : null,
+        workspace.timezone,
       ),
     );
   }

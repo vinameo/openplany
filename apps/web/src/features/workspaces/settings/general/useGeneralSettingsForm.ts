@@ -7,7 +7,9 @@ import {
   type OrganizationSize,
   type WorkspaceResponse,
 } from "@repo/contracts";
+import { useQueryClient } from "@tanstack/react-query";
 import type { ApiRequestError } from "../../../../lib/apiClient";
+import { projectKeys } from "../../../projects/api/projectQueries";
 import { workspaceApi } from "../../api/workspaceApi";
 import { useCurrentWorkspace } from "../../currentWorkspace/useCurrentWorkspace";
 import { useWorkspaces } from "../../useWorkspaces";
@@ -25,6 +27,7 @@ export interface GeneralSettingsFormValues extends Record<string, unknown> {
 
 export function useGeneralSettingsForm(workspace: WorkspaceResponse) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { applyWorkspaceUpdate, reload } = useCurrentWorkspace();
   const { refresh } = useWorkspaces();
 
@@ -50,6 +53,11 @@ export function useGeneralSettingsForm(workspace: WorkspaceResponse) {
     submit: async (changes) => {
       const response = await workspaceApi.update(workspace.slug, changes);
       applyWorkspaceUpdate(response);
+      if (changes.timezone !== undefined) {
+        await queryClient.invalidateQueries({
+          queryKey: projectKeys.list(workspace.slug),
+        });
+      }
       notifications.show({
         message: "Workspace updated",
         color: "green",

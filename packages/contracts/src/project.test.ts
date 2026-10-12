@@ -16,6 +16,7 @@ import {
   PROJECT_FIELD_MESSAGES,
   projectNameProblem,
   projectDescriptionProblem,
+  effectiveProjectTimezone,
   suggestProjectIdentifier,
 } from "./project.js";
 
@@ -174,6 +175,17 @@ describe("project contracts", () => {
       expect(
         projectDescriptionProblem("Valid multi-line\ndescription\r\n\ttext"),
       ).toBeNull();
+    });
+  });
+
+  describe("effectiveProjectTimezone (RQ D8, INV-05)", () => {
+    it("returns projectTimezone when set, otherwise falls back to workspaceTimezone", () => {
+      expect(effectiveProjectTimezone("Asia/Tokyo", "UTC")).toBe("Asia/Tokyo");
+      expect(effectiveProjectTimezone("America/New_York", "Europe/Paris")).toBe(
+        "America/New_York",
+      );
+      expect(effectiveProjectTimezone(null, "Europe/Paris")).toBe("Europe/Paris");
+      expect(effectiveProjectTimezone(null, "UTC")).toBe("UTC");
     });
   });
 });

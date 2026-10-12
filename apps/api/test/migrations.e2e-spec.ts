@@ -138,8 +138,8 @@ describe('Migrations (e2e)', () => {
       [ws.id, formerId],
     );
     const [active] = await e2e.dataSource.query<{ id: string }[]>(
-      `INSERT INTO projects (workspace_id, name, identifier, icon_name, icon_color, cover_key)
-       VALUES ($1, 'Web', 'WEB', 'square-check', '#868E96', 'cover-01') RETURNING id`,
+      `INSERT INTO projects (workspace_id, name, identifier, icon_name, icon_color, cover_key, timezone)
+       VALUES ($1, 'Web', 'WEB', 'square-check', '#868E96', 'cover-01', 'Asia/Tokyo') RETURNING id`,
       [ws.id],
     );
     await e2e.dataSource.query(
