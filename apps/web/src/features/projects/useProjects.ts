@@ -5,7 +5,7 @@ import { ApiRequestError } from "../../lib/apiClient";
 import { useAuth } from "../auth/useAuth";
 import { useCurrentWorkspace } from "../workspaces/currentWorkspace/useCurrentWorkspace";
 import { projectsApi } from "./api/projectsApi";
-import { projectKeys } from "./api/projectQueries";
+import { addProjectToCache, projectKeys } from "./api/projectQueries";
 
 export type ProjectsState =
   | { status: "loading" }
@@ -44,16 +44,7 @@ export function useProjects(slug: string): {
 
   const addProject = useCallback(
     (item: ProjectListItem) => {
-      queryClient.setQueryData<ProjectListResponse>(
-        projectKeys.list(slug),
-        (curr) =>
-          curr && {
-            ...curr,
-            projects: [item, ...curr.projects],
-            total: curr.total + 1,
-          },
-      );
-      queryClient.setQueryData(projectKeys.detail(slug, item.identifier), item);
+      addProjectToCache(queryClient, slug, item);
     },
     [queryClient, slug],
   );

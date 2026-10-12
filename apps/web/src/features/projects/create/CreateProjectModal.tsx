@@ -9,20 +9,17 @@ import {
   Stack,
   Textarea,
   TextInput,
-  UnstyledButton,
   VisuallyHidden,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import type { ProjectListItem } from "@repo/contracts";
 import { ApiRequestError } from "../../../lib/apiClient";
 import { useIsDesktop } from "../../layout/useIsDesktop";
+import { splitServerFieldErrors } from "../../settings/serverFieldErrors";
 import { ConfirmDiscardModal } from "../../workspaces/ConfirmDiscardModal";
 import { useCurrentWorkspace } from "../../workspaces/currentWorkspace/useCurrentWorkspace";
 import { projectsApi } from "../api/projectsApi";
-import { ProjectCoverPicker } from "../ProjectCoverPicker";
-import { projectCover } from "../projectCovers";
-import { ProjectIcon } from "../ProjectIcon";
-import { ProjectIconPicker } from "../ProjectIconPicker";
+import { ProjectCoverHeader } from "../ProjectCoverHeader";
 import { useCreateProjectForm } from "./useCreateProjectForm";
 import classes from "./CreateProjectModal.module.css";
 
@@ -105,12 +102,14 @@ export function CreateProjectModal({
     } catch (err: unknown) {
       if (err instanceof ApiRequestError) {
         if (err.status === 400 || err.status === 409) {
-          const { fieldErrors, hasHiddenErrors } = splitServerFieldErrors(
+          const { fieldErrors, hiddenMessages } = splitServerFieldErrors(
             err.fields,
+            FORM_FIELDS,
           );
           form.setErrors(fieldErrors);
           // Errors on fields without an input (icon.*, coverKey, unknown keys)
           // would otherwise change nothing on screen.
+          const hasHiddenErrors = hiddenMessages.length > 0;
           if (hasHiddenErrors || Object.keys(fieldErrors).length === 0) {
             setErrorAlert(
               hasHiddenErrors
@@ -150,12 +149,13 @@ export function CreateProjectModal({
         aria-labelledby="create-project-title"
       >
         <form onSubmit={handleSubmit}>
-          <div className={classes.coverHeader}>
-            <img
-              src={projectCover(form.values.coverKey).full}
-              alt=""
-              className={classes.coverImage}
-            />
+          <ProjectCoverHeader
+            coverKey={form.values.coverKey}
+            icon={form.values.icon}
+            onCoverChange={(newCover) => form.setFieldValue("coverKey", newCover)}
+            onIconChange={(newIcon) => form.setFieldValue("icon", newIcon)}
+            variant="modal"
+          >
             <VisuallyHidden>
               <h2 id="create-project-title">Create project</h2>
             </VisuallyHidden>
@@ -164,38 +164,7 @@ export function CreateProjectModal({
               onClick={handleRequestClose}
               className={classes.closeButton}
             />
-            <ProjectIconPicker
-              value={form.values.icon}
-              onChange={(newIcon) => form.setFieldValue("icon", newIcon)}
-            >
-              {({ onClick }) => (
-                <UnstyledButton
-                  type="button"
-                  aria-label="Change icon"
-                  onClick={onClick}
-                  className={classes.iconBox}
-                >
-                  <ProjectIcon icon={form.values.icon} size={28} />
-                </UnstyledButton>
-              )}
-            </ProjectIconPicker>
-            <ProjectCoverPicker
-              value={form.values.coverKey}
-              onChange={(newCover) => form.setFieldValue("coverKey", newCover)}
-            >
-              {({ onClick }) => (
-                <Button
-                  type="button"
-                  size="xs"
-                  variant="default"
-                  onClick={onClick}
-                  className={classes.changeCoverButton}
-                >
-                  Change cover
-                </Button>
-              )}
-            </ProjectCoverPicker>
-          </div>
+          </ProjectCoverHeader>
 
           <div className={classes.body}>
             <Stack gap="md">
@@ -269,22 +238,3 @@ export function CreateProjectModal({
 /** Inputs that can show a server error under themselves. */
 const FORM_FIELDS = ["name", "identifier", "description"] as const;
 
-function splitServerFieldErrors(fields: unknown): {
-  fieldErrors: Record<string, string>;
-  hasHiddenErrors: boolean;
-} {
-  const fieldErrors: Record<string, string> = {};
-  let hasHiddenErrors = false;
-  if (typeof fields !== "object" || fields === null) {
-    return { fieldErrors, hasHiddenErrors };
-  }
-  for (const [key, message] of Object.entries(fields)) {
-    if (typeof message !== "string") continue;
-    if ((FORM_FIELDS as readonly string[]).includes(key)) {
-      fieldErrors[key] = message;
-    } else {
-      hasHiddenErrors = true;
-    }
-  }
-  return { fieldErrors, hasHiddenErrors };
-}

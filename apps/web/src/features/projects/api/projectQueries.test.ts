@@ -1,0 +1,98 @@
+import { QueryClient } from "@tanstack/react-query";
+import type { ProjectListItem, ProjectListResponse } from "@repo/contracts";
+import { describe, expect, it } from "vitest";
+import {
+  addProjectToCache,
+  projectKeys,
+  removeProjectFromCache,
+  replaceProjectInCache,
+} from "./projectQueries";
+
+function makeItem(id: string, identifier: string, name: string): ProjectListItem {
+  return {
+    id,
+    identifier,
+    name,
+    description: "",
+    icon: { name: "folder", color: "#3b82f6" },
+    coverKey: "default",
+    permissions: ["project.members.view"],
+    role: "admin",
+    members: null,
+    memberCount: null,
+    createdAt: "2026-10-12T00:00:00Z",
+  };
+}
+
+describe("projectQueries cache helpers", () => {
+  const slug = "test-workspace";
+
+  it("addProjectToCache prepends item to list and sets detail", () => {
+    const qc = new QueryClient();
+    const existingList: ProjectListResponse = {
+      projects: [makeItem("1", "P1", "Project 1")],
+      total: 1,
+      truncated: false,
+    };
+    qc.setQueryData(projectKeys.list(slug), existingList);
+
+    const newItem = makeItem("2", "P2", "Project 2");
+    addProjectToCache(qc, slug, newItem);
+
+    const cachedList = qc.getQueryData<ProjectListResponse>(projectKeys.list(slug));
+    expect(cachedList?.total).toBe(2);
+    expect(cachedList?.projects[0]?.identifier).toBe("P2");
+    expect(cachedList?.projects[1]?.identifier).toBe("P1");
+
+    const cachedDetail = qc.getQueryData<ProjectListItem>(
+      projectKeys.detail(slug, "P2"),
+    );
+    expect(cachedDetail).toEqual(newItem);
+  });
+
+  it("replaceProjectInCache updates item in list and detail", () => {
+    const qc = new QueryClient();
+    const item1 = makeItem("1", "P1", "Old Name");
+    qc.setQueryData(projectKeys.list(slug), {
+      projects: [item1],
+      total: 1,
+      truncated: false,
+    });
+    qc.setQueryData(projectKeys.detail(slug, "P1"), item1);
+
+    const updated = { ...item1, name: "New Name" };
+    replaceProjectInCache(qc, slug, updated);
+
+    const cachedList = qc.getQueryData<ProjectListResponse>(projectKeys.list(slug));
+    expect(cachedList?.projects[0]?.name).toBe("New Name");
+
+    const cachedDetail = qc.getQueryData<ProjectListItem>(
+      projectKeys.detail(slug, "P1"),
+    );
+    expect(cachedDetail?.name).toBe("New Name");
+  });
+
+  it("removeProjectFromCache removes item from list and removes detail query", () => {
+    const qc = new QueryClient();
+    const item1 = makeItem("1", "P1", "Project 1");
+    const item2 = makeItem("2", "P2", "Project 2");
+    qc.setQueryData(projectKeys.list(slug), {
+      projects: [item1, item2],
+      total: 2,
+      truncated: false,
+    });
+    qc.setQueryData(projectKeys.detail(slug, "P1"), item1);
+
+    removeProjectFromCache(qc, slug, "P1");
+
+    const cachedList = qc.getQueryData<ProjectListResponse>(projectKeys.list(slug));
+    expect(cachedList?.total).toBe(1);
+    expect(cachedList?.projects).toHaveLength(1);
+    expect(cachedList?.projects[0]?.identifier).toBe("P2");
+
+    const cachedDetail = qc.getQueryData<ProjectListItem>(
+      projectKeys.detail(slug, "P1"),
+    );
+    expect(cachedDetail).toBeUndefined();
+  });
+});

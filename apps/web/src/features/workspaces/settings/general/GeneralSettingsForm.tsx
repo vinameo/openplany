@@ -7,6 +7,7 @@ import {
 import classes from "./GeneralSettingsForm.module.css";
 import { TimezoneSelect } from "./TimezoneSelect";
 import { useGeneralSettingsForm } from "./useGeneralSettingsForm";
+import { SETTINGS_MESSAGES } from "../../../settings/settingsMessages";
 import { WorkspaceUrlField } from "./WorkspaceUrlField";
 
 interface GeneralSettingsFormProps {
@@ -32,7 +33,7 @@ export function GeneralSettingsForm({ workspace }: GeneralSettingsFormProps) {
     <form className={classes.form} onSubmit={handleSubmit} noValidate>
       {!canEdit && (
         <Alert variant="light" color="gray" mb="lg">
-          You don't have permission to change these settings.
+          {SETTINGS_MESSAGES.readOnly}
         </Alert>
       )}
 
