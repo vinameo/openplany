@@ -56,7 +56,9 @@ export const CurrentProject = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext): AccessibleProject => {
     const project = ctx.switchToHttp().getRequest<Request>().project;
     if (project === undefined) {
-      throw new Error('CurrentProject used on a route without ProjectRead/ProjectWrite');
+      throw new Error(
+        'CurrentProject used on a route without ProjectRead/ProjectWrite',
+      );
     }
     return project;
   },

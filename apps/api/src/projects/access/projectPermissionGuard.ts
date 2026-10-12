@@ -34,7 +34,9 @@ export class ProjectPermissionGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<Request>();
     const project = request.project;
     if (project === undefined) {
-      throw new Error('ProjectPermissionGuard must run after ProjectAccessGuard');
+      throw new Error(
+        'ProjectPermissionGuard must run after ProjectAccessGuard',
+      );
     }
     if (!project.access.permissions.includes(required)) {
       this.logger.warn(

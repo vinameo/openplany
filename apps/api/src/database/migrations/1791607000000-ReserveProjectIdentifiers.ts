@@ -33,7 +33,10 @@ export class ReserveProjectIdentifiers1791607000000 implements MigrationInterfac
     `)) as IdentifierConflict[];
     if (conflicts.length > 0) {
       const list = conflicts
-        .map((c) => `workspace ${c.workspace_id} identifier ${c.identifier} (${c.rows} rows)`)
+        .map(
+          (c) =>
+            `workspace ${c.workspace_id} identifier ${c.identifier} (${c.rows} rows)`,
+        )
         .join('; ');
       throw new Error(
         `ReserveProjectIdentifiers: ${conflicts.length} Project ID(s) are shared by ` +

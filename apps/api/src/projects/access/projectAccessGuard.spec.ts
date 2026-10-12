@@ -118,7 +118,12 @@ describe('ProjectAccessGuard', () => {
       code: 'FORBIDDEN',
     });
     expect(events.accessDeniedEvents).toEqual([
-      { projectId: 'p-1', workspaceId: 'ws-1', userId: 'u-1', requestId: 'req-1' },
+      {
+        projectId: 'p-1',
+        workspaceId: 'ws-1',
+        userId: 'u-1',
+        requestId: 'req-1',
+      },
     ]);
   });
 
@@ -136,16 +141,22 @@ describe('ProjectAccessGuard', () => {
     resolver.lookup = { kind: 'forbidden', projectId: 'p-1' };
 
     for (let i = 0; i < 2; i += 1) {
-      await expect(guard.canActivate(makeContext('PROJ1').ctx)).rejects.toMatchObject({
+      await expect(
+        guard.canActivate(makeContext('PROJ1').ctx),
+      ).rejects.toMatchObject({
         status: 403,
       });
     }
-    await expect(guard.canActivate(makeContext('PROJ1').ctx)).rejects.toMatchObject({
+    await expect(
+      guard.canActivate(makeContext('PROJ1').ctx),
+    ).rejects.toMatchObject({
       status: 429,
       code: 'TOO_MANY_ATTEMPTS',
     });
     resolver.lookup = { kind: 'not_found' };
-    await expect(guard.canActivate(makeContext('NOPE').ctx)).rejects.toMatchObject({
+    await expect(
+      guard.canActivate(makeContext('NOPE').ctx),
+    ).rejects.toMatchObject({
       status: 429,
     });
 
@@ -158,13 +169,17 @@ describe('ProjectAccessGuard', () => {
   it('never throttles projects the viewer can access', async () => {
     const { guard, resolver } = makeSetup(1);
     resolver.lookup = { kind: 'not_found' };
-    await expect(guard.canActivate(makeContext('NOPE').ctx)).rejects.toMatchObject({
+    await expect(
+      guard.canActivate(makeContext('NOPE').ctx),
+    ).rejects.toMatchObject({
       status: 404,
     });
 
     resolver.lookup = { kind: 'accessible', project: ACCESSIBLE };
     for (let i = 0; i < 3; i += 1) {
-      await expect(guard.canActivate(makeContext('PROJ1').ctx)).resolves.toBe(true);
+      await expect(guard.canActivate(makeContext('PROJ1').ctx)).resolves.toBe(
+        true,
+      );
     }
   });
 });
