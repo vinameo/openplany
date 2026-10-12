@@ -10,6 +10,7 @@ import {
 import { AppendOnlyViolationError } from '../src/database/appendOnly.js';
 import { CreateProjectTables1791605000000 } from '../src/database/migrations/1791605000000-CreateProjectTables.js';
 import { AddProjectForeignKeyIndexes1791606000000 } from '../src/database/migrations/1791606000000-AddProjectForeignKeyIndexes.js';
+import { ReserveProjectIdentifiers1791607000000 } from '../src/database/migrations/1791607000000-ReserveProjectIdentifiers.js';
 import { ProjectMemberRoleHistory } from '../src/projects/entities/projectMemberRoleHistory.entity.js';
 import { createE2eApp, type E2eApp } from './createE2eApp.js';
 import {
@@ -118,9 +119,11 @@ describe('Projects (e2e)', () => {
       // Later migrations on these tables are reverted first and re-applied last,
       // so the e2e database ends in the same state for the following tests.
       const indexes = new AddProjectForeignKeyIndexes1791606000000();
+      const reserve = new ReserveProjectIdentifiers1791607000000();
       const qr = e2e.dataSource.createQueryRunner();
       await qr.connect();
       try {
+        await reserve.down(qr);
         await indexes.down(qr);
         await migration.down(qr);
 
@@ -144,6 +147,7 @@ describe('Projects (e2e)', () => {
         );
         expect(tablesAfterUp).toHaveLength(3);
         await indexes.up(qr);
+        await reserve.up(qr);
       } finally {
         await qr.release();
       }
@@ -358,7 +362,7 @@ describe('Projects (e2e)', () => {
       );
     });
 
-    it('T-DB-08: soft-deleting a project allows creating another with identical name and identifier', async () => {
+    it('T-DB-08: soft-deleting a project keeps its identifier reserved but frees its name', async () => {
       const { workspace } = await seedWorkspace(
         't-db-08@openplany.dev',
         'tdb08-ws',
@@ -367,9 +371,71 @@ describe('Projects (e2e)', () => {
       const oldId = await insertProject(workspace.id, 'Web', 'WEB', new Date());
       expect(oldId).toBeDefined();
 
-      const newId = await insertProject(workspace.id, 'Web', 'WEB');
-      expect(newId).toBeDefined();
-      expect(newId).not.toBe(oldId);
+      const newIdWithSameName = await insertProject(workspace.id, 'Web', 'WEB2');
+      expect(newIdWithSameName).toBeDefined();
+
+      let error:
+        | { driverError?: { code?: string; constraint?: string }; code?: string }
+        | undefined;
+      try {
+        await insertProject(workspace.id, 'Web App', 'WEB');
+      } catch (err) {
+        error = err as {
+          driverError?: { code?: string; constraint?: string };
+          code?: string;
+        };
+      }
+      expect(error).toBeDefined();
+      expect(error?.driverError?.code || error?.code).toBe('23505');
+      expect(error?.driverError?.constraint).toBe('projects_workspace_identifier_key');
+    });
+
+    it('T-DB-20: creating via API rejects taken identifier of soft-deleted project with 409 and accepts recycled name', async () => {
+      const { workspace, cookie } = await seedWorkspace(
+        't-db-20@openplany.dev',
+        'tdb20-ws',
+      );
+
+      await insertProject(workspace.id, 'Deleted Project', 'TFP11', new Date());
+
+      const conflictRes = await http()
+        .post(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({
+          name: 'New Project',
+          identifier: 'TFP11',
+          icon: { name: 'rocket', color: '#15AABF' },
+          coverKey: 'cover-01',
+        })
+        .expect(409);
+
+      expect(conflictRes.body.code).toBe('PROJECT_IDENTIFIER_TAKEN');
+      expect(conflictRes.body.fields?.identifier).toBeDefined();
+
+      const createRes = await http()
+        .post(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({
+          name: 'Deleted Project',
+          identifier: 'NEW11',
+          icon: { name: 'rocket', color: '#15AABF' },
+          coverKey: 'cover-01',
+        })
+        .expect(201);
+
+      expect(createRes.body.project.name).toBe('Deleted Project');
+      expect(createRes.body.project.identifier).toBe('NEW11');
+    });
+
+    it('T-DB-22: catalog check confirms projects_workspace_identifier_key has no WHERE predicate', async () => {
+      const rows = await e2e.dataSource.query(
+        `SELECT indexdef FROM pg_indexes
+         WHERE tablename = 'projects' AND indexname = 'projects_workspace_identifier_key'`,
+      );
+      expect(rows).toHaveLength(1);
+      expect(rows[0].indexdef).not.toContain('WHERE');
     });
   });
 
