@@ -19,3 +19,6 @@ apps/web/dist
 apps/api/dist
 # TypeScript incremental build cache
 *.tsbuildinfo
+
+# Self-review reports checked by .claude/hooks/requireBranchReview.mjs (must stay untracked)
+.claude/reviews/
