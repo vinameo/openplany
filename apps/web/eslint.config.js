@@ -19,4 +19,20 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    // App URLs come from the path helpers (workspacePath, projectPath, ...),
+    // so the URL shape and its encoding live in one place (CLAUDE.md §8).
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/**/*Paths.ts', 'src/**/*.test.{ts,tsx}', 'src/test/**'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "TemplateLiteral[quasis.0.value.raw='/']",
+          message:
+            'Build app URLs with the path helpers (workspacePath, workspaceSettingsPath, projectPath) instead of a template string.',
+        },
+      ],
+    },
+  },
 ])
