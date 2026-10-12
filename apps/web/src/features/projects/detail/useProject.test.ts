@@ -1,9 +1,12 @@
+import { createElement, type ReactNode } from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { QueryClientProvider } from "@tanstack/react-query";
 import type { ProjectListItem } from "@repo/contracts";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiRequestError } from "../../../lib/apiClient";
-import { apiError, jsonResponse, mockFetch } from "../../../test/fetchMock";
+import { createServerStateClient } from "../../../lib/serverStateClient";
 import { useProject } from "./useProject";
+import { apiError, jsonResponse, mockFetch } from "../../../test/fetchMock";
 
 const auth = vi.hoisted(() => ({ expireSession: vi.fn() }));
 vi.mock("../../auth/useAuth", () => ({ useAuth: () => auth }));
@@ -24,6 +27,13 @@ const project: ProjectListItem = {
 
 const URL_KEY = "GET /api/workspaces/the-firsts/projects/TFP11";
 
+function render(slug: string, identifier: string | null) {
+  const client = createServerStateClient();
+  const wrapper = ({ children }: { children: ReactNode }) =>
+    createElement(QueryClientProvider, { client }, children);
+  return renderHook(() => useProject(slug, identifier), { wrapper });
+}
+
 describe("useProject", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -32,14 +42,14 @@ describe("useProject", () => {
 
   it("does not fetch without an identifier", () => {
     const fetchMock = mockFetch({});
-    const { result } = renderHook(() => useProject("the-firsts", null));
+    const { result } = render("the-firsts", null);
     expect(result.current.state).toEqual({ status: "idle" });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("stores no raw error message: a failed load is just a retryable error", async () => {
     mockFetch({ [URL_KEY]: () => apiError(500, "INTERNAL_ERROR", "boom") });
-    const { result } = renderHook(() => useProject("the-firsts", "TFP11"));
+    const { result } = render("the-firsts", "TFP11");
     await waitFor(() =>
       expect(result.current.state).toEqual({ status: "error" }),
     );
@@ -49,15 +59,17 @@ describe("useProject", () => {
     const fetchMock = mockFetch({
       [URL_KEY]: () => jsonResponse(200, { project }),
     });
-    const { result } = renderHook(() => useProject("the-firsts", "TFP11"));
+    const { result } = render("the-firsts", "TFP11");
     await waitFor(() => expect(result.current.state.status).toBe("ready"));
 
     act(() => result.current.replace({ ...project, name: "Renamed" }));
 
-    expect(result.current.state).toEqual({
-      status: "ready",
-      project: { ...project, name: "Renamed" },
-    });
+    await waitFor(() =>
+      expect(result.current.state).toEqual({
+        status: "ready",
+        project: { ...project, name: "Renamed" },
+      }),
+    );
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -66,7 +78,7 @@ describe("useProject", () => {
     mockFetch({
       [URL_KEY]: () => jsonResponse(200, { project: { ...project, name } }),
     });
-    const { result } = renderHook(() => useProject("the-firsts", "TFP11"));
+    const { result } = render("the-firsts", "TFP11");
     await waitFor(() => expect(result.current.state.status).toBe("ready"));
 
     name = "Renamed elsewhere";
@@ -77,10 +89,12 @@ describe("useProject", () => {
     expect(result.current.state.status).toBe("ready");
     await act(() => reloading);
 
-    expect(result.current.state).toEqual({
-      status: "ready",
-      project: { ...project, name: "Renamed elsewhere" },
-    });
+    await waitFor(() =>
+      expect(result.current.state).toEqual({
+        status: "ready",
+        project: { ...project, name: "Renamed elsewhere" },
+      }),
+    );
   });
 
   it("reload rejects on a retryable failure and keeps the current project", async () => {
@@ -91,7 +105,7 @@ describe("useProject", () => {
           ? apiError(500, "INTERNAL_ERROR", "boom")
           : jsonResponse(200, { project }),
     });
-    const { result } = renderHook(() => useProject("the-firsts", "TFP11"));
+    const { result } = render("the-firsts", "TFP11");
     await waitFor(() => expect(result.current.state.status).toBe("ready"));
 
     fail = true;
@@ -115,11 +129,13 @@ describe("useProject", () => {
           ? apiError(403, "FORBIDDEN", "no")
           : jsonResponse(200, { project }),
     });
-    const { result } = renderHook(() => useProject("the-firsts", "TFP11"));
+    const { result } = render("the-firsts", "TFP11");
     await waitFor(() => expect(result.current.state.status).toBe("ready"));
 
     forbidden = true;
     await act(() => result.current.reload());
-    expect(result.current.state).toEqual({ status: "forbidden" });
+    await waitFor(() =>
+      expect(result.current.state).toEqual({ status: "forbidden" }),
+    );
   });
 });

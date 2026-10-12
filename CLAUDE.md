@@ -24,6 +24,7 @@ Open-source project management tool for tracking issues. This is a **pnpm + Turb
 | Cache           | Redis (container only — no Nest client yet)                    | 8                 |
 | Config          | `@nestjs/config` (dotenv) + class-validator env validation     | —                 |
 | Frontend        | React + Vite + Mantine UI + react-router                       | 19 / 8 / 9 / 8    |
+| Server state    | TanStack Query (`@tanstack/react-query`)                       | 5                 |
 | Auth            | Opaque session cookie, argon2id via `node:crypto` (Node 24+), `helmet`, `cookie-parser` | — |
 | Testing         | Vitest (API: unit + e2e with Supertest; web/ui: jsdom + React Testing Library) | 4.x (api), 5.x (web/ui) |
 | Linting         | oxlint (API with `--type-aware`, ui), ESLint flat config (web) | —                 |
@@ -204,7 +205,7 @@ export class CreateIssueDto {
 
 - **Composition over configuration:** small components composed together; lift shared state only as far as needed.
 - **Custom hooks** for reusable logic (`useIssueFilters`, `useDebouncedSearch`); keep components mostly presentational.
-- **Server state vs client state:** server data (fetched from the API) belongs in a data-fetching cache layer (e.g. TanStack Query — not installed yet, ask first); UI-only state uses `useState`/`useReducer`/context. Don't copy server data into local state.
+- **Server state vs client state:** server data (fetched from the API) lives in TanStack Query. `ServerStateProvider` (root of `appRoutes`) gives each signed-in user their own cache. Query keys live next to the feature's API client (`features/projects/api/projectQueries.ts`); a write updates the cache (`setQueryData`) instead of refetching. UI-only state uses `useState`/`useReducer`/context. Don't copy server data into local state. Older hand-rolled fetch hooks (workspaces, members) still exist; move them over when you touch them.
 - Call the API via relative `/api/...` URLs — the Vite dev server proxies them to `:3000`.
 
 ### Shared packages

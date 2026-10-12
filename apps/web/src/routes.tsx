@@ -22,118 +22,131 @@ import { WorkspaceChrome } from "./features/workspaces/shell/WorkspaceChrome";
 import { WorkspaceShell } from "./features/workspaces/shell/WorkspaceShell";
 import type { WorkspacePageHandle } from "./features/workspaces/shell/workspacePageHandle";
 import { WorkspaceProvider } from "./features/workspaces/WorkspaceProvider";
+import { ServerStateProvider } from "./lib/ServerStateProvider";
 import { ProjectLayout } from "./features/projects/detail/ProjectLayout";
 import { ProjectHomePage } from "./features/projects/detail/ProjectHomePage";
 import type { ProjectPageHandle } from "./features/projects/detail/projectPageHandle";
 
 export const appRoutes: RouteObject[] = [
-  { path: SIGN_IN_PATH, element: <SignInRoute /> },
-  { path: SET_PASSWORD_PATH, element: <SetPasswordRoute /> },
-  { path: FORGOT_PASSWORD_PATH, element: <ForgotPasswordRoute /> },
   {
-    element: <RequireAuth />,
+    element: (
+      <ServerStateProvider>
+        <Outlet />
+      </ServerStateProvider>
+    ),
     children: [
+      { path: SIGN_IN_PATH, element: <SignInRoute /> },
+      { path: SET_PASSWORD_PATH, element: <SetPasswordRoute /> },
+      { path: FORGOT_PASSWORD_PATH, element: <ForgotPasswordRoute /> },
       {
-        element: (
-          <WorkspaceProvider>
-            <Outlet />
-          </WorkspaceProvider>
-        ),
+        element: <RequireAuth />,
         children: [
-          { path: HOME_PATH, element: <HomeRedirect /> },
-          { path: "/create-workspace", element: <CreateWorkspaceRoute /> },
-          { path: "/create-user", element: <CreateUserRoute /> },
-          { path: ROLES_AND_PERMISSIONS_PATH, element: <RolesAndPermissionsRoute /> },
           {
-            path: "/:workspaceSlug",
-            element: <WorkspaceLayout />,
+            element: (
+              <WorkspaceProvider>
+                <Outlet />
+              </WorkspaceProvider>
+            ),
             children: [
+              { path: HOME_PATH, element: <HomeRedirect /> },
+              { path: "/create-workspace", element: <CreateWorkspaceRoute /> },
+              { path: "/create-user", element: <CreateUserRoute /> },
               {
-                element: (
-                  <WorkspaceChrome>
-                    <Outlet />
-                  </WorkspaceChrome>
-                ),
+                path: ROLES_AND_PERMISSIONS_PATH,
+                element: <RolesAndPermissionsRoute />,
+              },
+              {
+                path: "/:workspaceSlug",
+                element: <WorkspaceLayout />,
                 children: [
                   {
-                    element: <WorkspaceShell />,
+                    element: (
+                      <WorkspaceChrome>
+                        <Outlet />
+                      </WorkspaceChrome>
+                    ),
                     children: [
                       {
-                        index: true,
-                        element: <HomePage />,
-                        handle: {
-                          workspacePage: { title: "Home", icon: HomeIcon },
-                        } satisfies WorkspacePageHandle,
+                        element: <WorkspaceShell />,
+                        children: [
+                          {
+                            index: true,
+                            element: <HomePage />,
+                            handle: {
+                              workspacePage: { title: "Home", icon: HomeIcon },
+                            } satisfies WorkspacePageHandle,
+                          },
+                        ],
+                      },
+                      {
+                        path: "settings",
+                        lazy: () =>
+                          import("./features/workspaces/settings/settingsRoutes").then(
+                            (m) => ({
+                              Component: m.WorkspaceSettingsLayout,
+                            }),
+                          ),
+                        children: [
+                          {
+                            index: true,
+                            lazy: () =>
+                              import("./features/workspaces/settings/settingsRoutes").then(
+                                (m) => ({
+                                  Component: m.SettingsIndexRedirect,
+                                }),
+                              ),
+                          },
+                          {
+                            path: "general",
+                            lazy: () =>
+                              import("./features/workspaces/settings/settingsRoutes").then(
+                                (m) => ({
+                                  Component: m.GeneralSettingsRoute,
+                                }),
+                              ),
+                          },
+                          {
+                            path: "members",
+                            lazy: () =>
+                              import("./features/workspaces/settings/settingsRoutes").then(
+                                (m) => ({
+                                  Component: m.MembersSettingsRoute,
+                                }),
+                              ),
+                          },
+                          {
+                            path: "*",
+                            lazy: () =>
+                              import("./features/workspaces/settings/settingsRoutes").then(
+                                (m) => ({
+                                  Component: m.SettingsSectionNotFound,
+                                }),
+                              ),
+                          },
+                        ],
                       },
                     ],
                   },
-              {
-                path: "settings",
-                lazy: () =>
-                  import(
-                    "./features/workspaces/settings/settingsRoutes"
-                  ).then((m) => ({
-                    Component: m.WorkspaceSettingsLayout,
-                  })),
-                children: [
                   {
-                    index: true,
-                    lazy: () =>
-                      import(
-                        "./features/workspaces/settings/settingsRoutes"
-                      ).then((m) => ({
-                        Component: m.SettingsIndexRedirect,
-                      })),
-                  },
-                  {
-                    path: "general",
-                    lazy: () =>
-                      import(
-                        "./features/workspaces/settings/settingsRoutes"
-                      ).then((m) => ({
-                        Component: m.GeneralSettingsRoute,
-                      })),
-                  },
-                  {
-                    path: "members",
-                    lazy: () =>
-                      import(
-                        "./features/workspaces/settings/settingsRoutes"
-                      ).then((m) => ({
-                        Component: m.MembersSettingsRoute,
-                      })),
-                  },
-                  {
-                    path: "*",
-                    lazy: () =>
-                      import(
-                        "./features/workspaces/settings/settingsRoutes"
-                      ).then((m) => ({
-                        Component: m.SettingsSectionNotFound,
-                      })),
+                    path: "projects/:projectIdentifier",
+                    element: <ProjectLayout />,
+                    children: [
+                      {
+                        index: true,
+                        element: <ProjectHomePage />,
+                        handle: {
+                          projectPage: { title: "Home" },
+                        } satisfies ProjectPageHandle,
+                      },
+                    ],
                   },
                 ],
               },
             ],
           },
-          {
-            path: "projects/:projectIdentifier",
-            element: <ProjectLayout />,
-            children: [
-              {
-                index: true,
-                element: <ProjectHomePage />,
-                handle: {
-                  projectPage: { title: "Home" },
-                } satisfies ProjectPageHandle,
-              },
-            ],
-          },
         ],
       },
-        ],
-      },
+      { path: "*", element: <WorkspaceNotFound /> },
     ],
   },
-  { path: "*", element: <WorkspaceNotFound /> },
 ];

@@ -24,6 +24,6 @@
     "console"
   ],
   "gitignore": true,
-  "threshold": 2.2,
+  "threshold": 2.0,
   "silent": false
 }
