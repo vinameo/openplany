@@ -75,6 +75,7 @@ pnpm test             # turbo test
 pnpm lint             # turbo lint
 pnpm typecheck        # turbo typecheck
 pnpm format           # prettier --write .
+pnpm dup              # jscpd: fails above the duplicated-code threshold in .jscpd.json
 pnpm clean            # turbo clean + remove node_modules
 ```
 
@@ -247,6 +248,11 @@ export class CreateIssueDto {
 - ⚠️ E2E tests build the app via `Test.createTestingModule`, so `main.ts` setup (global `/api` prefix, `ValidationPipe`, CORS) is **not** applied unless you apply it in the test too.
 - ⚠️ `AppModule` connects to PostgreSQL, so e2e tests need `docker compose up -d postgres` and `apps/api/.env`. They run against `<db>_test` (created and migrated by `test/e2eGlobalSetup.ts`) and truncate it between tests — never the dev database. Build the app with `createE2eApp()`, which applies `configureApp()` like `main.ts`.
 - ⚠️ API tests need **Node 24** (`crypto.argon2`); on Node 22 the password hasher fails.
+- **Guard suites** turn review lessons into red tests; extend them rather than bypass them:
+  - `apps/api/src/architecture.spec.ts` reads Nest route metadata: sessions everywhere outside a public allowlist, `WorkspaceMemberGuard` under `/workspaces/:slug`, `ProjectAccessGuard` under `/projects/:identifier`.
+  - `apps/api/test/adversarialInputs.e2e-spec.ts` sends malformed bodies (from `adversarialBodies()`) to every JSON write endpoint and fails on any 5xx; add a case for each new write endpoint.
+  - `apps/api/test/migrations.e2e-spec.ts` reverts the newest migrations over realistic rows and compares each `down()` with a fresh database; register each new migration in `MIGRATIONS` (`test/e2eGlobalSetup.ts`).
+  - Web ESLint rejects app URLs built as `` `/${…}` `` outside the path helpers.
 
 ## 7. Common Pitfalls
 
@@ -307,10 +313,13 @@ Each of those features passed every ticket's acceptance criteria and its checks,
 6. **Extract before you copy.** When new code would repeat a block (about 10 lines of logic, a JSX block, a CSS rule set) from existing code, extract it into a shared component, hook or helper in a prefactor commit, then use it in both places. Carry over only what the new code reads: no dead refs or state.
 7. **Copy from the spec.** User-facing text comes from the spec or `@repo/contracts` constants, never from `err.message`.
 
-**Self-review** (before step 3; done when every finding is fixed or listed in the merge commit with a reason):
+**Self-review** (before step 3; done when every finding is fixed or recorded with a reason in the report):
 
 - Review `git diff develop...HEAD` as a whole branch, not ticket by ticket, against the design pass, the OWASP list (§5) and §7. Tickets built in separate contexts duplicate each other: look specifically for two implementations of the same idea across tickets.
-- Prefer running `/code-review` on the branch. Otherwise, review it yourself against the same lists.
+- Prefer running `/code-review` on the branch. Otherwise, review it yourself against the same lists. Also run it right after the tracer-bullet ticket: later tickets copy whatever the tracer establishes.
+- Write the report to `.claude/reviews/<branch with "/" as "__">.md` (untracked) after the last commit. A PreToolUse hook (`.claude/hooks/requireBranchReview.mjs`) refuses `git merge` of a `feature/`, `fix/`, `refactor/`, `chore/` or `review/` branch whose report is missing or older than its tip.
+
+**Feature workflow skills** (`.claude/skills/`): `write-feature-spec` (grill → five spec files → `spec-reviewer` subagent → tickets) and `implement-ticket` (one ticket, and the final self-review and merge).
 
 Work that isn't tied to one `packages/docs/<n>-…` directory (cross-cutting fixes, review follow-ups) uses `fix/` / `refactor/` / `chore/` with a short description and the same flow.
 
