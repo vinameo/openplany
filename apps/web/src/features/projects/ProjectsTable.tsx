@@ -75,12 +75,7 @@ export function ProjectsTable({
                     to={projectPath(workspaceSlug, project.identifier)}
                     underline="hover"
                     c="inherit"
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 8,
-                      minWidth: 0,
-                    }}
+                    className={classes.projectNameLink}
                   >
                     <ProjectIcon icon={project.icon} size={18} />
                     <Text size="sm" fw={500} lineClamp={1} title={project.name}>
