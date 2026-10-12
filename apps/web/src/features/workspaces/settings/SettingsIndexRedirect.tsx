@@ -1,13 +1,17 @@
 import { Text } from "@mantine/core";
 import { Navigate } from "react-router";
 import { useCurrentWorkspace } from "../currentWorkspace/useCurrentWorkspace";
-import { visibleSettingsSections } from "./settingsSections";
+import { firstOpenableSection } from "../../settings/settingsNavigation";
+import { WORKSPACE_SETTINGS_SECTIONS } from "./settingsSections";
 
 export function SettingsIndexRedirect() {
   const { workspace } = useCurrentWorkspace();
-  const visible = visibleSettingsSections(workspace.permissions);
+  const first = firstOpenableSection(
+    WORKSPACE_SETTINGS_SECTIONS,
+    workspace.permissions,
+  );
 
-  if (visible.length === 0) {
+  if (!first) {
     return (
       <div style={{ padding: 24 }}>
         <Text c="dimmed">You don't have access to workspace settings.</Text>
@@ -15,6 +19,5 @@ export function SettingsIndexRedirect() {
     );
   }
 
-  return <Navigate to={visible[0].key} replace />;
+  return <Navigate to={first.key} replace />;
 }
-

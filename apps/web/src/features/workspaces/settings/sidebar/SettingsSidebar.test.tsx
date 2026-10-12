@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AppUiProvider } from "@repo/ui";
-import { MemoryRouter, Route, Routes } from "react-router";
+import { createMemoryRouter, RouterProvider, useRouteError } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 import { BuildingIcon } from "../../icons";
 import {
@@ -10,7 +10,13 @@ import {
 } from "../../currentWorkspace/currentWorkspaceContext";
 import { makeWorkspace } from "../../test/workspaceFixtures";
 import type { WorkspaceSettingsSection } from "../settingsSections";
+import type { SettingsSectionHandle } from "../../../settings/settingsSectionHandle";
 import { SettingsSidebar } from "./SettingsSidebar";
+
+function RootErrorBoundary(): null {
+  const error = useRouteError();
+  throw error;
+}
 
 function renderSidebarWithWorkspace(
   currentValue: CurrentWorkspaceValue,
@@ -20,26 +26,46 @@ function renderSidebarWithWorkspace(
     groups?: readonly { key: "administration"; label: string }[];
   },
 ) {
+  const router = createMemoryRouter(
+    [
+      {
+        path: "/:workspaceSlug/settings",
+        ErrorBoundary: RootErrorBoundary,
+        element: (
+          <CurrentWorkspaceContext value={currentValue}>
+            <SettingsSidebar {...props} />
+          </CurrentWorkspaceContext>
+        ),
+        children: [
+          {
+            path: "general",
+            handle: { settingsSection: "general" } satisfies SettingsSectionHandle,
+            element: null,
+          },
+          {
+            path: "members",
+            handle: { settingsSection: "members" } satisfies SettingsSectionHandle,
+            element: null,
+            children: [
+              {
+                path: "*",
+                element: null,
+              },
+            ],
+          },
+          {
+            path: ":section",
+            element: null,
+          },
+        ],
+      },
+    ],
+    { initialEntries: [initialPath] },
+  );
+
   return render(
     <AppUiProvider>
-      <CurrentWorkspaceContext value={currentValue}>
-        <MemoryRouter initialEntries={[initialPath]}>
-          <Routes>
-            <Route
-              path="/:workspaceSlug/settings/:section/*"
-              element={<SettingsSidebar {...props} />}
-            />
-            <Route
-              path="/:workspaceSlug/settings/:section"
-              element={<SettingsSidebar {...props} />}
-            />
-            <Route
-              path="/:workspaceSlug/settings"
-              element={<SettingsSidebar {...props} />}
-            />
-          </Routes>
-        </MemoryRouter>
-      </CurrentWorkspaceContext>
+      <RouterProvider router={router} />
     </AppUiProvider>,
   );
 }

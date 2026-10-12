@@ -26,6 +26,7 @@ import { ServerStateProvider } from "./lib/ServerStateProvider";
 import { ProjectLayout } from "./features/projects/detail/ProjectLayout";
 import { ProjectHomePage } from "./features/projects/detail/ProjectHomePage";
 import type { ProjectPageHandle } from "./features/projects/detail/projectPageHandle";
+import type { SettingsSectionHandle } from "./features/settings/settingsSectionHandle";
 
 export const appRoutes: RouteObject[] = [
   {
@@ -98,6 +99,9 @@ export const appRoutes: RouteObject[] = [
                           },
                           {
                             path: "general",
+                            handle: {
+                              settingsSection: "general",
+                            } satisfies SettingsSectionHandle,
                             lazy: () =>
                               import("./features/workspaces/settings/settingsRoutes").then(
                                 (m) => ({
@@ -107,6 +111,9 @@ export const appRoutes: RouteObject[] = [
                           },
                           {
                             path: "members",
+                            handle: {
+                              settingsSection: "members",
+                            } satisfies SettingsSectionHandle,
                             lazy: () =>
                               import("./features/workspaces/settings/settingsRoutes").then(
                                 (m) => ({
