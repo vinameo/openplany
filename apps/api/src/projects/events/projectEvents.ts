@@ -5,6 +5,14 @@ export interface ProjectCreatedEvent {
   requestId?: string;
 }
 
+export interface ProjectUpdatedEvent {
+  projectId: string;
+  workspaceId: string;
+  actorId: string;
+  fields: readonly string[];
+  requestId?: string;
+}
+
 export interface ProjectListTruncatedEvent {
   workspaceId: string;
   userId: string;
@@ -27,6 +35,7 @@ export interface ProjectLookupRateLimitedEvent {
 
 export abstract class ProjectEvents {
   abstract created(event: ProjectCreatedEvent): Promise<void>;
+  abstract updated(event: ProjectUpdatedEvent): Promise<void>;
   abstract listTruncated(event: ProjectListTruncatedEvent): Promise<void>;
   abstract accessDenied(event: ProjectAccessDeniedEvent): Promise<void>;
   abstract lookupRateLimited(

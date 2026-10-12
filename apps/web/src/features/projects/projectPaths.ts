@@ -6,6 +6,18 @@ export function projectPath(workspaceSlug: string, identifier: string): string {
   return `${workspacePath(workspaceSlug)}/projects/${encodeURIComponent(identifier)}`;
 }
 
+/** Settings route of one project, optionally with a section. */
+export function projectSettingsPath(
+  workspaceSlug: string,
+  identifier: string,
+  section?: string,
+): string {
+  const base = `${projectPath(workspaceSlug, identifier)}/settings`;
+  return section !== undefined && section !== ""
+    ? `${base}/${encodeURIComponent(section)}`
+    : base;
+}
+
 export type CanonicalProjectIdentifier =
   | { kind: "canonical"; identifier: string }
   | { kind: "redirect"; identifier: string }

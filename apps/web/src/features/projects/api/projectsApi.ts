@@ -3,6 +3,8 @@ import type {
   CreateProjectResponse,
   ProjectListResponse,
   ProjectResponse,
+  UpdateProjectRequest,
+  UpdateProjectResponse,
 } from "@repo/contracts";
 import { request } from "../../../lib/apiClient";
 
@@ -28,5 +30,27 @@ export const projectsApi = {
         body: JSON.stringify(body),
         signal,
       },
+    ),
+
+  update: (
+    slug: string,
+    identifier: string,
+    body: UpdateProjectRequest,
+    signal?: AbortSignal,
+  ) =>
+    request<UpdateProjectResponse>(
+      `/api/workspaces/${encodeURIComponent(slug)}/projects/${encodeURIComponent(identifier)}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal,
+      },
+    ),
+
+  delete: (slug: string, identifier: string, signal?: AbortSignal) =>
+    request<void>(
+      `/api/workspaces/${encodeURIComponent(slug)}/projects/${encodeURIComponent(identifier)}`,
+      { method: "DELETE", signal },
     ),
 };

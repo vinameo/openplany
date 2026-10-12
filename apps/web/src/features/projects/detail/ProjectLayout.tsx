@@ -1,12 +1,11 @@
 import { useMemo } from "react";
 import {
   Navigate,
+  Outlet,
   useLocation,
   useParams,
   useResolvedPath,
 } from "react-router";
-import type { ProjectListItem } from "@repo/contracts";
-import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
 import { useCurrentWorkspace } from "../../workspaces/currentWorkspace/useCurrentWorkspace";
 import { WorkspaceChrome } from "../../workspaces/shell/WorkspaceChrome";
 import { canonicalProjectIdentifier, projectPath } from "../projectPaths";
@@ -15,19 +14,7 @@ import {
   type CurrentProjectValue,
 } from "./currentProjectContext";
 import { ProjectErrorPage } from "./ProjectErrorPage";
-import { ProjectShell } from "./ProjectShell";
 import { useProject } from "./useProject";
-
-function ProjectDocumentTitle({
-  project,
-  workspaceName,
-}: {
-  project: ProjectListItem;
-  workspaceName: string;
-}) {
-  useDocumentTitle(`${project.name} · ${workspaceName}`);
-  return null;
-}
 
 export function ProjectLayout() {
   const { projectIdentifier = "" } = useParams();
@@ -83,15 +70,10 @@ export function ProjectLayout() {
 
   return (
     <CurrentProjectContext value={contextValue}>
-      {state.status === "ready" && (
-        <ProjectDocumentTitle
-          project={state.project}
-          workspaceName={workspace.name}
-        />
-      )}
       <WorkspaceChrome>
-        <ProjectShell />
+        <Outlet />
       </WorkspaceChrome>
     </CurrentProjectContext>
   );
 }
+

@@ -230,6 +230,16 @@ export interface ProjectResponse {
   project: ProjectListItem;
 }
 
+export type UpdateProjectRequest = Partial<{
+  name: string;
+  description: string;
+  icon: ProjectIcon;
+  coverKey: ProjectCoverKey;
+  timezone: string | null;
+}>;
+
+export type UpdateProjectResponse = ProjectResponse;
+
 export const PROJECT_FIELD_MESSAGES = {
   nameRequired: "Enter a project name",
   nameTooLong: `Enter a project name (up to ${PROJECT_NAME_MAX} characters)`,

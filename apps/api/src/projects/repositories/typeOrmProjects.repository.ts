@@ -8,9 +8,11 @@ import {
   isUniqueViolation,
 } from '../../common/databaseErrors.js';
 import { WorkspaceMember } from '../../workspaces/entities/workspaceMember.entity.js';
-import type {
-  ProjectMemberRow,
-  ProjectMembersPreview,
+import {
+  toProjectRow,
+  type ProjectMemberRow,
+  type ProjectMembersPreview,
+  type ProjectRow,
 } from '../dto/projectResponse.js';
 import { Project } from '../entities/project.entity.js';
 import { ProjectMember } from '../entities/projectMember.entity.js';
@@ -19,10 +21,11 @@ import {
   ProjectIdentifierTakenError,
   ProjectNameTakenError,
 } from '../projectErrors.js';
-import { ACTIVE_PROJECT_MEMBER } from '../projectFilters.js';
+import { ACTIVE_PROJECT, ACTIVE_PROJECT_MEMBER } from '../projectFilters.js';
 import {
   ProjectsRepository,
   type CreateProjectInput,
+  type UpdateProjectInput,
 } from './projects.repository.js';
 
 export const PROJECT_NAME_UNIQUE = 'projects_workspace_name_lower_key';
@@ -200,5 +203,44 @@ export class TypeOrmProjectsRepository extends ProjectsRepository {
     }
 
     throw new Error('Project creation failed after retries');
+  }
+
+  async update(input: UpdateProjectInput): Promise<ProjectRow | null> {
+    const { projectId, workspaceId, actorId, now, changes } = input;
+
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        return await this.dataSource.transaction(async (manager) => {
+          const updateResult = await manager.update(
+            Project,
+            { id: projectId, workspaceId, ...ACTIVE_PROJECT },
+            { ...changes, updatedAt: now, updatedById: actorId },
+          );
+
+          if (!updateResult.affected || updateResult.affected === 0) {
+            return null;
+          }
+
+          const updatedProject = await manager.findOne(Project, {
+            where: { id: projectId, workspaceId, ...ACTIVE_PROJECT },
+          });
+
+          return updatedProject ? toProjectRow(updatedProject) : null;
+        });
+      } catch (err: unknown) {
+        if (isTransactionConflict(err) && attempt < 2) {
+          this.logger.warn(
+            `project.update.retry conflict attempt=${attempt} projectId=${projectId}`,
+          );
+          continue;
+        }
+        if (isUniqueViolation(err, PROJECT_NAME_UNIQUE)) {
+          throw new ProjectNameTakenError();
+        }
+        throw err;
+      }
+    }
+
+    throw new Error('Project update failed after retries');
   }
 }

@@ -5,6 +5,7 @@ import {
   type ProjectCreatedEvent,
   type ProjectListTruncatedEvent,
   type ProjectLookupRateLimitedEvent,
+  type ProjectUpdatedEvent,
 } from './projectEvents.js';
 
 @Injectable()
@@ -14,6 +15,12 @@ export class LoggingProjectEvents extends ProjectEvents {
   async created(event: ProjectCreatedEvent): Promise<void> {
     this.logger.log(
       `project.created projectId=${event.projectId} workspaceId=${event.workspaceId} actorId=${event.actorId} requestId=${event.requestId ?? ''}`,
+    );
+  }
+
+  async updated(event: ProjectUpdatedEvent): Promise<void> {
+    this.logger.log(
+      `project.updated projectId=${event.projectId} workspaceId=${event.workspaceId} actorId=${event.actorId} fields=${event.fields.join(',')} requestId=${event.requestId ?? ''}`,
     );
   }
 

@@ -24,6 +24,7 @@ import type { WorkspacePageHandle } from "./features/workspaces/shell/workspaceP
 import { WorkspaceProvider } from "./features/workspaces/WorkspaceProvider";
 import { ServerStateProvider } from "./lib/ServerStateProvider";
 import { ProjectLayout } from "./features/projects/detail/ProjectLayout";
+import { ProjectShell } from "./features/projects/detail/ProjectShell";
 import { ProjectHomePage } from "./features/projects/detail/ProjectHomePage";
 import type { ProjectPageHandle } from "./features/projects/detail/projectPageHandle";
 import type { SettingsSectionHandle } from "./features/settings/settingsSectionHandle";
@@ -139,16 +140,63 @@ export const appRoutes: RouteObject[] = [
                     element: <ProjectLayout />,
                     children: [
                       {
-                        index: true,
-                        element: <ProjectHomePage />,
-                        handle: {
-                          projectPage: { title: "Home" },
-                        } satisfies ProjectPageHandle,
+                        element: <ProjectShell />,
+                        children: [
+                          {
+                            index: true,
+                            element: <ProjectHomePage />,
+                            handle: {
+                              projectPage: { title: "Home" },
+                            } satisfies ProjectPageHandle,
+                          },
+                        ],
+                      },
+                      {
+                        path: "settings",
+                        lazy: () =>
+                          import(
+                            "./features/projects/settings/settingsRoutes"
+                          ).then((m) => ({
+                            Component: m.ProjectSettingsLayout,
+                          })),
+                        children: [
+                          {
+                            index: true,
+                            lazy: () =>
+                              import(
+                                "./features/projects/settings/settingsRoutes"
+                              ).then((m) => ({
+                                Component: m.ProjectSettingsIndexRedirect,
+                              })),
+                          },
+                          {
+                            path: "general",
+                            handle: {
+                              settingsSection: "general",
+                            } satisfies SettingsSectionHandle,
+                            lazy: () =>
+                              import(
+                                "./features/projects/settings/settingsRoutes"
+                              ).then((m) => ({
+                                Component: m.ProjectGeneralSettingsRoute,
+                              })),
+                          },
+                          {
+                            path: "*",
+                            lazy: () =>
+                              import(
+                                "./features/projects/settings/settingsRoutes"
+                              ).then((m) => ({
+                                Component: m.ProjectSettingsSectionNotFound,
+                              })),
+                          },
+                        ],
                       },
                     ],
                   },
                 ],
               },
+
             ],
           },
         ],

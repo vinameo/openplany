@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -12,6 +13,7 @@ import type {
   CreateProjectResponse,
   ProjectListResponse,
   ProjectResponse,
+  UpdateProjectResponse,
 } from '@repo/contracts';
 import type { Request } from 'express';
 import { CurrentUserId } from '../auth/currentUser.decorator.js';
@@ -23,10 +25,12 @@ import { WorkspaceMemberGuard } from '../workspaces/workspaceMemberGuard.js';
 import {
   CurrentProject,
   ProjectRead,
+  ProjectWrite,
 } from './access/projectAccess.decorator.js';
 import { PROJECT_ROUTE_PARAM } from './access/projectAccessGuard.js';
 import type { AccessibleProject } from './access/projectAccessResolver.js';
 import { CreateProjectDto } from './dto/createProject.dto.js';
+import { UpdateProjectDto } from './dto/updateProject.dto.js';
 import { ProjectsService } from './projects.service.js';
 
 @Controller('workspaces/:slug')
@@ -63,5 +67,17 @@ export class ProjectsController {
     @Req() req: Request & { requestId?: string },
   ): Promise<CreateProjectResponse> {
     return this.service.create(ws, userId, dto, req.requestId);
+  }
+
+  @Patch(`projects/:${PROJECT_ROUTE_PARAM}`)
+  @ProjectWrite('project.settings.update')
+  update(
+    @CurrentWorkspace() ws: MemberWorkspace,
+    @CurrentProject() project: AccessibleProject,
+    @CurrentUserId() userId: string,
+    @Body() dto: UpdateProjectDto,
+    @Req() req: Request & { requestId?: string },
+  ): Promise<UpdateProjectResponse> {
+    return this.service.update(ws, project, userId, dto, req.requestId);
   }
 }

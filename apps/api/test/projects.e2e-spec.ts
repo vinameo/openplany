@@ -1633,6 +1633,315 @@ describe('Projects (e2e)', () => {
       expect(listP2.updatedAt).toBe(res2.body.project.updatedAt);
     });
   });
+
+  describe('PATCH /api/workspaces/:slug/projects/:identifier (AC-07, AC-10, AC-13, AC-14, AC-16, AC-22, AC-23; B6)', () => {
+    it('AC-07, AC-10 & B6 row 7: admin updates name (with trim) and description; response matches GET', async () => {
+      const { workspace, ownerId, cookie } = await seedWorkspace(
+        'patch-admin@openplany.dev',
+        'patch-ws',
+      );
+      const projectId = await insertProject(
+        workspace.id,
+        'Old Name',
+        'PTCH1',
+      );
+      await insertProjectMember(projectId, workspace.id, ownerId, 'admin');
+
+      const res = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/PTCH1`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .set('X-Request-Id', 'req-patch-1')
+        .send({
+          name: '  Mobile App  ',
+          description: 'Updated description',
+        })
+        .expect(200);
+
+      expect(res.body.project).toBeDefined();
+      const proj = res.body.project;
+      expect(proj.name).toBe('Mobile App');
+      expect(proj.description).toBe('Updated description');
+      expect(proj.identifier).toBe('PTCH1');
+      expect(typeof proj.updatedAt).toBe('string');
+
+      // GET confirms updated values
+      const getRes = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/PTCH1`)
+        .set('Cookie', cookie)
+        .expect(200);
+      expect(getRes.body.project).toEqual(proj);
+    });
+
+    it('AC-13 & B6 row 8: updating name to match another project in workspace (case-insensitive) returns 409 PROJECT_NAME_TAKEN', async () => {
+      const { workspace, ownerId, cookie } = await seedWorkspace(
+        'patch-conflict@openplany.dev',
+        'conflict-ws',
+      );
+      const p1 = await insertProject(workspace.id, 'Alpha Project', 'ALPH');
+      await insertProjectMember(p1, workspace.id, ownerId, 'admin');
+
+      const p2 = await insertProject(workspace.id, 'Beta Project', 'BETA');
+      await insertProjectMember(p2, workspace.id, ownerId, 'admin');
+
+      const res = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/BETA`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ name: 'alpha project' })
+        .expect(409);
+
+      expect(res.body.code).toBe('PROJECT_NAME_TAKEN');
+      expect(res.body.fields?.name).toBe('A project with this name already exists');
+    });
+
+    it('AC-14 & B6 row 9: updating name to match a soft-deleted project succeeds with 200', async () => {
+      const { workspace, ownerId, cookie } = await seedWorkspace(
+        'patch-deleted@openplany.dev',
+        'deleted-ws',
+      );
+      // Soft-deleted project with name "Old Deleted"
+      await insertProject(workspace.id, 'Old Deleted', 'DEL1', new Date());
+
+      const activeId = await insertProject(workspace.id, 'Active One', 'ACT1');
+      await insertProjectMember(activeId, workspace.id, ownerId, 'admin');
+
+      const res = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/ACT1`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ name: 'Old Deleted' })
+        .expect(200);
+
+      expect(res.body.project.name).toBe('Old Deleted');
+    });
+
+    it('AC-16: updating icon, coverKey, and timezone works as expected', async () => {
+      const { workspace, ownerId, cookie } = await seedWorkspace(
+        'patch-fields@openplany.dev',
+        'fields-ws',
+      );
+      const pId = await insertProject(workspace.id, 'Fields Test', 'FLDS');
+      await insertProjectMember(pId, workspace.id, ownerId, 'admin');
+
+      // Update icon and cover
+      const res1 = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/FLDS`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({
+          icon: { name: 'heart', color: '#abcdef' },
+          coverKey: 'cover-03',
+        })
+        .expect(200);
+
+      expect(res1.body.project.icon).toEqual({ name: 'heart', color: '#ABCDEF' });
+      expect(res1.body.project.coverKey).toBe('cover-03');
+
+      // Update timezone to Asia/Tokyo
+      const res2 = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/FLDS`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ timezone: 'Asia/Tokyo' })
+        .expect(200);
+      expect(res2.body.project.timezone).toBe('Asia/Tokyo');
+      expect(res2.body.project.effectiveTimezone).toBe('Asia/Tokyo');
+
+      // Reset timezone to null (follow workspace)
+      const res3 = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/FLDS`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ timezone: null })
+        .expect(200);
+      expect(res3.body.project.timezone).toBeNull();
+      expect(res3.body.project.effectiveTimezone).toBe('UTC');
+    });
+
+    it('AC-22: calling PATCH with unchanged fields returns project without updating DB updatedAt', async () => {
+      const { workspace, ownerId, cookie } = await seedWorkspace(
+        'patch-nochange@openplany.dev',
+        'nochange-ws',
+      );
+      const pId = await insertProject(workspace.id, 'Stable Project', 'STBL');
+      await insertProjectMember(pId, workspace.id, ownerId, 'admin');
+
+      const initialGet = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/STBL`)
+        .set('Cookie', cookie)
+        .expect(200);
+
+      const initialUpdatedAt = initialGet.body.project.updatedAt;
+
+      const res = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/STBL`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ name: 'Stable Project' })
+        .expect(200);
+
+      expect(res.body.project.updatedAt).toBe(initialUpdatedAt);
+    });
+
+    it('AC-23 & B6 row 27: two identical concurrent PATCH requests both succeed with 200 and identical result', async () => {
+      const { workspace, ownerId, cookie } = await seedWorkspace(
+        'patch-concurrent@openplany.dev',
+        'conc-ws',
+      );
+      const pId = await insertProject(workspace.id, 'Concurrent Test', 'CONC');
+      await insertProjectMember(pId, workspace.id, ownerId, 'admin');
+
+      const [res1, res2] = await Promise.all([
+        http()
+          .patch(`/api/workspaces/${workspace.slug}/projects/CONC`)
+          .set('Cookie', cookie)
+          .set('Origin', ORIGIN)
+          .send({ name: 'New Concurrent Name' }),
+        http()
+          .patch(`/api/workspaces/${workspace.slug}/projects/CONC`)
+          .set('Cookie', cookie)
+          .set('Origin', ORIGIN)
+          .send({ name: 'New Concurrent Name' }),
+      ]);
+
+      expect(res1.status).toBe(200);
+      expect(res2.status).toBe(200);
+      expect(res1.body.project.name).toBe('New Concurrent Name');
+      expect(res2.body.project.name).toBe('New Concurrent Name');
+    });
+
+    it('B6 row 21: rejects non-whitelisted keys with 400', async () => {
+      const { workspace, ownerId, cookie } = await seedWorkspace(
+        'patch-whitelist@openplany.dev',
+        'white-ws',
+      );
+      const pId = await insertProject(workspace.id, 'Whitelist Test', 'WHTE');
+      await insertProjectMember(pId, workspace.id, ownerId, 'admin');
+
+      await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/WHTE`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ identifier: 'NEWID' })
+        .expect(400);
+
+      await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/WHTE`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ workspaceId: workspace.id })
+        .expect(400);
+    });
+
+    it('B6 row 22: lowercase project ID on URL returns 404 PROJECT_NOT_FOUND', async () => {
+      const { workspace, ownerId, cookie } = await seedWorkspace(
+        'patch-lower@openplany.dev',
+        'lower-ws',
+      );
+      const pId = await insertProject(workspace.id, 'Lower Test', 'LOWR');
+      await insertProjectMember(pId, workspace.id, ownerId, 'admin');
+
+      const res = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/lowr`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ name: 'Should Not Work' })
+        .expect(404);
+
+      expect(res.body.code).toBe('PROJECT_NOT_FOUND');
+    });
+
+    it('B6 row 23: project ID from another workspace returns 404 PROJECT_NOT_FOUND', async () => {
+      const { workspace: ws1, cookie: cookie1 } = await seedWorkspace(
+        'patch-ws1@openplany.dev',
+        'ws1-target',
+      );
+      const { workspace: ws2 } = await seedWorkspace(
+        'patch-ws2@openplany.dev',
+        'ws2-target',
+      );
+      await insertProject(ws2.id, 'Other Project', 'OTHR');
+
+      const res = await http()
+        .patch(`/api/workspaces/${ws1.slug}/projects/OTHR`)
+        .set('Cookie', cookie1)
+        .set('Origin', ORIGIN)
+        .send({ name: 'Hijack Name' })
+        .expect(404);
+
+      expect(res.body.code).toBe('PROJECT_NOT_FOUND');
+    });
+
+    it('B6 row 24: soft-deleted project returns 404 PROJECT_NOT_FOUND', async () => {
+      const { workspace, ownerId, cookie } = await seedWorkspace(
+        'patch-softdel@openplany.dev',
+        'softdel-ws',
+      );
+      const pId = await insertProject(
+        workspace.id,
+        'Deleted Target',
+        'DELT',
+        new Date(),
+      );
+      await insertProjectMember(pId, workspace.id, ownerId, 'admin');
+
+      const res = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/DELT`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ name: 'Try Update' })
+        .expect(404);
+
+      expect(res.body.code).toBe('PROJECT_NOT_FOUND');
+    });
+
+    it('B6 row 25: user without project access returns 403 FORBIDDEN', async () => {
+      const { workspace } = await seedWorkspace(
+        'patch-noaccess@openplany.dev',
+        'noacc-ws',
+      );
+
+      const otherUser = await createUser('patch-outsider@openplany.dev');
+      const otherCookie = await signInCookie('patch-outsider@openplany.dev');
+      await addWorkspaceMember(workspace.id, otherUser, 'member');
+
+      // Project without otherUser as member
+      await insertProject(workspace.id, 'Private Proj', 'PRIV');
+
+      const res = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/PRIV`)
+        .set('Cookie', otherCookie)
+        .set('Origin', ORIGIN)
+        .send({ name: 'Infiltrate' })
+        .expect(403);
+
+      expect(res.body.code).toBe('FORBIDDEN');
+    });
+
+    it('B6 row 26: user lacking project.settings.update returns 403 FORBIDDEN', async () => {
+      const { workspace } = await seedWorkspace(
+        'patch-noperm@openplany.dev',
+        'noperm-ws',
+      );
+      const memberId = await createUser('patch-contrib@openplany.dev');
+      const memberCookie = await signInCookie('patch-contrib@openplany.dev');
+      await addWorkspaceMember(workspace.id, memberId, 'member');
+
+      const pId = await insertProject(workspace.id, 'Contrib Project', 'CTRB');
+      // Contributor has project.settings.view but lacks project.settings.update
+      await insertProjectMember(pId, workspace.id, memberId, 'contributor');
+
+      const res = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/CTRB`)
+        .set('Cookie', memberCookie)
+        .set('Origin', ORIGIN)
+        .send({ name: 'Unauthorized Rename' })
+        .expect(403);
+
+      expect(res.body.code).toBe('FORBIDDEN');
+    });
+  });
 });
 
 

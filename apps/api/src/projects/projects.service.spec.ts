@@ -5,7 +5,11 @@ import {
   DEFAULT_PROJECT_ICON_COLOR,
   PROJECT_LIST_MAX,
   PROJECT_MEMBER_PREVIEW_MAX,
+  type ProjectIcon,
+  type ProjectRole,
 } from '@repo/contracts';
+
+
 import { FakeClock } from '../../test/fakes/authFakes.js';
 import {
   FakeProjectAccessResolver,
@@ -446,6 +450,196 @@ describe('ProjectsService', () => {
       const res = await service.get(ws, accessible([], 'guest'));
       expect(res.project.members).toBeNull();
       expect(repository.lastMembersOfQuery).toBeUndefined();
+    });
+  });
+
+  describe('update (API B4.2, B11.1)', () => {
+    function accessible(
+      rowOverrides: Partial<ProjectRow> = {},
+      permissions: readonly string[] = ['project.members.view'],
+      role: ProjectRole = 'admin',
+    ): AccessibleProject {
+
+      return {
+        project: makeProjectRow(rowOverrides),
+        access: { role, permissions },
+      };
+    }
+
+    it('rejects empty update with 400 VALIDATION_ERROR Nothing to update', async () => {
+      const { service, resolver, repository } = makeSetup();
+      const ws = makeMemberWorkspace();
+      const current = accessible();
+
+      await expect(
+        service.update(ws, current, 'actor-1', {}),
+      ).rejects.toThrow('Nothing to update');
+
+      expect(resolver.lastInput).toBeUndefined();
+      expect(repository.updatedProjects).toHaveLength(0);
+    });
+
+    it('(a) updates only name: repository receives { name } and resolver is not called (INV-01)', async () => {
+      const { service, repository, resolver, events, clock } = makeSetup();
+      const ws = makeMemberWorkspace();
+      const current = accessible({ name: 'Old Name' });
+      const updatedRow = makeProjectRow({
+        name: 'New Name',
+        updatedAt: clock.now(),
+      });
+      repository.updateResult = updatedRow;
+
+      const res = await service.update(
+        ws,
+        current,
+        'actor-1',
+        { name: 'New Name' },
+        'req-123',
+      );
+
+      expect(res.project.name).toBe('New Name');
+      expect(repository.updatedProjects).toHaveLength(1);
+      expect(repository.updatedProjects[0]!.changes).toEqual({
+        name: 'New Name',
+      });
+      expect(resolver.lastInput).toBeUndefined();
+      expect(events.updatedEvents).toEqual([
+        {
+          projectId: 'p-1',
+          workspaceId: ws.id,
+          actorId: 'actor-1',
+          requestId: 'req-123',
+          fields: ['name'],
+        },
+      ]);
+    });
+
+    it('(b) when values are identical to current, does not call repository or log (RQ AC-22, INV-01)', async () => {
+      const { service, repository, resolver, events } = makeSetup();
+      const ws = makeMemberWorkspace();
+      const current = accessible({ name: 'Same Name', description: 'Same Desc' });
+
+      const res = await service.update(ws, current, 'actor-1', {
+        name: 'Same Name',
+        description: 'Same Desc',
+      });
+
+      expect(res.project.name).toBe('Same Name');
+      expect(repository.updatedProjects).toHaveLength(0);
+      expect(events.updatedEvents).toHaveLength(0);
+      expect(resolver.lastInput).toBeUndefined();
+    });
+
+    it('(c) when only icon color changes: repository receives both iconName and iconColor; unchanged icon case does not write', async () => {
+      const { service, repository, resolver, events, clock } = makeSetup();
+      const ws = makeMemberWorkspace();
+      const current = accessible({
+        iconName: 'star',
+        iconColor: '#FAB005',
+      });
+      const updatedRow = makeProjectRow({
+        iconName: 'star',
+        iconColor: '#FF0000',
+        updatedAt: clock.now(),
+      });
+      repository.updateResult = updatedRow;
+
+      const res = await service.update(ws, current, 'actor-1', {
+        icon: { name: 'star', color: '#FF0000' } as ProjectIcon,
+      });
+
+      expect(res.project.icon.color).toBe('#FF0000');
+      expect(repository.updatedProjects).toHaveLength(1);
+      expect(repository.updatedProjects[0]!.changes).toEqual({
+        iconName: 'star',
+        iconColor: '#FF0000',
+      });
+      expect(events.updatedEvents).toHaveLength(1);
+      expect(events.updatedEvents[0]!.fields).toEqual(['icon']);
+      expect(resolver.lastInput).toBeUndefined();
+
+      // Case-insensitive / unchanged icon does not write
+      const currentIdentical = accessible({
+        iconName: 'star',
+        iconColor: '#FAB005',
+      });
+      const resIdentical = await service.update(ws, currentIdentical, 'actor-1', {
+        icon: { name: 'star', color: '#FAB005' } as ProjectIcon,
+      });
+
+      expect(resIdentical.project.icon.name).toBe('star');
+      expect(repository.updatedProjects).toHaveLength(1); // Still 1 from before
+    });
+
+    it('(d) updates timezone: null when current is Asia/Tokyo', async () => {
+      const { service, repository, resolver, events, clock } = makeSetup();
+      const ws = makeMemberWorkspace();
+      const current = accessible({ timezone: 'Asia/Tokyo' });
+      const updatedRow = makeProjectRow({
+        timezone: null,
+        updatedAt: clock.now(),
+      });
+      repository.updateResult = updatedRow;
+
+      const res = await service.update(ws, current, 'actor-1', {
+        timezone: null,
+      });
+
+      expect(res.project.timezone).toBeNull();
+      expect(repository.updatedProjects).toHaveLength(1);
+      expect(repository.updatedProjects[0]!.changes).toEqual({
+        timezone: null,
+      });
+      expect(events.updatedEvents).toHaveLength(1);
+      expect(events.updatedEvents[0]!.fields).toEqual(['timezone']);
+      expect(resolver.lastInput).toBeUndefined();
+    });
+
+    it('(e) maps ProjectNameTakenError from repository to 409 PROJECT_NAME_TAKEN with fields.name', async () => {
+      const { service, repository, resolver } = makeSetup();
+      const ws = makeMemberWorkspace();
+      const current = accessible({ name: 'Old Name' });
+      repository.updateError = new ProjectNameTakenError();
+
+      await expect(
+        service.update(ws, current, 'actor-1', { name: 'Existing Name' }),
+      ).rejects.toMatchObject({
+        status: 409,
+        code: 'PROJECT_NAME_TAKEN',
+        fields: { name: 'A project with this name already exists' },
+      });
+      expect(resolver.lastInput).toBeUndefined();
+    });
+
+    it('(f) throws 404 PROJECT_NOT_FOUND when repository returns null', async () => {
+      const { service, repository, resolver } = makeSetup();
+      const ws = makeMemberWorkspace();
+      const current = accessible();
+      repository.updateResult = null;
+
+      await expect(
+        service.update(ws, current, 'actor-1', { name: 'New Name' }),
+      ).rejects.toMatchObject({
+        status: 404,
+        code: 'PROJECT_NOT_FOUND',
+      });
+      expect(resolver.lastInput).toBeUndefined();
+    });
+
+    it('(g) event logging error does not fail update response', async () => {
+      const { service, repository, events, clock } = makeSetup();
+      const ws = makeMemberWorkspace();
+      const current = accessible({ name: 'Old' });
+      repository.updateResult = makeProjectRow({
+        name: 'New',
+        updatedAt: clock.now(),
+      });
+      events.updated = async () => {
+        throw new Error('Logger crashed');
+      };
+
+      const res = await service.update(ws, current, 'actor-1', { name: 'New' });
+      expect(res.project.name).toBe('New');
     });
   });
 });

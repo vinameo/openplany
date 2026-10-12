@@ -1,4 +1,7 @@
-import type { ProjectMembersPreview } from '../dto/projectResponse.js';
+import type {
+  ProjectMembersPreview,
+  ProjectRow,
+} from '../dto/projectResponse.js';
 
 export interface CreateProjectInput {
   workspaceId: string;
@@ -13,6 +16,21 @@ export interface CreateProjectInput {
   coverKey: string;
 }
 
+export interface UpdateProjectInput {
+  projectId: string;
+  workspaceId: string;
+  actorId: string;
+  now: Date;
+  changes: Partial<{
+    name: string;
+    description: string;
+    iconName: string;
+    iconColor: string;
+    coverKey: string;
+    timezone: string | null;
+  }>;
+}
+
 export abstract class ProjectsRepository {
   /**
    * Active members of each project, oldest first, at most `limitPerProject`
@@ -24,4 +42,6 @@ export abstract class ProjectsRepository {
   ): Promise<Map<string, ProjectMembersPreview>>;
 
   abstract create(input: CreateProjectInput): Promise<{ projectId: string }>;
+
+  abstract update(input: UpdateProjectInput): Promise<ProjectRow | null>;
 }
