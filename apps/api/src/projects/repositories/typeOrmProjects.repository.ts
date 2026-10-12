@@ -25,6 +25,7 @@ import { ACTIVE_PROJECT, ACTIVE_PROJECT_MEMBER } from '../projectFilters.js';
 import {
   ProjectsRepository,
   type CreateProjectInput,
+  type SoftDeleteProjectInput,
   type UpdateProjectInput,
 } from './projects.repository.js';
 
@@ -242,5 +243,15 @@ export class TypeOrmProjectsRepository extends ProjectsRepository {
     }
 
     throw new Error('Project update failed after retries');
+  }
+
+  async softDelete(input: SoftDeleteProjectInput): Promise<boolean> {
+    const { projectId, workspaceId, actorId, now } = input;
+    const updateResult = await this.dataSource.manager.update(
+      Project,
+      { id: projectId, workspaceId, ...ACTIVE_PROJECT },
+      { deletedAt: now, updatedAt: now, updatedById: actorId },
+    );
+    return Boolean(updateResult.affected && updateResult.affected > 0);
   }
 }

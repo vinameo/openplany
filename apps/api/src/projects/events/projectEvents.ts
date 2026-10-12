@@ -33,9 +33,17 @@ export interface ProjectLookupRateLimitedEvent {
   requestId?: string;
 }
 
+export interface ProjectDeletedEvent {
+  projectId: string;
+  workspaceId: string;
+  actorId: string;
+  requestId?: string;
+}
+
 export abstract class ProjectEvents {
   abstract created(event: ProjectCreatedEvent): Promise<void>;
   abstract updated(event: ProjectUpdatedEvent): Promise<void>;
+  abstract deleted(event: ProjectDeletedEvent): Promise<void>;
   abstract listTruncated(event: ProjectListTruncatedEvent): Promise<void>;
   abstract accessDenied(event: ProjectAccessDeniedEvent): Promise<void>;
   abstract lookupRateLimited(

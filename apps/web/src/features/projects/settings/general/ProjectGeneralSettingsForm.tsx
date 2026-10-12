@@ -1,6 +1,7 @@
 import {
   ActionIcon,
   Alert,
+  Box,
   Button,
   Group,
   SimpleGrid,
@@ -23,6 +24,7 @@ import { timezoneOptionLabel } from "../../../timezones/timezoneOptions";
 import { ProjectCoverHeader } from "../../ProjectCoverHeader";
 import { PROJECT_SETTINGS_MESSAGES } from "../projectSettingsMessages";
 import { FOLLOW_WORKSPACE_TIMEZONE } from "../projectSettingsValues";
+import { DeleteProjectSection } from "./DeleteProjectSection";
 import { useProjectGeneralSettingsForm } from "./useProjectGeneralSettingsForm";
 import classes from "./ProjectGeneralSettingsForm.module.css";
 
@@ -169,6 +171,10 @@ export function ProjectGeneralSettingsForm({
           </Group>
         </Stack>
       </form>
+
+      <Box mt={48}>
+        <DeleteProjectSection project={project} />
+      </Box>
     </div>
   );
 }

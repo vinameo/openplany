@@ -1,5 +1,6 @@
 import request from 'supertest';
-import { describe, beforeAll, beforeEach, afterAll, it, expect } from 'vitest';
+import { describe, beforeAll, beforeEach, afterAll, it, expect, vi } from 'vitest';
+import { ProjectEvents } from '../src/projects/events/projectEvents.js';
 import {
   DEFAULT_PROJECT_COVER,
   DEFAULT_PROJECT_ICON,
@@ -2045,6 +2046,250 @@ describe('Projects (e2e)', () => {
       expect(res.body.code).toBe('FORBIDDEN');
     });
   });
+
+  describe('DELETE /api/workspaces/:slug/projects/:identifier', () => {
+    const validCreatePayload = (name: string, identifier: string) => ({
+      name,
+      identifier,
+      description: 'A test project',
+      icon: { name: 'star', color: '#15AABF' },
+      coverKey: 'cover-01',
+    });
+
+    it('AC-30 & T-DB-05: soft deletes project, sets deleted_at, updated_at, updated_by_id, preserves project_members and role history', async () => {
+      const { workspace, ownerId, cookie } = await seedWorkspace(
+        'delete-success@openplany.dev',
+        'del-success-ws',
+      );
+      const member1 = await createUser('del-mem1@openplany.dev');
+      const member2 = await createUser('del-mem2@openplany.dev');
+      await addWorkspaceMember(workspace.id, member1, 'member');
+      await addWorkspaceMember(workspace.id, member2, 'member');
+
+      const pId = await insertProject(workspace.id, 'The First Project', 'TFP11');
+      await insertProjectMember(pId, workspace.id, ownerId, 'admin');
+      await insertProjectMember(pId, workspace.id, member1, 'contributor');
+      await insertProjectMember(pId, workspace.id, member2, 'guest');
+      await e2e.dataSource.query(
+        `INSERT INTO project_member_role_history (workspace_id, project_id, member_id, to_role, change_type)
+         VALUES ($1, $2, $3, 'admin', 'project_created'), ($1, $2, $4, 'contributor', 'project_created'), ($1, $2, $5, 'guest', 'project_created')`,
+        [workspace.id, pId, ownerId, member1, member2],
+      );
+
+      const events = e2e.app.get(ProjectEvents);
+      const deletedSpy = vi.spyOn(events, 'deleted');
+      deletedSpy.mockClear();
+
+      await http()
+        .delete(`/api/workspaces/${workspace.slug}/projects/TFP11`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .expect(204);
+
+      // Verify in DB
+      const [proj] = (await e2e.dataSource.query(
+        `SELECT id, name, identifier, deleted_at, updated_at, updated_by_id FROM projects WHERE id = $1`,
+        [pId],
+      )) as Array<{
+        id: string;
+        name: string;
+        identifier: string;
+        deleted_at: string | null;
+        updated_at: string;
+        updated_by_id: string;
+      }>;
+      expect(proj.deleted_at).not.toBeNull();
+      expect(proj.updated_by_id).toBe(ownerId);
+
+      // Verify project_members remain unchanged (AC-30, T-DB-05)
+      const members = (await e2e.dataSource.query(
+        `SELECT id, member_id, role, is_active FROM project_members WHERE project_id = $1`,
+        [pId],
+      )) as Array<{ id: string; member_id: string; role: string; is_active: boolean }>;
+      expect(members.length).toBe(3);
+      expect(members.every((m) => m.is_active)).toBe(true);
+
+      // Verify role history untouched (3 entries)
+      const history = (await e2e.dataSource.query(
+        `SELECT id FROM project_member_role_history WHERE project_id = $1`,
+        [pId],
+      )) as Array<{ id: string }>;
+      expect(history.length).toBe(3);
+
+      // AC-40: Event log
+      expect(deletedSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectId: pId,
+          workspaceId: workspace.id,
+          actorId: ownerId,
+        }),
+      );
+      // Ensure no name or description in event payload
+      const eventArg = deletedSpy.mock.calls[0]?.[0] as unknown as Record<string, unknown>;
+      expect(eventArg).not.toHaveProperty('name');
+      expect(eventArg).not.toHaveProperty('description');
+    });
+
+    it('AC-31 & T-DB-07: identifier remains reserved after deletion (409), but project name can be reused (201)', async () => {
+      const { workspace, cookie } = await seedWorkspace(
+        'delete-reuse@openplany.dev',
+        'del-reuse-ws',
+      );
+      await http()
+        .post(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send(validCreatePayload('The First Project', 'TFP11'))
+        .expect(201);
+
+      await http()
+        .delete(`/api/workspaces/${workspace.slug}/projects/TFP11`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .expect(204);
+
+      // Recreating with same identifier TFP11 -> 409 PROJECT_IDENTIFIER_TAKEN
+      const conflictRes = await http()
+        .post(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send(validCreatePayload('Different Name', 'TFP11'))
+        .expect(409);
+      expect(conflictRes.body.code).toBe('PROJECT_IDENTIFIER_TAKEN');
+
+      // Recreating with same name 'The First Project' but different identifier TFP12 -> 201
+      await http()
+        .post(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send(validCreatePayload('The First Project', 'TFP12'))
+        .expect(201);
+    });
+
+    it('AC-32: user lacking workspace.projects.delete receives 403 FORBIDDEN and project remains active', async () => {
+      const { workspace } = await seedWorkspace(
+        'del-owner@openplany.dev',
+        'del-perm-ws',
+      );
+      const memberId = await createUser('del-projadmin@openplany.dev');
+      const memberCookie = await signInCookie('del-projadmin@openplany.dev');
+      // Role 'member' in workspace does not have workspace.projects.delete
+      await addWorkspaceMember(workspace.id, memberId, 'member');
+
+      const pId = await insertProject(workspace.id, 'Secure Proj', 'SECR');
+      // Make them project admin inside the project
+      await insertProjectMember(pId, workspace.id, memberId, 'admin');
+
+      const res = await http()
+        .delete(`/api/workspaces/${workspace.slug}/projects/SECR`)
+        .set('Cookie', memberCookie)
+        .set('Origin', ORIGIN)
+        .expect(403);
+
+      expect(res.body.code).toBe('FORBIDDEN');
+
+      // Project is still active
+      const [proj] = (await e2e.dataSource.query(
+        `SELECT deleted_at FROM projects WHERE id = $1`,
+        [pId],
+      )) as Array<{ deleted_at: string | null }>;
+      expect(proj.deleted_at).toBeNull();
+    });
+
+    it('AC-33: user without project access receives 403 FORBIDDEN (consistent with GET)', async () => {
+      const { workspace } = await seedWorkspace(
+        'del-outsider-owner@openplany.dev',
+        'del-outsider-ws',
+      );
+      const otherUser = await createUser('del-outsider@openplany.dev');
+      const otherCookie = await signInCookie('del-outsider@openplany.dev');
+      await addWorkspaceMember(workspace.id, otherUser, 'member');
+
+      await insertProject(workspace.id, 'Private Proj', 'PRV2');
+
+      const res = await http()
+        .delete(`/api/workspaces/${workspace.slug}/projects/PRV2`)
+        .set('Cookie', otherCookie)
+        .set('Origin', ORIGIN)
+        .expect(403);
+
+      expect(res.body.code).toBe('FORBIDDEN');
+    });
+
+    it('AC-34: after deletion, GET and PATCH return 404 PROJECT_NOT_FOUND', async () => {
+      const { workspace, cookie } = await seedWorkspace(
+        'del-after@openplany.dev',
+        'del-after-ws',
+      );
+      await http()
+        .post(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send(validCreatePayload('Gone Proj', 'GONE'))
+        .expect(201);
+
+      await http()
+        .delete(`/api/workspaces/${workspace.slug}/projects/GONE`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .expect(204);
+
+      // GET returns 404
+      const getRes = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/GONE`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .expect(404);
+      expect(getRes.body.code).toBe('PROJECT_NOT_FOUND');
+
+      // PATCH returns 404
+      const patchRes = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/GONE`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ name: 'Revive' })
+        .expect(404);
+      expect(patchRes.body.code).toBe('PROJECT_NOT_FOUND');
+    });
+
+    it('AC-35 & T-DB-06: concurrent DELETE calls: first returns 204, second returns 404', async () => {
+      const { workspace, cookie } = await seedWorkspace(
+        'del-concurrent@openplany.dev',
+        'del-conc-ws',
+      );
+      await http()
+        .post(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send(validCreatePayload('Race Proj', 'RACE'))
+        .expect(201);
+
+      const events = e2e.app.get(ProjectEvents);
+      const deletedSpy = vi.spyOn(events, 'deleted');
+      deletedSpy.mockClear();
+
+      const [res1, res2] = await Promise.all([
+        http()
+          .delete(`/api/workspaces/${workspace.slug}/projects/RACE`)
+          .set('Cookie', cookie)
+          .set('Origin', ORIGIN),
+        http()
+          .delete(`/api/workspaces/${workspace.slug}/projects/RACE`)
+          .set('Cookie', cookie)
+          .set('Origin', ORIGIN),
+      ]);
+
+      const statuses = [res1.status, res2.status].sort((a, b) => a - b);
+      expect(statuses).toEqual([204, 404]);
+
+      const notFoundRes = res1.status === 404 ? res1 : res2;
+      expect(notFoundRes.body.code).toBe('PROJECT_NOT_FOUND');
+
+      // Only one project.deleted log event
+      expect(deletedSpy).toHaveBeenCalledTimes(1);
+    });
+  });
 });
+
 
 

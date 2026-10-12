@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -79,5 +80,17 @@ export class ProjectsController {
     @Req() req: Request & { requestId?: string },
   ): Promise<UpdateProjectResponse> {
     return this.service.update(ws, project, userId, dto, req.requestId);
+  }
+
+  @Delete(`projects/:${PROJECT_ROUTE_PARAM}`)
+  @ProjectWrite({ workspace: 'workspace.projects.delete' })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async delete(
+    @CurrentWorkspace() ws: MemberWorkspace,
+    @CurrentProject() project: AccessibleProject,
+    @CurrentUserId() userId: string,
+    @Req() req: Request & { requestId?: string },
+  ): Promise<void> {
+    await this.service.delete(ws, project, userId, req.requestId);
   }
 }

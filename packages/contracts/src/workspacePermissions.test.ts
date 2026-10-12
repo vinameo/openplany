@@ -42,12 +42,14 @@ describe('workspacePermissions', () => {
         'workspace.members.email.view',
         'workspace.settings.update',
         'workspace.projects.create',
+        'workspace.projects.delete',
       ]),
     ).toEqual([
       'workspace.settings.update',
       'workspace.members.view',
       'workspace.members.email.view',
       'workspace.projects.create',
+      'workspace.projects.delete',
     ]);
     expect(enforcedWorkspacePermissions(['workspace.settings.view'])).toEqual([]);
     expect(enforcedWorkspacePermissions([])).toEqual([]);

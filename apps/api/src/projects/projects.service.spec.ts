@@ -642,5 +642,75 @@ describe('ProjectsService', () => {
       expect(res.project.name).toBe('New');
     });
   });
+
+  describe('delete', () => {
+    function accessible(
+      projectOverrides: Partial<ProjectRow> = {},
+    ): AccessibleProject {
+      return {
+        project: makeProjectRow(projectOverrides),
+        access: {
+          role: 'admin',
+          permissions: ['project.settings.view', 'project.settings.update'],
+        },
+      };
+    }
+
+    it('soft deletes project, emits project.deleted event, and does not invoke resolver', async () => {
+      const { service, repository, resolver, events, clock } = makeSetup();
+      const ws = makeMemberWorkspace();
+      const current = accessible();
+      repository.softDeleteResult = true;
+
+      await service.delete(ws, current, 'actor-1', 'req-123');
+
+      expect(repository.softDeletedProjects).toEqual([
+        {
+          projectId: current.project.id,
+          workspaceId: ws.id,
+          actorId: 'actor-1',
+          now: clock.now(),
+        },
+      ]);
+      expect(events.deletedEvents).toEqual([
+        {
+          projectId: current.project.id,
+          workspaceId: ws.id,
+          actorId: 'actor-1',
+          requestId: 'req-123',
+        },
+      ]);
+      expect(resolver.lastInput).toBeUndefined();
+    });
+
+    it('throws 404 PROJECT_NOT_FOUND when repository softDelete returns false', async () => {
+      const { service, repository, resolver } = makeSetup();
+      const ws = makeMemberWorkspace();
+      const current = accessible();
+      repository.softDeleteResult = false;
+
+      await expect(
+        service.delete(ws, current, 'actor-1'),
+      ).rejects.toMatchObject({
+        status: 404,
+        code: 'PROJECT_NOT_FOUND',
+      });
+      expect(resolver.lastInput).toBeUndefined();
+    });
+
+    it('event logging error does not fail delete response', async () => {
+      const { service, repository, events } = makeSetup();
+      const ws = makeMemberWorkspace();
+      const current = accessible();
+      repository.softDeleteResult = true;
+      events.deleted = async () => {
+        throw new Error('Logger crashed');
+      };
+
+      await expect(
+        service.delete(ws, current, 'actor-1'),
+      ).resolves.toBeUndefined();
+    });
+  });
 });
 

@@ -289,6 +289,41 @@ export class ProjectsService {
     return { project };
   }
 
+  async delete(
+    workspace: MemberWorkspace,
+    accessible: AccessibleProject,
+    actorId: string,
+    requestId?: string,
+  ): Promise<void> {
+    const deleted = await this.repository.softDelete({
+      projectId: accessible.project.id,
+      workspaceId: workspace.id,
+      actorId,
+      now: this.clock.now(),
+    });
+
+    if (!deleted) {
+      throw new ApiException(
+        HttpStatus.NOT_FOUND,
+        'PROJECT_NOT_FOUND',
+        PROJECT_ERROR_MESSAGES.notFound,
+      );
+    }
+
+    try {
+      await this.events.deleted({
+        projectId: accessible.project.id,
+        workspaceId: workspace.id,
+        actorId,
+        requestId,
+      });
+    } catch (err: unknown) {
+      this.logger.error(
+        `project.deleted_event_failed projectId=${accessible.project.id} workspaceId=${workspace.id} actorId=${actorId} error=${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
   /**
    * The one place that decides which member data a viewer gets: only for
    * projects where they hold project.members.view, emails only with

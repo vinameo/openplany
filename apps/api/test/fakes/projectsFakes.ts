@@ -15,6 +15,7 @@ import {
   ProjectEvents,
   type ProjectAccessDeniedEvent,
   type ProjectCreatedEvent,
+  type ProjectDeletedEvent,
   type ProjectListTruncatedEvent,
   type ProjectLookupRateLimitedEvent,
   type ProjectUpdatedEvent,
@@ -22,6 +23,7 @@ import {
 import {
   ProjectsRepository,
   type CreateProjectInput,
+  type SoftDeleteProjectInput,
   type UpdateProjectInput,
 } from '../../src/projects/repositories/projects.repository.js';
 
@@ -106,11 +108,20 @@ export class FakeProjectsRepository extends ProjectsRepository {
     }
     return this.updateResult;
   }
+
+  public softDeleteResult = true;
+  public softDeletedProjects: SoftDeleteProjectInput[] = [];
+
+  async softDelete(input: SoftDeleteProjectInput): Promise<boolean> {
+    this.softDeletedProjects.push(input);
+    return this.softDeleteResult;
+  }
 }
 
 export class FakeProjectEvents extends ProjectEvents {
   public createdEvents: ProjectCreatedEvent[] = [];
   public updatedEvents: ProjectUpdatedEvent[] = [];
+  public deletedEvents: ProjectDeletedEvent[] = [];
   public truncatedEvents: ProjectListTruncatedEvent[] = [];
   public accessDeniedEvents: ProjectAccessDeniedEvent[] = [];
   public rateLimitedEvents: ProjectLookupRateLimitedEvent[] = [];
@@ -121,6 +132,10 @@ export class FakeProjectEvents extends ProjectEvents {
 
   async updated(event: ProjectUpdatedEvent): Promise<void> {
     this.updatedEvents.push(event);
+  }
+
+  async deleted(event: ProjectDeletedEvent): Promise<void> {
+    this.deletedEvents.push(event);
   }
 
   async listTruncated(event: ProjectListTruncatedEvent): Promise<void> {

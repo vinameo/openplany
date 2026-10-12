@@ -31,6 +31,13 @@ export interface UpdateProjectInput {
   }>;
 }
 
+export interface SoftDeleteProjectInput {
+  projectId: string;
+  workspaceId: string;
+  actorId: string;
+  now: Date;
+}
+
 export abstract class ProjectsRepository {
   /**
    * Active members of each project, oldest first, at most `limitPerProject`
@@ -44,4 +51,6 @@ export abstract class ProjectsRepository {
   abstract create(input: CreateProjectInput): Promise<{ projectId: string }>;
 
   abstract update(input: UpdateProjectInput): Promise<ProjectRow | null>;
+
+  abstract softDelete(input: SoftDeleteProjectInput): Promise<boolean>;
 }

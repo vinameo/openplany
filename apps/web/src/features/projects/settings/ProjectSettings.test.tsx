@@ -46,26 +46,31 @@ const sampleProject: ProjectListItem = {
 function renderProjectSettingsApp({
   initialEntries = ["/the-firsts/projects/TFP11/settings"],
   project = sampleProject,
+  workspace = testWorkspace,
   onPatchProject,
   onGetProject,
+  onDeleteProject,
   customRoutes = {},
 }: {
   initialEntries?: string[];
   project?: ProjectListItem;
+  workspace?: ReturnType<typeof makeWorkspace>;
   onPatchProject?: (body: unknown) => ProjectResponse | Response;
   onGetProject?: () => ProjectResponse | Response;
+  onDeleteProject?: () => Response | Promise<Response>;
   customRoutes?: Record<string, (init?: RequestInit) => Response | Promise<Response>>;
 } = {}) {
   let currentProject = project;
+  const currentWorkspace = workspace;
 
   mockFetch({
     "GET /api/auth/session": () => jsonResponse(200, makeSession()),
     "GET /api/workspaces": () =>
       jsonResponse(200, {
-        workspaces: [testWorkspace],
+        workspaces: [currentWorkspace],
         lastWorkspaceSlug: "the-firsts",
       }),
-    "GET /api/workspaces/the-firsts": () => jsonResponse(200, testWorkspace),
+    "GET /api/workspaces/the-firsts": () => jsonResponse(200, currentWorkspace),
     "GET /api/workspaces/the-firsts/projects/TFP11": () => {
       if (onGetProject) {
         const res = onGetProject();
@@ -93,6 +98,12 @@ function renderProjectSettingsApp({
       currentProject = updated;
       return jsonResponse(200, { project: updated });
     },
+    "DELETE /api/workspaces/the-firsts/projects/TFP11": () => {
+      if (onDeleteProject) {
+        return onDeleteProject();
+      }
+      return jsonResponse(204, null);
+    },
     ...customRoutes,
   });
 
@@ -100,7 +111,7 @@ function renderProjectSettingsApp({
     initialEntries,
   });
 
-  render(
+  const utils = render(
     <AppUiProvider>
       <AuthProvider>
         <RouterProvider router={router} />
@@ -108,7 +119,7 @@ function renderProjectSettingsApp({
     </AppUiProvider>,
   );
 
-  return { router };
+  return { router, ...utils };
 }
 
 afterEach(() => {
@@ -656,5 +667,255 @@ describe("ProjectSettings", () => {
     expect(
       await screen.findByRole("alert"),
     ).toHaveTextContent("Invalid color format");
+  });
+
+  it("AC-27: Kai with workspace.projects.delete sees Delete section; user without it does not", async () => {
+    // Without permission
+    const { unmount } = renderProjectSettingsApp({
+      initialEntries: ["/the-firsts/projects/TFP11/settings/general"],
+      workspace: makeWorkspace({
+        id: "ws-1",
+        slug: "the-firsts",
+        permissions: [],
+      }),
+    });
+    await screen.findByRole("textbox", { name: /Project name/i });
+    expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
+    unmount();
+
+    // With permission
+    renderProjectSettingsApp({
+      initialEntries: ["/the-firsts/projects/TFP11/settings/general"],
+      workspace: makeWorkspace({
+        id: "ws-1",
+        slug: "the-firsts",
+        permissions: ["workspace.projects.delete"],
+      }),
+    });
+    await screen.findByRole("textbox", { name: /Project name/i });
+    expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "When deleting a project, all of the data and resources within that project will be permanently removed and cannot be recovered.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("AC-28: delete confirmation modal requires matching project identifier", async () => {
+    const user = userEvent.setup();
+    let deleteCalled = 0;
+    renderProjectSettingsApp({
+      initialEntries: ["/the-firsts/projects/TFP11/settings/general"],
+      workspace: makeWorkspace({
+        id: "ws-1",
+        slug: "the-firsts",
+        permissions: ["workspace.projects.delete"],
+      }),
+      onDeleteProject: () => {
+        deleteCalled++;
+        return jsonResponse(204, null);
+      },
+    });
+
+    const deleteBtn = await screen.findByRole("button", { name: "Delete" });
+    await user.click(deleteBtn);
+
+    // Modal opens
+    expect(await screen.findByRole("dialog", { name: "Delete project" })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /The First Project and everything in it will be removed for everyone\. This can't be undone\./i,
+      ),
+    ).toBeInTheDocument();
+
+    const confirmInput = screen.getByRole("textbox", { name: /Type TFP11 to confirm/i });
+    const confirmDeleteBtn = screen.getByRole("button", { name: "Delete project" });
+
+    // Initially disabled
+    expect(confirmDeleteBtn).toBeDisabled();
+
+    // Partial match -> disabled
+    await user.type(confirmInput, "TFP1");
+    expect(confirmDeleteBtn).toBeDisabled();
+
+    // Clear and type with lowercase and trailing space -> enabled
+    await user.clear(confirmInput);
+    await user.type(confirmInput, "tfp11 ");
+    expect(confirmDeleteBtn).toBeEnabled();
+
+    // Cancel closes without request
+    const cancelBtn = screen.getByRole("button", { name: "Cancel" });
+    await user.click(cancelBtn);
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: "Delete project" })).not.toBeInTheDocument();
+    });
+    expect(deleteCalled).toBe(0);
+  });
+
+  it("AC-29: confirming deletion deletes project, notifies, navigates to workspace, and does not fetch /projects", async () => {
+    const user = userEvent.setup();
+    const notifySpy = vi.spyOn(notifications, "show");
+    let deleteCalled = 0;
+    let getDetailCallsAfterDelete = 0;
+
+    const { router } = renderProjectSettingsApp({
+      initialEntries: ["/the-firsts/projects/TFP11/settings/general"],
+      workspace: makeWorkspace({
+        id: "ws-1",
+        slug: "the-firsts",
+        permissions: ["workspace.projects.delete"],
+      }),
+      onGetProject: () => {
+        if (deleteCalled > 0) {
+          getDetailCallsAfterDelete++;
+          return apiError(404, "PROJECT_NOT_FOUND", "This project doesn't exist.");
+        }
+        return jsonResponse(200, { project: sampleProject });
+      },
+      onDeleteProject: () => {
+        deleteCalled++;
+        return jsonResponse(204, null);
+      },
+    });
+
+    const deleteBtn = await screen.findByRole("button", { name: "Delete" });
+    await user.click(deleteBtn);
+
+    const confirmInput = await screen.findByRole("textbox", { name: /Type TFP11 to confirm/i });
+    await user.type(confirmInput, "TFP11");
+
+    const confirmDeleteBtn = screen.getByRole("button", { name: "Delete project" });
+    await user.click(confirmDeleteBtn);
+
+    await waitFor(() => {
+      expect(deleteCalled).toBe(1);
+      expect(notifySpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: "Project deleted",
+          color: "teal",
+        }),
+      );
+      expect(router.state.location.pathname).toBe("/the-firsts");
+      expect(getDetailCallsAfterDelete).toBe(0);
+    });
+  });
+
+  it("AC-47: 403 FORBIDDEN on DELETE displays error in modal and reloads workspace", async () => {
+    const user = userEvent.setup();
+    let workspaceReloadCount = 0;
+
+    const workspaceWithDelete = makeWorkspace({
+      id: "ws-1",
+      slug: "the-firsts",
+      permissions: ["workspace.projects.delete"],
+    });
+
+    renderProjectSettingsApp({
+      initialEntries: ["/the-firsts/projects/TFP11/settings/general"],
+      workspace: workspaceWithDelete,
+      onDeleteProject: () =>
+        apiError(403, "FORBIDDEN", "Forbidden"),
+      customRoutes: {
+        "GET /api/workspaces/the-firsts": () => {
+          workspaceReloadCount++;
+          return jsonResponse(200, workspaceWithDelete);
+        },
+      },
+    });
+
+    const deleteBtn = await screen.findByRole("button", { name: "Delete" });
+    await user.click(deleteBtn);
+
+    const confirmInput = await screen.findByRole("textbox", { name: /Type TFP11 to confirm/i });
+    await user.type(confirmInput, "TFP11");
+
+    const confirmDeleteBtn = screen.getByRole("button", { name: "Delete project" });
+    await user.click(confirmDeleteBtn);
+
+    expect(
+      await screen.findByText(PROJECT_SETTINGS_MESSAGES.deleteForbidden),
+    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(workspaceReloadCount).toBeGreaterThan(0);
+    });
+  });
+
+  it("AC-48: 404 on DELETE closes modal, displays toast, and navigates to workspace", async () => {
+    const user = userEvent.setup();
+    const notifySpy = vi.spyOn(notifications, "show");
+    let deleteAttempted = false;
+    let getDetailCallsAfterDelete = 0;
+
+    const { router } = renderProjectSettingsApp({
+      initialEntries: ["/the-firsts/projects/TFP11/settings/general"],
+      workspace: makeWorkspace({
+        id: "ws-1",
+        slug: "the-firsts",
+        permissions: ["workspace.projects.delete"],
+      }),
+      onGetProject: () => {
+        if (deleteAttempted) {
+          getDetailCallsAfterDelete++;
+          return apiError(404, "PROJECT_NOT_FOUND", "This project doesn't exist.");
+        }
+        return jsonResponse(200, { project: sampleProject });
+      },
+      onDeleteProject: () => {
+        deleteAttempted = true;
+        return apiError(404, "PROJECT_NOT_FOUND", "This project doesn't exist.");
+      },
+    });
+
+    const deleteBtn = await screen.findByRole("button", { name: "Delete" });
+    await user.click(deleteBtn);
+
+    const confirmInput = await screen.findByRole("textbox", { name: /Type TFP11 to confirm/i });
+    await user.type(confirmInput, "TFP11");
+
+    const confirmDeleteBtn = screen.getByRole("button", { name: "Delete project" });
+    await user.click(confirmDeleteBtn);
+
+    await waitFor(() => {
+      expect(notifySpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: "This project doesn't exist.",
+          color: "red",
+        }),
+      );
+      expect(router.state.location.pathname).toBe("/the-firsts");
+      expect(getDetailCallsAfterDelete).toBe(0);
+    });
+  });
+
+  it("AC-49: 429 on DELETE displays rate limit error in modal and re-enables submit button", async () => {
+    const user = userEvent.setup();
+
+    renderProjectSettingsApp({
+      initialEntries: ["/the-firsts/projects/TFP11/settings/general"],
+      workspace: makeWorkspace({
+        id: "ws-1",
+        slug: "the-firsts",
+        permissions: ["workspace.projects.delete"],
+      }),
+      onDeleteProject: () =>
+        apiError(429, "TOO_MANY_ATTEMPTS", "Too many attempts", {
+          retryAfterSeconds: 90,
+        }),
+    });
+
+    const deleteBtn = await screen.findByRole("button", { name: "Delete" });
+    await user.click(deleteBtn);
+
+    const confirmInput = await screen.findByRole("textbox", { name: /Type TFP11 to confirm/i });
+    await user.type(confirmInput, "TFP11");
+
+    const confirmDeleteBtn = screen.getByRole("button", { name: "Delete project" });
+    await user.click(confirmDeleteBtn);
+
+    expect(
+      await screen.findByText("Too many changes. Try again in 2 minutes."),
+    ).toBeInTheDocument();
+    expect(confirmDeleteBtn).toBeEnabled();
   });
 });

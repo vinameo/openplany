@@ -492,6 +492,7 @@ describe('Workspaces (e2e)', () => {
         'workspace.members.email.view',
         'workspace.members.add',
         'workspace.projects.create',
+        'workspace.projects.delete',
       ]);
       expect(res.body.updatedAt).toBeDefined();
 
@@ -805,6 +806,7 @@ describe('Workspaces (e2e)', () => {
         'workspace.members.email.view',
         'workspace.members.add',
         'workspace.projects.create',
+        'workspace.projects.delete',
       ]);
       expect(ownerRes.body.updatedAt).toBeDefined();
 
@@ -833,6 +835,7 @@ describe('Workspaces (e2e)', () => {
         'workspace.members.email.view',
         'workspace.members.add',
         'workspace.projects.create',
+        'workspace.projects.delete',
       ]);
       let memberRes = await http().get('/api/workspaces/ws-perm-db').set('Cookie', memberCookie).expect(200);
       expect(memberRes.body.permissions).toEqual(['workspace.members.view']);
@@ -849,6 +852,7 @@ describe('Workspaces (e2e)', () => {
         'workspace.members.email.view',
         'workspace.members.add',
         'workspace.projects.create',
+        'workspace.projects.delete',
       ]);
 
       // Admin trying to update workspace settings gets 403 FORBIDDEN immediately

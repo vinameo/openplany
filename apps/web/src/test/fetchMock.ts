@@ -1,6 +1,9 @@
 import { vi } from "vitest";
 
 export function jsonResponse(status: number, body: unknown): Response {
+  if (status === 204) {
+    return new Response(null, { status: 204 });
+  }
   return new Response(JSON.stringify(body), {
     status,
     headers: { "Content-Type": "application/json" },
