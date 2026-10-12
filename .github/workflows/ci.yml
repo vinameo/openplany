@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [develop, main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: openplany
+          POSTGRES_PASSWORD: openplany
+          POSTGRES_DB: openplany
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U openplany -d openplany"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # e2e tests derive <db>_test from this URL (apps/api/test/e2eEnv.ts).
+      DATABASE_URL: postgresql://openplany:openplany@localhost:5432/openplany
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit and component tests
+        run: pnpm test
+
+      - name: Duplicated code
+        run: pnpm dup
+
+      - name: Prettier on changed files
+        if: github.event_name == 'pull_request'
+        run: |
+          git diff --name-only --diff-filter=ACMR "origin/${{ github.base_ref }}...HEAD" \
+            | grep -E '\.(ts|tsx|css)$' \
+            | xargs -r pnpm exec prettier --check
+
+      - name: API e2e tests
+        run: pnpm --filter @repo/api test:e2e
