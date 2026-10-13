@@ -3,6 +3,7 @@ import {
   addableProjectRoleRange,
   addableProjectRoles,
   canAddProjectMembers,
+  hasImplicitProjectAccess,
   MEMBER_CANDIDATE_LIMIT,
   MEMBER_MESSAGES,
   PROJECT_ERROR_MESSAGES,
@@ -11,8 +12,8 @@ import {
   PROJECT_MEMBER_NOT_ADDABLE_MESSAGES,
   PROJECT_ROLE_RANK,
   PROJECT_ROLES,
-  workspaceRolesWithImplicitProjectAccess,
   type AddProjectMembersResponse,
+  type ProjectAccessPolicies,
   type ProjectActor,
   type ProjectMemberCandidate,
   type ProjectMemberCandidateListResponse,
@@ -28,6 +29,7 @@ import {
   duplicateMemberRowFields,
   unknownRoleFields,
 } from '../../common/memberRows.js';
+import { ProjectAccessPolicyStore } from '../../roles/projectAccessPolicyStore.js';
 import type { MemberWorkspace } from '../../workspaces/repositories/workspaces.repository.js';
 import type { AccessibleProject } from '../access/projectAccessResolver.js';
 import { ProjectEvents } from '../events/projectEvents.js';
@@ -50,8 +52,9 @@ interface MembersView {
 function candidateStatus(
   workspaceRole: WorkspaceRole,
   alreadyMember: boolean,
+  policies: ProjectAccessPolicies,
 ): ProjectMemberCandidateStatus {
-  if (workspaceRolesWithImplicitProjectAccess().includes(workspaceRole)) {
+  if (hasImplicitProjectAccess(policies[workspaceRole])) {
     return 'workspace_admin';
   }
   return alreadyMember ? 'already_member' : 'addable';
@@ -65,10 +68,15 @@ function rowRejection(
     alreadyMember: boolean;
   },
   role: ProjectRole,
+  policies: ProjectAccessPolicies,
 ): ProjectMemberNotAddableReason | null {
-  const status = candidateStatus(target.workspaceRole, target.alreadyMember);
+  const status = candidateStatus(
+    target.workspaceRole,
+    target.alreadyMember,
+    policies,
+  );
   if (status !== 'addable') return status;
-  return addableProjectRoles(actor, target).includes(role)
+  return addableProjectRoles(actor, target, policies).includes(role)
     ? null
     : 'role_not_allowed';
 }
@@ -80,6 +88,7 @@ export class ProjectMembersService {
     private readonly events: ProjectEvents,
     private readonly projectsService: ProjectsService,
     private readonly clock: Clock,
+    private readonly policyStore: ProjectAccessPolicyStore,
   ) {}
 
   async list(
@@ -88,6 +97,7 @@ export class ProjectMembersService {
     actorId: string,
     requestId?: string,
   ): Promise<ProjectMemberListResponse> {
+    const policies = this.policyStore.policies();
     const { actor, includeEmail } = this.viewOf(workspace, accessible, actorId);
     const canAdd = canAddProjectMembers(
       accessible.access.permissions,
@@ -108,7 +118,7 @@ export class ProjectMembersService {
     );
 
     const members = rows.map((row) =>
-      toProjectMemberResponse(row, { includeEmail }),
+      toProjectMemberResponse(row, { includeEmail, policies }),
     );
 
     const truncated = total > members.length;
@@ -120,7 +130,7 @@ export class ProjectMembersService {
       });
     }
 
-    const addableRoles = canAdd ? addableProjectRoleRange(actor) : [];
+    const addableRoles = canAdd ? addableProjectRoleRange(actor, policies) : [];
 
     return {
       members,
@@ -137,6 +147,7 @@ export class ProjectMembersService {
     query: string,
     requestId?: string,
   ): Promise<ProjectMemberCandidateListResponse> {
+    const policies = this.policyStore.policies();
     const { actor, includeEmail } = this.viewOf(workspace, accessible, actorId);
     const mode: 'contains' | 'exact' = includeEmail ? 'contains' : 'exact';
 
@@ -149,14 +160,22 @@ export class ProjectMembersService {
     });
 
     const candidates: ProjectMemberCandidate[] = rows.map((row) => {
-      const status = candidateStatus(row.workspaceRole, row.alreadyMember);
+      const status = candidateStatus(
+        row.workspaceRole,
+        row.alreadyMember,
+        policies,
+      );
 
       const addableRoles =
         status === 'addable'
-          ? addableProjectRoles(actor, {
-              userId: row.userId,
-              workspaceRole: row.workspaceRole,
-            })
+          ? addableProjectRoles(
+              actor,
+              {
+                userId: row.userId,
+                workspaceRole: row.workspaceRole,
+              },
+              policies,
+            )
           : [];
 
       const email = mode === 'contains' ? (row.email ?? query) : query;
@@ -192,8 +211,24 @@ export class ProjectMembersService {
     dto: AddProjectMembersDto,
     requestId?: string,
   ): Promise<AddProjectMembersResponse> {
+    const policies = this.policyStore.policies();
     const { actor, includeEmail } = this.viewOf(workspace, accessible, actorId);
 
+    // 1. Permission check (before parsing rows, so outsiders cannot probe inputs)
+    if (
+      !canAddProjectMembers(
+        accessible.access.permissions,
+        workspace.permissions,
+      )
+    ) {
+      throw new ApiException(
+        HttpStatus.FORBIDDEN,
+        'FORBIDDEN',
+        MEMBER_MESSAGES.notAllowed,
+      );
+    }
+
+    // 2. Reject intra-batch duplicate userIds
     const dup = duplicateMemberRowFields(dto.members);
     if (Object.keys(dup).length > 0) {
       throw new ApiException(
@@ -204,8 +239,10 @@ export class ProjectMembersService {
       );
     }
 
-    const range = addableProjectRoleRange(actor);
-    if (dto.members.some((m) => !range.includes(m.role))) {
+    // 3. Early check on actor role range (before database locks)
+    const range = addableProjectRoleRange(actor, policies);
+    const outsideRange = dto.members.some((m) => !range.includes(m.role));
+    if (outsideRange) {
       await this.events.addRoleForbidden({
         projectId: accessible.project.id,
         actorId,
@@ -228,8 +265,9 @@ export class ProjectMembersService {
       members: dto.members,
       canAdd: (a) =>
         canAddProjectMembers(a.projectPermissions, a.workspacePermissions),
-      roleRange: (a) => addableProjectRoleRange(a.actor),
-      rowRejection: (a, target, role) => rowRejection(a.actor, target, role),
+      roleRange: (a) => addableProjectRoleRange(a.actor, policies),
+      rowRejection: (a, target, role) =>
+        rowRejection(a.actor, target, role, policies),
     });
 
     if (result.status === 'project_gone') {
@@ -301,7 +339,7 @@ export class ProjectMembersService {
 
     return {
       members: result.members.map((m) =>
-        toProjectMemberResponse(m, { includeEmail }),
+        toProjectMemberResponse(m, { includeEmail, policies }),
       ),
       project,
     };

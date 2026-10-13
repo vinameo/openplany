@@ -1,4 +1,5 @@
 import {
+  type ProjectAccessPolicies,
   type ProjectRole,
   PROJECT_ROLE_LABELS,
   PROJECT_ROLE_SUMMARIES,
@@ -8,10 +9,34 @@ import {
   WORKSPACE_ROLE_SUMMARIES,
   WORKSPACE_ROLES,
   effectiveProjectRole,
-  projectRoleCeilingOf,
 } from "@repo/contracts";
 
 export const ROLES_AND_PERMISSIONS_PATH = "/roles-and-permissions";
+
+/** TEMP until ticket 07 (Roles page loads projectAccessPolicies from API) */
+const TEMP_POLICIES: ProjectAccessPolicies = {
+  admin: {
+    workspaceRole: "admin",
+    implicitProjectRole: "admin",
+    lowestAssignableRole: "admin",
+    highestAssignableRole: "admin",
+    overridesProjectRank: true,
+  },
+  member: {
+    workspaceRole: "member",
+    implicitProjectRole: null,
+    lowestAssignableRole: "guest",
+    highestAssignableRole: "admin",
+    overridesProjectRank: false,
+  },
+  guest: {
+    workspaceRole: "guest",
+    implicitProjectRole: null,
+    lowestAssignableRole: "guest",
+    highestAssignableRole: "guest",
+    overridesProjectRank: false,
+  },
+};
 
 export interface RolesOverview {
   workspaceRoles: { role: WorkspaceRole; label: string; summary: string }[];
@@ -41,11 +66,14 @@ export function buildRolesOverview(): RolesOverview {
   const projectAccess = WORKSPACE_ROLES.map((role) => ({
     role,
     label: WORKSPACE_ROLE_LABELS[role],
-    everyProject: effectiveProjectRole({
-      workspaceRole: role,
-      assignedRole: null,
-    }),
-    highestProjectRole: projectRoleCeilingOf(role),
+    everyProject: effectiveProjectRole(
+      {
+        workspaceRole: role,
+        assignedRole: null,
+      },
+      TEMP_POLICIES,
+    ),
+    highestProjectRole: TEMP_POLICIES[role].highestAssignableRole,
   }));
 
   return {

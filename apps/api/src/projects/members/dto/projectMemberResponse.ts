@@ -1,6 +1,7 @@
 import {
   effectiveProjectRole,
-  isProjectRoleClamped,
+  isProjectRoleLimited,
+  type ProjectAccessPolicies,
   type ProjectMemberResponse,
   type ProjectRole,
   type WorkspaceRole,
@@ -21,16 +22,22 @@ export interface ProjectMemberDbRow {
 
 export function toProjectMemberResponse(
   row: ProjectMemberDbRow,
-  opts: { includeEmail: boolean },
+  opts: { includeEmail: boolean; policies: ProjectAccessPolicies },
 ): ProjectMemberResponse {
-  const role = effectiveProjectRole({
-    workspaceRole: row.workspaceRole,
-    assignedRole: row.assignedRole,
-  })!;
-  const roleLimited = isProjectRoleClamped({
-    workspaceRole: row.workspaceRole,
-    assignedRole: row.assignedRole,
-  });
+  const role = effectiveProjectRole(
+    {
+      workspaceRole: row.workspaceRole,
+      assignedRole: row.assignedRole,
+    },
+    opts.policies,
+  )!;
+  const roleLimited = isProjectRoleLimited(
+    {
+      workspaceRole: row.workspaceRole,
+      assignedRole: row.assignedRole,
+    },
+    opts.policies,
+  );
 
   const res: ProjectMemberResponse = {
     userId: row.userId,

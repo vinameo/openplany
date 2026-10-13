@@ -1,7 +1,6 @@
-import type { WorkspaceRole } from './workspace.js';
-import { WORKSPACE_ROLES } from './workspace.js';
-import type { ProjectRole } from './projectRoles.js';
-import { PROJECT_ROLE_RANK } from './projectRoles.js';
+import type { WorkspaceRole } from "./workspace.js";
+import type { ProjectRole } from "./projectRoles.js";
+import { PROJECT_ROLE_RANK } from "./projectRoles.js";
 
 export interface WorkspaceRolePolicy {
   /** Vai trò project ở MỌI project của workspace, không cần dòng thành viên. null: không có. */
@@ -14,31 +13,31 @@ export interface WorkspaceRolePolicy {
   readonly overridesProjectRank: boolean;
 }
 
-import type { WorkspacePermission } from './workspacePermissions.js';
+import type { WorkspacePermission } from "./workspacePermissions.js";
 
 export const WORKSPACE_ROLE_POLICY = {
   admin: {
-    implicitProjectRole: 'admin',
-    projectRoleCeiling: 'admin',
-    selfJoinProjectRole: 'admin',
+    implicitProjectRole: "admin",
+    projectRoleCeiling: "admin",
+    selfJoinProjectRole: "admin",
     overridesProjectRank: true,
   },
   member: {
     implicitProjectRole: null,
-    projectRoleCeiling: 'admin',
-    selfJoinProjectRole: 'contributor',
+    projectRoleCeiling: "admin",
+    selfJoinProjectRole: "contributor",
     overridesProjectRank: false,
   },
   guest: {
     implicitProjectRole: null,
-    projectRoleCeiling: 'guest',
+    projectRoleCeiling: "guest",
     selfJoinProjectRole: null,
     overridesProjectRank: false,
   },
 } as const satisfies Record<WorkspaceRole, WorkspaceRolePolicy>;
 
 /** Vai trò ghi cho người tạo project (Q-R11). */
-export const PROJECT_CREATOR_ROLE = 'admin' as const satisfies ProjectRole;
+export const PROJECT_CREATOR_ROLE = "admin" as const satisfies ProjectRole;
 
 export function higherProjectRole(
   a: ProjectRole | null,
@@ -63,13 +62,6 @@ export function selfJoinProjectRoleOf(
 ): ProjectRole | null {
   const baseRole = WORKSPACE_ROLE_POLICY[role].selfJoinProjectRole;
   if (baseRole === null) return null;
-  if (!permissions.includes('workspace.projects.browse')) return null;
+  if (!permissions.includes("workspace.projects.browse")) return null;
   return baseRole;
-}
-
-/** Các workspace role có quyền ngầm ở mọi project. Dùng làm tham số truy vấn (B10.4), không viết cứng ['admin']. */
-export function workspaceRolesWithImplicitProjectAccess(): readonly WorkspaceRole[] {
-  return WORKSPACE_ROLES.filter(
-    (role) => WORKSPACE_ROLE_POLICY[role].implicitProjectRole !== null,
-  );
 }

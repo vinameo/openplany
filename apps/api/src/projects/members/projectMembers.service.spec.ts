@@ -19,6 +19,7 @@ import type {
   SearchProjectMemberCandidatesInput,
 } from './projectMembers.repository.js';
 import type { ProjectMemberDbRow } from './dto/projectMemberResponse.js';
+import { FakeProjectAccessPolicyStore } from '../../../test/fakes/rolesFakes.js';
 import { ProjectMembersService } from './projectMembers.service.js';
 
 class FakeProjectMembersRepository implements ProjectMembersRepository {
@@ -143,9 +144,9 @@ describe('ProjectMembersService', () => {
       events,
       fakeProjectsService,
       clock,
+      new FakeProjectAccessPolicyStore(),
     );
   });
-
 
   it('lists members with effective role, roleLimited, and includes email when permitted', async () => {
     repo.rows = [
@@ -698,7 +699,10 @@ describe('ProjectMembersService', () => {
     it('accepts an addable workspace member with an allowed role', async () => {
       const reject = await rowRejectionOf();
       expect(
-        reject({ workspaceRole: 'member', alreadyMember: false }, 'contributor'),
+        reject(
+          { workspaceRole: 'member', alreadyMember: false },
+          'contributor',
+        ),
       ).toBeNull();
     });
   });
