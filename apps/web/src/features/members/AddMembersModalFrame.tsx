@@ -23,6 +23,7 @@ import {
   type RowsContext,
 } from './addMembersRows';
 import type { CandidateBase } from './MemberCandidateCombobox';
+import { SOMETHING_WENT_WRONG } from './membersMessages';
 import type { RoleScheme } from './roleScheme';
 import classes from './AddMembersModalFrame.module.css';
 
@@ -119,6 +120,9 @@ export function AddMembersModalFrame<
       } else if (outcome.kind === 'alert') {
         setGlobalAlert(outcome.message);
       }
+    } catch (err: unknown) {
+      console.error('members.add.submit_failed', err);
+      setGlobalAlert(SOMETHING_WENT_WRONG);
     } finally {
       setIsSubmitting(false);
     }
@@ -259,7 +263,7 @@ export function AddMembersModalFrame<
               Cancel
             </Button>
             <Button
-              onClick={handleSubmit}
+              onClick={() => void handleSubmit()}
               disabled={!hasAnySelected || isSubmitting}
               loading={isSubmitting}
             >
