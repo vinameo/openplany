@@ -6,9 +6,12 @@ import { WorkspaceWriteRateLimitGuard } from './workspaceWriteRateLimitGuard.js'
 
 export const WORKSPACE_PERMISSION_KEY = 'workspacePermission';
 
+export type WorkspacePermissionRequirement =
+  EnforcedWorkspacePermission | readonly EnforcedWorkspacePermission[];
+
 /** Every write under /api/workspaces/:slug uses this, so guard order is fixed in one place. */
 export function WorkspaceWrite(
-  permission: EnforcedWorkspacePermission,
+  permission: WorkspacePermissionRequirement,
 ): MethodDecorator {
   return applyDecorators(
     SetMetadata(WORKSPACE_PERMISSION_KEY, permission),
@@ -20,14 +23,12 @@ export function WorkspaceWrite(
   );
 }
 
-/** Endpoint đọc dưới /api/workspaces/:slug cần một quyền. Không có giới hạn ghi. */
+/** Endpoint đọc dưới /api/workspaces/:slug cần một hoặc nhiều quyền. Không có giới hạn ghi. */
 export function WorkspaceRead(
-  permission: EnforcedWorkspacePermission,
+  permission: WorkspacePermissionRequirement,
 ): MethodDecorator {
   return applyDecorators(
     SetMetadata(WORKSPACE_PERMISSION_KEY, permission),
     UseGuards(WorkspaceMemberGuard, WorkspacePermissionGuard),
   );
 }
-
-

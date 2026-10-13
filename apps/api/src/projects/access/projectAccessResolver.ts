@@ -87,6 +87,15 @@ export abstract class ProjectAccessResolver {
     manager: EntityManager,
     membership: ProjectAccessInput,
   ): Promise<ProjectAccess | null>;
+
+  /**
+   * Filters candidate project IDs down to those the viewer can access (API B2.3, BA ADR-05).
+   * Implicit access roles see all live workspace projects; others only projects with active membership.
+   */
+  abstract filterAccessible(
+    viewer: ProjectViewer,
+    projectIds: readonly string[],
+  ): Promise<Set<string>>;
 }
 
 interface AccessScope {
@@ -236,6 +245,37 @@ export class TypeOrmProjectAccessResolver extends ProjectAccessResolver {
       this.policyStore.policies(),
       await loadProjectRoleMatrix(manager),
     );
+  }
+
+  async filterAccessible(
+    viewer: ProjectViewer,
+    projectIds: readonly string[],
+  ): Promise<Set<string>> {
+    if (projectIds.length === 0) return new Set();
+
+    const policies = this.policyStore.policies();
+    const manager = this.dataSource.manager;
+    const scope = await accessScope(manager, viewer, policies);
+    if (scope === null) return new Set();
+
+    const candidateIds = hasImplicitProjectAccess(
+      policies[viewer.workspaceRole],
+    )
+      ? [...new Set(projectIds)]
+      : [...new Set(projectIds.filter((id) => scope.assignedRoles.has(id)))];
+
+    if (candidateIds.length === 0) return new Set();
+
+    const accessible = await manager.find(Project, {
+      select: { id: true },
+      where: {
+        ...ACTIVE_PROJECT,
+        workspaceId: viewer.workspaceId,
+        id: In(candidateIds),
+      },
+    });
+
+    return new Set(accessible.map((p) => p.id));
   }
 }
 

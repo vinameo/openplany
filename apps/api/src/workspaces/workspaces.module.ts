@@ -33,9 +33,12 @@ import { WorkspaceMembersService } from './members/workspaceMembers.service.js';
 import { WorkspaceMembersRepository } from './members/workspaceMembers.repository.js';
 import { TypeOrmWorkspaceMembersRepository } from './members/typeOrmWorkspaceMembers.repository.js';
 
+import { ProjectAccessModule } from '../projects/access/projectAccess.module.js';
+
 @Module({
   imports: [
     AuthModule,
+    ProjectAccessModule,
     TypeOrmModule.forFeature([
       User,
       Workspace,

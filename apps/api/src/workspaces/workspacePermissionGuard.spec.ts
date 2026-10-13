@@ -13,7 +13,9 @@ describe('WorkspacePermissionGuard', () => {
 
     const ctx = {
       getHandler: () => () => {},
-      switchToHttp: () => ({ getRequest: () => ({ workspace: makeMemberWorkspace() }) }),
+      switchToHttp: () => ({
+        getRequest: () => ({ workspace: makeMemberWorkspace() }),
+      }),
     } as unknown as ExecutionContext;
 
     expect(() => guard.canActivate(ctx)).toThrow(
@@ -37,7 +39,9 @@ describe('WorkspacePermissionGuard', () => {
   });
 
   it('allows admin through when workspace.settings.update is required, without logging warn', () => {
-    const warnSpy = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+    const warnSpy = vi
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => {});
     const reflector = new Reflector();
     vi.spyOn(reflector, 'get').mockReturnValue('workspace.settings.update');
     const guard = new WorkspacePermissionGuard(reflector);
@@ -60,7 +64,9 @@ describe('WorkspacePermissionGuard', () => {
   });
 
   it('throws 403 FORBIDDEN for member and guest, logging warn with required format and no PII/slug (AC-09)', () => {
-    const warnSpy = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+    const warnSpy = vi
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => {});
     const reflector = new Reflector();
     vi.spyOn(reflector, 'get').mockReturnValue('workspace.settings.update');
     const guard = new WorkspacePermissionGuard(reflector);
@@ -122,8 +128,67 @@ describe('WorkspacePermissionGuard', () => {
     warnSpy.mockRestore();
   });
 
+  it('allows through when all permissions in an array are granted', () => {
+    const reflector = new Reflector();
+    vi.spyOn(reflector, 'get').mockReturnValue([
+      'workspace.members.view',
+      'workspace.members.add',
+    ]);
+    const guard = new WorkspacePermissionGuard(reflector);
+
+    const ctx = {
+      getHandler: () => () => {},
+      switchToHttp: () => ({
+        getRequest: () => ({
+          workspace: makeMemberWorkspace({
+            permissions: ['workspace.members.view', 'workspace.members.add'],
+          }),
+        }),
+      }),
+    } as unknown as ExecutionContext;
+    expect(guard.canActivate(ctx)).toBe(true);
+  });
+
+  it('throws 403 FORBIDDEN when any permission in an array is missing', () => {
+    const warnSpy = vi
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => {});
+    const reflector = new Reflector();
+    vi.spyOn(reflector, 'get').mockReturnValue([
+      'workspace.members.view',
+      'workspace.members.add',
+    ]);
+    const guard = new WorkspacePermissionGuard(reflector);
+
+    const ctx = {
+      getHandler: () => () => {},
+      switchToHttp: () => ({
+        getRequest: () => ({
+          workspace: makeMemberWorkspace({
+            permissions: ['workspace.members.view'],
+          }),
+          auth: { userId: 'user-1' },
+          requestId: 'req-1',
+        }),
+      }),
+    } as unknown as ExecutionContext;
+
+    expect(() => guard.canActivate(ctx)).toThrowError(
+      expect.objectContaining({
+        status: HttpStatus.FORBIDDEN,
+        code: 'FORBIDDEN',
+      }),
+    );
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('permission=workspace.members.add'),
+    );
+    warnSpy.mockRestore();
+  });
+
   it('AC-13: WorkspaceWrite rejects non-enforced permissions at typecheck time', () => {
     // @ts-expect-error workspace.delete is not an EnforcedWorkspacePermission
     WorkspaceWrite('workspace.delete');
+    // @ts-expect-error workspace.delete is not an EnforcedWorkspacePermission in an array
+    WorkspaceWrite(['workspace.members.view', 'workspace.delete']);
   });
 });

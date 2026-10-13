@@ -6,9 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import {
-  type WorkspacePermission,
-} from '@repo/contracts';
+import { type WorkspacePermission } from '@repo/contracts';
 import type { Request } from 'express';
 import { ApiException } from '../common/apiException.js';
 import { WORKSPACE_PERMISSION_KEY } from './workspaceAccess.decorator.js';
@@ -20,10 +18,9 @@ export class WorkspacePermissionGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const required = this.reflector.get<WorkspacePermission | undefined>(
-      WORKSPACE_PERMISSION_KEY,
-      context.getHandler(),
-    );
+    const required = this.reflector.get<
+      WorkspacePermission | readonly WorkspacePermission[] | undefined
+    >(WORKSPACE_PERMISSION_KEY, context.getHandler());
     if (required === undefined) {
       throw new Error('WorkspacePermissionGuard used without a permission');
     }
@@ -34,9 +31,13 @@ export class WorkspacePermissionGuard implements CanActivate {
         'WorkspacePermissionGuard must run after WorkspaceMemberGuard',
       );
     }
-    if (!workspace.permissions.includes(required)) {
+    const requirements = Array.isArray(required) ? required : [required];
+    const missing = requirements.filter(
+      (perm) => !workspace.permissions.includes(perm),
+    );
+    if (missing.length > 0) {
       this.logger.warn(
-        `workspace.forbidden permission=${required} role=${workspace.role} ` +
+        `workspace.forbidden permission=${missing.join(',')} role=${workspace.role} ` +
           `workspaceId=${workspace.id} userId=${request.auth?.userId ?? ''} requestId=${request.requestId ?? ''}`,
       );
       throw new ApiException(

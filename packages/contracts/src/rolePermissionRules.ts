@@ -63,6 +63,15 @@ export function isWorkspaceAdminRole(role: WorkspaceRole): boolean {
   return isRoleLocked({ scope: "workspace", key: role });
 }
 
+/**
+ * True for the project's Admin role: the locked role that always keeps its
+ * full default permissions. For displaying data (e.g. "assigned Project Admin"),
+ * not for permission decisions, which use enforced permissions.
+ */
+export function isProjectAdminRole(role: ProjectRole): boolean {
+  return isRoleLocked({ scope: "project", key: role });
+}
+
 export function scopeOfPermission(permission: string): RoleScope | null {
   if (typeof permission !== "string" || !permission.includes(".")) {
     return null;

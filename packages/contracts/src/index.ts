@@ -49,6 +49,7 @@ export {
   isRoleLocked,
   isViewOnlyRole,
   isWorkspaceAdminRole,
+  isProjectAdminRole,
   scopeOfPermission,
 } from "./rolePermissionRules.js";
 export {

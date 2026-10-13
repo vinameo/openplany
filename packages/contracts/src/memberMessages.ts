@@ -1,22 +1,26 @@
-import { ADD_MEMBERS_MAX } from './workspaceMembers.js';
+import { ADD_MEMBERS_MAX } from "./workspaceMembers.js";
 
 export const MEMBER_MESSAGES = {
-  rowDuplicate: 'This person is already in another row',
-  candidateQueryTooShort: 'Type at least 3 characters',
-  candidateQueryInvalid: 'Remove special characters from the email',
-  choosePerson: 'Choose a person',
-  chooseRole: 'Choose a role',
-  addAtLeastOne: 'Add at least one person',
+  rowDuplicate: "This person is already in another row",
+  candidateQueryTooShort: "Type at least 3 characters",
+  candidateQueryInvalid: "Remove special characters from the email",
+  choosePerson: "Choose a person",
+  chooseRole: "Choose a role",
+  addAtLeastOne: "Add at least one person",
   addAtMost: `Add up to ${ADD_MEMBERS_MAX} people at a time`,
-  checkFields: 'Check the highlighted fields',
+  checkFields: "Check the highlighted fields",
   notAllowed: "You don't have permission to do this",
   roleNotAllowed: "You can't assign this role",
+  roleChanged:
+    "Their role was just changed by someone else. Review it and try again.",
+  sameRole: "Choose a different role",
+  roleOutOfRange: "This role isn't allowed for their workspace role.",
   someNotAdded: "Some people couldn't be added",
-  tooManySearches: 'Too many searches. Try again later.',
+  tooManySearches: "Too many searches. Try again later.",
 } as const;
 
 export function truncatedMembersMessage(shown: number, total: number): string {
-  return `Showing the first ${shown.toLocaleString('en-US')} of ${total.toLocaleString('en-US')} members.`;
+  return `Showing the first ${shown.toLocaleString("en-US")} of ${total.toLocaleString("en-US")} members.`;
 }
 
 /** Không ký tự điều khiển (kể cả NUL). Dùng ở DTO tìm ứng viên chung (SR-4). */

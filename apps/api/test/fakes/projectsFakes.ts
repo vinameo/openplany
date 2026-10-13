@@ -83,6 +83,25 @@ export class FakeProjectAccessResolver extends ProjectAccessResolver {
     this.lastMembership = membership;
     return this.membershipAccess;
   }
+
+  /** What filterAccessible returns. When undefined, filters rows by id. */
+  public accessibleProjectIds?: Set<string>;
+  public lastFilterAccessibleInput?: {
+    viewer: ProjectViewer;
+    projectIds: readonly string[];
+  };
+
+  async filterAccessible(
+    viewer: ProjectViewer,
+    projectIds: readonly string[],
+  ): Promise<Set<string>> {
+    this.lastFilterAccessibleInput = { viewer, projectIds };
+    if (this.accessibleProjectIds !== undefined) {
+      return this.accessibleProjectIds;
+    }
+    const accessibleInRows = new Set(this.rows.map((r) => r.project.id));
+    return new Set(projectIds.filter((id) => accessibleInRows.has(id)));
+  }
 }
 
 export class FakeProjectsRepository extends ProjectsRepository {
@@ -192,9 +211,7 @@ export class FakeProjectEvents extends ProjectEvents {
     this.membersAddedEvents.push(event);
   }
 
-  async addRoleForbidden(
-    event: ProjectAddRoleForbiddenEvent,
-  ): Promise<void> {
+  async addRoleForbidden(event: ProjectAddRoleForbiddenEvent): Promise<void> {
     this.addRoleForbiddenEvents.push(event);
   }
 }

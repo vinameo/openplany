@@ -1,4 +1,4 @@
-import { type WorkspaceRole, removeDiacritics } from './workspace.js';
+import { type WorkspaceRole, removeDiacritics } from "./workspace.js";
 
 export const WORKSPACE_MEMBER_LIST_MAX = 1000;
 
@@ -12,7 +12,7 @@ export function normalizeForSearch(value: string): string {
 
 /** Thoát ký tự đặc biệt của LIKE (% _ \) (API-09). */
 export function escapeLikePattern(str: string): string {
-  return str.replace(/[\\%_]/g, '\\$&');
+  return str.replace(/[\\%_]/g, "\\$&");
 }
 
 export interface WorkspaceMemberResponse {
@@ -60,9 +60,19 @@ export interface AddWorkspaceMembersResponse {
 }
 
 /** Lý do một dòng không thêm được (409). Web dùng để chọn câu chữ; server gửi câu chữ trong fields. */
-export const MEMBER_NOT_ADDABLE_REASONS = ['already_member', 'unavailable'] as const;
-export type MemberNotAddableReason = (typeof MEMBER_NOT_ADDABLE_REASONS)[number];
+export const MEMBER_NOT_ADDABLE_REASONS = [
+  "already_member",
+  "unavailable",
+] as const;
+export type MemberNotAddableReason =
+  (typeof MEMBER_NOT_ADDABLE_REASONS)[number];
 export const MEMBER_NOT_ADDABLE_MESSAGES = {
-  already_member: 'Already a member of this workspace',
+  already_member: "Already a member of this workspace",
   unavailable: "This person can't be added. Their account may be deactivated.",
 } as const satisfies Record<MemberNotAddableReason, string>;
+
+export const WORKSPACE_ROLE_CHANGE_MESSAGES = {
+  lastAdmin:
+    "A workspace needs at least one Admin. Make someone else an Admin first.",
+  memberGone: "This person is no longer in this workspace.",
+} as const;
