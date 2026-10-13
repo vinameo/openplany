@@ -1,6 +1,10 @@
 import request from 'supertest';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { MEMBER_MESSAGES } from '@repo/contracts';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { Logger } from '@nestjs/common';
+import {
+  MEMBER_MESSAGES,
+  PROJECT_MEMBER_NOT_ADDABLE_MESSAGES,
+} from '@repo/contracts';
 import { createE2eApp, type E2eApp } from './createE2eApp.js';
 import {
   createUser as createE2eUser,
@@ -788,6 +792,521 @@ describe('ProjectMembers (e2e)', () => {
           expect(m).not.toHaveProperty('email');
         }
       }
+    });
+
+    describe('Table B6.3: POST …/members bad input & edge cases', () => {
+      async function seedB63Fixture() {
+        const { workspace } = await seedWorkspace('owner-b63@openplany.dev', 'ws-b63');
+        const projId = await createProject(workspace.id, 'Project B63', 'PB63');
+
+        const kaiId = await createUser('kai-b63@openplany.dev', { is_superuser: false });
+        await addWorkspaceMember(workspace.id, kaiId, 'admin');
+        await addProjectMember(projId, workspace.id, kaiId, 'admin');
+        const kaiCookie = await signInCookie('kai-b63@openplany.dev');
+
+        const namId = await createUser('nam-b63@openplany.dev', { is_superuser: false });
+        await addWorkspaceMember(workspace.id, namId, 'member');
+        await addProjectMember(projId, workspace.id, namId, 'admin');
+        const namCookie = await signInCookie('nam-b63@openplany.dev');
+
+        const hoaId = await createUser('hoa-b63@openplany.dev', { is_superuser: false });
+        await addWorkspaceMember(workspace.id, hoaId, 'member');
+        await addProjectMember(projId, workspace.id, hoaId, 'contributor');
+
+        const lanId = await createUser('lan-b63@openplany.dev', { is_superuser: false });
+        await addWorkspaceMember(workspace.id, lanId, 'admin');
+
+        const dungId = await createUser('dung-b63@openplany.dev', { is_superuser: false, is_active: false });
+        await addWorkspaceMember(workspace.id, dungId, 'member');
+
+        const binhId = await createUser('binh-b63@openplany.dev', { is_superuser: false });
+        await addWorkspaceMember(workspace.id, binhId, 'guest');
+
+        const tuId = await createUser('tu-b63@openplany.dev', { is_superuser: false });
+
+        const anId = await createUser('an-b63@openplany.dev', { is_superuser: false });
+        await addWorkspaceMember(workspace.id, anId, 'member');
+
+        return {
+          workspace,
+          projId,
+          kaiId,
+          kaiCookie,
+          namId,
+          namCookie,
+          hoaId,
+          lanId,
+          dungId,
+          binhId,
+          tuId,
+          anId,
+        };
+      }
+
+      it('Row 2: rejects {}, { members: null }, { members: {} }, { members: "x" } with 400', async () => {
+        const { workspace, namCookie } = await seedB63Fixture();
+        for (const badBody of [{}, { members: null }, { members: {} }, { members: 'x' }]) {
+          await http()
+            .post(`/api/workspaces/${workspace.slug}/projects/PB63/members`)
+            .set('Cookie', namCookie)
+            .set('Origin', ORIGIN)
+            .send(badBody)
+            .expect(400);
+        }
+      });
+
+      it('Row 3: rejects { members: [] } with 400 "Add at least one person"', async () => {
+        const { workspace, namCookie } = await seedB63Fixture();
+        const res = await http()
+          .post(`/api/workspaces/${workspace.slug}/projects/PB63/members`)
+          .set('Cookie', namCookie)
+          .set('Origin', ORIGIN)
+          .send({ members: [] })
+          .expect(400);
+        expect(res.body.fields?.members).toBe(MEMBER_MESSAGES.addAtLeastOne);
+      });
+
+      it('Row 4: rejects 21 items with 400 "Add up to 20 people at a time"', async () => {
+        const { workspace, namCookie } = await seedB63Fixture();
+        const members = Array.from({ length: 21 }, (_, i) => ({
+          userId: `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`,
+          role: 'contributor',
+        }));
+        const res = await http()
+          .post(`/api/workspaces/${workspace.slug}/projects/PB63/members`)
+          .set('Cookie', namCookie)
+          .set('Origin', ORIGIN)
+          .send({ members })
+          .expect(400);
+        expect(res.body.fields?.members).toBe(MEMBER_MESSAGES.addAtMost);
+      });
+
+      it('Row 5: rejects invalid userId with 400 members.0.userId "Choose a person"', async () => {
+        const { workspace, namCookie } = await seedB63Fixture();
+        for (const badId of ['abc', 123, null, '', 'c232ab00-9414-11ec-b3c8-9f6bdecced8e']) {
+          const res = await http()
+            .post(`/api/workspaces/${workspace.slug}/projects/PB63/members`)
+            .set('Cookie', namCookie)
+            .set('Origin', ORIGIN)
+            .send({ members: [{ userId: badId, role: 'contributor' }] })
+            .expect(400);
+          expect(res.body.fields?.['members.0.userId']).toBe(MEMBER_MESSAGES.choosePerson);
+        }
+      });
+
+      it('Row 6: rejects invalid role with 400 members.0.role "Choose a role"', async () => {
+        const { workspace, namCookie, anId } = await seedB63Fixture();
+        for (const badRole of ['owner', 'Admin', 'ADMIN', '', null, 5]) {
+          const res = await http()
+            .post(`/api/workspaces/${workspace.slug}/projects/PB63/members`)
+            .set('Cookie', namCookie)
+            .set('Origin', ORIGIN)
+            .send({ members: [{ userId: anId, role: badRole }] })
+            .expect(400);
+          expect(res.body.fields?.['members.0.role']).toBe(MEMBER_MESSAGES.chooseRole);
+        }
+      });
+
+      it('Row 7: rejects extra fields in row or body with 400 whitelist validation', async () => {
+        const { workspace, namCookie, anId } = await seedB63Fixture();
+        await http()
+          .post(`/api/workspaces/${workspace.slug}/projects/PB63/members`)
+          .set('Cookie', namCookie)
+          .set('Origin', ORIGIN)
+          .send({ members: [{ userId: anId, role: 'contributor', isActive: false }] })
+          .expect(400);
+
+        await http()
+          .post(`/api/workspaces/${workspace.slug}/projects/PB63/members`)
+          .set('Cookie', namCookie)
+          .set('Origin', ORIGIN)
+          .send({ members: [{ userId: anId, role: 'contributor' }], projectId: 'PB63' })
+          .expect(400);
+      });
+
+      it('Row 8: rejects userId with NUL byte with 400', async () => {
+        const { workspace, namCookie } = await seedB63Fixture();
+        await http()
+          .post(`/api/workspaces/${workspace.slug}/projects/PB63/members`)
+          .set('Cookie', namCookie)
+          .set('Origin', ORIGIN)
+          .send({ members: [{ userId: '00000000-0000-4000-8000-\u000000000001', role: 'contributor' }] })
+          .expect(400);
+      });
+
+      it('Row 9: rejects duplicate userId in row 0 and 2 with 400 members.2.userId', async () => {
+        const { workspace, namCookie, anId } = await seedB63Fixture();
+        const dummyId = '00000000-0000-4000-8000-000000000002';
+        const res = await http()
+          .post(`/api/workspaces/${workspace.slug}/projects/PB63/members`)
+          .set('Cookie', namCookie)
+          .set('Origin', ORIGIN)
+          .send({
+            members: [
+              { userId: anId, role: 'contributor' },
+              { userId: dummyId, role: 'commenter' },
+              { userId: anId, role: 'guest' },
+            ],
+          })
+          .expect(400);
+        expect(res.body.fields?.['members.2.userId']).toBe(MEMBER_MESSAGES.rowDuplicate);
+      });
+
+      it('Row 10: non-existent random UUID v4 returns 409 members.0.userId not_in_workspace', async () => {
+        const { workspace, namCookie } = await seedB63Fixture();
+        const nonExistentId = 'a0000000-0000-4000-8000-000000000001';
+        const res = await http()
+          .post(`/api/workspaces/${workspace.slug}/projects/PB63/members`)
+          .set('Cookie', namCookie)
+          .set('Origin', ORIGIN)
+          .send({ members: [{ userId: nonExistentId, role: 'contributor' }] })
+          .expect(409);
+        expect(res.body.fields?.['members.0.userId']).toBe(
+          PROJECT_MEMBER_NOT_ADDABLE_MESSAGES.not_in_workspace,
+        );
+      });
+
+      it('Row 11: user outside workspace (Tú) returns 409 not_in_workspace', async () => {
+        const { workspace, namCookie, tuId } = await seedB63Fixture();
+        const res = await http()
+          .post(`/api/workspaces/${workspace.slug}/projects/PB63/members`)
+          .set('Cookie', namCookie)
+          .set('Origin', ORIGIN)
+          .send({ members: [{ userId: tuId, role: 'contributor' }] })
+          .expect(409);
+        expect(res.body.fields?.['members.0.userId']).toBe(
+          PROJECT_MEMBER_NOT_ADDABLE_MESSAGES.not_in_workspace,
+        );
+      });
+
+      it('Row 12: workspace member with locked account (Dũng) returns 409 unavailable', async () => {
+        const { workspace, namCookie, dungId } = await seedB63Fixture();
+        const res = await http()
+          .post(`/api/workspaces/${workspace.slug}/projects/PB63/members`)
+          .set('Cookie', namCookie)
+          .set('Origin', ORIGIN)
+          .send({ members: [{ userId: dungId, role: 'contributor' }] })
+          .expect(409);
+        expect(res.body.fields?.['members.0.userId']).toBe(
+          PROJECT_MEMBER_NOT_ADDABLE_MESSAGES.unavailable,
+        );
+      });
+
+      it('Row 13: workspace admin without project row (Lan) returns 409 workspace_admin', async () => {
+        const { workspace, namCookie, lanId } = await seedB63Fixture();
+        const res = await http()
+          .post(`/api/workspaces/${workspace.slug}/projects/PB63/members`)
+          .set('Cookie', namCookie)
+          .set('Origin', ORIGIN)
+          .send({ members: [{ userId: lanId, role: 'contributor' }] })
+          .expect(409);
+        expect(res.body.fields?.['members.0.userId']).toBe(
+          PROJECT_MEMBER_NOT_ADDABLE_MESSAGES.workspace_admin,
+        );
+      });
+
+      it('Row 14: workspace guest (Bình) with contributor returns 409 members.0.role role_not_allowed', async () => {
+        const { workspace, namCookie, binhId } = await seedB63Fixture();
+        const res = await http()
+          .post(`/api/workspaces/${workspace.slug}/projects/PB63/members`)
+          .set('Cookie', namCookie)
+          .set('Origin', ORIGIN)
+          .send({ members: [{ userId: binhId, role: 'contributor' }] })
+          .expect(409);
+        expect(res.body.fields?.['members.0.role']).toBe(
+          PROJECT_MEMBER_NOT_ADDABLE_MESSAGES.role_not_allowed,
+        );
+      });
+
+      it('Row 15: already project member (Hoa) returns 409 already_member', async () => {
+        const { workspace, namCookie, hoaId } = await seedB63Fixture();
+        const res = await http()
+          .post(`/api/workspaces/${workspace.slug}/projects/PB63/members`)
+          .set('Cookie', namCookie)
+          .set('Origin', ORIGIN)
+          .send({ members: [{ userId: hoaId, role: 'contributor' }] })
+          .expect(409);
+        expect(res.body.fields?.['members.0.userId']).toBe(
+          PROJECT_MEMBER_NOT_ADDABLE_MESSAGES.already_member,
+        );
+      });
+
+      it('Row 16: actor themselves (Nam) returns 409 already_member', async () => {
+        const { workspace, namCookie, namId } = await seedB63Fixture();
+        const res = await http()
+          .post(`/api/workspaces/${workspace.slug}/projects/PB63/members`)
+          .set('Cookie', namCookie)
+          .set('Origin', ORIGIN)
+          .send({ members: [{ userId: namId, role: 'admin' }] })
+          .expect(409);
+        expect(res.body.fields?.['members.0.userId']).toBe(
+          PROJECT_MEMBER_NOT_ADDABLE_MESSAGES.already_member,
+        );
+      });
+
+      it('Row 17: Kai (Workspace Admin AND project row) returns 409 workspace_admin (prioritized over already_member)', async () => {
+        const { workspace, namCookie, kaiId } = await seedB63Fixture();
+        const res = await http()
+          .post(`/api/workspaces/${workspace.slug}/projects/PB63/members`)
+          .set('Cookie', namCookie)
+          .set('Origin', ORIGIN)
+          .send({ members: [{ userId: kaiId, role: 'admin' }] })
+          .expect(409);
+        expect(res.body.fields?.['members.0.userId']).toBe(
+          PROJECT_MEMBER_NOT_ADDABLE_MESSAGES.workspace_admin,
+        );
+      });
+
+      it('Row 18: contributor granted project.members.manage sending role: admin returns 403 "You can\'t assign this role"', async () => {
+        const { workspace, anId } = await seedB63Fixture();
+        await e2e.dataSource.query(
+          `INSERT INTO role_permissions (scope, role_key, permission_key, created_at)
+           VALUES ('project', 'contributor', 'project.members.manage', now())`,
+        );
+
+        const hoaCookie = await signInCookie('hoa-b63@openplany.dev');
+        const res = await http()
+          .post(`/api/workspaces/${workspace.slug}/projects/PB63/members`)
+          .set('Cookie', hoaCookie)
+          .set('Origin', ORIGIN)
+          .send({ members: [{ userId: anId, role: 'admin' }] })
+          .expect(403);
+        expect(res.body.message).toContain(MEMBER_MESSAGES.roleNotAllowed);
+      });
+
+      it('Row 19 & 20: default contributor and project guest return 403 (guard)', async () => {
+        const { workspace, anId, projId } = await seedB63Fixture();
+        const hoaCookie = await signInCookie('hoa-b63@openplany.dev');
+
+        await http()
+          .post(`/api/workspaces/${workspace.slug}/projects/PB63/members`)
+          .set('Cookie', hoaCookie)
+          .set('Origin', ORIGIN)
+          .send({ members: [{ userId: anId, role: 'contributor' }] })
+          .expect(403);
+
+        const guestId = await createUser('guest-user@openplany.dev', { is_superuser: false });
+        await addWorkspaceMember(workspace.id, guestId, 'member');
+        await addProjectMember(projId, workspace.id, guestId, 'guest');
+        const guestCookie = await signInCookie('guest-user@openplany.dev');
+
+        await http()
+          .post(`/api/workspaces/${workspace.slug}/projects/PB63/members`)
+          .set('Cookie', guestCookie)
+          .set('Origin', ORIGIN)
+          .send({ members: [{ userId: anId, role: 'contributor' }] })
+          .expect(403);
+      });
+
+      it('Row 21: Project Admin when workspace member loses workspace.members.view returns 403', async () => {
+        const { workspace, namCookie, anId } = await seedB63Fixture();
+        await e2e.dataSource.query(
+          `DELETE FROM role_permissions WHERE scope = 'workspace' AND role_key = 'member' AND permission_key = 'workspace.members.view'`,
+        );
+
+        await http()
+          .post(`/api/workspaces/${workspace.slug}/projects/PB63/members`)
+          .set('Cookie', namCookie)
+          .set('Origin', ORIGIN)
+          .send({ members: [{ userId: anId, role: 'contributor' }] })
+          .expect(403);
+      });
+
+      it('Row 22 (AC-22): non-existent project returns 404, soft-deleted project returns 404', async () => {
+        const { workspace, namCookie, anId, projId } = await seedB63Fixture();
+        await http()
+          .post(`/api/workspaces/${workspace.slug}/projects/NONEXIST/members`)
+          .set('Cookie', namCookie)
+          .set('Origin', ORIGIN)
+          .send({ members: [{ userId: anId, role: 'contributor' }] })
+          .expect(404);
+
+        await e2e.dataSource.query(
+          `UPDATE projects SET deleted_at = now() WHERE id = $1`,
+          [projId],
+        );
+
+        await http()
+          .post(`/api/workspaces/${workspace.slug}/projects/PB63/members`)
+          .set('Cookie', namCookie)
+          .set('Origin', ORIGIN)
+          .send({ members: [{ userId: anId, role: 'contributor' }] })
+          .expect(404);
+      });
+
+      it('Row 23: missing or invalid Origin returns 403', async () => {
+        const { workspace, namCookie, anId } = await seedB63Fixture();
+        await http()
+          .post(`/api/workspaces/${workspace.slug}/projects/PB63/members`)
+          .set('Cookie', namCookie)
+          .set('Origin', 'https://malicious-site.com')
+          .send({ members: [{ userId: anId, role: 'contributor' }] })
+          .expect(403);
+      });
+
+      it('Row 24 (AC-18): two concurrent requests adding same candidate An results in 201 + 409 already_member, 1 row, 1 history', async () => {
+        const { workspace, namCookie, anId, projId } = await seedB63Fixture();
+
+        const addCandidate = () =>
+          http()
+            .post(`/api/workspaces/${workspace.slug}/projects/PB63/members`)
+            .set('Cookie', namCookie)
+            .set('Origin', ORIGIN)
+            .send({ members: [{ userId: anId, role: 'contributor' }] })
+            .then((r) => r);
+
+        const [res1, res2] = await Promise.all([addCandidate(), addCandidate()]);
+        const statuses = [res1.status, res2.status].sort((a, b) => a - b);
+        expect(statuses).toEqual([201, 409]);
+
+        const conflictRes = res1.status === 409 ? res1 : res2;
+        expect(conflictRes.body.fields?.['members.0.userId']).toBe(
+          PROJECT_MEMBER_NOT_ADDABLE_MESSAGES.already_member,
+        );
+
+        const pmRows = await e2e.dataSource.query(
+          `SELECT id FROM project_members WHERE project_id = $1 AND member_id = $2`,
+          [projId, anId],
+        );
+        expect(pmRows).toHaveLength(1);
+
+        const historyRows = await e2e.dataSource.query(
+          `SELECT id FROM project_member_role_history WHERE project_id = $1 AND member_id = $2`,
+          [projId, anId],
+        );
+        expect(historyRows).toHaveLength(1);
+      });
+
+      it('Row 25: 31st add request in 10 minutes returns 429 retryAfterSeconds', async () => {
+        const { workspace, namCookie, anId } = await seedB63Fixture();
+        for (let i = 0; i < 30; i++) {
+          await http()
+            .post(`/api/workspaces/${workspace.slug}/projects/PB63/members`)
+            .set('Cookie', namCookie)
+            .set('Origin', ORIGIN)
+            .send({ members: [] })
+            .expect(400);
+        }
+
+        const res31 = await http()
+          .post(`/api/workspaces/${workspace.slug}/projects/PB63/members`)
+          .set('Cookie', namCookie)
+          .set('Origin', ORIGIN)
+          .send({ members: [{ userId: anId, role: 'contributor' }] })
+          .expect(429);
+
+        expect(res31.body.retryAfterSeconds).toBeDefined();
+        expect(res31.body.retryAfterSeconds).toBeGreaterThan(0);
+      });
+
+      it('Concurrency: two project admins adding each other simultaneously does not deadlock', async () => {
+        const { workspace } = await seedWorkspace('owner-deadlock@openplany.dev', 'ws-deadlock');
+        const pId = await createProject(workspace.id, 'Project Deadlock', 'PDL');
+
+        const adminAId = await createUser('admin-a@openplany.dev', { is_superuser: false });
+        const adminBId = await createUser('admin-b@openplany.dev', { is_superuser: false });
+        await addWorkspaceMember(workspace.id, adminAId, 'member');
+        await addWorkspaceMember(workspace.id, adminBId, 'member');
+        await addProjectMember(pId, workspace.id, adminAId, 'admin');
+        await addProjectMember(pId, workspace.id, adminBId, 'admin');
+
+        const cookieA = await signInCookie('admin-a@openplany.dev');
+        const cookieB = await signInCookie('admin-b@openplany.dev');
+
+        const cand1Id = await createUser('cand1@openplany.dev', { is_superuser: false });
+        const cand2Id = await createUser('cand2@openplany.dev', { is_superuser: false });
+        await addWorkspaceMember(workspace.id, cand1Id, 'member');
+        await addWorkspaceMember(workspace.id, cand2Id, 'member');
+
+        const reqA = http()
+          .post(`/api/workspaces/${workspace.slug}/projects/PDL/members`)
+          .set('Cookie', cookieA)
+          .set('Origin', ORIGIN)
+          .send({ members: [{ userId: cand1Id, role: 'contributor' }] });
+
+        const reqB = http()
+          .post(`/api/workspaces/${workspace.slug}/projects/PDL/members`)
+          .set('Cookie', cookieB)
+          .set('Origin', ORIGIN)
+          .send({ members: [{ userId: cand2Id, role: 'contributor' }] });
+
+        const [resA, resB] = await Promise.all([reqA, reqB]);
+        expect(resA.status).toBe(201);
+        expect(resB.status).toBe(201);
+      });
+
+      it('Concurrency: workspace batch addition concurrent with adding member to project does not return 500', async () => {
+        const { workspace, cookie: ownerCookie } = await seedWorkspace('owner-ws-batch@openplany.dev', 'ws-batch');
+        const pId = await createProject(workspace.id, 'Project Batch', 'PBAT');
+
+        const namId = await createUser('nam-batch@openplany.dev', { is_superuser: false });
+        await addWorkspaceMember(workspace.id, namId, 'member');
+        await addProjectMember(pId, workspace.id, namId, 'admin');
+        const namCookie = await signInCookie('nam-batch@openplany.dev');
+
+        const targetP = await createUser('target-p@openplany.dev', { is_superuser: false });
+        const targetN = await createUser('target-n@openplany.dev', { is_superuser: false });
+
+        const wsAdd = http()
+          .post(`/api/workspaces/${workspace.slug}/members`)
+          .set('Cookie', ownerCookie)
+          .set('Origin', ORIGIN)
+          .send({
+            members: [
+              { userId: targetP, role: 'member' },
+              { userId: targetN, role: 'member' },
+            ],
+          });
+
+        const projAdd = http()
+          .post(`/api/workspaces/${workspace.slug}/projects/PBAT/members`)
+          .set('Cookie', namCookie)
+          .set('Origin', ORIGIN)
+          .send({ members: [{ userId: targetP, role: 'contributor' }] });
+
+        const [resWs, resProj] = await Promise.all([wsAdd, projAdd]);
+        expect(resWs.status).toBe(201);
+        expect([201, 409]).toContain(resProj.status);
+      });
+
+      it('AC-29: logs of search candidates and add members contain zero PII (no emails, names, search queries)', async () => {
+        const { workspace, namCookie, anId } = await seedB63Fixture();
+
+        const loggedMessages: string[] = [];
+        const logSpy = vi.spyOn(Logger.prototype, 'log').mockImplementation((msg: string) => {
+          loggedMessages.push(String(msg));
+        });
+        const debugSpy = vi.spyOn(Logger.prototype, 'debug').mockImplementation((msg: string) => {
+          loggedMessages.push(String(msg));
+        });
+
+        try {
+          // 1. Search candidate
+          await http()
+            .get(`/api/workspaces/${workspace.slug}/projects/PB63/member-candidates?email=an-b63@openplany.dev`)
+            .set('Cookie', namCookie)
+            .expect(200);
+
+          // 2. Add member
+          await http()
+            .post(`/api/workspaces/${workspace.slug}/projects/PB63/members`)
+            .set('Cookie', namCookie)
+            .set('Origin', ORIGIN)
+            .send({ members: [{ userId: anId, role: 'contributor' }] })
+            .expect(201);
+
+          expect(loggedMessages.some((m) => m.includes('project.members.candidates'))).toBe(true);
+          expect(loggedMessages.some((m) => m.includes('project.members.added'))).toBe(true);
+
+          for (const msg of loggedMessages) {
+            expect(msg).not.toContain('an-b63@openplany.dev');
+            expect(msg).not.toContain('an-b63');
+          }
+        } finally {
+          logSpy.mockRestore();
+          debugSpy.mockRestore();
+        }
+      });
     });
   });
 });

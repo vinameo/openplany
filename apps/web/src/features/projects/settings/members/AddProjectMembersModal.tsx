@@ -1,18 +1,23 @@
-import { useMemo } from 'react';
+import { useContext, useMemo } from 'react';
 import { notifications } from '@mantine/notifications';
 import {
   DEFAULT_ADDED_PROJECT_ROLE,
+  MEMBER_MESSAGES,
   PROJECT_ROLE_LABELS,
   type ProjectMemberCandidate,
   type ProjectRole,
 } from '@repo/contracts';
+import { ApiRequestError } from '../../../../lib/apiClient';
+import { CurrentProjectContext } from '../../detail/currentProjectContext';
 import {
   AddMembersModalFrame,
   type SubmitOutcome,
 } from '../../../members/AddMembersModalFrame';
+import { mapFieldErrors } from '../../../members/addMembersRows';
 import {
   addedMembersMessage,
   SOMETHING_WENT_WRONG,
+  tooManyAttemptsMessage,
 } from '../../../members/membersMessages';
 import {
   highestRole,
@@ -49,6 +54,7 @@ export function AddProjectMembersModal({
   canSeeEmail,
   onSubmit,
 }: AddProjectMembersModalProps) {
+  const currentProject = useContext(CurrentProjectContext);
   const addMutation = useAddProjectMembers(slug, identifier);
 
   const defaultRole: ProjectRole = useMemo(() => {
@@ -77,6 +83,7 @@ export function AddProjectMembersModal({
     if (onSubmit) return onSubmit;
     return async (
       body: { members: { userId: string; role: ProjectRole }[] },
+      rowIdByIndex: readonly string[],
     ): Promise<SubmitOutcome> => {
       try {
         const res = await addMutation.mutateAsync(body);
@@ -85,14 +92,54 @@ export function AddProjectMembersModal({
           message: addedMembersMessage(count),
         });
         return { kind: 'done' };
-      } catch {
+      } catch (err: unknown) {
+        if (err instanceof ApiRequestError) {
+          if (err.status === 403) {
+            const forbiddenMessage =
+              err.message === MEMBER_MESSAGES.roleNotAllowed
+                ? MEMBER_MESSAGES.roleNotAllowed
+                : MEMBER_MESSAGES.notAllowed;
+            notifications.show({
+              color: 'red',
+              message: forbiddenMessage,
+            });
+            await currentProject?.reload?.();
+            return { kind: 'done' };
+          }
+
+          if (err.status === 404) {
+            await currentProject?.reload?.();
+            return { kind: 'done' };
+          }
+
+          if (err.status === 429) {
+            return {
+              kind: 'alert',
+              message: tooManyAttemptsMessage(err.retryAfterSeconds ?? null),
+            };
+          }
+
+          if (err.status === 409 || err.status === 400) {
+            if (err.fields && Object.keys(err.fields).length > 0) {
+              const rowErrors = mapFieldErrors(err.fields, rowIdByIndex);
+              if (Object.keys(rowErrors).length > 0) {
+                return { kind: 'rowErrors', byRowId: rowErrors };
+              }
+            }
+            return {
+              kind: 'alert',
+              message: MEMBER_MESSAGES.checkFields,
+            };
+          }
+        }
+
         return {
           kind: 'alert',
           message: SOMETHING_WENT_WRONG,
         };
       }
     };
-  }, [onSubmit, addMutation]);
+  }, [onSubmit, addMutation, currentProject]);
 
   return (
     <AddMembersModalFrame<ProjectRole, ProjectMemberCandidate>

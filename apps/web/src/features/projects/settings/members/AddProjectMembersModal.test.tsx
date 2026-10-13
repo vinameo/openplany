@@ -8,6 +8,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { apiError, jsonResponse, mockFetch } from '../../../../test/fetchMock';
 import { AddProjectMembersModal } from './AddProjectMembersModal';
 
+import { CurrentProjectContext } from '../../detail/currentProjectContext';
+import type { SubmitOutcome } from '../../../members/AddMembersModalFrame';
+
 function renderModal({
   opened = true,
   onClose = vi.fn(),
@@ -15,7 +18,8 @@ function renderModal({
   identifier = 'P1',
   addableRoles = ['admin', 'contributor', 'commenter', 'guest'] as ProjectRole[],
   canSeeEmail = true,
-  onSubmit = vi.fn().mockResolvedValue({ kind: 'done' as const }),
+  onSubmit,
+  reload = vi.fn().mockResolvedValue(undefined),
 }: {
   opened?: boolean;
   onClose?: () => void;
@@ -23,7 +27,11 @@ function renderModal({
   identifier?: string;
   addableRoles?: ProjectRole[];
   canSeeEmail?: boolean;
-  onSubmit?: () => Promise<{ kind: 'done' }>;
+  onSubmit?: (
+    body: { members: { userId: string; role: ProjectRole }[] },
+    rowIdByIndex: readonly string[],
+  ) => Promise<SubmitOutcome>;
+  reload?: () => Promise<void>;
 } = {}) {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -33,24 +41,34 @@ function renderModal({
     },
   });
 
+  const projectContextValue = {
+    project: null,
+    status: 'ready' as const,
+    retry: vi.fn(),
+    reload,
+    applyProjectUpdate: vi.fn(),
+  };
+
   const result = render(
     <QueryClientProvider client={queryClient}>
-      <AppUiProvider>
-        <Notifications />
-        <AddProjectMembersModal
-          opened={opened}
-          onClose={onClose}
-          slug={slug}
-          identifier={identifier}
-          addableRoles={addableRoles}
-          canSeeEmail={canSeeEmail}
-          onSubmit={onSubmit}
-        />
-      </AppUiProvider>
+      <CurrentProjectContext.Provider value={projectContextValue}>
+        <AppUiProvider>
+          <Notifications />
+          <AddProjectMembersModal
+            opened={opened}
+            onClose={onClose}
+            slug={slug}
+            identifier={identifier}
+            addableRoles={addableRoles}
+            canSeeEmail={canSeeEmail}
+            onSubmit={onSubmit}
+          />
+        </AppUiProvider>
+      </CurrentProjectContext.Provider>
     </QueryClientProvider>,
   );
 
-  return { ...result, onClose, queryClient, onSubmit };
+  return { ...result, onClose, queryClient, onSubmit, reload };
 }
 
 afterEach(() => {
@@ -341,5 +359,273 @@ describe('AddProjectMembersModal', () => {
         screen.getByText('Too many searches. Try again in 45 seconds.'),
       ).toBeInTheDocument();
     });
+  });
+
+  it('AC-13: shows error under role select when server rejects with fields members.0.role, and clears error when role changed', async () => {
+    mockFetch({
+      'GET /api/workspaces/ws-1/projects/P1/member-candidates': () =>
+        jsonResponse(200, { candidates }),
+      'POST /api/workspaces/ws-1/projects/P1/members': () =>
+        apiError(409, 'MEMBERS_NOT_ADDABLE', "Some people couldn't be added", {
+          fields: {
+            'members.0.role': 'This role is above what their workspace role allows.',
+          },
+        }),
+    });
+
+    const user = userEvent.setup();
+    renderModal();
+
+    const input = screen.getByRole('textbox', { name: 'Email' });
+    await user.type(input, 'alice');
+    await waitFor(() => {
+      expect(
+        screen.getByRole('option', { name: /alice@openplany\.dev/i }),
+      ).toBeInTheDocument();
+    });
+    await user.click(
+      screen.getByRole('option', { name: /alice@openplany\.dev/i }),
+    );
+
+    const submitBtn = screen.getByRole('button', { name: 'Add member' });
+    await user.click(submitBtn);
+
+    expect(
+      await screen.findByText(
+        'This role is above what their workspace role allows.',
+      ),
+    ).toBeInTheDocument();
+
+    // Selecting another role clears the role error
+    const roleSelect = screen.getByRole('combobox', { name: 'Role' });
+    await user.click(roleSelect);
+    await user.click(screen.getByRole('option', { name: 'Project Admin' }));
+
+    await waitFor(() => {
+      expect(
+        screen.queryByText(
+          'This role is above what their workspace role allows.',
+        ),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  it('AC-17 & AC-20: shows error under email input when server rejects with fields members.0.userId, and clears error when candidate changed', async () => {
+    mockFetch({
+      'GET /api/workspaces/ws-1/projects/P1/member-candidates': () =>
+        jsonResponse(200, { candidates }),
+      'POST /api/workspaces/ws-1/projects/P1/members': () =>
+        apiError(409, 'MEMBERS_NOT_ADDABLE', "Some people couldn't be added", {
+          fields: {
+            'members.0.userId': 'This person is already a member of this project',
+          },
+        }),
+    });
+
+    const user = userEvent.setup();
+    renderModal();
+
+    const input = screen.getByRole('textbox', { name: 'Email' });
+    await user.type(input, 'alice');
+    await waitFor(() => {
+      expect(
+        screen.getByRole('option', { name: /alice@openplany\.dev/i }),
+      ).toBeInTheDocument();
+    });
+    await user.click(
+      screen.getByRole('option', { name: /alice@openplany\.dev/i }),
+    );
+
+    const submitBtn = screen.getByRole('button', { name: 'Add member' });
+    await user.click(submitBtn);
+
+    expect(
+      await screen.findByText(
+        'This person is already a member of this project',
+      ),
+    ).toBeInTheDocument();
+
+    // Clearing candidate clears the error
+    const clearBtn = screen.getByRole('button', { name: 'Clear selection' });
+    await user.click(clearBtn);
+
+    await waitFor(() => {
+      expect(
+        screen.queryByText(
+          'This person is already a member of this project',
+        ),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  it("AC-23: shows You can't assign this role toast, closes modal, and reloads project on 403 roleNotAllowed", async () => {
+    mockFetch({
+      'GET /api/workspaces/ws-1/projects/P1/member-candidates': () =>
+        jsonResponse(200, { candidates }),
+      'POST /api/workspaces/ws-1/projects/P1/members': () =>
+        apiError(403, 'FORBIDDEN', "You can't assign this role"),
+    });
+
+    const user = userEvent.setup();
+    const reload = vi.fn().mockResolvedValue(undefined);
+    const onClose = vi.fn();
+    renderModal({ reload, onClose });
+
+    const input = screen.getByRole('textbox', { name: 'Email' });
+    await user.type(input, 'alice');
+    await waitFor(() => {
+      expect(
+        screen.getByRole('option', { name: /alice@openplany\.dev/i }),
+      ).toBeInTheDocument();
+    });
+    await user.click(
+      screen.getByRole('option', { name: /alice@openplany\.dev/i }),
+    );
+
+    const submitBtn = screen.getByRole('button', { name: 'Add member' });
+    await user.click(submitBtn);
+
+    expect(
+      await screen.findByText("You can't assign this role"),
+    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalled();
+      expect(reload).toHaveBeenCalled();
+    });
+  });
+
+  it("AC-23: shows You don't have permission to do this toast, closes modal, and reloads project on generic 403", async () => {
+    mockFetch({
+      'GET /api/workspaces/ws-1/projects/P1/member-candidates': () =>
+        jsonResponse(200, { candidates }),
+      'POST /api/workspaces/ws-1/projects/P1/members': () =>
+        apiError(403, 'FORBIDDEN', 'Access denied'),
+    });
+
+    const user = userEvent.setup();
+    const reload = vi.fn().mockResolvedValue(undefined);
+    const onClose = vi.fn();
+    renderModal({ reload, onClose });
+
+    const input = screen.getByRole('textbox', { name: 'Email' });
+    await user.type(input, 'alice');
+    await waitFor(() => {
+      expect(
+        screen.getByRole('option', { name: /alice@openplany\.dev/i }),
+      ).toBeInTheDocument();
+    });
+    await user.click(
+      screen.getByRole('option', { name: /alice@openplany\.dev/i }),
+    );
+
+    const submitBtn = screen.getByRole('button', { name: 'Add member' });
+    await user.click(submitBtn);
+
+    expect(
+      await screen.findByText("You don't have permission to do this"),
+    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalled();
+      expect(reload).toHaveBeenCalled();
+    });
+  });
+
+  it('AC-22: closes modal and reloads project on 404', async () => {
+    mockFetch({
+      'GET /api/workspaces/ws-1/projects/P1/member-candidates': () =>
+        jsonResponse(200, { candidates }),
+      'POST /api/workspaces/ws-1/projects/P1/members': () =>
+        apiError(404, 'PROJECT_NOT_FOUND', 'Project not found'),
+    });
+
+    const user = userEvent.setup();
+    const reload = vi.fn().mockResolvedValue(undefined);
+    const onClose = vi.fn();
+    renderModal({ reload, onClose });
+
+    const input = screen.getByRole('textbox', { name: 'Email' });
+    await user.type(input, 'alice');
+    await waitFor(() => {
+      expect(
+        screen.getByRole('option', { name: /alice@openplany\.dev/i }),
+      ).toBeInTheDocument();
+    });
+    await user.click(
+      screen.getByRole('option', { name: /alice@openplany\.dev/i }),
+    );
+
+    const submitBtn = screen.getByRole('button', { name: 'Add member' });
+    await user.click(submitBtn);
+
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalled();
+      expect(reload).toHaveBeenCalled();
+    });
+  });
+
+  it('shows 429 rate limit alert with retryAfterSeconds on add submit', async () => {
+    mockFetch({
+      'GET /api/workspaces/ws-1/projects/P1/member-candidates': () =>
+        jsonResponse(200, { candidates }),
+      'POST /api/workspaces/ws-1/projects/P1/members': () =>
+        apiError(429, 'RATE_LIMITED', 'Too many attempts', {
+          retryAfterSeconds: 20,
+        }),
+    });
+
+    const user = userEvent.setup();
+    renderModal();
+
+    const input = screen.getByRole('textbox', { name: 'Email' });
+    await user.type(input, 'alice');
+    await waitFor(() => {
+      expect(
+        screen.getByRole('option', { name: /alice@openplany\.dev/i }),
+      ).toBeInTheDocument();
+    });
+    await user.click(
+      screen.getByRole('option', { name: /alice@openplany\.dev/i }),
+    );
+
+    const submitBtn = screen.getByRole('button', { name: 'Add member' });
+    await user.click(submitBtn);
+
+    expect(
+      await screen.findByText('Too many attempts. Try again in 20 seconds.'),
+    ).toBeInTheDocument();
+  });
+
+  it('shows checkFields alert when 409 fields do not match any row', async () => {
+    mockFetch({
+      'GET /api/workspaces/ws-1/projects/P1/member-candidates': () =>
+        jsonResponse(200, { candidates }),
+      'POST /api/workspaces/ws-1/projects/P1/members': () =>
+        apiError(409, 'MEMBERS_NOT_ADDABLE', "Some people couldn't be added", {
+          fields: {
+            'members.99.userId': 'Unknown row error',
+          },
+        }),
+    });
+
+    const user = userEvent.setup();
+    renderModal();
+
+    const input = screen.getByRole('textbox', { name: 'Email' });
+    await user.type(input, 'alice');
+    await waitFor(() => {
+      expect(
+        screen.getByRole('option', { name: /alice@openplany\.dev/i }),
+      ).toBeInTheDocument();
+    });
+    await user.click(
+      screen.getByRole('option', { name: /alice@openplany\.dev/i }),
+    );
+
+    const submitBtn = screen.getByRole('button', { name: 'Add member' });
+    await user.click(submitBtn);
+
+    expect(
+      await screen.findByText('Check the highlighted fields'),
+    ).toBeInTheDocument();
   });
 });
