@@ -1,19 +1,24 @@
-import type { WorkspaceRole } from './workspace.js';
-import type { WorkspacePermission } from './workspacePermissions.js';
-import type { ProjectRole } from './projectRoles.js';
-import type { ProjectPermission } from './projectPermissions.js';
-import type { RoleScope } from './rolePermissionRules.js';
+import type { WorkspaceRole } from "./workspace.js";
+import type { WorkspacePermission } from "./workspacePermissions.js";
+import type { ProjectRole } from "./projectRoles.js";
+import type { ProjectPermission } from "./projectPermissions.js";
+import type { RoleScope } from "./rolePermissionRules.js";
+import type { ProjectAccessPolicy } from "./projectAccessPolicy.js";
+
+export interface ProjectAccessPolicyResponse extends ProjectAccessPolicy {
+  readonly locked: true;
+}
 
 export type RoleResponse =
   | {
-      scope: 'workspace';
+      scope: "workspace";
       key: WorkspaceRole;
       locked: boolean;
       version: number;
       permissions: WorkspacePermission[];
     }
   | {
-      scope: 'project';
+      scope: "project";
       key: ProjectRole;
       locked: boolean;
       version: number;
@@ -31,6 +36,7 @@ export type PermissionResponse = PermissionItem;
 export interface RolesResponse {
   roles: RoleResponse[];
   permissions: PermissionItem[];
+  projectAccessPolicies: ProjectAccessPolicyResponse[];
 }
 
 export interface RolePermissionsChange {
@@ -46,4 +52,3 @@ export interface UpdateRolePermissionsRequest {
 
 export const ROLE_PERMISSIONS_CHANGES_MAX = 8;
 export const ROLE_PERMISSIONS_PER_ROLE_MAX = 100;
-

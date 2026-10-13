@@ -1,6 +1,10 @@
-import { Table, VisuallyHidden } from "@mantine/core";
-import { PROJECT_ROLE_LABELS } from "@repo/contracts";
-import type { RolesOverview } from "./rolesOverview";
+import { Select, Table, Tooltip, VisuallyHidden } from "@mantine/core";
+import {
+  type ProjectRole,
+  PROJECT_ROLE_LABELS,
+  PROJECT_ROLES,
+} from "@repo/contracts";
+import type { ProjectAccessRow, RolesOverview } from "./rolesOverview";
 import classes from "./RoleTables.module.css";
 
 interface WorkspaceRolesTableProps {
@@ -72,15 +76,66 @@ export function ProjectRolesTable({ rows }: ProjectRolesTableProps) {
 }
 
 interface ProjectAccessTableProps {
-  rows: RolesOverview["projectAccess"];
+  rows: ProjectAccessRow[];
+}
+
+function renderCell(
+  workspaceRoleLabel: string,
+  columnName: string,
+  role: ProjectRole | null,
+  emptyVisuallyHiddenText: string,
+  selectData: { value: string; label: string }[],
+) {
+  if (role === null) {
+    return (
+      <span>
+        <span aria-hidden="true">—</span>
+        <VisuallyHidden>{emptyVisuallyHiddenText}</VisuallyHidden>
+      </span>
+    );
+  }
+
+  const tooltipId = `policy-locked-tooltip-${workspaceRoleLabel}-${columnName}`
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-");
+
+  return (
+    <Tooltip
+      id={tooltipId}
+      label="Set by OpenPlany. It can't be changed here."
+      withArrow
+      multiline
+      events={{ hover: true, focus: true, touch: false }}
+    >
+      <span
+        tabIndex={0}
+        aria-describedby={tooltipId}
+        className={classes.selectWrapper}
+      >
+        <Select
+          data={selectData}
+          value={role}
+          disabled
+          size="xs"
+          aria-label={`${workspaceRoleLabel}: ${columnName}`}
+          styles={{ input: { pointerEvents: "none" } }}
+        />
+      </span>
+    </Tooltip>
+  );
 }
 
 export function ProjectAccessTable({ rows }: ProjectAccessTableProps) {
+  const selectData = PROJECT_ROLES.map((role) => ({
+    value: role,
+    label: PROJECT_ROLE_LABELS[role],
+  }));
+
   return (
-    <Table.ScrollContainer minWidth={320}>
+    <Table.ScrollContainer minWidth={540}>
       <Table withTableBorder withColumnBorders className={classes.table}>
         <Table.Caption>
-          <VisuallyHidden>Project access by workspace role</VisuallyHidden>
+          <VisuallyHidden>Workspace roles in projects</VisuallyHidden>
         </Table.Caption>
         <Table.Thead>
           <Table.Tr>
@@ -91,7 +146,10 @@ export function ProjectAccessTable({ rows }: ProjectAccessTableProps) {
               Every project
             </Table.Th>
             <Table.Th scope="col" className={classes.projectRoleCol}>
-              Highest project role
+              Lowest role when added
+            </Table.Th>
+            <Table.Th scope="col" className={classes.projectRoleCol}>
+              Highest role when added
             </Table.Th>
           </Table.Tr>
         </Table.Thead>
@@ -102,16 +160,32 @@ export function ProjectAccessTable({ rows }: ProjectAccessTableProps) {
                 {row.label}
               </Table.Th>
               <Table.Td>
-                {row.everyProject ? (
-                  PROJECT_ROLE_LABELS[row.everyProject]
-                ) : (
-                  <span>
-                    <span aria-hidden="true">—</span>
-                    <VisuallyHidden>Only projects they're added to</VisuallyHidden>
-                  </span>
+                {renderCell(
+                  row.label,
+                  "Every project",
+                  row.everyProject,
+                  "Only projects they're added to",
+                  selectData,
                 )}
               </Table.Td>
-              <Table.Td>{PROJECT_ROLE_LABELS[row.highestProjectRole]}</Table.Td>
+              <Table.Td>
+                {renderCell(
+                  row.label,
+                  "Lowest role when added",
+                  row.lowest,
+                  "Not added to projects",
+                  selectData,
+                )}
+              </Table.Td>
+              <Table.Td>
+                {renderCell(
+                  row.label,
+                  "Highest role when added",
+                  row.highest,
+                  "Not added to projects",
+                  selectData,
+                )}
+              </Table.Td>
             </Table.Tr>
           ))}
         </Table.Tbody>
@@ -119,4 +193,3 @@ export function ProjectAccessTable({ rows }: ProjectAccessTableProps) {
     </Table.ScrollContainer>
   );
 }
-

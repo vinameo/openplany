@@ -1,8 +1,10 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import {
   addableProjectRoleRange,
   addableProjectRoles,
   canAddProjectMembers,
+  hasImplicitProjectAccess,
+  isProjectRoleOutOfRange,
   MEMBER_CANDIDATE_LIMIT,
   MEMBER_MESSAGES,
   PROJECT_ERROR_MESSAGES,
@@ -13,6 +15,7 @@ import {
   PROJECT_ROLES,
   workspaceRolesWithImplicitProjectAccess,
   type AddProjectMembersResponse,
+  type ProjectAccessPolicies,
   type ProjectActor,
   type ProjectMemberCandidate,
   type ProjectMemberCandidateListResponse,
@@ -28,12 +31,16 @@ import {
   duplicateMemberRowFields,
   unknownRoleFields,
 } from '../../common/memberRows.js';
+import { ProjectAccessPolicyStore } from '../../roles/projectAccessPolicyStore.js';
 import type { MemberWorkspace } from '../../workspaces/repositories/workspaces.repository.js';
 import type { AccessibleProject } from '../access/projectAccessResolver.js';
 import { ProjectEvents } from '../events/projectEvents.js';
 import { ProjectsService } from '../projects.service.js';
 import type { AddProjectMembersDto } from './dto/addProjectMembers.dto.js';
-import { toProjectMemberResponse } from './dto/projectMemberResponse.js';
+import {
+  toInheritedProjectMemberResponse,
+  toProjectMemberResponse,
+} from './dto/projectMemberResponse.js';
 import { canSeeMemberEmails, toProjectActor } from './projectMemberActor.js';
 import { ProjectMembersRepository } from './projectMembers.repository.js';
 
@@ -50,8 +57,9 @@ interface MembersView {
 function candidateStatus(
   workspaceRole: WorkspaceRole,
   alreadyMember: boolean,
+  policies: ProjectAccessPolicies,
 ): ProjectMemberCandidateStatus {
-  if (workspaceRolesWithImplicitProjectAccess().includes(workspaceRole)) {
+  if (hasImplicitProjectAccess(policies[workspaceRole])) {
     return 'workspace_admin';
   }
   return alreadyMember ? 'already_member' : 'addable';
@@ -65,21 +73,29 @@ function rowRejection(
     alreadyMember: boolean;
   },
   role: ProjectRole,
+  policies: ProjectAccessPolicies,
 ): ProjectMemberNotAddableReason | null {
-  const status = candidateStatus(target.workspaceRole, target.alreadyMember);
+  const status = candidateStatus(
+    target.workspaceRole,
+    target.alreadyMember,
+    policies,
+  );
   if (status !== 'addable') return status;
-  return addableProjectRoles(actor, target).includes(role)
+  return addableProjectRoles(actor, target, policies).includes(role)
     ? null
     : 'role_not_allowed';
 }
 
 @Injectable()
 export class ProjectMembersService {
+  private readonly logger = new Logger(ProjectMembersService.name);
+
   constructor(
     private readonly repository: ProjectMembersRepository,
     private readonly events: ProjectEvents,
     private readonly projectsService: ProjectsService,
     private readonly clock: Clock,
+    private readonly policyStore: ProjectAccessPolicyStore,
   ) {}
 
   async list(
@@ -88,6 +104,7 @@ export class ProjectMembersService {
     actorId: string,
     requestId?: string,
   ): Promise<ProjectMemberListResponse> {
+    const policies = this.policyStore.policies();
     const { actor, includeEmail } = this.viewOf(workspace, accessible, actorId);
     const canAdd = canAddProjectMembers(
       accessible.access.permissions,
@@ -98,20 +115,77 @@ export class ProjectMembersService {
       (a, b) => PROJECT_ROLE_RANK[b] - PROJECT_ROLE_RANK[a],
     );
 
-    const { members: rows, total } = await this.repository.list(
-      accessible.project.id,
-      {
+    const implicitRoles = workspaceRolesWithImplicitProjectAccess(policies);
+    const showInherited = workspace.permissions.includes('workspace.members.view');
+
+    const [assigned, inherited] = await Promise.all([
+      this.repository.list(accessible.project.id, {
         includeEmail,
         roleOrder,
         limit: PROJECT_MEMBER_LIST_MAX,
-      },
+        implicitRoles,
+      }),
+      showInherited && implicitRoles.length > 0
+        ? this.repository.listInherited(workspace.id, {
+            implicitRoles,
+            includeEmail,
+            limit: PROJECT_MEMBER_LIST_MAX,
+          })
+        : Promise.resolve({ members: [], total: 0 }),
+    ]);
+
+    let outOfRangeCount = 0;
+    for (const row of assigned.members) {
+      if (
+        isProjectRoleOutOfRange(
+          { workspaceRole: row.workspaceRole, assignedRole: row.assignedRole },
+          policies,
+        )
+      ) {
+        outOfRangeCount++;
+      }
+    }
+    if (outOfRangeCount > 0) {
+      this.logger.warn(
+        `project.members.out_of_range projectId=${accessible.project.id} count=${outOfRangeCount}`,
+      );
+    }
+
+    const assignedMembers = assigned.members.map((row) =>
+      toProjectMemberResponse(row, { includeEmail, policies }),
+    );
+    const inheritedMembers = inherited.members.map((row) =>
+      toInheritedProjectMemberResponse(row, { includeEmail, policies }),
     );
 
-    const members = rows.map((row) =>
-      toProjectMemberResponse(row, { includeEmail }),
-    );
+    const total = assigned.total + inherited.total;
 
-    const truncated = total > members.length;
+    // When combined count exceeds PROJECT_MEMBER_LIST_MAX, keep inherited first
+    const remaining = Math.max(
+      0,
+      PROJECT_MEMBER_LIST_MAX - inheritedMembers.length,
+    );
+    const combined = [
+      ...inheritedMembers,
+      ...assignedMembers.slice(0, remaining),
+    ];
+
+    // Return order: role rank descending -> name -> memberId
+    combined.sort((a, b) => {
+      const rankDiff = PROJECT_ROLE_RANK[b.role] - PROJECT_ROLE_RANK[a.role];
+      if (rankDiff !== 0) return rankDiff;
+      const nameA = (
+        `${a.firstName} ${a.lastName}`.trim() || a.displayName
+      ).toLowerCase();
+      const nameB = (
+        `${b.firstName} ${b.lastName}`.trim() || b.displayName
+      ).toLowerCase();
+      const nameDiff = nameA.localeCompare(nameB);
+      if (nameDiff !== 0) return nameDiff;
+      return a.userId.localeCompare(b.userId);
+    });
+
+    const truncated = total > combined.length;
     if (truncated) {
       await this.events.membersListTruncated({
         projectId: accessible.project.id,
@@ -120,10 +194,10 @@ export class ProjectMembersService {
       });
     }
 
-    const addableRoles = canAdd ? addableProjectRoleRange(actor) : [];
+    const addableRoles = canAdd ? addableProjectRoleRange(actor, policies) : [];
 
     return {
-      members,
+      members: combined,
       total,
       truncated,
       addableRoles,
@@ -137,6 +211,7 @@ export class ProjectMembersService {
     query: string,
     requestId?: string,
   ): Promise<ProjectMemberCandidateListResponse> {
+    const policies = this.policyStore.policies();
     const { actor, includeEmail } = this.viewOf(workspace, accessible, actorId);
     const mode: 'contains' | 'exact' = includeEmail ? 'contains' : 'exact';
 
@@ -149,14 +224,22 @@ export class ProjectMembersService {
     });
 
     const candidates: ProjectMemberCandidate[] = rows.map((row) => {
-      const status = candidateStatus(row.workspaceRole, row.alreadyMember);
+      const status = candidateStatus(
+        row.workspaceRole,
+        row.alreadyMember,
+        policies,
+      );
 
       const addableRoles =
         status === 'addable'
-          ? addableProjectRoles(actor, {
-              userId: row.userId,
-              workspaceRole: row.workspaceRole,
-            })
+          ? addableProjectRoles(
+              actor,
+              {
+                userId: row.userId,
+                workspaceRole: row.workspaceRole,
+              },
+              policies,
+            )
           : [];
 
       const email = mode === 'contains' ? (row.email ?? query) : query;
@@ -170,6 +253,7 @@ export class ProjectMembersService {
         avatarUrl: row.avatarUrl,
         status,
         addableRoles,
+        workspaceRole: row.workspaceRole,
       };
     });
 
@@ -192,8 +276,24 @@ export class ProjectMembersService {
     dto: AddProjectMembersDto,
     requestId?: string,
   ): Promise<AddProjectMembersResponse> {
+    const policies = this.policyStore.policies();
     const { actor, includeEmail } = this.viewOf(workspace, accessible, actorId);
 
+    // 1. Permission check (before parsing rows, so outsiders cannot probe inputs)
+    if (
+      !canAddProjectMembers(
+        accessible.access.permissions,
+        workspace.permissions,
+      )
+    ) {
+      throw new ApiException(
+        HttpStatus.FORBIDDEN,
+        'FORBIDDEN',
+        MEMBER_MESSAGES.notAllowed,
+      );
+    }
+
+    // 2. Reject intra-batch duplicate userIds
     const dup = duplicateMemberRowFields(dto.members);
     if (Object.keys(dup).length > 0) {
       throw new ApiException(
@@ -204,8 +304,10 @@ export class ProjectMembersService {
       );
     }
 
-    const range = addableProjectRoleRange(actor);
-    if (dto.members.some((m) => !range.includes(m.role))) {
+    // 3. Early check on actor role range (before database locks)
+    const range = addableProjectRoleRange(actor, policies);
+    const outsideRange = dto.members.some((m) => !range.includes(m.role));
+    if (outsideRange) {
       await this.events.addRoleForbidden({
         projectId: accessible.project.id,
         actorId,
@@ -228,8 +330,9 @@ export class ProjectMembersService {
       members: dto.members,
       canAdd: (a) =>
         canAddProjectMembers(a.projectPermissions, a.workspacePermissions),
-      roleRange: (a) => addableProjectRoleRange(a.actor),
-      rowRejection: (a, target, role) => rowRejection(a.actor, target, role),
+      roleRange: (a) => addableProjectRoleRange(a.actor, policies),
+      rowRejection: (a, target, role) =>
+        rowRejection(a.actor, target, role, policies),
     });
 
     if (result.status === 'project_gone') {
@@ -301,7 +404,7 @@ export class ProjectMembersService {
 
     return {
       members: result.members.map((m) =>
-        toProjectMemberResponse(m, { includeEmail }),
+        toProjectMemberResponse(m, { includeEmail, policies }),
       ),
       project,
     };

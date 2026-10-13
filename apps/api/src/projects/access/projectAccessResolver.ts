@@ -1,11 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import {
+  hasImplicitProjectAccess,
+  isProjectRoleOutOfRange,
   PROJECT_LIST_MAX,
   PROJECT_ROLES,
   resolveProjectAccess,
-  workspaceRolesWithImplicitProjectAccess,
   type ProjectAccess,
   type ProjectAccessInput,
+  type ProjectAccessPolicies,
   type ProjectRole,
   type ProjectRolePermissions,
   type WorkspaceRole,
@@ -20,6 +22,7 @@ import {
   loadRolePermissions,
   rolePermissionsKey,
 } from '../../roles/rolePermissionsQuery.js';
+import { ProjectAccessPolicyStore } from '../../roles/projectAccessPolicyStore.js';
 import { toProjectRow, type ProjectRow } from '../dto/projectResponse.js';
 import { Project } from '../entities/project.entity.js';
 import { ProjectMember } from '../entities/projectMember.entity.js';
@@ -93,13 +96,19 @@ interface AccessScope {
 
 @Injectable()
 export class TypeOrmProjectAccessResolver extends ProjectAccessResolver {
-  constructor(private readonly dataSource: DataSource) {
+  private readonly logger = new Logger(TypeOrmProjectAccessResolver.name);
+
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly policyStore: ProjectAccessPolicyStore,
+  ) {
     super();
   }
 
   async forWorkspace(viewer: ProjectViewer): Promise<AccessibleProjectList> {
+    const policies = this.policyStore.policies();
     const manager = this.dataSource.manager;
-    const scope = await accessScope(manager, viewer);
+    const scope = await accessScope(manager, viewer, policies);
     if (scope === null) return { projects: [], total: 0 };
 
     const projects = await manager.find(Project, {
@@ -113,10 +122,28 @@ export class TypeOrmProjectAccessResolver extends ProjectAccessResolver {
         : await manager.count(Project, { where: scope.where });
     if (projects.length === 0) return { projects: [], total };
 
+    let outOfRangeCount = 0;
+    for (const project of projects) {
+      const assignedRole = scope.assignedRoles.get(project.id) ?? null;
+      if (
+        isProjectRoleOutOfRange(
+          { workspaceRole: viewer.workspaceRole, assignedRole },
+          policies,
+        )
+      ) {
+        outOfRangeCount++;
+      }
+    }
+    if (outOfRangeCount > 0) {
+      this.logger.warn(
+        `project.role.out_of_range userId=${viewer.userId} workspaceRole=${viewer.workspaceRole} count=${outOfRangeCount}`,
+      );
+    }
+
     const matrix = await loadProjectRoleMatrix(manager);
     return {
       projects: projects.flatMap((project) =>
-        toAccessibleProject(project, viewer, scope, matrix),
+        toAccessibleProject(project, viewer, scope, policies, matrix),
       ),
       total,
     };
@@ -125,8 +152,14 @@ export class TypeOrmProjectAccessResolver extends ProjectAccessResolver {
   async forProject(
     viewer: ProjectViewer & { projectId: string },
   ): Promise<AccessibleProject | null> {
+    const policies = this.policyStore.policies();
     const manager = this.dataSource.manager;
-    const scope = await accessScope(manager, viewer, viewer.projectId);
+    const scope = await accessScope(
+      manager,
+      viewer,
+      policies,
+      viewer.projectId,
+    );
     if (scope === null) return null;
 
     const project = await manager.findOne(Project, {
@@ -134,13 +167,28 @@ export class TypeOrmProjectAccessResolver extends ProjectAccessResolver {
     });
     if (project === null) return null;
 
+    const assignedRole = scope.assignedRoles.get(project.id) ?? null;
+    if (
+      isProjectRoleOutOfRange(
+        { workspaceRole: viewer.workspaceRole, assignedRole },
+        policies,
+      )
+    ) {
+      this.logger.warn(
+        `project.role.out_of_range userId=${viewer.userId} workspaceRole=${viewer.workspaceRole} count=1 projectId=${project.id}`,
+      );
+    }
+
     const matrix = await loadProjectRoleMatrix(manager);
-    return toAccessibleProject(project, viewer, scope, matrix)[0] ?? null;
+    return (
+      toAccessibleProject(project, viewer, scope, policies, matrix)[0] ?? null
+    );
   }
 
   async forIdentifier(
     viewer: ProjectViewer & { identifier: string },
   ): Promise<ProjectLookup> {
+    const policies = this.policyStore.policies();
     const manager = this.dataSource.manager;
     const project = await manager.findOne(Project, {
       where: {
@@ -151,11 +199,29 @@ export class TypeOrmProjectAccessResolver extends ProjectAccessResolver {
     });
     if (project === null) return { kind: 'not_found' };
 
-    const scope = await accessScope(manager, viewer, project.id);
+    const scope = await accessScope(manager, viewer, policies, project.id);
     if (scope === null) return { kind: 'forbidden', projectId: project.id };
 
+    const assignedRole = scope.assignedRoles.get(project.id) ?? null;
+    if (
+      isProjectRoleOutOfRange(
+        { workspaceRole: viewer.workspaceRole, assignedRole },
+        policies,
+      )
+    ) {
+      this.logger.warn(
+        `project.role.out_of_range userId=${viewer.userId} workspaceRole=${viewer.workspaceRole} count=1 projectId=${project.id}`,
+      );
+    }
+
     const matrix = await loadProjectRoleMatrix(manager);
-    const [accessible] = toAccessibleProject(project, viewer, scope, matrix);
+    const [accessible] = toAccessibleProject(
+      project,
+      viewer,
+      scope,
+      policies,
+      matrix,
+    );
     return accessible === undefined
       ? { kind: 'forbidden', projectId: project.id }
       : { kind: 'accessible', project: accessible };
@@ -167,6 +233,7 @@ export class TypeOrmProjectAccessResolver extends ProjectAccessResolver {
   ): Promise<ProjectAccess | null> {
     return resolveProjectAccess(
       membership,
+      this.policyStore.policies(),
       await loadProjectRoleMatrix(manager),
     );
   }
@@ -180,6 +247,7 @@ export class TypeOrmProjectAccessResolver extends ProjectAccessResolver {
 async function accessScope(
   manager: EntityManager,
   viewer: ProjectViewer,
+  policies: ProjectAccessPolicies,
   projectId?: string,
 ): Promise<AccessScope | null> {
   const memberships = await manager.find(ProjectMember, {
@@ -199,9 +267,7 @@ async function accessScope(
     ...ACTIVE_PROJECT,
     workspaceId: viewer.workspaceId,
   };
-  if (
-    workspaceRolesWithImplicitProjectAccess().includes(viewer.workspaceRole)
-  ) {
+  if (hasImplicitProjectAccess(policies[viewer.workspaceRole])) {
     return { where: base, assignedRoles };
   }
   if (assignedRoles.size === 0) return null;
@@ -230,6 +296,7 @@ function toAccessibleProject(
   project: Project,
   viewer: ProjectViewer,
   scope: AccessScope,
+  policies: ProjectAccessPolicies,
   matrix: ProjectRolePermissions,
 ): AccessibleProject[] {
   const access = resolveProjectAccess(
@@ -237,6 +304,7 @@ function toAccessibleProject(
       workspaceRole: viewer.workspaceRole,
       assignedRole: scope.assignedRoles.get(project.id) ?? null,
     },
+    policies,
     matrix,
   );
   if (access === null) return [];

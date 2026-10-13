@@ -34,10 +34,13 @@ import {
   PROJECT_LOOKUP_LIMITER,
 } from './tokens.js';
 
+import { RolesModule } from '../roles/roles.module.js';
+
 @Module({
   imports: [
     AuthModule,
     WorkspacesModule,
+    RolesModule,
     TypeOrmModule.forFeature([
       Project,
       ProjectMember,

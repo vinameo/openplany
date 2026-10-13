@@ -9,7 +9,7 @@ import {
   permissionGrantProblem,
   PROJECT_ROLE_LABELS,
   PROJECT_ROLES,
-  WORKSPACE_ROLE_LABELS,
+  WORKSPACE_ROLE_QUALIFIED_LABELS,
   WORKSPACE_ROLES,
 } from "@repo/contracts";
 import { permissionGroupOf } from "./permissionLabels";
@@ -83,7 +83,7 @@ export function buildPermissionMatrix(
         serverRole?.locked ?? isRoleLocked({ scope: "workspace", key });
       return {
         ref: { scope: "workspace", key } as RoleRef,
-        label: WORKSPACE_ROLE_LABELS[key],
+        label: WORKSPACE_ROLE_QUALIFIED_LABELS[key],
         locked,
       };
     });
@@ -131,7 +131,9 @@ export function buildPermissionMatrix(
       const serverRole = roles.find(
         (r) => r.scope === role.ref.scope && r.key === role.ref.key,
       );
-      const serverPerms = (serverRole ? serverRole.permissions : []) as readonly string[];
+      const serverPerms = (
+        serverRole ? serverRole.permissions : []
+      ) as readonly string[];
       const effectivePerms =
         draft[roleId] !== undefined ? draft[roleId] : serverPerms;
 
@@ -195,8 +197,11 @@ export function togglePermission(
   const serverRole = roles.find(
     (r) => r.scope === role.scope && r.key === role.key,
   );
-  const serverPerms = (serverRole ? serverRole.permissions : []) as readonly string[];
-  const currentPerms = draft[roleId] !== undefined ? draft[roleId] : serverPerms;
+  const serverPerms = (
+    serverRole ? serverRole.permissions : []
+  ) as readonly string[];
+  const currentPerms =
+    draft[roleId] !== undefined ? draft[roleId] : serverPerms;
 
   const isChecked = currentPerms.includes(permission);
   const nextPerms = isChecked
@@ -260,7 +265,9 @@ export function diffDraft(
     const serverRole = roles.find(
       (r) => r.scope === ref.scope && r.key === ref.key,
     );
-    const serverPerms = (serverRole ? serverRole.permissions : []) as readonly string[];
+    const serverPerms = (
+      serverRole ? serverRole.permissions : []
+    ) as readonly string[];
     const draftPerms = draft[roleId];
 
     const serverSet = new Set(serverPerms);

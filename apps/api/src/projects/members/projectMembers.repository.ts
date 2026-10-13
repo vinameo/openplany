@@ -6,11 +6,21 @@ import type {
   WorkspacePermission,
   WorkspaceRole,
 } from '@repo/contracts';
-import type { ProjectMemberDbRow } from './dto/projectMemberResponse.js';
+import type {
+  InheritedMemberDbRow,
+  ProjectMemberDbRow,
+} from './dto/projectMemberResponse.js';
 
 export interface ListProjectMembersOpts {
   includeEmail: boolean;
   roleOrder: readonly ProjectRole[];
+  limit: number;
+  implicitRoles?: readonly WorkspaceRole[];
+}
+
+export interface ListInheritedProjectMembersOpts {
+  implicitRoles: readonly WorkspaceRole[];
+  includeEmail: boolean;
   limit: number;
 }
 
@@ -86,6 +96,11 @@ export abstract class ProjectMembersRepository {
     projectId: string,
     opts: ListProjectMembersOpts,
   ): Promise<{ members: ProjectMemberDbRow[]; total: number }>;
+
+  abstract listInherited(
+    workspaceId: string,
+    opts: ListInheritedProjectMembersOpts,
+  ): Promise<{ members: InheritedMemberDbRow[]; total: number }>;
 
   abstract searchCandidates(
     input: SearchProjectMemberCandidatesInput,

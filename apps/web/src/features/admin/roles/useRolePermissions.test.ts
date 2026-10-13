@@ -1,13 +1,27 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
-import { act } from "react";
+import { createElement, type ReactNode, act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { apiError, jsonResponse, mockFetch } from "../../../test/fetchMock";
 import { makeDefaultRolesResponse } from "./test/rolesFixtures";
 import { useRolePermissions } from "./useRolePermissions";
+import { rolesLoadError } from "./api/adminRoleQueries";
 
 afterEach(() => {
   vi.unstubAllGlobals();
 });
+
+function createWrapper() {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+  return ({ children }: { children: ReactNode }) =>
+    createElement(QueryClientProvider, { client: queryClient }, children);
+}
 
 describe("useRolePermissions", () => {
   const defaultRolesResponse = makeDefaultRolesResponse();
@@ -17,7 +31,8 @@ describe("useRolePermissions", () => {
       "GET /api/admin/roles": () => jsonResponse(200, defaultRolesResponse),
     });
 
-    const { result } = renderHook(() => useRolePermissions());
+    const wrapper = createWrapper();
+    const { result } = renderHook(() => useRolePermissions(), { wrapper });
 
     expect(result.current.state.status).toBe("loading");
 
@@ -29,6 +44,9 @@ describe("useRolePermissions", () => {
       expect(result.current.state.roles).toEqual(defaultRolesResponse.roles);
       expect(result.current.state.permissions).toEqual(
         defaultRolesResponse.permissions,
+      );
+      expect(result.current.state.projectAccessPolicies).toEqual(
+        defaultRolesResponse.projectAccessPolicies,
       );
     }
   });
@@ -44,11 +62,16 @@ describe("useRolePermissions", () => {
       },
     });
 
-    const { result } = renderHook(() => useRolePermissions());
+    const wrapper = createWrapper();
+    const { result } = renderHook(() => useRolePermissions(), { wrapper });
 
     await waitFor(() => {
       expect(result.current.state.status).toBe("error");
     });
+
+    if (result.current.state.status === "error") {
+      expect(result.current.state.message).toBe(rolesLoadError);
+    }
 
     // Trigger reload
     shouldFail = false;
@@ -56,17 +79,19 @@ describe("useRolePermissions", () => {
       result.current.reload();
     });
 
-    expect(result.current.state.status).toBe("loading");
-
     await waitFor(() => {
       expect(result.current.state.status).toBe("ready");
     });
   });
 
   describe("save", () => {
-    it("returns saved and updates roles on 200", async () => {
+    it("returns saved and updates cache via setQueryData on 200 without refetching", async () => {
+      let getCallCount = 0;
       mockFetch({
-        "GET /api/admin/roles": () => jsonResponse(200, defaultRolesResponse),
+        "GET /api/admin/roles": () => {
+          getCallCount++;
+          return jsonResponse(200, defaultRolesResponse);
+        },
         "PATCH /api/admin/role-permissions": () => {
           const updated = makeDefaultRolesResponse();
           const member = updated.roles.find(
@@ -78,8 +103,10 @@ describe("useRolePermissions", () => {
         },
       });
 
-      const { result } = renderHook(() => useRolePermissions());
+      const wrapper = createWrapper();
+      const { result } = renderHook(() => useRolePermissions(), { wrapper });
       await waitFor(() => expect(result.current.state.status).toBe("ready"));
+      expect(getCallCount).toBe(1);
 
       let saveRes;
       await act(async () => {
@@ -87,15 +114,16 @@ describe("useRolePermissions", () => {
       });
 
       expect(saveRes).toEqual({ status: "saved" });
-      if (result.current.state.status === "ready") {
-        expect(result.current.state.permissions).toEqual(
-          defaultRolesResponse.permissions,
-        );
-        const member = result.current.state.roles.find(
-          (r) => r.scope === "workspace" && r.key === "member",
-        );
-        expect(member?.version).toBe(2);
-      }
+      expect(getCallCount).toBe(1); // Cache updated via setQueryData, not re-fetched
+      await waitFor(() => {
+        expect(result.current.state.status).toBe("ready");
+        if (result.current.state.status === "ready") {
+          const member = result.current.state.roles.find(
+            (r) => r.scope === "workspace" && r.key === "member",
+          );
+          expect(member?.version).toBe(2);
+        }
+      });
     });
 
     it("returns conflict on 409 ROLE_PERMISSIONS_CHANGED", async () => {
@@ -109,7 +137,8 @@ describe("useRolePermissions", () => {
           ),
       });
 
-      const { result } = renderHook(() => useRolePermissions());
+      const wrapper = createWrapper();
+      const { result } = renderHook(() => useRolePermissions(), { wrapper });
       await waitFor(() => expect(result.current.state.status).toBe("ready"));
 
       let saveRes;
@@ -129,7 +158,8 @@ describe("useRolePermissions", () => {
           }),
       });
 
-      const { result } = renderHook(() => useRolePermissions());
+      const wrapper = createWrapper();
+      const { result } = renderHook(() => useRolePermissions(), { wrapper });
       await waitFor(() => expect(result.current.state.status).toBe("ready"));
 
       let saveRes;
@@ -150,7 +180,8 @@ describe("useRolePermissions", () => {
           apiError(500, "INTERNAL_ERROR", "Something went wrong"),
       });
 
-      const { result } = renderHook(() => useRolePermissions());
+      const wrapper = createWrapper();
+      const { result } = renderHook(() => useRolePermissions(), { wrapper });
       await waitFor(() => expect(result.current.state.status).toBe("ready"));
 
       let saveRes;
@@ -165,4 +196,3 @@ describe("useRolePermissions", () => {
     });
   });
 });
-

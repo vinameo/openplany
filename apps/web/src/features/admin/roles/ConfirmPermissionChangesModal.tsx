@@ -1,17 +1,10 @@
 import { useMemo } from "react";
-import {
-  Button,
-  Group,
-  List,
-  Modal,
-  Stack,
-  Text,
-} from "@mantine/core";
+import { Button, Group, List, Modal, Stack, Text } from "@mantine/core";
 import {
   type PermissionItem,
   type RoleRef,
   PROJECT_ROLE_LABELS,
-  WORKSPACE_ROLE_LABELS,
+  WORKSPACE_ROLE_QUALIFIED_LABELS,
 } from "@repo/contracts";
 
 export interface PermissionDiffItem {
@@ -26,7 +19,10 @@ interface ConfirmPermissionChangesModalProps {
   diff: PermissionDiffItem[];
   onConfirm: () => void;
   isSaving: boolean;
-  permissions?: readonly PermissionItem[] | Record<string, string> | ReadonlyMap<string, string>;
+  permissions?:
+    | readonly PermissionItem[]
+    | Record<string, string>
+    | ReadonlyMap<string, string>;
 }
 
 export function ConfirmPermissionChangesModal({
@@ -48,7 +44,12 @@ export function ConfirmPermissionChangesModal({
     }
     if (Array.isArray(permissions)) {
       for (const item of permissions) {
-        if (item && typeof item === "object" && "key" in item && "label" in item) {
+        if (
+          item &&
+          typeof item === "object" &&
+          "key" in item &&
+          "label" in item
+        ) {
           map.set(item.key, item.label);
         }
       }
@@ -68,10 +69,7 @@ export function ConfirmPermissionChangesModal({
 
   function getRoleHeading(ref: RoleRef): string {
     if (ref.scope === "workspace") {
-      return WORKSPACE_ROLE_LABELS[ref.key];
-    }
-    if (ref.key === "guest") {
-      return "Guest (project)";
+      return WORKSPACE_ROLE_QUALIFIED_LABELS[ref.key];
     }
     return PROJECT_ROLE_LABELS[ref.key];
   }
@@ -118,11 +116,7 @@ export function ConfirmPermissionChangesModal({
           <Button variant="default" onClick={onClose} disabled={isSaving}>
             Cancel
           </Button>
-          <Button
-            onClick={onConfirm}
-            loading={isSaving}
-            disabled={isSaving}
-          >
+          <Button onClick={onConfirm} loading={isSaving} disabled={isSaving}>
             Save
           </Button>
         </Group>

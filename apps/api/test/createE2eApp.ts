@@ -65,7 +65,7 @@ export async function createE2eApp(): Promise<E2eApp> {
           'project.modules.view', 'project.views.view', 'project.pages.view', 'project.labels.view',
           'project.states.view', 'project.estimates.view', 'project.analytics.view'
         ]::varchar[]) k
-        UNION ALL SELECT 'project', 'guest', k FROM unnest(ARRAY[
+        UNION ALL SELECT 'project', 'viewer', k FROM unnest(ARRAY[
           'project.settings.view', 'project.workitems.view', 'project.cycles.view', 'project.modules.view',
           'project.views.view', 'project.pages.view', 'project.labels.view', 'project.states.view',
           'project.estimates.view', 'project.analytics.view'

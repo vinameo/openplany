@@ -2,7 +2,8 @@ import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 import type { ProjectRole, RoleScope } from '@repo/contracts';
 import { AppendOnly } from '../../database/appendOnly.js';
 
-export type ProjectRoleChangeType = 'project_created' | 'member_added';
+export type ProjectRoleChangeType =
+  'project_created' | 'member_added' | 'workspace_role_applied';
 
 @AppendOnly()
 @Entity({ name: 'project_member_role_history' })
@@ -19,7 +20,12 @@ export class ProjectMemberRoleHistory {
   @Column({ name: 'member_id', type: 'uuid' })
   memberId!: string;
 
-  @Column({ name: 'role_scope', type: 'varchar', length: 16, default: 'project' })
+  @Column({
+    name: 'role_scope',
+    type: 'varchar',
+    length: 16,
+    default: 'project',
+  })
   roleScope!: RoleScope;
 
   @Column({ name: 'from_role', type: 'varchar', length: 20, nullable: true })

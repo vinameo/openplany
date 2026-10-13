@@ -60,3 +60,28 @@ export function isTopRole<R extends string>(
   const maxRank = Math.max(...scheme.roles.map((r) => scheme.rank[r]));
   return scheme.rank[role] === maxRank;
 }
+
+/**
+ * Selects the closest permitted role to currentRole (WEB B3.2):
+ * 1. Highest permitted role with rank <= currentRole (reason: 'lowered')
+ * 2. If none, lowest permitted role with rank > currentRole (reason: 'raised')
+ */
+export function closestRole<R extends string>(
+  scheme: RoleScheme<R>,
+  currentRole: R,
+  allowedRoles: readonly R[],
+): { role: R; reason: 'lowered' | 'raised' } | null {
+  if (allowedRoles.length === 0) return null;
+  const currentRank = scheme.rank[currentRole];
+  const atOrBelow = allowedRoles.filter((r) => scheme.rank[r] <= currentRank);
+  if (atOrBelow.length > 0) {
+    const highest = atOrBelow.reduce((prev, r) =>
+      scheme.rank[r] > scheme.rank[prev] ? r : prev,
+    );
+    return { role: highest, reason: 'lowered' };
+  }
+  const lowest = allowedRoles.reduce((prev, r) =>
+    scheme.rank[r] < scheme.rank[prev] ? r : prev,
+  );
+  return { role: lowest, reason: 'raised' };
+}

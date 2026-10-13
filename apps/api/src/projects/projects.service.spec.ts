@@ -9,13 +9,13 @@ import {
   type ProjectRole,
 } from '@repo/contracts';
 
-
 import { FakeClock } from '../../test/fakes/authFakes.js';
 import {
   FakeProjectAccessResolver,
   FakeProjectEvents,
   FakeProjectsRepository,
 } from '../../test/fakes/projectsFakes.js';
+import { FakeProjectAccessPolicyStore } from '../../test/fakes/rolesFakes.js';
 import { makeMemberWorkspace } from '../../test/fakes/workspacesFakes.js';
 import { ApiException } from '../common/apiException.js';
 import type { AccessibleProject } from './access/projectAccessResolver.js';
@@ -48,8 +48,15 @@ describe('ProjectsService', () => {
     const resolver = new FakeProjectAccessResolver();
     const clock = new FakeClock();
     const events = new FakeProjectEvents();
-    const service = new ProjectsService(repository, resolver, clock, events);
-    return { service, repository, resolver, clock, events };
+    const policyStore = new FakeProjectAccessPolicyStore();
+    const service = new ProjectsService(
+      repository,
+      resolver,
+      clock,
+      events,
+      policyStore,
+    );
+    return { service, repository, resolver, clock, events, policyStore };
   }
 
   describe('list', () => {
@@ -126,7 +133,7 @@ describe('ProjectsService', () => {
             createdAt: new Date('2026-10-01T00:00:00Z'),
           }),
           access: {
-            role: 'guest',
+            role: 'viewer',
             permissions: [],
           },
         },
@@ -320,8 +327,28 @@ describe('ProjectsService', () => {
         projectId: 'project-new-id',
       });
       expect(repository.createdProjects).toHaveLength(1);
+      expect(repository.createdProjects[0]!.creatorRole).toBeNull();
       expect(events.createdEvents).toHaveLength(1);
       expect(events.createdEvents[0]!.projectId).toBe('project-new-id');
+    });
+
+    it('passes creatorRole null when creator is Workspace Admin and admin when creator is Member (AC-08, AC-09)', async () => {
+      const { service, repository, resolver } = makeSetup();
+
+      resolver.project = {
+        project: makeProjectRow({ id: 'p-m', name: 'Member Project' }),
+        access: { role: 'admin', permissions: ['project.members.view'] },
+      };
+
+      const memberWs = makeMemberWorkspace({ role: 'member' });
+      await service.create(memberWs, 'u-member', {
+        name: 'Member Project',
+        identifier: 'MP',
+        icon: { name: DEFAULT_PROJECT_ICON, color: DEFAULT_PROJECT_ICON_COLOR },
+        coverKey: DEFAULT_PROJECT_COVER,
+      });
+
+      expect(repository.createdProjects[0]!.creatorRole).toBe('admin');
     });
 
     it('defaults description to empty string when omitted', async () => {
@@ -447,7 +474,7 @@ describe('ProjectsService', () => {
       const { service, repository } = makeSetup();
       const ws = makeMemberWorkspace();
 
-      const res = await service.get(ws, accessible([], 'guest'));
+      const res = await service.get(ws, accessible([], 'viewer'));
       expect(res.project.members).toBeNull();
       expect(repository.lastMembersOfQuery).toBeUndefined();
     });
@@ -459,7 +486,6 @@ describe('ProjectsService', () => {
       permissions: readonly string[] = ['project.members.view'],
       role: ProjectRole = 'admin',
     ): AccessibleProject {
-
       return {
         project: makeProjectRow(rowOverrides),
         access: { role, permissions },
@@ -471,9 +497,9 @@ describe('ProjectsService', () => {
       const ws = makeMemberWorkspace();
       const current = accessible();
 
-      await expect(
-        service.update(ws, current, 'actor-1', {}),
-      ).rejects.toThrow('Nothing to update');
+      await expect(service.update(ws, current, 'actor-1', {})).rejects.toThrow(
+        'Nothing to update',
+      );
 
       expect(resolver.lastInput).toBeUndefined();
       expect(repository.updatedProjects).toHaveLength(0);
@@ -517,7 +543,10 @@ describe('ProjectsService', () => {
     it('(b) when values are identical to current, does not call repository or log (RQ AC-22, INV-01)', async () => {
       const { service, repository, resolver, events } = makeSetup();
       const ws = makeMemberWorkspace();
-      const current = accessible({ name: 'Same Name', description: 'Same Desc' });
+      const current = accessible({
+        name: 'Same Name',
+        description: 'Same Desc',
+      });
 
       const res = await service.update(ws, current, 'actor-1', {
         name: 'Same Name',
@@ -563,9 +592,14 @@ describe('ProjectsService', () => {
         iconName: 'star',
         iconColor: '#FAB005',
       });
-      const resIdentical = await service.update(ws, currentIdentical, 'actor-1', {
-        icon: { name: 'star', color: '#FAB005' } as ProjectIcon,
-      });
+      const resIdentical = await service.update(
+        ws,
+        currentIdentical,
+        'actor-1',
+        {
+          icon: { name: 'star', color: '#FAB005' } as ProjectIcon,
+        },
+      );
 
       expect(resIdentical.project.icon.name).toBe('star');
       expect(repository.updatedProjects).toHaveLength(1); // Still 1 from before
@@ -713,4 +747,3 @@ describe('ProjectsService', () => {
     });
   });
 });
-

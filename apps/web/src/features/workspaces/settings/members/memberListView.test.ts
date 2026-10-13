@@ -188,5 +188,33 @@ describe("memberListView", () => {
       );
       expect(desc.map((m) => m.userId)).toEqual(["u-2", "u-3", "u-4", "u-1"]);
     });
+
+    it("AC-12: sorts null joinedAt to the end in both asc and desc directions", () => {
+      const withNull: (Omit<typeof sampleMembers[number], 'joinedAt'> & { joinedAt: string | null })[] = [
+        {
+          ...sampleMembers[0]!,
+          userId: "u-null",
+          joinedAt: null,
+        },
+        sampleMembers[1]!, // 2026-10-05
+        sampleMembers[2]!, // 2026-10-03
+      ];
+
+      const asc = applyMemberListQuery(
+        withNull,
+        { search: "", roles: [], sort: { key: "joinedAt", direction: "asc" } },
+        { canSeeEmail: true },
+      );
+      // Valid dates ascending (u-3 then u-2), and u-null at end
+      expect(asc.map((m) => m.userId)).toEqual(["u-3", "u-2", "u-null"]);
+
+      const desc = applyMemberListQuery(
+        withNull,
+        { search: "", roles: [], sort: { key: "joinedAt", direction: "desc" } },
+        { canSeeEmail: true },
+      );
+      // Valid dates descending (u-2 then u-3), and u-null at end
+      expect(desc.map((m) => m.userId)).toEqual(["u-2", "u-3", "u-null"]);
+    });
   });
 });

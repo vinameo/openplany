@@ -1,7 +1,16 @@
+import type { ProjectRole, WorkspaceRole } from '@repo/contracts';
 import type {
   ProjectMembersPreview,
   ProjectRow,
 } from '../dto/projectResponse.js';
+
+export interface MembersOfOpts {
+  workspaceId?: string;
+  showInherited?: boolean;
+  implicitRoles?: readonly WorkspaceRole[];
+  includeEmail: boolean;
+  limitPerProject: number;
+}
 
 export interface CreateProjectInput {
   workspaceId: string;
@@ -14,6 +23,7 @@ export interface CreateProjectInput {
   iconName: string;
   iconColor: string;
   coverKey: string;
+  creatorRole?: ProjectRole | null;
 }
 
 export interface UpdateProjectInput {
@@ -45,7 +55,7 @@ export abstract class ProjectsRepository {
    */
   abstract membersOf(
     projectIds: readonly string[],
-    opts: { includeEmail: boolean; limitPerProject: number },
+    opts: MembersOfOpts,
   ): Promise<Map<string, ProjectMembersPreview>>;
 
   abstract create(input: CreateProjectInput): Promise<{ projectId: string }>;

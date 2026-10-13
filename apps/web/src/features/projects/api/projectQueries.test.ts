@@ -173,6 +173,8 @@ describe("projectQueries cache helpers", () => {
       accountActive: true,
       roleLimited: false,
       joinedAt: "2026-10-12T00:00:00Z",
+      source: "assigned" as const,
+      workspaceRole: "member" as const,
     };
     const newMember1 = {
       userId: "u-2",
@@ -185,6 +187,8 @@ describe("projectQueries cache helpers", () => {
       accountActive: true,
       roleLimited: false,
       joinedAt: "2026-10-13T00:00:00Z",
+      source: "assigned" as const,
+      workspaceRole: "member" as const,
     };
     const duplicateMember = {
       ...existingMember,
@@ -230,6 +234,8 @@ describe("projectQueries cache helpers", () => {
       accountActive: true,
       roleLimited: false,
       joinedAt: "2026-10-12T00:00:00Z",
+      source: "assigned",
+      workspaceRole: "member",
     });
     const full = Array.from({ length: PROJECT_MEMBER_LIST_MAX }, (_, i) =>
       member(i),

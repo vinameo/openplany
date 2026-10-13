@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
-import {
-  PROJECT_ROLES,
-  WORKSPACE_ROLES,
-} from "@repo/contracts";
-import { buildRolesOverview } from "./rolesOverview";
+import { PROJECT_ROLES, WORKSPACE_ROLES } from "@repo/contracts";
+import { DEFAULT_PROJECT_ACCESS_POLICIES } from "@repo/contracts/testing";
+import { buildProjectAccessRows, buildRolesOverview } from "./rolesOverview";
 
 describe("buildRolesOverview", () => {
   it("builds overview with 3 workspace roles and 4 project roles in descending rank order", () => {
@@ -25,28 +23,38 @@ describe("buildRolesOverview", () => {
       expect(r.summary).toBeTruthy();
     }
   });
+});
 
-  it("builds projectAccess according to policy: Admin (admin, admin), Member (null, admin), Guest (null, guest)", () => {
-    const overview = buildRolesOverview();
+describe("buildProjectAccessRows", () => {
+  it("builds project access rows from policy response: Admin, Member, Guest with 4 columns data", () => {
+    const policies = WORKSPACE_ROLES.map((role) => ({
+      ...DEFAULT_PROJECT_ACCESS_POLICIES[role],
+      locked: true as const,
+    }));
 
-    expect(overview.projectAccess).toEqual([
+    const rows = buildProjectAccessRows(policies);
+
+    expect(rows).toEqual([
       {
         role: "admin",
-        label: "Admin",
+        label: "Workspace Admin",
         everyProject: "admin",
-        highestProjectRole: "admin",
+        lowest: null,
+        highest: null,
       },
       {
         role: "member",
         label: "Member",
         everyProject: null,
-        highestProjectRole: "admin",
+        lowest: "commenter",
+        highest: "admin",
       },
       {
         role: "guest",
         label: "Guest",
         everyProject: null,
-        highestProjectRole: "guest",
+        lowest: "viewer",
+        highest: "viewer",
       },
     ]);
   });

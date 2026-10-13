@@ -30,9 +30,12 @@ import { RolePermission } from '../roles/entities/rolePermission.entity.js';
 import { RolePermissionHistory } from '../roles/entities/rolePermissionHistory.entity.js';
 import { UserCreateRateLimitGuard } from './userCreateRateLimitGuard.js';
 
+import { RolesModule } from '../roles/roles.module.js';
+
 @Module({
   imports: [
     AuthModule,
+    RolesModule,
     TypeOrmModule.forFeature([
       User,
       Role,

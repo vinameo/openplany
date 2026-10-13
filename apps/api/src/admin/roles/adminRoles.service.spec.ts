@@ -1,9 +1,6 @@
 import { HttpStatus } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
-import type {
-  PermissionItem,
-  RolePermissionsChange,
-} from '@repo/contracts';
+import type { PermissionItem, RolePermissionsChange } from '@repo/contracts';
 import { Clock } from '../../auth/clock.js';
 import { ApiException } from '../../common/apiException.js';
 import { AdminRolesService } from './adminRoles.service.js';
@@ -15,6 +12,7 @@ import type {
   RolePermissionsPlan,
   StoredRolePermissions,
 } from './rolePermissionsPlan.js';
+import type { ProjectAccessPolicyStore } from '../../roles/projectAccessPolicyStore.js';
 
 class FakeClock extends Clock {
   private currentTime = new Date('2026-10-10T12:00:00.000Z');
@@ -84,7 +82,7 @@ describe('AdminRolesService', () => {
     },
     {
       scope: 'project',
-      key: 'guest',
+      key: 'viewer',
       version: 1,
       permissions: ['project.settings.view'],
     },
@@ -96,7 +94,9 @@ describe('AdminRolesService', () => {
     const applyChangesMock = vi.fn(
       async (
         _refs: readonly { scope: 'workspace' | 'project'; key: string }[],
-        planFn: (current: readonly StoredRolePermissions[]) => RolePermissionsPlan,
+        planFn: (
+          current: readonly StoredRolePermissions[],
+        ) => RolePermissionsPlan,
         _ctx: ApplyRolePermissionsContext,
       ) => {
         return planFn(sampleStoredRoles);
@@ -109,12 +109,41 @@ describe('AdminRolesService', () => {
       applyChanges: applyChangesMock,
     };
 
+    const samplePolicies = {
+      admin: {
+        workspaceRole: 'admin' as const,
+        implicitProjectRole: 'admin' as const,
+        lowestAssignableRole: 'admin' as const,
+        highestAssignableRole: 'admin' as const,
+        overridesProjectRank: false,
+      },
+      member: {
+        workspaceRole: 'member' as const,
+        implicitProjectRole: null,
+        lowestAssignableRole: 'commenter' as const,
+        highestAssignableRole: 'admin' as const,
+        overridesProjectRank: false,
+      },
+      guest: {
+        workspaceRole: 'guest' as const,
+        implicitProjectRole: null,
+        lowestAssignableRole: 'viewer' as const,
+        highestAssignableRole: 'viewer' as const,
+        overridesProjectRank: false,
+      },
+    };
+    const policyStore = {
+      policies: vi.fn(() => samplePolicies),
+    } as unknown as ProjectAccessPolicyStore;
+
     const clock = new FakeClock();
-    const service = new AdminRolesService(repository, clock);
+    const service = new AdminRolesService(repository, clock, policyStore);
 
     return {
       service,
       repository,
+      policyStore,
+      samplePolicies,
       listRolesMock,
       listPermissionsMock,
       applyChangesMock,
@@ -148,6 +177,33 @@ describe('AdminRolesService', () => {
       expect(wsMember).toBeDefined();
       expect(wsMember?.locked).toBe(false);
       expect(wsMember?.permissions).toEqual(['workspace.settings.view']);
+
+      expect(result.projectAccessPolicies).toEqual([
+        {
+          workspaceRole: 'admin',
+          implicitProjectRole: 'admin',
+          lowestAssignableRole: 'admin',
+          highestAssignableRole: 'admin',
+          overridesProjectRank: false,
+          locked: true,
+        },
+        {
+          workspaceRole: 'member',
+          implicitProjectRole: null,
+          lowestAssignableRole: 'commenter',
+          highestAssignableRole: 'admin',
+          overridesProjectRank: false,
+          locked: true,
+        },
+        {
+          workspaceRole: 'guest',
+          implicitProjectRole: null,
+          lowestAssignableRole: 'viewer',
+          highestAssignableRole: 'viewer',
+          overridesProjectRank: false,
+          locked: true,
+        },
+      ]);
     });
   });
 
@@ -185,7 +241,11 @@ describe('AdminRolesService', () => {
       };
 
       await expect(
-        service.updateRolePermissions('actor-uuid-1', [invalidChange], 'req-123'),
+        service.updateRolePermissions(
+          'actor-uuid-1',
+          [invalidChange],
+          'req-123',
+        ),
       ).rejects.toThrow(ApiException);
 
       expect(applyChangesMock).not.toHaveBeenCalled();
@@ -202,7 +262,11 @@ describe('AdminRolesService', () => {
       };
 
       await expect(
-        service.updateRolePermissions('actor-uuid-1', [lockedRoleChange], 'req-123'),
+        service.updateRolePermissions(
+          'actor-uuid-1',
+          [lockedRoleChange],
+          'req-123',
+        ),
       ).rejects.toMatchObject({
         status: HttpStatus.BAD_REQUEST,
         code: 'VALIDATION_ERROR',

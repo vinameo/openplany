@@ -25,7 +25,7 @@ function accessible(
       updatedAt: new Date('2026-10-01T00:00:00Z'),
       timezone: null,
     },
-    access: { role: 'guest', permissions },
+    access: { role: 'viewer', permissions },
   };
 }
 

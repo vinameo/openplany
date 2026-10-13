@@ -25,8 +25,8 @@ A User with an active membership in a workspace, holding exactly one workspace r
 _Avoid_: "Member" on its own when the role is not meant
 
 **Workspace role**:
-The level of trust a workspace member has: Admin, Member or Guest. "Member" here is the role name, distinct from **Workspace member**. The person who creates a workspace becomes its Admin; a workspace may have several Admins and always keeps at least one.
-_Avoid_: Owner (the role no longer exists)
+The level of trust a workspace member has: Admin, Member or Guest. "Member" here is the role name, distinct from **Workspace member**. Wherever workspace and project roles appear together, the Admin role is written 'Workspace Admin'. The person who creates a workspace becomes its Admin; a workspace may have several Admins and always keeps at least one.
+_Avoid_: Owner (the role no longer exists), bare "Admin" next to project roles
 
 **Add member**:
 Making an existing User a workspace member, or an existing workspace member a project member, directly, with a chosen role, effective immediately and without the person's consent step. Re-adding a former member restores their membership with the new role only.
@@ -37,7 +37,7 @@ When a workspace member's or project member's current membership began. Re-addin
 _Avoid_: Created date, member since
 
 **Member candidate**:
-An active, non-bot User found by email while adding members. A candidate who is already a workspace member is shown but cannot be chosen. When adding to a project, candidates are limited to the workspace's members; those already in the project, and workspace Admins (who can access every project anyway), are shown but cannot be chosen.
+An active, non-bot User found by email while adding members. A candidate who is already a workspace member is shown but cannot be chosen. When adding to a project, candidates are limited to the workspace's members; those already in the project, and Workspace Admins (who can access every project anyway), are shown but cannot be chosen.
 
 **Former member**:
 A User who was a workspace member and was removed. Adding them again starts a new membership with the role chosen now; nothing from the earlier membership is restored.
@@ -50,18 +50,18 @@ _Avoid_: Inactive member (that would be a Former member)
 ### Projects and work
 
 **Project**:
-One of a team's projects: a place inside one workspace where a group of people track work items together. Every project belongs to exactly one workspace and has a name that is unique within it. A project is private: only its project members and the workspace's Admins can see it; nobody can join one on their own.
+One of a team's projects: a place inside one workspace where a group of people track work items together. Every project belongs to exactly one workspace and has a name that is unique within it. A project is private: only its project members and the Workspace Admins can see it; nobody can join one on their own. Members and Guests of the workspace see only the projects they were added to.
 
 **Project ID**:
 The short uppercase code of a project, unique within its workspace and never reused there, even after the project is deleted, that will prefix its work items' numbers (for example `OPS-12`). Suggested from the project name when the project is created. It appears in project URLs (`/<workspace>/projects/OPS`).
 _Avoid_: Key, prefix, identifier (in user-facing text)
 
 **Project member**:
-A workspace member who has been placed in a project with a project role. Only workspace members can be project members. Workspace Admins can act in every project without being project members, and are not listed as project members unless they were placed in the project.
+A workspace member who has been placed in a project with a project role. Only workspace members can be project members. Workspace Admins are never project members. People who can see the workspace's members also see them on every project's member list, as Project Admin through their workspace role; they cannot be changed or removed there.
 _Avoid_: Participant
 
 **Former project member**:
-A person who was a project member and was taken out of the project. Adding them again starts a new project membership with the role chosen now; nothing from the earlier one is restored.
+A person who was a project member and was taken out of the project. Adding them again starts a new project membership with the role chosen now; nothing from the earlier one is restored. This includes a Workspace Admin whose earlier project membership was switched off because Workspace Admins already act as Project Admin everywhere.
 _Avoid_: Deleted project member, inactive project member
 
 **Project cover**:
@@ -72,7 +72,7 @@ _Avoid_: Banner
 The time zone in which a project's dates (due dates, milestone dates, "today") are read. A project follows its workspace's time zone, including later changes to it, until someone sets a time zone for the project itself.
 
 **Delete project**:
-Removing a project for everyone at once. Nobody can open it afterwards and OpenPlany offers no way to restore it; its Project ID stays taken, while its name can be given to a new project. Only people allowed to delete projects in the workspace can do it, which by default means workspace Admins, not Project Admins.
+Removing a project for everyone at once. Nobody can open it afterwards and OpenPlany offers no way to restore it; its Project ID stays taken, while its name can be given to a new project. Only people allowed to delete projects in the workspace can do it, which by default means Workspace Admins, not Project Admins.
 _Avoid_: Archive (a separate, reversible action not offered yet), remove project
 
 **Project home**:
@@ -85,12 +85,16 @@ _Avoid_: Issue, ticket
 
 ### Roles and permissions
 
+**Project access policy**:
+For each workspace role: the project role it gives in every project, if any, and the lowest and highest project role a person with it can be given when added to a project. Set by OpenPlany and the same in every workspace; it cannot be changed on the Roles page. By default: Workspace Admins are Project Admin everywhere; Members can be added as Commenter up to Project Admin; Guests only as Viewer.
+_Avoid_: Floor, ceiling (in user-facing text)
+
 **Project role**:
-The level of trust a person has inside one project: Project Admin, Contributor, Commenter or Guest. Workspace Admins act as Project Admin in every project. The same person can hold different project roles in different projects of one workspace. A project's lead, in everyday speech, is a Project Admin; a project may have several.
-_Avoid_: Project member role, Lead (as a role name)
+The level of trust a person has inside one project: Project Admin, Contributor, Commenter or Viewer. Workspace Admins act as Project Admin in every project. The same person can hold different project roles in different projects of one workspace. A project's lead, in everyday speech, is a Project Admin; a project may have several.
+_Avoid_: Project member role, Lead (as a role name), Guest (that word means an outsider at the workspace level)
 
 **Effective project role**:
-The project role a person can actually use: the role they were given, capped by what their workspace role allows (a workspace Guest can never act above project Guest), or Project Admin for workspace Admins. This is the role shown on the project's member list.
+The project role a person can actually use: the role they were given, capped by what their workspace role allows (a workspace Guest can never act above Viewer), or Project Admin for Workspace Admins. This is the role shown on the project's member list.
 _Avoid_: Real role, actual role
 
 **Permission**:
@@ -106,10 +110,10 @@ The role permission sets a new instance starts with.
 _Avoid_: Hardcoded permissions
 
 **Locked role**:
-A role whose permission set can never be changed: workspace Admin and Project Admin. They always keep their default permissions, so every workspace and project can still be managed.
+A role whose permission set can never be changed: Workspace Admin and Project Admin. They always keep their default permissions, so every workspace and project can still be managed.
 
 **Permission guardrail**:
-A rule that limits which permissions a role may be given: only same-level permissions, deleting a workspace for Admins only, and view-only permissions for Guests.
+A rule that limits which permissions a role may be given: only same-level permissions, deleting a workspace for Admins only, and view-only permissions for workspace Guests and Viewers.
 
 **Last Admin**:
 The only active Admin left in a workspace. They cannot be demoted or removed, and cannot leave, so the workspace is never left without someone to manage it.

@@ -3,6 +3,7 @@ import {
   DEFAULT_PROJECT_COVER,
   DEFAULT_PROJECT_ICON,
   DEFAULT_PROJECT_ICON_COLOR,
+  PROJECT_MEMBER_NOT_ADDABLE_MESSAGES,
 } from '@repo/contracts';
 import { createE2eApp, type E2eApp } from './createE2eApp.js';
 import {
@@ -284,6 +285,84 @@ describe('Adversarial inputs (e2e)', () => {
         .set('Cookie', await cookieFor(i))
         .set('Origin', ORIGIN)
         .send(body as object),
+    );
+  });
+
+  it('POST /workspaces/:slug/projects/:identifier/members role range and membership constraints (API B5)', async () => {
+    const ws = await seedWorkspace();
+    const admin = await newWorkspaceAdmin(ws.id);
+    const created = await http()
+      .post(`/api/workspaces/${ws.slug}/projects`)
+      .set('Cookie', admin.cookie)
+      .set('Origin', ORIGIN)
+      .send({
+        name: 'Role Constraint Target',
+        identifier: 'RCT',
+        description: 'Test',
+        icon: { name: DEFAULT_PROJECT_ICON, color: DEFAULT_PROJECT_ICON_COLOR },
+        coverKey: DEFAULT_PROJECT_COVER,
+      })
+      .expect(201);
+    const identifier = created.body.project.identifier as string;
+
+    const memberUser = await newUser();
+    await e2e.dataSource.query(
+      `INSERT INTO workspace_members (workspace_id, member_id, role, is_active, created_at, updated_at, joined_at)
+       VALUES ($1, $2, 'member', true, now(), now(), now())`,
+      [ws.id, memberUser.id],
+    );
+
+    const guestUser = await newUser();
+    await e2e.dataSource.query(
+      `INSERT INTO workspace_members (workspace_id, member_id, role, is_active, created_at, updated_at, joined_at)
+       VALUES ($1, $2, 'guest', true, now(), now(), now())`,
+      [ws.id, guestUser.id],
+    );
+
+    const otherWsAdmin = await newWorkspaceAdmin(ws.id);
+
+    // 1. Member + role: 'viewer' -> 409 MEMBERS_NOT_ADDABLE, fields['members.0.role']
+    const resMemberViewer = await http()
+      .post(`/api/workspaces/${ws.slug}/projects/${identifier}/members`)
+      .set('Cookie', admin.cookie)
+      .set('Origin', ORIGIN)
+      .send({ members: [{ userId: memberUser.id, role: 'viewer' }] })
+      .expect(409);
+    expect(resMemberViewer.body.code).toBe('MEMBERS_NOT_ADDABLE');
+    expect(resMemberViewer.body.fields?.['members.0.role']).toBe(
+      PROJECT_MEMBER_NOT_ADDABLE_MESSAGES.role_not_allowed,
+    );
+
+    // 2. Guest + role: 'commenter' -> 409 MEMBERS_NOT_ADDABLE, fields['members.0.role']
+    const resGuestCommenter = await http()
+      .post(`/api/workspaces/${ws.slug}/projects/${identifier}/members`)
+      .set('Cookie', admin.cookie)
+      .set('Origin', ORIGIN)
+      .send({ members: [{ userId: guestUser.id, role: 'commenter' }] })
+      .expect(409);
+    expect(resGuestCommenter.body.code).toBe('MEMBERS_NOT_ADDABLE');
+    expect(resGuestCommenter.body.fields?.['members.0.role']).toBe(
+      PROJECT_MEMBER_NOT_ADDABLE_MESSAGES.role_not_allowed,
+    );
+
+    // 3. role: 'guest' (old key) -> 400
+    await http()
+      .post(`/api/workspaces/${ws.slug}/projects/${identifier}/members`)
+      .set('Cookie', admin.cookie)
+      .set('Origin', ORIGIN)
+      .send({ members: [{ userId: memberUser.id, role: 'guest' }] })
+      .expect(400);
+
+    // 4. userId of Workspace Admin -> 409 MEMBERS_NOT_ADDABLE, fields['members.0.userId'] = workspace_admin
+    const resWsAdmin = await http()
+      .post(`/api/workspaces/${ws.slug}/projects/${identifier}/members`)
+      .set('Cookie', admin.cookie)
+      .set('Origin', ORIGIN)
+      .send({ members: [{ userId: otherWsAdmin.id, role: 'contributor' }] })
+      .expect(409);
+    expect(resWsAdmin.body.code).toBe('MEMBERS_NOT_ADDABLE');
+    expect(resWsAdmin.body.fields?.['members.0.userId']).toBe(
+      PROJECT_MEMBER_NOT_ADDABLE_MESSAGES.workspace_admin,
     );
   });
 

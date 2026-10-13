@@ -2,6 +2,7 @@ import { join } from 'node:path';
 import type { DataSourceOptions } from 'typeorm';
 import type { EnvironmentVariables } from '../config/env.validation.js';
 import { AppendOnlySubscriber } from './appendOnly.js';
+import { ReadOnlyTableSubscriber } from './readOnlyTable.js';
 
 type DatabaseEnv = Pick<
   EnvironmentVariables,
@@ -16,7 +17,7 @@ export function buildDataSourceOptions(env: DatabaseEnv): DataSourceOptions {
     url: env.DATABASE_URL,
     entities: [join(import.meta.dirname, '../**/*.entity.js')],
     migrations: [join(import.meta.dirname, 'migrations/*.js')],
-    subscribers: [AppendOnlySubscriber],
+    subscribers: [AppendOnlySubscriber, ReadOnlyTableSubscriber],
     migrationsTableName: 'typeorm_migrations',
     migrationsRun: env.DB_MIGRATIONS_RUN,
     logging: env.DB_LOGGING,

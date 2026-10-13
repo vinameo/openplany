@@ -1,8 +1,11 @@
-import { useMemo, useState } from "react";
-import { Button, Stack, Text } from "@mantine/core";
+import { useId, useMemo, useState } from "react";
+import { Badge, Button, Stack, Text, Tooltip } from "@mantine/core";
 import {
   PROJECT_MEMBER_LIST_MAX,
+  WORKSPACE_ROLE_QUALIFIED_LABELS,
   type ProjectMemberResponse,
+  type ProjectRole,
+  type WorkspaceRole,
 } from "@repo/contracts";
 import {
   MembersListView,
@@ -13,9 +16,9 @@ import { useCurrentWorkspace } from "../../../workspaces/currentWorkspace/useCur
 import { useCurrentProject } from "../../detail/currentProjectContext";
 import { AddProjectMembersModal } from "./AddProjectMembersModal";
 import {
+  inheritedRoleTooltip,
   NO_MEMBERS_YET,
   ROLE_LIMITED_TOOLTIP,
-  WORKSPACE_ADMINS_NOTE,
 } from "./projectMembersMessages";
 import { useProjectMembers } from "./useProjectMembers";
 
@@ -73,8 +76,16 @@ export function ProjectMembersSettingsPage() {
         canSeeEmail={canSeeEmail}
         canAddMember={canAddMember}
         onAddMember={() => setModalOpened(true)}
-        note={WORKSPACE_ADMINS_NOTE}
         roleHint={(m) => (m.roleLimited ? ROLE_LIMITED_TOOLTIP : null)}
+        roleBadge={(m) =>
+          m.source === 'inherited' ? (
+            <InheritedRoleBadge
+              workspaceRole={m.workspaceRole}
+              implicitRole={m.role}
+            />
+          ) : null
+        }
+        isReadOnly={(m) => m.source === 'inherited'}
         emptyState={emptyState}
       />
       {canAddMember && (
@@ -91,5 +102,38 @@ export function ProjectMembersSettingsPage() {
         />
       )}
     </>
+  );
+}
+
+export function InheritedRoleBadge({
+  workspaceRole,
+  implicitRole,
+}: {
+  workspaceRole: WorkspaceRole;
+  implicitRole: ProjectRole;
+}) {
+  const tooltipText = inheritedRoleTooltip(workspaceRole, implicitRole);
+  const label = WORKSPACE_ROLE_QUALIFIED_LABELS[workspaceRole];
+  const tooltipId = useId();
+
+  return (
+    <Tooltip
+      id={tooltipId}
+      label={tooltipText}
+      withArrow
+      multiline
+      events={{ hover: true, focus: true, touch: true }}
+    >
+      <Badge
+        color="gray"
+        variant="light"
+        size="xs"
+        tabIndex={0}
+        aria-describedby={tooltipId}
+        style={{ cursor: 'default' }}
+      >
+        {label}
+      </Badge>
+    </Tooltip>
   );
 }

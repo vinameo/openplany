@@ -1,61 +1,77 @@
-import { describe, expect, it } from 'vitest';
-import type { MemberCandidate, ProjectRole } from '@repo/contracts';
+import { describe, expect, it } from "vitest";
+import type {
+  MemberCandidate,
+  ProjectRole,
+  WorkspaceRole,
+} from "@repo/contracts";
 import {
   addMemberRowsReducer,
   createInitialRow,
   mapFieldErrors,
   toAddMembersRequest,
   type AddMemberRow,
-} from './addMembersRows';
-import { PROJECT_ROLE_SCHEME, highestRole } from './roleScheme';
+} from "./addMembersRows";
+import {
+  PROJECT_ROLE_SCHEME,
+  highestRole,
+  closestRole,
+} from "./roleScheme";
+import {
+  limitedToRoleMessage,
+  roleRaisedHint,
+} from "../projects/settings/members/projectMembersMessages";
 
-describe('addMembersRows', () => {
+describe("addMembersRows", () => {
   const candidate1: MemberCandidate = {
-    userId: 'u-1',
-    email: 'u1@example.com',
-    firstName: 'User',
-    lastName: 'One',
-    displayName: 'User One',
+    userId: "u-1",
+    email: "u1@example.com",
+    firstName: "User",
+    lastName: "One",
+    displayName: "User One",
     avatarUrl: null,
     alreadyMember: false,
   };
 
   const candidate2: MemberCandidate = {
-    userId: 'u-2',
-    email: 'u2@example.com',
-    firstName: 'User',
-    lastName: 'Two',
-    displayName: 'User Two',
+    userId: "u-2",
+    email: "u2@example.com",
+    firstName: "User",
+    lastName: "Two",
+    displayName: "User Two",
     avatarUrl: null,
     alreadyMember: false,
   };
 
-  it('stops adding at 20 rows (ADD_MEMBERS_MAX)', () => {
-    let rows: AddMemberRow[] = [createInitialRow('member')];
+  it("stops adding at 20 rows (ADD_MEMBERS_MAX)", () => {
+    let rows: AddMemberRow[] = [createInitialRow("member")];
     for (let i = 0; i < 25; i++) {
-      rows = addMemberRowsReducer(rows, { type: 'add' }, { defaultRole: 'member' });
+      rows = addMemberRowsReducer(
+        rows,
+        { type: "add" },
+        { defaultRole: "member" },
+      );
     }
     expect(rows).toHaveLength(20);
   });
 
-  it('does not remove the last remaining row', () => {
-    const initial = [createInitialRow('member')];
+  it("does not remove the last remaining row", () => {
+    const initial = [createInitialRow("member")];
     const afterRemove = addMemberRowsReducer(
       initial,
-      { type: 'remove', id: initial[0]!.id },
-      { defaultRole: 'member' },
+      { type: "remove", id: initial[0]!.id },
+      { defaultRole: "member" },
     );
     expect(afterRemove).toHaveLength(1);
     expect(afterRemove[0]!.id).toBe(initial[0]!.id);
   });
 
-  it('select and role actions clear error on that row (WEB-30)', () => {
+  it("select and role actions clear error on that row (WEB-30)", () => {
     let rows: AddMemberRow[] = [
       {
-        id: 'row-1',
+        id: "row-1",
         candidate: null,
-        role: 'member',
-        error: 'Some error',
+        role: "member",
+        error: "Some error",
         roleError: null,
         roleNotice: null,
       },
@@ -63,105 +79,130 @@ describe('addMembersRows', () => {
 
     rows = addMemberRowsReducer(
       rows,
-      { type: 'select', id: 'row-1', candidate: candidate1 },
-      { defaultRole: 'member' },
+      { type: "select", id: "row-1", candidate: candidate1 },
+      { defaultRole: "member" },
     );
     expect(rows[0]!.error).toBeNull();
     expect(rows[0]!.candidate).toBe(candidate1);
 
-    rows[0]!.error = 'Another error';
+    rows[0]!.error = "Another error";
     rows = addMemberRowsReducer(
       rows,
-      { type: 'role', id: 'row-1', role: 'admin' },
-      { defaultRole: 'member' },
+      { type: "role", id: "row-1", role: "admin" },
+      { defaultRole: "member" },
     );
     expect(rows[0]!.error).toBeNull();
-    expect(rows[0]!.role).toBe('admin');
+    expect(rows[0]!.role).toBe("admin");
   });
 
-  it('toAddMembersRequest omits empty rows and preserves rowIdByIndex', () => {
+  it("toAddMembersRequest omits empty rows and preserves rowIdByIndex", () => {
     const rows: AddMemberRow[] = [
-      { id: 'row-1', candidate: candidate1, role: 'member', error: null, roleError: null, roleNotice: null },
-      { id: 'row-2', candidate: null, role: 'guest', error: null, roleError: null, roleNotice: null },
-      { id: 'row-3', candidate: candidate2, role: 'admin', error: null, roleError: null, roleNotice: null },
+      {
+        id: "row-1",
+        candidate: candidate1,
+        role: "member",
+        error: null,
+        roleError: null,
+        roleNotice: null,
+      },
+      {
+        id: "row-2",
+        candidate: null,
+        role: "guest",
+        error: null,
+        roleError: null,
+        roleNotice: null,
+      },
+      {
+        id: "row-3",
+        candidate: candidate2,
+        role: "admin",
+        error: null,
+        roleError: null,
+        roleNotice: null,
+      },
     ];
 
     const { body, rowIdByIndex } = toAddMembersRequest(rows);
 
     expect(body.members).toEqual([
-      { userId: 'u-1', role: 'member' },
-      { userId: 'u-2', role: 'admin' },
+      { userId: "u-1", role: "member" },
+      { userId: "u-2", role: "admin" },
     ]);
-    expect(rowIdByIndex).toEqual(['row-1', 'row-3']);
+    expect(rowIdByIndex).toEqual(["row-1", "row-3"]);
   });
 
-  it('AC-20: mapFieldErrors maps index to rowId even when an empty row was in between', () => {
-    const rowIdByIndex = ['row-1', 'row-3']; // row-2 was empty in UI
+  it("AC-20: mapFieldErrors maps index to rowId even when an empty row was in between", () => {
+    const rowIdByIndex = ["row-1", "row-3"]; // row-2 was empty in UI
     const fields = {
-      'members.1.userId': 'Already a member of this workspace',
-      unrelated: 'some other error',
+      "members.1.userId": "Already a member of this workspace",
+      unrelated: "some other error",
     };
 
     const mapped = mapFieldErrors(fields, rowIdByIndex);
 
     expect(mapped).toEqual({
-      'row-3': 'Already a member of this workspace',
+      "row-3": "Already a member of this workspace",
     });
   });
 
-  describe('rolesFor and roleError extensions (AC-13, WEB B3.4)', () => {
+  describe("rolesFor and roleError extensions (AC-13, WEB B3.4)", () => {
     interface ProjectCandidate {
       userId: string;
       addableRoles: ProjectRole[];
     }
 
     const projectCtx = {
-      defaultRole: 'contributor' as ProjectRole,
+      defaultRole: "contributor" as ProjectRole,
       rolesFor: (c: ProjectCandidate) => c.addableRoles,
-      highest: (roles: readonly ProjectRole[]) => highestRole(PROJECT_ROLE_SCHEME, roles),
-      limitedNotice: (role: ProjectRole) => `Limited to ${role} by their workspace role.`,
+      highest: (roles: readonly ProjectRole[]) =>
+        highestRole(PROJECT_ROLE_SCHEME, roles),
+      limitedNotice: (role: ProjectRole) =>
+        `Limited to ${role} by their workspace role.`,
     };
 
-    it('demotes role and sets roleNotice when row role exceeds candidate addableRoles', () => {
+    it("demotes role and sets roleNotice when row role exceeds candidate addableRoles", () => {
       const initialRow: AddMemberRow<ProjectRole, ProjectCandidate> = {
-        id: 'row-1',
+        id: "row-1",
         candidate: null,
-        role: 'admin',
-        error: 'prev-err',
-        roleError: 'prev-role-err',
+        role: "admin",
+        error: "prev-err",
+        roleError: "prev-role-err",
         roleNotice: null,
       };
 
       const limitedCandidate: ProjectCandidate = {
-        userId: 'u-limited',
-        addableRoles: ['guest'],
+        userId: "u-limited",
+        addableRoles: ["viewer"],
       };
 
       const updated = addMemberRowsReducer(
         [initialRow],
-        { type: 'select', id: 'row-1', candidate: limitedCandidate },
+        { type: "select", id: "row-1", candidate: limitedCandidate },
         projectCtx,
       );
 
-      expect(updated[0]!.role).toBe('guest');
-      expect(updated[0]!.roleNotice).toBe('Limited to guest by their workspace role.');
+      expect(updated[0]!.role).toBe("viewer");
+      expect(updated[0]!.roleNotice).toBe(
+        "Limited to viewer by their workspace role.",
+      );
       expect(updated[0]!.error).toBeNull();
       expect(updated[0]!.roleError).toBeNull();
     });
 
-    it('clears roleNotice and errors when deselecting candidate', () => {
+    it("clears roleNotice and errors when deselecting candidate", () => {
       const rowWithNotice: AddMemberRow<ProjectRole, ProjectCandidate> = {
-        id: 'row-1',
-        candidate: { userId: 'u-limited', addableRoles: ['guest'] },
-        role: 'guest',
-        error: 'err',
-        roleError: 'role-err',
-        roleNotice: 'Limited to guest',
+        id: "row-1",
+        candidate: { userId: "u-limited", addableRoles: ["viewer"] },
+        role: "viewer",
+        error: "err",
+        roleError: "role-err",
+        roleNotice: "Limited to viewer",
       };
 
       const updated = addMemberRowsReducer(
         [rowWithNotice],
-        { type: 'select', id: 'row-1', candidate: null },
+        { type: "select", id: "row-1", candidate: null },
         projectCtx,
       );
 
@@ -169,51 +210,51 @@ describe('addMembersRows', () => {
       expect(updated[0]!.roleNotice).toBeNull();
       expect(updated[0]!.error).toBeNull();
       expect(updated[0]!.roleError).toBeNull();
-      expect(updated[0]!.role).toBe('guest'); // role is preserved on deselect
+      expect(updated[0]!.role).toBe("viewer"); // role is preserved on deselect
     });
 
-    it('clears roleNotice and roleError on role change', () => {
+    it("clears roleNotice and roleError on role change", () => {
       const rowWithNotice: AddMemberRow<ProjectRole, ProjectCandidate> = {
-        id: 'row-1',
-        candidate: { userId: 'u-1', addableRoles: ['guest', 'contributor'] },
-        role: 'guest',
-        error: 'err',
-        roleError: 'Role not allowed',
-        roleNotice: 'Limited to guest',
+        id: "row-1",
+        candidate: { userId: "u-1", addableRoles: ["viewer", "contributor"] },
+        role: "viewer",
+        error: "err",
+        roleError: "Role not allowed",
+        roleNotice: "Limited to viewer",
       };
 
       const updated = addMemberRowsReducer(
         [rowWithNotice],
-        { type: 'role', id: 'row-1', role: 'contributor' },
+        { type: "role", id: "row-1", role: "contributor" },
         projectCtx,
       );
 
-      expect(updated[0]!.role).toBe('contributor');
+      expect(updated[0]!.role).toBe("contributor");
       expect(updated[0]!.roleNotice).toBeNull();
       expect(updated[0]!.roleError).toBeNull();
       expect(updated[0]!.error).toBeNull();
     });
 
-    it('maps both .userId and .role field errors to rowId', () => {
-      const rowIdByIndex = ['row-1', 'row-2'];
+    it("maps both .userId and .role field errors to rowId", () => {
+      const rowIdByIndex = ["row-1", "row-2"];
       const fields = {
-        'members.0.userId': 'Already in this project',
-        'members.1.role': "You can't assign this role",
+        "members.0.userId": "Already in this project",
+        "members.1.role": "You can't assign this role",
       };
 
       const mapped = mapFieldErrors(fields, rowIdByIndex);
 
       expect(mapped).toEqual({
-        'row-1': { userId: 'Already in this project' },
-        'row-2': { role: "You can't assign this role" },
+        "row-1": { userId: "Already in this project" },
+        "row-2": { role: "You can't assign this role" },
       });
     });
 
-    it('handles errors action with object error structure in reducer', () => {
+    it("handles errors action with object error structure in reducer", () => {
       const initialRow: AddMemberRow<ProjectRole, ProjectCandidate> = {
-        id: 'row-1',
+        id: "row-1",
         candidate: null,
-        role: 'contributor',
+        role: "contributor",
         error: null,
         roleError: null,
         roleNotice: null,
@@ -222,19 +263,177 @@ describe('addMembersRows', () => {
       const updated = addMemberRowsReducer(
         [initialRow],
         {
-          type: 'errors',
+          type: "errors",
           byRowId: {
-            'row-1': {
-              userId: 'User is invalid',
-              role: 'Role is invalid',
+            "row-1": {
+              userId: "User is invalid",
+              role: "Role is invalid",
             },
           },
         },
         projectCtx,
       );
 
-      expect(updated[0]!.error).toBe('User is invalid');
-      expect(updated[0]!.roleError).toBe('Role is invalid');
+      expect(updated[0]!.error).toBe("User is invalid");
+      expect(updated[0]!.roleError).toBe("Role is invalid");
+    });
+  });
+
+  describe("closestRole (WEB B3.2)", () => {
+    it("returns null if allowedRoles is empty", () => {
+      expect(closestRole(PROJECT_ROLE_SCHEME, "viewer", [])).toBeNull();
+    });
+
+    it("picks highest permitted with rank <= currentRole (lowered)", () => {
+      // admin (rank 40), allowed: viewer(10), commenter(20), contributor(30)
+      const res = closestRole(PROJECT_ROLE_SCHEME, "admin", [
+        "viewer",
+        "commenter",
+        "contributor",
+      ]);
+      expect(res).toEqual({ role: "contributor", reason: "lowered" });
+    });
+
+    it("picks lowest permitted with rank > currentRole when none <= currentRole (raised)", () => {
+      // viewer (rank 10), allowed: commenter(20), contributor(30), admin(40)
+      const res = closestRole(PROJECT_ROLE_SCHEME, "viewer", [
+        "admin",
+        "contributor",
+        "commenter",
+      ]);
+      expect(res).toEqual({ role: "commenter", reason: "raised" });
+    });
+  });
+
+  describe("closest role in project modal with rank and roleNotice (WEB B3.2, AC-24)", () => {
+    interface ProjectCandidateWithWs {
+      userId: string;
+      workspaceRole: WorkspaceRole;
+      addableRoles: ProjectRole[];
+    }
+
+    const projectClosestCtx = {
+      defaultRole: "contributor" as ProjectRole,
+      rolesFor: (c: ProjectCandidateWithWs) => c.addableRoles,
+      rank: PROJECT_ROLE_SCHEME.rank,
+      roleNotice: ({
+        role,
+        reason,
+        candidate,
+      }: {
+        role: ProjectRole;
+        reason: "lowered" | "raised";
+        candidate: ProjectCandidateWithWs;
+      }) => {
+        if (reason === "lowered") {
+          return limitedToRoleMessage(PROJECT_ROLE_SCHEME.labels[role]);
+        }
+        return roleRaisedHint(candidate.workspaceRole, role);
+      },
+    };
+
+    it("Guest candidate with viewer only lowers Contributor to Viewer with lowered notice", () => {
+      const initialRow: AddMemberRow<ProjectRole, ProjectCandidateWithWs> = {
+        id: "row-1",
+        candidate: null,
+        role: "contributor",
+        error: null,
+        roleError: null,
+        roleNotice: null,
+      };
+
+      const guestCandidate: ProjectCandidateWithWs = {
+        userId: "u-guest",
+        workspaceRole: "guest",
+        addableRoles: ["viewer"],
+      };
+
+      const updated = addMemberRowsReducer(
+        [initialRow],
+        { type: "select", id: "row-1", candidate: guestCandidate },
+        projectClosestCtx,
+      );
+
+      expect(updated[0]!.role).toBe("viewer");
+      expect(updated[0]!.roleNotice).toBe(
+        "Limited to Viewer by their workspace role.",
+      );
+    });
+
+    it("Guest candidate preserves Viewer when current role is already Viewer with no notice", () => {
+      const initialRow: AddMemberRow<ProjectRole, ProjectCandidateWithWs> = {
+        id: "row-1",
+        candidate: null,
+        role: "viewer",
+        error: null,
+        roleError: null,
+        roleNotice: null,
+      };
+
+      const guestCandidate: ProjectCandidateWithWs = {
+        userId: "u-guest",
+        workspaceRole: "guest",
+        addableRoles: ["viewer"],
+      };
+
+      const updated = addMemberRowsReducer(
+        [initialRow],
+        { type: "select", id: "row-1", candidate: guestCandidate },
+        projectClosestCtx,
+      );
+
+      expect(updated[0]!.role).toBe("viewer");
+      expect(updated[0]!.roleNotice).toBeNull();
+    });
+
+    it("Member candidate raises Viewer to Commenter with roleRaisedHint notice", () => {
+      const initialRow: AddMemberRow<ProjectRole, ProjectCandidateWithWs> = {
+        id: "row-1",
+        candidate: null,
+        role: "viewer",
+        error: null,
+        roleError: null,
+        roleNotice: null,
+      };
+
+      const memberCandidate: ProjectCandidateWithWs = {
+        userId: "u-member",
+        workspaceRole: "member",
+        addableRoles: ["admin", "contributor", "commenter"],
+      };
+
+      const updated = addMemberRowsReducer(
+        [initialRow],
+        { type: "select", id: "row-1", candidate: memberCandidate },
+        projectClosestCtx,
+      );
+
+      expect(updated[0]!.role).toBe("commenter");
+      expect(updated[0]!.roleNotice).toBe(
+        "Members are added as Commenter or higher.",
+      );
+    });
+
+    it("workspace modal behavior preserved (no rolesFor / no rank provided)", () => {
+      const initialRow: AddMemberRow = {
+        id: "row-1",
+        candidate: null,
+        role: "member",
+        error: "err",
+        roleError: null,
+        roleNotice: null,
+      };
+
+      const updated = addMemberRowsReducer(
+        [initialRow],
+        { type: "select", id: "row-1", candidate: candidate1 },
+        { defaultRole: "member" },
+      );
+
+      expect(updated[0]!.role).toBe("member");
+      expect(updated[0]!.roleNotice).toBeNull();
+      expect(updated[0]!.error).toBeNull();
     });
   });
 });
+

@@ -1,12 +1,12 @@
-export * from './workspace.js';
+export * from "./workspace.js";
 export {
   parseWorkspacePermissions,
   enforcedWorkspacePermissions,
   ENFORCED_WORKSPACE_PERMISSIONS,
   type WorkspacePermission,
   type EnforcedWorkspacePermission,
-} from './workspacePermissions.js';
-export * from './projectRoles.js';
+} from "./workspacePermissions.js";
+export * from "./projectRoles.js";
 export {
   parseProjectPermissions,
   enforcedProjectPermissions,
@@ -15,25 +15,25 @@ export {
   type EnforcedProjectPermission,
   type ProjectRolePermissions,
   type ProjectOwnershipBase,
-} from './projectPermissions.js';
-export * from './project.js';
+} from "./projectPermissions.js";
+export * from "./project.js";
 export {
-  PROJECT_CREATOR_ROLE,
-  projectRoleCeilingOf,
-  selfJoinProjectRoleOf,
+  type ProjectAccessPolicy,
+  type ProjectAccessPolicies,
+  assignableRangeOf,
+  hasImplicitProjectAccess,
   workspaceRolesWithImplicitProjectAccess,
-  type WorkspaceRolePolicy,
-} from './rolePolicy.js';
-export * from './projectAccess.js';
-export * from './roleAssignment.js';
-export * from './resourcePermissions.js';
-export * from './workspaceSettings.js';
-export * from './timezones.js';
-export * from './timezoneMessages.js';
-export * from './user.js';
-export {
-  type RolePermissionMatrix,
-} from './rolePermissionMatrix.js';
+  projectCreatorMembershipRole,
+  validateProjectAccessPolicies,
+} from "./projectAccessPolicy.js";
+export * from "./projectAccess.js";
+export * from "./roleAssignment.js";
+export * from "./resourcePermissions.js";
+export * from "./workspaceSettings.js";
+export * from "./timezones.js";
+export * from "./timezoneMessages.js";
+export * from "./user.js";
+export { type RolePermissionMatrix } from "./rolePermissionMatrix.js";
 export {
   ROLE_SCOPES,
   type RoleScope,
@@ -47,19 +47,21 @@ export {
   permissionGrantProblem,
   permissionRevokeProblem,
   isRoleLocked,
+  isViewOnlyRole,
   isWorkspaceAdminRole,
   scopeOfPermission,
-} from './rolePermissionRules.js';
+} from "./rolePermissionRules.js";
 export {
   type PermissionItem,
   type PermissionResponse,
   type RoleResponse,
   type RolesResponse,
+  type ProjectAccessPolicyResponse,
   type RolePermissionsChange,
   type UpdateRolePermissionsRequest,
   ROLE_PERMISSIONS_CHANGES_MAX,
   ROLE_PERMISSIONS_PER_ROLE_MAX,
-} from './adminRoles.js';
-export * from './workspaceMembers.js';
-export * from './projectMembers.js';
-export * from './memberMessages.js';
+} from "./adminRoles.js";
+export * from "./workspaceMembers.js";
+export * from "./projectMembers.js";
+export * from "./memberMessages.js";

@@ -1,3 +1,11 @@
+import {
+  PROJECT_ROLE_LABELS,
+  type ProjectRole,
+  WORKSPACE_ROLE_LABELS,
+  WORKSPACE_ROLE_QUALIFIED_LABELS,
+  type WorkspaceRole,
+} from '@repo/contracts';
+
 export const WORKSPACE_ADMINS_NOTE =
   'Workspace Admins can access every project.';
 export const ADD_PROJECT_MEMBERS_DESCRIPTION =
@@ -13,6 +21,36 @@ export const ADD_TO_WORKSPACE_LINK = 'Add to workspace';
 export const ALREADY_IN_PROJECT_LABEL = 'Already in this project';
 export const WORKSPACE_ADMIN_CANDIDATE_LABEL =
   'Workspace Admin · has access';
+export const NOT_ADDED_TO_PROJECT = 'Not added to this project';
+
 export function limitedToRoleMessage(roleLabel: string): string {
   return `Limited to ${roleLabel} by their workspace role.`;
+}
+
+export function roleRaisedHint(
+  workspaceRole: WorkspaceRole | string = 'member',
+  role: ProjectRole | string = 'commenter',
+): string {
+  const wsLabel =
+    (WORKSPACE_ROLE_LABELS as Record<string, string>)[workspaceRole] ??
+    workspaceRole ??
+    'Member';
+  const roleLabel =
+    (PROJECT_ROLE_LABELS as Record<string, string>)[role] ??
+    role ??
+    'Commenter';
+  return `${wsLabel}s are added as ${roleLabel} or higher.`;
+}
+
+export function inheritedRoleTooltip(
+  workspaceRole: WorkspaceRole = 'admin',
+  implicitRole: ProjectRole = 'admin',
+): string {
+  const wsLabel =
+    (WORKSPACE_ROLE_QUALIFIED_LABELS as Record<string, string>)[workspaceRole] ??
+    'Workspace Admin';
+  const projLabel =
+    (PROJECT_ROLE_LABELS as Record<string, string>)[implicitRole] ??
+    'Project Admin';
+  return `${wsLabel}s are ${projLabel}s in every project. Change this in the workspace's Members page.`;
 }

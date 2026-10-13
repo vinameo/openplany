@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   MEMBER_MESSAGES,
   PROJECT_ERROR_MESSAGES,
@@ -13,19 +13,27 @@ import type { ProjectsService } from '../projects.service.js';
 import type {
   AddProjectMembersInput,
   AddProjectMembersResult,
+  ListInheritedProjectMembersOpts,
   ListProjectMembersOpts,
   ProjectMemberCandidateDbRow,
   ProjectMembersRepository,
   SearchProjectMemberCandidatesInput,
 } from './projectMembers.repository.js';
-import type { ProjectMemberDbRow } from './dto/projectMemberResponse.js';
+import type {
+  InheritedMemberDbRow,
+  ProjectMemberDbRow,
+} from './dto/projectMemberResponse.js';
+import { FakeProjectAccessPolicyStore } from '../../../test/fakes/rolesFakes.js';
 import { ProjectMembersService } from './projectMembers.service.js';
 
 class FakeProjectMembersRepository implements ProjectMembersRepository {
   public rows: ProjectMemberDbRow[] = [];
   public candidateRows: ProjectMemberCandidateDbRow[] = [];
   public total = 0;
+  public inheritedRows: InheritedMemberDbRow[] = [];
+  public inheritedTotal = 0;
   public lastOpts?: ListProjectMembersOpts;
+  public lastInheritedOpts?: ListInheritedProjectMembersOpts;
   public lastSearchInput?: SearchProjectMemberCandidatesInput;
   public addResult?: AddProjectMembersResult;
   public lastAddInput?: AddProjectMembersInput;
@@ -38,6 +46,17 @@ class FakeProjectMembersRepository implements ProjectMembersRepository {
     return {
       members: this.rows.slice(0, opts.limit),
       total: this.total || this.rows.length,
+    };
+  }
+
+  async listInherited(
+    _workspaceId: string,
+    opts: ListInheritedProjectMembersOpts,
+  ): Promise<{ members: InheritedMemberDbRow[]; total: number }> {
+    this.lastInheritedOpts = opts;
+    return {
+      members: this.inheritedRows.slice(0, opts.limit),
+      total: this.inheritedTotal || this.inheritedRows.length,
     };
   }
 
@@ -143,9 +162,9 @@ describe('ProjectMembersService', () => {
       events,
       fakeProjectsService,
       clock,
+      new FakeProjectAccessPolicyStore(),
     );
   });
-
 
   it('lists members with effective role, roleLimited, and includes email when permitted', async () => {
     repo.rows = [
@@ -157,7 +176,7 @@ describe('ProjectMembersService', () => {
         avatarUrl: null,
         email: 'an@example.com',
         assignedRole: 'admin',
-        workspaceRole: 'guest', // guest ceiling is guest -> clamped!
+        workspaceRole: 'guest', // guest ceiling is viewer -> clamped!
         joinedAt: new Date('2026-10-10T00:00:00Z'),
         accountActive: true,
       },
@@ -170,7 +189,7 @@ describe('ProjectMembersService', () => {
     expect(res.members).toHaveLength(1);
     expect(res.members[0]).toMatchObject({
       userId: 'u-1',
-      role: 'guest',
+      role: 'viewer',
       assignedRole: 'admin',
       roleLimited: true,
       email: 'an@example.com',
@@ -181,7 +200,7 @@ describe('ProjectMembersService', () => {
       'admin',
       'contributor',
       'commenter',
-      'guest',
+      'viewer',
     ]);
   });
 
@@ -253,6 +272,174 @@ describe('ProjectMembersService', () => {
     });
   });
 
+  it('AC-10: combines inherited and assigned members, assigns correct source, nullable fields, and totals', async () => {
+    repo.rows = [
+      {
+        userId: 'u-assigned-1',
+        firstName: 'Bao',
+        lastName: 'Le',
+        displayName: 'Bao Le',
+        avatarUrl: null,
+        email: 'bao@example.com',
+        assignedRole: 'contributor',
+        workspaceRole: 'member',
+        joinedAt: new Date('2026-10-10T00:00:00Z'),
+        accountActive: true,
+      },
+      {
+        userId: 'u-assigned-2',
+        firstName: 'Chi',
+        lastName: 'Tran',
+        displayName: 'Chi Tran',
+        avatarUrl: null,
+        email: 'chi@example.com',
+        assignedRole: 'commenter',
+        workspaceRole: 'member',
+        joinedAt: new Date('2026-10-10T00:00:00Z'),
+        accountActive: true,
+      },
+    ];
+    repo.total = 2;
+
+    repo.inheritedRows = [
+      {
+        userId: 'u-admin-1',
+        firstName: 'An',
+        lastName: 'Vu',
+        displayName: 'An Vu',
+        avatarUrl: null,
+        email: 'an@example.com',
+        workspaceRole: 'admin',
+        accountActive: true,
+      },
+      {
+        userId: 'u-admin-2',
+        firstName: 'Dung',
+        lastName: 'Pham',
+        displayName: 'Dung Pham',
+        avatarUrl: null,
+        email: 'dung@example.com',
+        workspaceRole: 'admin',
+        accountActive: false, // deactivated account
+      },
+      {
+        userId: 'u-admin-3',
+        firstName: 'Giang',
+        lastName: 'Hoang',
+        displayName: 'Giang Hoang',
+        avatarUrl: null,
+        email: 'giang@example.com',
+        workspaceRole: 'admin',
+        accountActive: true,
+      },
+    ];
+    repo.inheritedTotal = 3;
+
+    const res = await service.list(workspace, project, 'actor-1');
+
+    expect(res.total).toBe(5);
+    expect(res.members).toHaveLength(5);
+
+    // 3 inherited members have role 'admin', assignedRole null, joinedAt null, source 'inherited'
+    const inherited = res.members.filter((m) => m.source === 'inherited');
+    expect(inherited).toHaveLength(3);
+    for (const m of inherited) {
+      expect(m.role).toBe('admin');
+      expect(m.assignedRole).toBeNull();
+      expect(m.joinedAt).toBeNull();
+      expect(m.roleLimited).toBe(false);
+      expect(m.workspaceRole).toBe('admin');
+    }
+
+    const deactivated = res.members.find((m) => m.userId === 'u-admin-2');
+    expect(deactivated?.accountActive).toBe(false);
+
+    // 2 assigned members have source 'assigned'
+    const assigned = res.members.filter((m) => m.source === 'assigned');
+    expect(assigned).toHaveLength(2);
+    expect(assigned[0]?.source).toBe('assigned');
+    expect(assigned[0]?.assignedRole).toBeDefined();
+    expect(assigned[0]?.joinedAt).not.toBeNull();
+
+    // Check order: role admin first (rank 40), then contributor (rank 30), then commenter (rank 20)
+    expect(res.members.map((m) => m.role)).toEqual([
+      'admin',
+      'admin',
+      'admin',
+      'contributor',
+      'commenter',
+    ]);
+  });
+
+  it('AC-23: omits inherited members when viewer lacks workspace.members.view permission', async () => {
+    repo.rows = [
+      {
+        userId: 'u-assigned-1',
+        firstName: 'Bao',
+        lastName: 'Le',
+        displayName: 'Bao Le',
+        avatarUrl: null,
+        email: 'bao@example.com',
+        assignedRole: 'contributor',
+        workspaceRole: 'member',
+        joinedAt: new Date('2026-10-10T00:00:00Z'),
+        accountActive: true,
+      },
+    ];
+    repo.total = 1;
+
+    repo.inheritedRows = [
+      {
+        userId: 'u-admin-1',
+        firstName: 'An',
+        lastName: 'Vu',
+        displayName: 'An Vu',
+        avatarUrl: null,
+        email: 'an@example.com',
+        workspaceRole: 'admin',
+        accountActive: true,
+      },
+    ];
+    repo.inheritedTotal = 1;
+
+    const wsNoMembersView: MemberWorkspace = {
+      ...workspace,
+      permissions: [], // lacks workspace.members.view
+    };
+
+    const res = await service.list(wsNoMembersView, project, 'actor-1');
+
+    expect(res.total).toBe(1);
+    expect(res.members).toHaveLength(1);
+    expect(res.members[0]?.userId).toBe('u-assigned-1');
+    expect(res.members[0]?.source).toBe('assigned');
+  });
+
+  it('logs project.members.out_of_range warning when assigned members have out-of-range roles', async () => {
+    const warnSpy = vi.spyOn(service['logger'], 'warn');
+
+    repo.rows = [
+      {
+        userId: 'u-1',
+        firstName: 'Guest',
+        lastName: 'User',
+        displayName: 'Guest User',
+        avatarUrl: null,
+        email: 'guest@example.com',
+        assignedRole: 'contributor', // guest assigned contributor is out of range!
+        workspaceRole: 'guest',
+        joinedAt: new Date('2026-10-10T00:00:00Z'),
+        accountActive: true,
+      },
+    ];
+
+    await service.list(workspace, project, 'actor-1');
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('project.members.out_of_range projectId=proj-1 count=1'),
+    );
+  });
+
   describe('searchCandidates (API B4.2)', () => {
     it('uses contains mode and includes email when workspace viewer has email.view permission', async () => {
       repo.candidateRows = [
@@ -293,7 +480,8 @@ describe('ProjectMembersService', () => {
         email: 'an@openplany.dev',
         avatarUrl: null,
         status: 'addable',
-        addableRoles: ['admin', 'contributor', 'commenter', 'guest'],
+        addableRoles: ['admin', 'contributor', 'commenter'],
+        workspaceRole: 'member',
       });
 
       expect(events.candidateSearchedEvents).toHaveLength(1);
@@ -410,7 +598,7 @@ describe('ProjectMembersService', () => {
       );
 
       expect(res.candidates[0]!.status).toBe('addable');
-      expect(res.candidates[0]!.addableRoles).toEqual(['guest']);
+      expect(res.candidates[0]!.addableRoles).toEqual(['viewer']);
     });
   });
 
@@ -424,7 +612,7 @@ describe('ProjectMembersService', () => {
           {
             members: [
               { userId: 'u-1', role: 'contributor' },
-              { userId: 'u-1', role: 'guest' },
+              { userId: 'u-1', role: 'viewer' },
             ],
           },
           'req-1',
@@ -481,7 +669,7 @@ describe('ProjectMembersService', () => {
         {
           members: [
             { userId: 'u-1', role: 'contributor' },
-            { userId: 'u-2', role: 'guest' },
+            { userId: 'u-2', role: 'viewer' },
           ],
         },
         'req-add-success',
@@ -502,7 +690,7 @@ describe('ProjectMembersService', () => {
         actorId: 'actor-admin',
         actorRole: 'admin',
         count: 2,
-        roles: ['contributor', 'guest'],
+        roles: ['contributor', 'viewer'],
         requestId: 'req-add-success',
       });
     });
@@ -698,7 +886,10 @@ describe('ProjectMembersService', () => {
     it('accepts an addable workspace member with an allowed role', async () => {
       const reject = await rowRejectionOf();
       expect(
-        reject({ workspaceRole: 'member', alreadyMember: false }, 'contributor'),
+        reject(
+          { workspaceRole: 'member', alreadyMember: false },
+          'contributor',
+        ),
       ).toBeNull();
     });
   });
