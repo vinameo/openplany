@@ -39,6 +39,7 @@ export interface AddProjectMembersModalProps {
   identifier: string;
   addableRoles: ProjectRole[];
   canSeeEmail: boolean;
+  canAddWorkspaceMember?: boolean;
   onSubmit?: (
     body: { members: { userId: string; role: ProjectRole }[] },
     rowIdByIndex: readonly string[],
@@ -52,6 +53,7 @@ export function AddProjectMembersModal({
   identifier,
   addableRoles,
   canSeeEmail,
+  canAddWorkspaceMember,
   onSubmit,
 }: AddProjectMembersModalProps) {
   const currentProject = useContext(CurrentProjectContext);
@@ -160,8 +162,10 @@ export function AddProjectMembersModal({
           value={row.candidate}
           onChange={onSelect}
           canSeeEmail={canSeeEmail}
+          canAddWorkspaceMember={canAddWorkspaceMember}
           selectedUserIds={otherSelectedIds}
           error={row.error}
+          errorId={row.error ? `candidate-error-${row.id}` : undefined}
         />
       )}
       notice={(row) =>

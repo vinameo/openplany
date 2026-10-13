@@ -237,7 +237,11 @@ describe("ProjectMembersSettingsPage", () => {
     });
 
     expect(await screen.findByText("Binh Le")).toBeInTheDocument();
-    expect(screen.getByLabelText(ROLE_LIMITED_TOOLTIP)).toBeInTheDocument();
+    const tooltipTrigger = screen.getByLabelText(ROLE_LIMITED_TOOLTIP);
+    expect(tooltipTrigger).toBeInTheDocument();
+    expect(tooltipTrigger).toHaveAttribute("tabIndex", "0");
+    tooltipTrigger.focus();
+    expect(tooltipTrigger).toHaveFocus();
   });
 
   it("AC-28: deactivated member shows Deactivated badge and is counted in total", async () => {

@@ -35,6 +35,7 @@ export interface MemberCandidateComboboxProps<C extends CandidateBase> {
   hint?: string | null;
   selectedUserIds?: readonly string[];
   error?: string | null;
+  errorId?: string;
   disabled?: boolean;
   placeholder?: string;
 }
@@ -50,6 +51,7 @@ export function MemberCandidateCombobox<C extends CandidateBase>({
   hint,
   selectedUserIds = [],
   error,
+  errorId,
   disabled = false,
   placeholder = 'name@company.com',
 }: MemberCandidateComboboxProps<C>) {
@@ -104,7 +106,9 @@ export function MemberCandidateCombobox<C extends CandidateBase>({
       <InputBase
         component="div"
         aria-label="Email"
+        aria-describedby={error && errorId ? errorId : undefined}
         error={error}
+        errorProps={error && errorId ? { id: errorId } : undefined}
         disabled={disabled}
         rightSection={
           !disabled ? (
@@ -239,8 +243,10 @@ export function MemberCandidateCombobox<C extends CandidateBase>({
         <InputBase
           placeholder={placeholder}
           aria-label="Email"
+          aria-describedby={error && errorId ? errorId : undefined}
           value={search}
           error={error}
+          errorProps={error && errorId ? { id: errorId } : undefined}
           disabled={disabled}
           onChange={(event) => {
             onSearchChange(event.currentTarget.value);

@@ -11,6 +11,7 @@ interface MemberCandidateSelectProps {
   onChange: (candidate: MemberCandidate | null) => void;
   selectedUserIds?: readonly string[];
   error?: string | null;
+  errorId?: string;
   disabled?: boolean;
 }
 
@@ -20,6 +21,7 @@ export function MemberCandidateSelect({
   onChange,
   selectedUserIds = [],
   error,
+  errorId,
   disabled = false,
 }: MemberCandidateSelectProps) {
   const [search, setSearch] = useState("");
@@ -57,6 +59,7 @@ export function MemberCandidateSelect({
       }
       selectedUserIds={selectedUserIds}
       error={error}
+      errorId={errorId}
       disabled={disabled}
     />
   );

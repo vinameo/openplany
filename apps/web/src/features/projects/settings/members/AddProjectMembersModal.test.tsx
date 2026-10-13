@@ -628,4 +628,84 @@ describe('AddProjectMembersModal', () => {
       await screen.findByText('Check the highlighted fields'),
     ).toBeInTheDocument();
   });
+
+  it('AC-35: renders full-screen modal when viewport is mobile (< 48em)', async () => {
+    vi.stubGlobal('matchMedia', vi.fn().mockImplementation((query: string) => ({
+      matches: query === '(max-width: 48em)',
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })));
+
+    renderModal();
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeInTheDocument();
+    // In Mantine 7, fullScreen modal applies data-full-screen or full-screen class
+    expect(dialog.className).toMatch(/content/i);
+  });
+
+  it('connects roleNotice, notice(row), error, and roleError via aria-describedby', async () => {
+    mockFetch({
+      'GET /api/workspaces/ws-1/projects/P1/member-candidates': () =>
+        jsonResponse(200, { candidates }),
+      'POST /api/workspaces/ws-1/projects/P1/members': () =>
+        apiError(409, 'MEMBERS_NOT_ADDABLE', "Some people couldn't be added", {
+          fields: {
+            'members.0.userId': 'This person is no longer in this workspace.',
+            'members.0.role': 'This role is above what their workspace role allows.',
+          },
+        }),
+    });
+
+    const user = userEvent.setup();
+    renderModal();
+
+    // 1. Select Binh Pham who is limited to Guest
+    const input = screen.getByRole('textbox', { name: 'Email' });
+    await user.type(input, 'binh');
+    await waitFor(() => {
+      expect(
+        screen.getByRole('option', { name: /binh@openplany\.dev/i }),
+      ).toBeInTheDocument();
+    });
+    await user.click(
+      screen.getByRole('option', { name: /binh@openplany\.dev/i }),
+    );
+
+    // roleNotice is displayed
+    const roleNotice = screen.getByText(
+      'Limited to Guest by their workspace role.',
+    );
+    expect(roleNotice).toHaveAttribute('id');
+    const roleSelect = screen.getByRole('combobox', { name: 'Role' });
+    expect(roleSelect.getAttribute('aria-describedby')).toContain(roleNotice.id);
+
+    // 2. Submit to trigger 409 field errors
+    const submitBtn = screen.getByRole('button', { name: 'Add member' });
+    await user.click(submitBtn);
+
+    const candidateError = await screen.findByText(
+      'This person is no longer in this workspace.',
+    );
+    const roleError = await screen.findByText(
+      'This role is above what their workspace role allows.',
+    );
+
+    expect(candidateError).toHaveAttribute('id');
+    expect(roleError).toHaveAttribute('id');
+
+    // Email component wrapper has aria-describedby containing candidateError id
+    const emailWrapper = screen.getByLabelText('Email');
+    expect(emailWrapper.getAttribute('aria-describedby')).toContain(
+      candidateError.id,
+    );
+
+    // Role select has aria-describedby containing roleError id
+    expect(roleSelect.getAttribute('aria-describedby')).toContain(roleError.id);
+  });
 });

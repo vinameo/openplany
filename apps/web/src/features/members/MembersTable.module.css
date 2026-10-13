@@ -5,6 +5,11 @@
   white-space: nowrap;
 }
 
+.roleHintWrapper {
+  display: inline-flex;
+  cursor: help;
+}
+
 /* Column widths; the email column only exists for viewers who may see it. */
 .colFullName { width: 35%; }
 .colDisplayName { width: 27%; }

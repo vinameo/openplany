@@ -134,7 +134,7 @@ export function MembersTable<
                       <span
                         tabIndex={0}
                         aria-label={hint}
-                        style={{ display: 'inline-flex', cursor: 'help' }}
+                        className={classes.roleHintWrapper}
                       >
                         <Text size="sm">{scheme.labels[member.role]}</Text>
                       </span>

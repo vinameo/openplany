@@ -162,6 +162,15 @@ export function AddMembersModalFrame<
                 }));
 
               const rowNotice = notice?.(row);
+              const roleNoticeId = row.roleNotice
+                ? `role-notice-${row.id}`
+                : undefined;
+              const rowNoticeId = rowNotice ? `row-notice-${row.id}` : undefined;
+              const roleErrorId = row.roleError
+                ? `role-error-${row.id}`
+                : undefined;
+              const noticeText = row.roleNotice || rowNotice;
+              const noticeId = roleNoticeId || rowNoticeId;
 
               return (
                 <div key={row.id}>
@@ -186,6 +195,19 @@ export function AddMembersModalFrame<
                         data={roleOptions}
                         value={row.role}
                         error={row.roleError}
+                        errorProps={
+                          roleErrorId ? { id: roleErrorId } : undefined
+                        }
+                        description={noticeText}
+                        descriptionProps={
+                          noticeId ? { id: noticeId } : undefined
+                        }
+                        inputWrapperOrder={[
+                          'label',
+                          'input',
+                          'description',
+                          'error',
+                        ]}
                         onChange={(val) => {
                           if (val) {
                             dispatch({
@@ -213,18 +235,6 @@ export function AddMembersModalFrame<
                       )}
                     </Group>
                   </Group>
-
-                  {row.roleNotice && (
-                    <Text size="xs" c="dimmed" mt={4}>
-                      {row.roleNotice}
-                    </Text>
-                  )}
-
-                  {rowNotice && (
-                    <Text size="xs" c="dimmed" mt={4}>
-                      {rowNotice}
-                    </Text>
-                  )}
                 </div>
               );
             })}

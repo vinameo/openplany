@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Text } from '@mantine/core';
+import { useContext, useState } from 'react';
+import { Anchor, Text } from '@mantine/core';
 import {
   MEMBER_CANDIDATE_QUERY_MIN,
   MEMBER_MESSAGES,
@@ -8,9 +8,12 @@ import {
 } from '@repo/contracts';
 import { MemberCandidateCombobox } from '../../../members/MemberCandidateCombobox';
 import { useMemberCandidateSearch } from '../../../members/useMemberCandidateSearch';
+import { CurrentWorkspaceContext } from '../../../workspaces/currentWorkspace/currentWorkspaceContext';
+import { workspaceSettingsPath } from '../../../workspaces/workspacePaths';
 import { projectMembersApi } from '../../api/projectMembersApi';
 import { projectKeys } from '../../api/projectQueries';
 import {
+  ADD_TO_WORKSPACE_LINK,
   ALREADY_IN_PROJECT_LABEL,
   NO_WORKSPACE_MEMBER_FOUND,
   TYPE_FULL_EMAIL,
@@ -23,8 +26,10 @@ export interface ProjectMemberCandidateSelectProps {
   value: ProjectMemberCandidate | null;
   onChange: (candidate: ProjectMemberCandidate | null) => void;
   canSeeEmail: boolean;
+  canAddWorkspaceMember?: boolean;
   selectedUserIds?: readonly string[];
   error?: string | null;
+  errorId?: string;
   disabled?: boolean;
 }
 
@@ -34,11 +39,20 @@ export function ProjectMemberCandidateSelect({
   value,
   onChange,
   canSeeEmail,
+  canAddWorkspaceMember,
   selectedUserIds = [],
   error,
+  errorId,
   disabled = false,
 }: ProjectMemberCandidateSelectProps) {
   const [search, setSearch] = useState('');
+  const currentWorkspace = useContext(CurrentWorkspaceContext);
+
+  const canAddWorkspace =
+    canAddWorkspaceMember ??
+    Boolean(
+      currentWorkspace?.workspace?.permissions?.includes('workspace.members.add'),
+    );
 
   const isReady = (trimmed: string) =>
     canSeeEmail
@@ -58,6 +72,25 @@ export function ProjectMemberCandidateSelect({
     notReadyHint,
   });
 
+  const emptyContent = (
+    <Text size="sm">
+      {NO_WORKSPACE_MEMBER_FOUND}
+      {canAddWorkspace && (
+        <>
+          {' '}
+          <Anchor
+            href={workspaceSettingsPath(slug, 'members')}
+            target="_blank"
+            rel="noopener noreferrer"
+            size="sm"
+          >
+            {ADD_TO_WORKSPACE_LINK}
+          </Anchor>
+        </>
+      )}
+    </Text>
+  );
+
   return (
     <MemberCandidateCombobox
       value={value}
@@ -74,9 +107,10 @@ export function ProjectMemberCandidateSelect({
         }
         return null;
       }}
-      emptyContent={<Text size="sm">{NO_WORKSPACE_MEMBER_FOUND}</Text>}
+      emptyContent={emptyContent}
       selectedUserIds={selectedUserIds}
       error={error}
+      errorId={errorId}
       disabled={disabled}
     />
   );

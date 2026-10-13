@@ -1,4 +1,9 @@
 .search {
   flex-grow: 1;
   min-width: rem(200px);
+
+  @media (max-width: $mantine-breakpoint-sm) {
+    min-width: 100%;
+    width: 100%;
+  }
 }

@@ -85,6 +85,9 @@ export function ProjectMembersSettingsPage() {
           identifier={project.identifier}
           addableRoles={query.data?.addableRoles ?? []}
           canSeeEmail={canSeeEmail}
+          canAddWorkspaceMember={workspace.permissions.includes(
+            'workspace.members.add',
+          )}
         />
       )}
     </>

@@ -130,6 +130,7 @@ export function AddMembersModal({
           onChange={onSelect}
           selectedUserIds={otherSelectedIds}
           error={row.error}
+          errorId={row.error ? `candidate-error-${row.id}` : undefined}
         />
       )}
       notice={(row: AddMemberRow<WorkspaceRole, MemberCandidate>) =>
