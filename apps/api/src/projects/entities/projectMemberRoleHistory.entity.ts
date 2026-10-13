@@ -2,7 +2,7 @@ import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 import type { ProjectRole, RoleScope } from '@repo/contracts';
 import { AppendOnly } from '../../database/appendOnly.js';
 
-export type ProjectRoleChangeType = 'project_created';
+export type ProjectRoleChangeType = 'project_created' | 'member_added';
 
 @AppendOnly()
 @Entity({ name: 'project_member_role_history' })

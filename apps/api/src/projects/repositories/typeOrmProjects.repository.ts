@@ -50,13 +50,13 @@ export class TypeOrmProjectsRepository extends ProjectsRepository {
     })
       .select('pm.projectId', 'projectId')
       .addSelect('pm.memberId', 'userId')
-      .addSelect('pm.createdAt', 'addedAt')
+      .addSelect('pm.joinedAt', 'addedAt')
       .addSelect('u.firstName', 'firstName')
       .addSelect('u.lastName', 'lastName')
       .addSelect('u.displayName', 'displayName')
       .addSelect('u.isActive', 'accountActive')
       .addSelect(
-        'ROW_NUMBER() OVER (PARTITION BY pm.projectId ORDER BY pm.createdAt ASC, pm.memberId ASC)',
+        'ROW_NUMBER() OVER (PARTITION BY pm.projectId ORDER BY pm.joinedAt ASC, pm.memberId ASC)',
         'member_rank',
       )
       .addSelect(
@@ -157,6 +157,7 @@ export class TypeOrmProjectsRepository extends ProjectsRepository {
             role: PROJECT_CREATOR_ROLE,
             isActive: true,
             createdById: actorId,
+            joinedAt: now,
             createdAt: now,
             updatedAt: now,
           });

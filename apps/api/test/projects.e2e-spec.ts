@@ -15,6 +15,7 @@ import { CreateProjectTables1791605000000 } from '../src/database/migrations/179
 import { AddProjectForeignKeyIndexes1791606000000 } from '../src/database/migrations/1791606000000-AddProjectForeignKeyIndexes.js';
 import { ReserveProjectIdentifiers1791607000000 } from '../src/database/migrations/1791607000000-ReserveProjectIdentifiers.js';
 import { AddProjectTimezone1791608000000 } from '../src/database/migrations/1791608000000-AddProjectTimezone.js';
+import { AddProjectMemberJoinedAt1791609000000 } from '../src/database/migrations/1791609000000-AddProjectMemberJoinedAt.js';
 import { ProjectMemberRoleHistory } from '../src/projects/entities/projectMemberRoleHistory.entity.js';
 import { ProjectAccessResolver } from '../src/projects/access/projectAccessResolver.js';
 import { ProjectsRepository } from '../src/projects/repositories/projects.repository.js';
@@ -42,6 +43,12 @@ describe('Projects (e2e)', () => {
       )) as unknown[];
       if (cols.length === 0) {
         await new AddProjectTimezone1791608000000().up(qr);
+      }
+      const joinedAtCols = (await qr.query(
+        "SELECT 1 FROM information_schema.columns WHERE table_name = 'project_members' AND column_name = 'joined_at'",
+      )) as unknown[];
+      if (joinedAtCols.length === 0) {
+        await new AddProjectMemberJoinedAt1791609000000().up(qr);
       }
     } finally {
       await qr.release();
@@ -141,9 +148,11 @@ describe('Projects (e2e)', () => {
       const indexes = new AddProjectForeignKeyIndexes1791606000000();
       const reserve = new ReserveProjectIdentifiers1791607000000();
       const timezone = new AddProjectTimezone1791608000000();
+      const joinedAt = new AddProjectMemberJoinedAt1791609000000();
       const qr = e2e.dataSource.createQueryRunner();
       await qr.connect();
       try {
+        await joinedAt.down(qr).catch(() => {});
         await timezone.down(qr).catch(() => {});
         await reserve.down(qr);
         await indexes.down(qr);
@@ -171,6 +180,7 @@ describe('Projects (e2e)', () => {
         await indexes.up(qr);
         await reserve.up(qr);
         await timezone.up(qr);
+        await joinedAt.up(qr);
       } finally {
         await qr.release();
       }
@@ -235,6 +245,48 @@ describe('Projects (e2e)', () => {
       ).rejects.toMatchObject({
         driverError: { constraint: 'pmrh_project_fkey' },
       });
+    });
+
+    it('T-DB-11: inserting member_added with non-null from_role violates pmrh_shape_check', async () => {
+      const { workspace, ownerId } = await seedWorkspace(
+        'ws-tdb11@openplany.dev',
+        'tdb11-ws',
+      );
+      const projectId = await insertProject(
+        workspace.id,
+        'History Project 2',
+        'HIST2',
+      );
+
+      await expect(
+        e2e.dataSource.query(
+          `INSERT INTO project_member_role_history (workspace_id, project_id, member_id, from_role, to_role, change_type)
+           VALUES ($1, $2, $3, 'guest', 'contributor', 'member_added')`,
+          [workspace.id, projectId, ownerId],
+        ),
+      ).rejects.toMatchObject({
+        driverError: { constraint: 'pmrh_shape_check' },
+      });
+    });
+
+    it('T-DB-12: inserting member_added with null from_role and non-null to_role succeeds', async () => {
+      const { workspace, ownerId } = await seedWorkspace(
+        'ws-tdb12@openplany.dev',
+        'tdb12-ws',
+      );
+      const projectId = await insertProject(
+        workspace.id,
+        'History Project 3',
+        'HIST3',
+      );
+
+      await expect(
+        e2e.dataSource.query(
+          `INSERT INTO project_member_role_history (workspace_id, project_id, member_id, from_role, to_role, change_type)
+           VALUES ($1, $2, $3, NULL, 'contributor', 'member_added')`,
+          [workspace.id, projectId, ownerId],
+        ),
+      ).resolves.toBeDefined();
     });
 
     it('T-DB-03: inserting project_members for non-workspace-member fails foreign key constraint', async () => {
@@ -925,13 +977,15 @@ describe('Projects (e2e)', () => {
       expect(projectsInDb).toHaveLength(1);
 
       const membersInDb = await e2e.dataSource.query<
-        { member_id: string; role: string }[]
-      >(`SELECT member_id, role FROM project_members WHERE project_id = $1`, [
-        proj.id,
-      ]);
+        { member_id: string; role: string; joined_at: Date; created_at: Date }[]
+      >(
+        `SELECT member_id, role, joined_at, created_at FROM project_members WHERE project_id = $1`,
+        [proj.id],
+      );
       expect(membersInDb).toHaveLength(1);
       expect(membersInDb[0]!.member_id).toBe(ownerId);
       expect(membersInDb[0]!.role).toBe('admin');
+      expect(membersInDb[0]!.joined_at).toEqual(membersInDb[0]!.created_at);
 
       const historyInDb = await e2e.dataSource.query<
         { change_type: string; request_id: string; to_role: string }[]

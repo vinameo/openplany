@@ -152,6 +152,16 @@ describe('Migrations (e2e)', () => {
        VALUES ($1, $2, $3, 'admin')`,
       [active!.id, ws.id, ownerId],
     );
+    await e2e.dataSource.query(
+      `INSERT INTO project_members (project_id, workspace_id, member_id, role, is_active)
+       VALUES ($1, $2, $3, 'contributor', false)`,
+      [active!.id, ws.id, formerId],
+    );
+    await e2e.dataSource.query(
+      `INSERT INTO project_member_role_history (workspace_id, project_id, member_id, from_role, to_role, change_type, actor_id)
+       VALUES ($1, $2, $3, NULL, 'admin', 'project_created', $3)`,
+      [ws.id, active!.id, ownerId],
+    );
 
     // reference[i] = schema of a fresh database with the newest
     // ROUNDTRIP_COUNT - i migrations not yet applied.
@@ -174,5 +184,52 @@ describe('Migrations (e2e)', () => {
       await migrationsDs.runMigrations({ transaction: 'each' });
     }
     expect(await schemaSnapshot(migrationsDs)).toEqual(before);
+
+    // Verify backfill (B7): existing rows before up had joined_at = created_at
+    const members = await migrationsDs.query<
+      { member_id: string; joined_at: Date; created_at: Date }[]
+    >(
+      `SELECT member_id, joined_at, created_at FROM project_members WHERE project_id = $1`,
+      [active!.id],
+    );
+    expect(members).toHaveLength(2);
+    for (const m of members) {
+      expect(m.joined_at).toEqual(m.created_at);
+    }
+  });
+
+  it('refuses to revert AddProjectMemberJoinedAt if member_added role history rows exist', async () => {
+    const ownerId = await createUser(e2e, 'owner-mig-added@openplany.dev', {
+      is_superuser: true,
+    });
+    const created = await request(e2e.app.getHttpServer())
+      .post('/api/workspaces')
+      .set('Cookie', await signInCookie(e2e, 'owner-mig-added@openplany.dev'))
+      .set('Origin', DEFAULT_E2E_ORIGIN)
+      .send({ name: 'Mig Added', slug: 'mig-added', organizationSize: '2-10' })
+      .expect(201);
+    const wsId = created.body.id as string;
+    const [project] = await e2e.dataSource.query<{ id: string }[]>(
+      `INSERT INTO projects (workspace_id, name, identifier, icon_name, icon_color, cover_key, timezone)
+       VALUES ($1, 'Mig Added Project', 'MAP', 'square-check', '#868E96', 'cover-01', 'UTC') RETURNING id`,
+      [wsId],
+    );
+    await e2e.dataSource.query(
+      `INSERT INTO project_member_role_history (workspace_id, project_id, member_id, from_role, to_role, change_type, actor_id)
+       VALUES ($1, $2, $3, NULL, 'contributor', 'member_added', $3)`,
+      [wsId, project!.id, ownerId],
+    );
+
+    const schemaBefore = await schemaSnapshot(migrationsDs);
+    try {
+      await expect(
+        migrationsDs.undoLastMigration({ transaction: 'each' }),
+      ).rejects.toThrow(
+        /Cannot revert AddProjectMemberJoinedAt: 1 project role history rows use change_type 'member_added'/,
+      );
+      expect(await schemaSnapshot(migrationsDs)).toEqual(schemaBefore);
+    } finally {
+      await migrationsDs.runMigrations({ transaction: 'each' });
+    }
   });
 });
