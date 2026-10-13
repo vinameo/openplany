@@ -1,4 +1,14 @@
+import type { TransformFnParams } from 'class-transformer';
 import { MEMBER_MESSAGES } from '@repo/contracts';
+
+/**
+ * `@Transform` for a member row's `userId`. Postgres returns UUIDs in
+ * lowercase, so ids are compared and looked up in that form; an uppercase id
+ * would otherwise miss every row read back and slip past the duplicate check.
+ */
+export function toCanonicalUserId({ value }: TransformFnParams): unknown {
+  return typeof value === 'string' ? value.toLowerCase() : value;
+}
 
 /**
  * Returns a fields map containing `members.<i>.userId` mapped to MEMBER_MESSAGES.rowDuplicate

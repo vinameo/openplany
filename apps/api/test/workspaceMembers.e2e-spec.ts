@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { describe, beforeAll, beforeEach, afterAll, it, expect } from 'vitest';
 import { createE2eApp, type E2eApp } from './createE2eApp.js';
+import { MEMBER_MESSAGES } from '@repo/contracts';
 import {
   createUser as createE2eUser,
   signInCookie as signInE2eCookie,
@@ -605,6 +606,36 @@ describe('WorkspaceMembers (e2e)', () => {
       const found = wsRes.body.workspaces.find((w: { slug: string }) => w.slug === workspace.slug);
       expect(found).toBeDefined();
     }
+  });
+
+  it('4b. adds an uppercase userId under its canonical id and treats two cases of one id as duplicates', async () => {
+    const { workspace, cookie: adminCookie } = await seedWorkspace(
+      'admin-add4b@openplany.dev',
+      'wm-add-upper',
+    );
+    const userId = await createUser('u1-add4b@openplany.dev', { is_superuser: false });
+
+    const dupRes = await http()
+      .post(`/api/workspaces/${workspace.slug}/members`)
+      .set('Cookie', adminCookie)
+      .set('Origin', ORIGIN)
+      .send({
+        members: [
+          { userId, role: 'member' },
+          { userId: userId.toUpperCase(), role: 'guest' },
+        ],
+      })
+      .expect(400);
+    expect(dupRes.body.fields?.['members.1.userId']).toBe(MEMBER_MESSAGES.rowDuplicate);
+
+    const addRes = await http()
+      .post(`/api/workspaces/${workspace.slug}/members`)
+      .set('Cookie', adminCookie)
+      .set('Origin', ORIGIN)
+      .send({ members: [{ userId: userId.toUpperCase(), role: 'member' }] })
+      .expect(201);
+    expect(addRes.body.members).toHaveLength(1);
+    expect(addRes.body.members[0].userId).toBe(userId);
   });
 
   it('5. AC-06: role change history recorded for batch add with X-Request-Id', async () => {
