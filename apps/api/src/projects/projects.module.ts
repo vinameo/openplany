@@ -25,6 +25,10 @@ import { ProjectsController } from './projects.controller.js';
 import { ProjectsService } from './projects.service.js';
 import { ProjectsRepository } from './repositories/projects.repository.js';
 import { TypeOrmProjectsRepository } from './repositories/typeOrmProjects.repository.js';
+import { ProjectMembersController } from './members/projectMembers.controller.js';
+import { ProjectMembersService } from './members/projectMembers.service.js';
+import { ProjectMembersRepository } from './members/projectMembers.repository.js';
+import { TypeOrmProjectMembersRepository } from './members/typeOrmProjectMembers.repository.js';
 import {
   PROJECT_LOOKUP_ALERT_LIMITER,
   PROJECT_LOOKUP_LIMITER,
@@ -43,12 +47,17 @@ import {
       RolePermission,
     ]),
   ],
-  controllers: [ProjectsController],
+  controllers: [ProjectsController, ProjectMembersController],
   providers: [
     ProjectsService,
     {
       provide: ProjectsRepository,
       useClass: TypeOrmProjectsRepository,
+    },
+    ProjectMembersService,
+    {
+      provide: ProjectMembersRepository,
+      useClass: TypeOrmProjectMembersRepository,
     },
     {
       provide: ProjectAccessResolver,
@@ -73,6 +82,8 @@ import {
   exports: [
     ProjectsService,
     ProjectsRepository,
+    ProjectMembersService,
+    ProjectMembersRepository,
     ProjectAccessResolver,
     ProjectAccessGuard,
     ProjectEvents,
@@ -82,6 +93,8 @@ import {
 })
 export class ProjectsModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(NoStoreMiddleware).forRoutes(ProjectsController);
+    consumer
+      .apply(NoStoreMiddleware)
+      .forRoutes(ProjectsController, ProjectMembersController);
   }
 }

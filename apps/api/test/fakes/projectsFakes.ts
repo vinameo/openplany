@@ -18,6 +18,7 @@ import {
   type ProjectDeletedEvent,
   type ProjectListTruncatedEvent,
   type ProjectLookupRateLimitedEvent,
+  type ProjectMembersListTruncatedEvent,
   type ProjectUpdatedEvent,
 } from '../../src/projects/events/projectEvents.js';
 import {
@@ -125,6 +126,7 @@ export class FakeProjectEvents extends ProjectEvents {
   public truncatedEvents: ProjectListTruncatedEvent[] = [];
   public accessDeniedEvents: ProjectAccessDeniedEvent[] = [];
   public rateLimitedEvents: ProjectLookupRateLimitedEvent[] = [];
+  public membersListTruncatedEvents: ProjectMembersListTruncatedEvent[] = [];
 
   async created(event: ProjectCreatedEvent): Promise<void> {
     this.createdEvents.push(event);
@@ -148,5 +150,11 @@ export class FakeProjectEvents extends ProjectEvents {
 
   async lookupRateLimited(event: ProjectLookupRateLimitedEvent): Promise<void> {
     this.rateLimitedEvents.push(event);
+  }
+
+  async membersListTruncated(
+    event: ProjectMembersListTruncatedEvent,
+  ): Promise<void> {
+    this.membersListTruncatedEvents.push(event);
   }
 }

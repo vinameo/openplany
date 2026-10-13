@@ -6,6 +6,7 @@ import {
   type ProjectDeletedEvent,
   type ProjectListTruncatedEvent,
   type ProjectLookupRateLimitedEvent,
+  type ProjectMembersListTruncatedEvent,
   type ProjectUpdatedEvent,
 } from './projectEvents.js';
 
@@ -46,6 +47,14 @@ export class LoggingProjectEvents extends ProjectEvents {
   async lookupRateLimited(event: ProjectLookupRateLimitedEvent): Promise<void> {
     this.logger.warn(
       `project.lookup.rate_limited workspaceId=${event.workspaceId} userId=${event.userId} requestId=${event.requestId ?? ''}`,
+    );
+  }
+
+  async membersListTruncated(
+    event: ProjectMembersListTruncatedEvent,
+  ): Promise<void> {
+    this.logger.warn(
+      `project.members.list.truncated projectId=${event.projectId} total=${event.total} requestId=${event.requestId ?? ''}`,
     );
   }
 }

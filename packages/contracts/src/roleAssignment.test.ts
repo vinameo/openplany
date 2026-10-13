@@ -4,6 +4,9 @@ import {
   assignableWorkspaceRoles,
   addableWorkspaceRoles,
   DEFAULT_ADDED_WORKSPACE_ROLE,
+  addableProjectRoles,
+  addableProjectRoleRange,
+  DEFAULT_ADDED_PROJECT_ROLE,
   canRemoveProjectMember,
   canRemoveWorkspaceMember,
   projectRolesAboveCeiling,
@@ -308,6 +311,102 @@ describe('roleAssignment', () => {
       ]);
       expect(projectRolesAboveCeiling('admin')).toEqual([]);
       expect(projectRolesAboveCeiling('member')).toEqual([]);
+    });
+  });
+
+  describe('RQ B5.3: addableProjectRoleRange and addableProjectRoles', () => {
+    it('defines DEFAULT_ADDED_PROJECT_ROLE as contributor', () => {
+      expect(DEFAULT_ADDED_PROJECT_ROLE).toBe('contributor');
+    });
+
+    it('addableProjectRoleRange returns roles up to actor rank if actor has project.members.manage, else []', () => {
+      // Workspace Admin actor (effective role admin)
+      const wsAdminActor = {
+        userId: 'admin-ws',
+        workspaceRole: 'admin' as WorkspaceRole,
+        effectiveRole: 'admin' as ProjectRole,
+        permissions: ['project.members.manage' as const],
+      };
+      expect(addableProjectRoleRange(wsAdminActor)).toEqual([
+        'admin',
+        'contributor',
+        'commenter',
+        'guest',
+      ]);
+
+      // Project Admin actor (workspace member, effective role admin)
+      const projAdminActor = {
+        userId: 'admin-proj',
+        workspaceRole: 'member' as WorkspaceRole,
+        effectiveRole: 'admin' as ProjectRole,
+        permissions: ['project.members.manage' as const],
+      };
+      expect(addableProjectRoleRange(projAdminActor)).toEqual([
+        'admin',
+        'contributor',
+        'commenter',
+        'guest',
+      ]);
+
+      // Contributor with hand-crafted project.members.manage
+      const contributorWithPerm = {
+        userId: 'contrib-1',
+        workspaceRole: 'member' as WorkspaceRole,
+        effectiveRole: 'contributor' as ProjectRole,
+        permissions: ['project.members.manage' as const],
+      };
+      expect(addableProjectRoleRange(contributorWithPerm)).toEqual([
+        'contributor',
+        'commenter',
+        'guest',
+      ]);
+
+      // Contributor without permission
+      const contributorNoPerm = {
+        userId: 'contrib-2',
+        workspaceRole: 'member' as WorkspaceRole,
+        effectiveRole: 'contributor' as ProjectRole,
+        permissions: [],
+      };
+      expect(addableProjectRoleRange(contributorNoPerm)).toEqual([]);
+
+      // Actor with null effective role
+      const nullRoleActor = {
+        userId: 'null-user',
+        workspaceRole: 'member' as WorkspaceRole,
+        effectiveRole: null,
+        permissions: ['project.members.manage' as const],
+      };
+      expect(addableProjectRoleRange(nullRoleActor)).toEqual([]);
+    });
+
+    it('addableProjectRoles delegates to assignableProjectRoles with assignedRole: null', () => {
+      const actor = {
+        userId: 'actor-1',
+        workspaceRole: 'member' as WorkspaceRole,
+        effectiveRole: 'admin' as ProjectRole,
+        permissions: ['project.members.manage' as const],
+      };
+
+      // Target in workspace as member
+      expect(
+        addableProjectRoles(actor, { userId: 'target-1', workspaceRole: 'member' }),
+      ).toEqual(['admin', 'contributor', 'commenter', 'guest']);
+
+      // Target in workspace as guest (clamped by guest ceiling)
+      expect(
+        addableProjectRoles(actor, { userId: 'target-guest', workspaceRole: 'guest' }),
+      ).toEqual(['guest']);
+
+      // Target is workspace admin (implicit access -> [])
+      expect(
+        addableProjectRoles(actor, { userId: 'target-ws-admin', workspaceRole: 'admin' }),
+      ).toEqual([]);
+
+      // Target is self -> []
+      expect(
+        addableProjectRoles(actor, { userId: 'actor-1', workspaceRole: 'member' }),
+      ).toEqual([]);
     });
   });
 });

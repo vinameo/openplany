@@ -29,11 +29,13 @@ describe('projectPermissions', () => {
       enforcedProjectPermissions([
         'project.settings.view',
         'project.settings.update',
+        'project.members.manage',
         'project.members.view',
         'project.archive',
       ]),
     ).toEqual([
       'project.members.view',
+      'project.members.manage',
       'project.settings.view',
       'project.settings.update',
     ]);

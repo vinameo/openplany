@@ -40,6 +40,12 @@ export interface ProjectDeletedEvent {
   requestId?: string;
 }
 
+export interface ProjectMembersListTruncatedEvent {
+  projectId: string;
+  total: number;
+  requestId?: string;
+}
+
 export abstract class ProjectEvents {
   abstract created(event: ProjectCreatedEvent): Promise<void>;
   abstract updated(event: ProjectUpdatedEvent): Promise<void>;
@@ -48,5 +54,8 @@ export abstract class ProjectEvents {
   abstract accessDenied(event: ProjectAccessDeniedEvent): Promise<void>;
   abstract lookupRateLimited(
     event: ProjectLookupRateLimitedEvent,
+  ): Promise<void>;
+  abstract membersListTruncated(
+    event: ProjectMembersListTruncatedEvent,
   ): Promise<void>;
 }

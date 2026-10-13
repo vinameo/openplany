@@ -2,11 +2,14 @@ import { QueryClient } from "@tanstack/react-query";
 import type { ProjectListItem, ProjectListResponse } from "@repo/contracts";
 import { describe, expect, it } from "vitest";
 import {
+  addProjectMembersToCache,
   addProjectToCache,
+  clearProjectMemberCandidates,
   projectKeys,
   removeProjectFromCache,
   replaceProjectInCache,
 } from "./projectQueries";
+import type { ProjectMemberListResponse } from "@repo/contracts";
 
 function makeItem(id: string, identifier: string, name: string): ProjectListItem {
   return {
@@ -97,5 +100,115 @@ describe("projectQueries cache helpers", () => {
       projectKeys.detail(slug, "P1"),
     );
     expect(cachedDetail).toBeUndefined();
+  });
+
+  it("removeProjectFromCache cleans up detail and subqueries like members and memberCandidates", () => {
+    const qc = new QueryClient();
+    const item1 = makeItem("1", "P1", "Project 1");
+    qc.setQueryData(projectKeys.list(slug), {
+      projects: [item1],
+      total: 1,
+      truncated: false,
+    });
+    qc.setQueryData(projectKeys.detail(slug, "P1"), item1);
+    qc.setQueryData(projectKeys.members(slug, "P1"), {
+      members: [],
+      total: 0,
+      truncated: false,
+      addableRoles: [],
+    });
+    qc.setQueryData(projectKeys.memberCandidates(slug, "P1", "test@domain.com"), {
+      candidates: [],
+    });
+
+    removeProjectFromCache(qc, slug, "P1");
+
+    expect(qc.getQueryData(projectKeys.detail(slug, "P1"))).toBeUndefined();
+    expect(qc.getQueryData(projectKeys.members(slug, "P1"))).toBeUndefined();
+    expect(
+      qc.getQueryData(projectKeys.memberCandidates(slug, "P1", "test@domain.com")),
+    ).toBeUndefined();
+  });
+
+  it("clearProjectMemberCandidates removes candidate subqueries for project", () => {
+    const qc = new QueryClient();
+    qc.setQueryData(projectKeys.memberCandidates(slug, "P1", "foo@example.com"), {
+      candidates: [],
+    });
+    qc.setQueryData(projectKeys.memberCandidates(slug, "P1", "bar@example.com"), {
+      candidates: [],
+    });
+    qc.setQueryData(projectKeys.memberCandidates(slug, "P2", "foo@example.com"), {
+      candidates: [],
+    });
+
+    clearProjectMemberCandidates(qc, slug, "P1");
+
+    expect(
+      qc.getQueryData(projectKeys.memberCandidates(slug, "P1", "foo@example.com")),
+    ).toBeUndefined();
+    expect(
+      qc.getQueryData(projectKeys.memberCandidates(slug, "P1", "bar@example.com")),
+    ).toBeUndefined();
+    expect(
+      qc.getQueryData(projectKeys.memberCandidates(slug, "P2", "foo@example.com")),
+    ).toBeDefined();
+  });
+
+  it("addProjectMembersToCache updates members query, deduping and setting total", () => {
+    const qc = new QueryClient();
+    const existingMember = {
+      userId: "u-1",
+      firstName: "User",
+      lastName: "One",
+      displayName: "User One",
+      avatarUrl: null,
+      role: "admin" as const,
+      assignedRole: "admin" as const,
+      accountActive: true,
+      roleLimited: false,
+      joinedAt: "2026-10-12T00:00:00Z",
+    };
+    const newMember1 = {
+      userId: "u-2",
+      firstName: "User",
+      lastName: "Two",
+      displayName: "User Two",
+      avatarUrl: null,
+      role: "contributor" as const,
+      assignedRole: "contributor" as const,
+      accountActive: true,
+      roleLimited: false,
+      joinedAt: "2026-10-13T00:00:00Z",
+    };
+    const duplicateMember = {
+      ...existingMember,
+      role: "contributor" as const,
+      assignedRole: "contributor" as const,
+    };
+
+    qc.setQueryData(projectKeys.members(slug, "P1"), {
+      members: [existingMember],
+      total: 1,
+      truncated: false,
+      addableRoles: ["contributor" as const],
+    });
+
+    const projectUpdate = makeItem("1", "P1", "Project 1");
+    projectUpdate.memberCount = 2;
+
+    addProjectMembersToCache(qc, slug, "P1", {
+      members: [newMember1, duplicateMember],
+      project: projectUpdate,
+    });
+
+    const cachedMembers = qc.getQueryData<ProjectMemberListResponse>(
+      projectKeys.members(slug, "P1"),
+    );
+    expect(cachedMembers?.members).toHaveLength(2);
+    expect(cachedMembers?.members.map((m) => m.userId)).toEqual(["u-1", "u-2"]);
+    expect(cachedMembers?.total).toBe(2);
+    expect(cachedMembers?.truncated).toBe(false);
+    expect(cachedMembers?.addableRoles).toEqual(["contributor"]);
   });
 });

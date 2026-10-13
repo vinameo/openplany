@@ -4,6 +4,7 @@ export type ProjectPermission = string;
 
 export const ENFORCED_PROJECT_PERMISSIONS = [
   'project.members.view',
+  'project.members.manage',
   'project.settings.view',
   'project.settings.update',
 ] as const satisfies readonly ProjectPermission[];
