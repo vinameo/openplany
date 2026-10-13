@@ -30,7 +30,10 @@ describe('Admin Roles & Role Permissions (e2e)', () => {
 
   const http = () => request(e2e.app.getHttpServer());
 
-  async function createDbUser(email: string, isSuperuser = false): Promise<string> {
+  async function createDbUser(
+    email: string,
+    isSuperuser = false,
+  ): Promise<string> {
     const rows = await e2e.dataSource.query<{ id: string }[]>(
       `INSERT INTO users (
         email, username, password, first_name, last_name, display_name,
@@ -44,7 +47,12 @@ describe('Admin Roles & Role Permissions (e2e)', () => {
         now(), now(), now()
       )
       RETURNING id`,
-      [email.toLowerCase(), email.toLowerCase().replace(/[^a-z0-9]/g, ''), passwordHash, isSuperuser],
+      [
+        email.toLowerCase(),
+        email.toLowerCase().replace(/[^a-z0-9]/g, ''),
+        passwordHash,
+        isSuperuser,
+      ],
     );
     return rows[0]!.id;
   }
@@ -168,6 +176,80 @@ describe('Admin Roles & Role Permissions (e2e)', () => {
       expect(res.body.fields['workspace.admin:workspace.delete']).toBe(
         "This role always has its default permissions and can't be changed",
       );
+    });
+
+    it('rejects { scope: "project", key: "guest" } with 400 Unknown role (API B5)', async () => {
+      await createDbUser('admin@openplany.dev', true);
+      const cookie = await signInCookie('admin@openplany.dev');
+
+      const res = await http()
+        .patch('/api/admin/role-permissions')
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({
+          changes: [
+            {
+              scope: 'project',
+              key: 'guest',
+              version: 1,
+              permissions: ['project.workitems.view'],
+            },
+          ],
+        })
+        .expect(400);
+
+      expect(res.body.code).toBe('VALIDATION_ERROR');
+      expect(res.body.fields['project.guest']).toBe('Unknown role');
+    });
+
+    it('rejects granting non-view permissions to project.viewer with 400 (GUEST_VIEW_ONLY)', async () => {
+      await createDbUser('admin@openplany.dev', true);
+      const cookie = await signInCookie('admin@openplany.dev');
+
+      const res = await http()
+        .patch('/api/admin/role-permissions')
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({
+          changes: [
+            {
+              scope: 'project',
+              key: 'viewer',
+              version: 1,
+              permissions: ['project.workitems.create'],
+            },
+          ],
+        })
+        .expect(400);
+
+      expect(res.body.code).toBe('VALIDATION_ERROR');
+      expect(res.body.fields['project.viewer:project.workitems.create']).toBe(
+        'Guests and Viewers can only view',
+      );
+    });
+
+    it('rejects unexpected body property projectAccessPolicies with 400 whitelist violation', async () => {
+      await createDbUser('admin@openplany.dev', true);
+      const cookie = await signInCookie('admin@openplany.dev');
+
+      await http()
+        .patch('/api/admin/role-permissions')
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({
+          changes: [
+            {
+              scope: 'workspace',
+              key: 'member',
+              version: 1,
+              permissions: ['workspace.settings.view'],
+            },
+          ],
+          projectAccessPolicies: {
+            admin: { floor: 'admin', ceiling: 'admin' },
+          },
+        })
+        .expect(400);
     });
 
     it('returns 409 conflict when version is outdated', async () => {
@@ -301,7 +383,9 @@ describe('Admin Roles & Role Permissions (e2e)', () => {
       }
 
       // Column label is dropped
-      const columnsAfterDown = await e2e.dataSource.query<{ column_name: string }[]>(
+      const columnsAfterDown = await e2e.dataSource.query<
+        { column_name: string }[]
+      >(
         `SELECT column_name FROM information_schema.columns
          WHERE table_name = 'permissions' AND column_name = 'label'`,
       );
@@ -342,4 +426,3 @@ describe('Admin Roles & Role Permissions (e2e)', () => {
     });
   });
 });
-

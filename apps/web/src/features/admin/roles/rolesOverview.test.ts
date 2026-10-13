@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  PROJECT_ROLES,
-  WORKSPACE_ROLES,
-} from "@repo/contracts";
+import { PROJECT_ROLES, WORKSPACE_ROLES } from "@repo/contracts";
 import { buildRolesOverview } from "./rolesOverview";
 
 describe("buildRolesOverview", () => {
@@ -26,13 +23,13 @@ describe("buildRolesOverview", () => {
     }
   });
 
-  it("builds projectAccess according to policy: Admin (admin, admin), Member (null, admin), Guest (null, guest)", () => {
+  it("builds projectAccess according to policy: Admin (admin, admin), Member (null, admin), Guest (null, viewer)", () => {
     const overview = buildRolesOverview();
 
     expect(overview.projectAccess).toEqual([
       {
         role: "admin",
-        label: "Admin",
+        label: "Workspace Admin",
         everyProject: "admin",
         highestProjectRole: "admin",
       },
@@ -46,7 +43,7 @@ describe("buildRolesOverview", () => {
         role: "guest",
         label: "Guest",
         everyProject: null,
-        highestProjectRole: "guest",
+        highestProjectRole: "viewer",
       },
     ]);
   });

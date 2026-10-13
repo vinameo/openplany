@@ -30,7 +30,7 @@ export const WORKSPACE_ROLE_POLICY = {
   },
   guest: {
     implicitProjectRole: null,
-    projectRoleCeiling: "guest",
+    projectRoleCeiling: "viewer",
     selfJoinProjectRole: null,
     overridesProjectRank: false,
   },

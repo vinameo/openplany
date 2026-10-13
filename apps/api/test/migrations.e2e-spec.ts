@@ -18,7 +18,7 @@ import {
  * must equal a fresh database built up to that version, and the final schema
  * must equal the start. A new migration is the newest one, so it is covered.
  */
-const ROUNDTRIP_COUNT = 4;
+const ROUNDTRIP_COUNT = 5;
 
 const MIGRATIONS_DIR = join(import.meta.dirname, '../src/database/migrations');
 
@@ -162,6 +162,11 @@ describe('Migrations (e2e)', () => {
        VALUES ($1, $2, $3, NULL, 'admin', 'project_created', $3)`,
       [ws.id, active!.id, ownerId],
     );
+    await e2e.dataSource.query(
+      `INSERT INTO role_permission_history (scope, role_key, permission_key, change_type, actor_id, request_id)
+       VALUES ('project', 'viewer', 'project.workitems.view', 'granted', $1, 'req-viewer-1')`,
+      [ownerId],
+    );
 
     // reference[i] = schema of a fresh database with the newest
     // ROUNDTRIP_COUNT - i migrations not yet applied.
@@ -196,6 +201,33 @@ describe('Migrations (e2e)', () => {
     for (const m of members) {
       expect(m.joined_at).toEqual(m.created_at);
     }
+
+    // Verify role_permission_history round-trip
+    const historyRows = await migrationsDs.query<
+      { scope: string; role_key: string }[]
+    >(
+      `SELECT scope, role_key FROM role_permission_history WHERE scope = 'project' AND permission_key = 'project.workitems.view' AND change_type = 'granted'`,
+    );
+    expect(historyRows).toHaveLength(1);
+    expect(historyRows[0]!.role_key).toBe('viewer');
+  });
+
+  it('AC-01: M-03 is 0, project.guest has no rows and project.viewer has permissions', async () => {
+    const res = await migrationsDs.query<{ m03: string | number }[]>(`
+      SELECT (
+        (SELECT count(*) FROM roles WHERE scope = 'project' AND key = 'guest') +
+        (SELECT count(*) FROM role_permissions WHERE scope = 'project' AND role_key = 'guest') +
+        (SELECT count(*) FROM project_members WHERE role = 'guest') +
+        (SELECT count(*) FROM project_member_role_history WHERE 'guest' IN (from_role, to_role)) +
+        (SELECT count(*) FROM role_permission_history WHERE scope = 'project' AND role_key = 'guest')
+      ) AS m03
+    `);
+    expect(Number(res[0]?.m03 ?? 0)).toBe(0);
+
+    const viewerPerms = await migrationsDs.query<{ count: string | number }[]>(`
+      SELECT count(*) AS count FROM role_permissions WHERE scope = 'project' AND role_key = 'viewer'
+    `);
+    expect(Number(viewerPerms[0]?.count ?? 0)).toBe(10);
   });
 
   it('refuses to revert AddProjectMemberJoinedAt if member_added role history rows exist', async () => {
@@ -220,6 +252,8 @@ describe('Migrations (e2e)', () => {
       [wsId, project!.id, ownerId],
     );
 
+    // Revert RenameProjectGuestToViewer so AddProjectMemberJoinedAt is the last applied migration
+    await migrationsDs.undoLastMigration({ transaction: 'each' });
     const schemaBefore = await schemaSnapshot(migrationsDs);
     try {
       await expect(

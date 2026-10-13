@@ -19,35 +19,35 @@ describe("projectAccess", () => {
   const allProjectRoles: (ProjectRole | null)[] = [...PROJECT_ROLES, null];
 
   // Table A5:
-  // | Workspace \ Assigned | null | admin | contributor | commenter | guest |
+  // | Workspace \ Assigned | null | admin | contributor | commenter | viewer |
   // | admin                | admin| admin | admin       | admin     | admin |
-  // | member               | null | admin | contributor | commenter | guest |
-  // | guest                | null | guest | guest       | guest     | guest |
+  // | member               | null | admin | contributor | commenter | viewer|
+  // | guest                | null | viewer| viewer      | viewer    | viewer|
   // | null                 | null | null  | null        | null      | null  |
   const EXPECTED_A5: Record<string, ProjectRole | null> = {
     "admin:null": "admin",
     "admin:admin": "admin",
     "admin:contributor": "admin",
     "admin:commenter": "admin",
-    "admin:guest": "admin",
+    "admin:viewer": "admin",
 
     "member:null": null,
     "member:admin": "admin",
     "member:contributor": "contributor",
     "member:commenter": "commenter",
-    "member:guest": "guest",
+    "member:viewer": "viewer",
 
     "guest:null": null,
-    "guest:admin": "guest",
-    "guest:contributor": "guest",
-    "guest:commenter": "guest",
-    "guest:guest": "guest",
+    "guest:admin": "viewer",
+    "guest:contributor": "viewer",
+    "guest:commenter": "viewer",
+    "guest:viewer": "viewer",
 
     "null:null": null,
     "null:admin": null,
     "null:contributor": null,
     "null:commenter": null,
-    "null:guest": null,
+    "null:viewer": null,
   };
 
   it("AC-03: effectiveProjectRole matches all combinations in table RQ A5", () => {
@@ -124,7 +124,7 @@ describe("projectAccess", () => {
 
     expect(
       isProjectRoleOutOfRange(
-        { workspaceRole: "guest", assignedRole: "guest" },
+        { workspaceRole: "guest", assignedRole: "viewer" },
         LEGACY_PROJECT_ACCESS_POLICIES,
       ),
     ).toBe(false);
@@ -135,7 +135,7 @@ describe("projectAccess", () => {
       admin: ["project.settings.update"],
       contributor: ["project.workitems.create"],
       commenter: ["project.comments.create"],
-      guest: ["project.settings.view"],
+      viewer: ["project.settings.view"],
     };
 
     const accessMember = resolveProjectAccess(
@@ -160,8 +160,8 @@ describe("projectAccess", () => {
       samplePermissions,
     );
     expect(accessGuestClamped).toEqual({
-      role: "guest",
-      permissions: samplePermissions.guest,
+      role: "viewer",
+      permissions: samplePermissions.viewer,
     });
 
     const accessNoWs = resolveProjectAccess(

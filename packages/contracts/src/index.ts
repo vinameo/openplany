@@ -52,6 +52,7 @@ export {
   permissionGrantProblem,
   permissionRevokeProblem,
   isRoleLocked,
+  isViewOnlyRole,
   isWorkspaceAdminRole,
   scopeOfPermission,
 } from "./rolePermissionRules.js";

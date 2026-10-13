@@ -78,5 +78,51 @@ describe("ConfirmPermissionChangesModal", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(onConfirm).toHaveBeenCalledTimes(1);
   });
-});
 
+  it("renders role heading 'Viewer' when changing permissions of project.viewer (WEB B1)", () => {
+    render(
+      <AppUiProvider>
+        <ConfirmPermissionChangesModal
+          opened={true}
+          onClose={vi.fn()}
+          diff={[
+            {
+              role: { scope: "project", key: "viewer" },
+              granted: ["project.workitems.view"],
+              revoked: [],
+            },
+          ]}
+          onConfirm={vi.fn()}
+          isSaving={false}
+          permissions={DEFAULT_PERMISSION_ITEMS}
+        />
+      </AppUiProvider>,
+    );
+
+    expect(screen.getByText("Viewer")).toBeInTheDocument();
+    expect(screen.queryByText(/Guest/i)).not.toBeInTheDocument();
+  });
+
+  it("renders role heading 'Workspace Admin' when changing permissions of workspace.admin (WEB B1)", () => {
+    render(
+      <AppUiProvider>
+        <ConfirmPermissionChangesModal
+          opened={true}
+          onClose={vi.fn()}
+          diff={[
+            {
+              role: { scope: "workspace", key: "admin" },
+              granted: ["workspace.projects.create"],
+              revoked: [],
+            },
+          ]}
+          onConfirm={vi.fn()}
+          isSaving={false}
+          permissions={DEFAULT_PERMISSION_ITEMS}
+        />
+      </AppUiProvider>,
+    );
+
+    expect(screen.getByText("Workspace Admin")).toBeInTheDocument();
+  });
+});

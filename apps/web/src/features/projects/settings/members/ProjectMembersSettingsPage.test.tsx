@@ -1,4 +1,10 @@
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Notifications } from "@mantine/notifications";
 import { AppUiProvider } from "@repo/ui";
@@ -60,7 +66,7 @@ function renderMembersApp({
     members: [],
     total: 0,
     truncated: false,
-    addableRoles: ["admin", "contributor", "commenter", "guest"],
+    addableRoles: ["admin", "contributor", "commenter", "viewer"],
   },
 }: {
   initialEntries?: string[];
@@ -145,7 +151,7 @@ describe("ProjectMembersSettingsPage", () => {
       members: [memberKai, memberNam],
       total: 2,
       truncated: false,
-      addableRoles: ["admin", "contributor", "commenter", "guest"],
+      addableRoles: ["admin", "contributor", "commenter", "viewer"],
     };
 
     renderMembersApp({
@@ -158,11 +164,15 @@ describe("ProjectMembersSettingsPage", () => {
     expect(screen.getByText("Nam Nguyen")).toBeInTheDocument();
 
     // No Email column
-    expect(screen.queryByRole("columnheader", { name: /^email$/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("columnheader", { name: /^email$/i }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText("kai@openplany.dev")).not.toBeInTheDocument();
 
     // Add member button is visible
-    expect(screen.getByRole("button", { name: /^add member$/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^add member$/i }),
+    ).toBeInTheDocument();
   });
 
   it("AC-05: Contributor without addableRoles does not see Add member button", async () => {
@@ -178,7 +188,9 @@ describe("ProjectMembersSettingsPage", () => {
     });
 
     expect(await screen.findByText(WORKSPACE_ADMINS_NOTE)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^add member$/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^add member$/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("AC-03: Kai with email view permission sees Email column with full email addresses", async () => {
@@ -186,7 +198,7 @@ describe("ProjectMembersSettingsPage", () => {
       members: [memberKai, memberNam],
       total: 2,
       truncated: false,
-      addableRoles: ["admin", "contributor", "commenter", "guest"],
+      addableRoles: ["admin", "contributor", "commenter", "viewer"],
     };
 
     renderMembersApp({
@@ -194,20 +206,22 @@ describe("ProjectMembersSettingsPage", () => {
       membersResponse: membersData,
     });
 
-    expect(await screen.findByRole("columnheader", { name: /^email$/i })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("columnheader", { name: /^email$/i }),
+    ).toBeInTheDocument();
     expect(screen.getByText("kai@openplany.dev")).toBeInTheDocument();
     expect(screen.getByText("nam@openplany.dev")).toBeInTheDocument();
   });
 
-  it("AC-06: Guest project member without project.members.view sees Access Denied", async () => {
-    const guestProject: ProjectListItem = {
+  it("AC-06: Viewer project member without project.members.view sees Access Denied", async () => {
+    const viewerProject: ProjectListItem = {
       ...sampleProject,
-      role: "guest",
+      role: "viewer",
       permissions: [], // no project.members.view
     };
 
     renderMembersApp({
-      project: guestProject,
+      project: viewerProject,
     });
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Access Denied");
@@ -220,7 +234,7 @@ describe("ProjectMembersSettingsPage", () => {
       lastName: "Le",
       displayName: "binhle",
       avatarUrl: null,
-      role: "guest",
+      role: "viewer",
       assignedRole: "contributor",
       roleLimited: true,
       joinedAt: "2026-10-12T10:00:00.000Z",
@@ -315,7 +329,9 @@ describe("ProjectMembersSettingsPage", () => {
 
     // Clicking Add member opens modal
     await user.click(addBtn);
-    expect(await screen.findByRole("dialog", { name: "Add member" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("dialog", { name: "Add member" }),
+    ).toBeInTheDocument();
   });
 
   it("successfully adds members, updates table, updates count, shows toast, and clears candidate cache (AC-12, AC-44)", async () => {
@@ -328,7 +344,11 @@ describe("ProjectMembersSettingsPage", () => {
       email: "an@openplany.dev",
       avatarUrl: null,
       status: "addable" as const,
-      addableRoles: ["contributor" as const, "commenter" as const, "guest" as const],
+      addableRoles: [
+        "contributor" as const,
+        "commenter" as const,
+        "viewer" as const,
+      ],
     };
 
     let searchCallCount = 0;
@@ -348,7 +368,7 @@ describe("ProjectMembersSettingsPage", () => {
           members: [memberKai],
           total: 1,
           truncated: false,
-          addableRoles: ["admin", "contributor", "commenter", "guest"],
+          addableRoles: ["admin", "contributor", "commenter", "viewer"],
         }),
       "GET /api/workspaces/the-firsts/projects/TFP11/member-candidates": () => {
         searchCallCount += 1;
@@ -357,7 +377,9 @@ describe("ProjectMembersSettingsPage", () => {
         }
         // Second search after add (AC-44): candidate now already_member!
         return jsonResponse(200, {
-          candidates: [{ ...candidateAn, status: "already_member", addableRoles: [] }],
+          candidates: [
+            { ...candidateAn, status: "already_member", addableRoles: [] },
+          ],
         });
       },
       "POST /api/workspaces/the-firsts/projects/TFP11/members": () =>
@@ -416,7 +438,9 @@ describe("ProjectMembersSettingsPage", () => {
       expect(screen.getByText("an@openplany.dev")).toBeInTheDocument();
     });
 
-    await user.click(screen.getByRole("option", { name: /an@openplany\.dev/i }));
+    await user.click(
+      screen.getByRole("option", { name: /an@openplany\.dev/i }),
+    );
 
     // Submit modal
     const submitBtn = within(modal).getByRole("button", { name: "Add member" });
@@ -424,7 +448,9 @@ describe("ProjectMembersSettingsPage", () => {
 
     // Modal closes
     await waitFor(() => {
-      expect(screen.queryByRole("dialog", { name: "Add member" })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("dialog", { name: "Add member" }),
+      ).not.toBeInTheDocument();
     });
 
     // Toast appears
@@ -440,10 +466,14 @@ describe("ProjectMembersSettingsPage", () => {
 
     // AC-44: Reopen modal and search An again -> candidate query was cleared, calls API again and shows "Already in this project"
     await user.click(screen.getByRole("button", { name: /^add member$/i }));
-    const modalAgain = await screen.findByRole("dialog", { name: "Add member" });
+    const modalAgain = await screen.findByRole("dialog", {
+      name: "Add member",
+    });
     expect(modalAgain).toBeInTheDocument();
 
-    const emailInputAgain = within(modalAgain).getByRole("textbox", { name: "Email" });
+    const emailInputAgain = within(modalAgain).getByRole("textbox", {
+      name: "Email",
+    });
     await user.type(emailInputAgain, "an@");
 
     await waitFor(() => {

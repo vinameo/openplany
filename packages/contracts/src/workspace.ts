@@ -1,4 +1,4 @@
-import type { EnforcedWorkspacePermission } from './workspacePermissions.js';
+import type { EnforcedWorkspacePermission } from "./workspacePermissions.js";
 
 export const WORKSPACE_NAME_MAX = 80;
 export const WORKSPACE_SLUG_MIN = 3;
@@ -9,19 +9,19 @@ export const NO_HIDDEN_CHARS = /^[^\p{Cc}\p{Cf}]*$/u;
 export const NO_URL = /^(?!.*:\/\/)(?!www\.)/iu;
 
 export const ORGANIZATION_SIZES = [
-  'Just myself',
-  '2-10',
-  '11-50',
-  '51-200',
-  '201-500',
-  '500+',
+  "Just myself",
+  "2-10",
+  "11-50",
+  "51-200",
+  "201-500",
+  "500+",
 ] as const;
 export type OrganizationSize = (typeof ORGANIZATION_SIZES)[number];
 
-export const WORKSPACE_ROLES = ['admin', 'member', 'guest'] as const;
+export const WORKSPACE_ROLES = ["admin", "member", "guest"] as const;
 export type WorkspaceRole = (typeof WORKSPACE_ROLES)[number];
 
-export const WORKSPACE_CREATOR_ROLE = 'admin' as const satisfies WorkspaceRole;
+export const WORKSPACE_CREATOR_ROLE = "admin" as const satisfies WorkspaceRole;
 
 export const WORKSPACE_ROLE_RANK = {
   admin: 30,
@@ -30,98 +30,105 @@ export const WORKSPACE_ROLE_RANK = {
 } as const satisfies Record<WorkspaceRole, number>;
 
 export const WORKSPACE_ROLE_LABELS = {
-  admin: 'Admin',
-  member: 'Member',
-  guest: 'Guest',
+  admin: "Admin",
+  member: "Member",
+  guest: "Guest",
+} as const satisfies Record<WorkspaceRole, string>;
+
+export const WORKSPACE_ROLE_QUALIFIED_LABELS = {
+  admin: "Workspace Admin",
+  member: "Member",
+  guest: "Guest",
 } as const satisfies Record<WorkspaceRole, string>;
 
 export const WORKSPACE_ROLE_SUMMARIES = {
-  admin: 'Everything: settings, members, projects and deleting the workspace; access to every project',
-  member: 'Work in the projects they join; join public projects',
-  guest: 'View-only access',
+  admin:
+    "Everything: settings, members, projects and deleting the workspace; access to every project",
+  member: "Work in the projects they join; join public projects",
+  guest: "View-only access",
 } as const satisfies Record<WorkspaceRole, string>;
 
 export const WORKSPACE_COLORS = [
-  '#0F172A',
-  '#374151',
-  '#1D4ED8',
-  '#047857',
-  '#7C3AED',
-  '#C2410C',
-  '#0E7490',
-  '#BE185D',
+  "#0F172A",
+  "#374151",
+  "#1D4ED8",
+  "#047857",
+  "#7C3AED",
+  "#C2410C",
+  "#0E7490",
+  "#BE185D",
 ] as const;
 
 export const RESERVED_WORKSPACE_SLUG_LIST = [
   // Web routes
-  'sign-in',
-  'sign-out',
-  'sign-up',
-  'set-password',
-  'forgot-password',
-  'reset-password',
-  'create-workspace',
-  'create-user',
-  'roles-and-permissions',
-  'onboarding',
-  'invitations',
-  'invite',
-  'profile',
-  'settings',
-  'accounts',
+  "sign-in",
+  "sign-out",
+  "sign-up",
+  "set-password",
+  "forgot-password",
+  "reset-password",
+  "create-workspace",
+  "create-user",
+  "roles-and-permissions",
+  "onboarding",
+  "invitations",
+  "invite",
+  "profile",
+  "settings",
+  "accounts",
   // Infrastructure & static resources
-  'slug-check',
-  'api',
-  'assets',
-  'static',
-  'public',
-  'cdn',
-  'graphql',
-  'webhook',
-  'webhooks',
-  'oauth',
-  'auth',
-  'health',
-  'status',
-  'ping',
-  'robots',
-  'sitemap',
-  'favicon',
+  "slug-check",
+  "api",
+  "assets",
+  "static",
+  "public",
+  "cdn",
+  "graphql",
+  "webhook",
+  "webhooks",
+  "oauth",
+  "auth",
+  "health",
+  "status",
+  "ping",
+  "robots",
+  "sitemap",
+  "favicon",
   // Brand & system terms
-  'admin',
-  'administrator',
-  'app',
-  'billing',
-  'bot',
-  'config',
-  'console',
-  'dashboard',
-  'dev',
-  'docs',
-  'error',
-  'help',
-  'home',
-  'jobs',
-  'legal',
-  'login',
-  'logout',
-  'new',
-  'notifications',
-  'org',
-  'pricing',
-  'privacy',
-  'root',
-  'security',
-  'support',
-  'sys',
-  'system',
-  'terms',
-  'user',
-  'users',
-  'workspace',
-  'workspaces',
-  'openplany',
-  'instance',
+  "admin",
+  "administrator",
+  "app",
+  "billing",
+  "bot",
+  "config",
+  "console",
+  "dashboard",
+  "dev",
+  "docs",
+  "error",
+  "help",
+  "home",
+  "jobs",
+  "legal",
+  "login",
+  "logout",
+  "new",
+  "notifications",
+  "org",
+  "pricing",
+  "privacy",
+  "root",
+  "security",
+  "support",
+  "sys",
+  "system",
+  "terms",
+  "user",
+  "users",
+  "workspace",
+  "workspaces",
+  "openplany",
+  "instance",
 ] as const;
 
 export const RESERVED_WORKSPACE_SLUGS: ReadonlySet<string> = new Set(
@@ -137,10 +144,7 @@ export const RESERVED_WORKSPACE_SLUGS: ReadonlySet<string> = new Set(
  * 5. truncate to 48 chars and trim any trailing '-'.
  */
 export function removeDiacritics(str: string): string {
-  return str
-    .replace(/[đĐ]/g, 'd')
-    .normalize('NFKD')
-    .replace(/\p{M}/gu, '');
+  return str.replace(/[đĐ]/g, "d").normalize("NFKD").replace(/\p{M}/gu, "");
 }
 
 /**
@@ -154,9 +158,9 @@ export function removeDiacritics(str: string): string {
 export function slugify(name: string): string {
   const decomposed = removeDiacritics(name);
   const lower = decomposed.toLowerCase();
-  const hyphens = lower.replace(/[^a-z0-9]+/g, '-');
-  const trimmed = hyphens.replace(/^-+|-+$/g, '');
-  return trimmed.slice(0, WORKSPACE_SLUG_MAX).replace(/-+$/g, '');
+  const hyphens = lower.replace(/[^a-z0-9]+/g, "-");
+  const trimmed = hyphens.replace(/^-+|-+$/g, "");
+  return trimmed.slice(0, WORKSPACE_SLUG_MAX).replace(/-+$/g, "");
 }
 
 /**
@@ -166,8 +170,8 @@ export function slugify(name: string): string {
 export function normalizeSlugInput(value: string): string {
   const decomposed = removeDiacritics(value);
   const lower = decomposed.toLowerCase();
-  const hyphens = lower.replace(/[\s_]+/g, '-');
-  return hyphens.replace(/[^a-z0-9-]/g, '');
+  const hyphens = lower.replace(/[\s_]+/g, "-");
+  return hyphens.replace(/[^a-z0-9-]/g, "");
 }
 
 /**
@@ -175,9 +179,9 @@ export function normalizeSlugInput(value: string): string {
  */
 export function extractSlugFromUrl(text: string): string {
   const trimmed = text.trim();
-  if (trimmed.includes('/')) {
-    const parts = trimmed.split('/').filter(Boolean);
-    const lastPart = parts[parts.length - 1] ?? '';
+  if (trimmed.includes("/")) {
+    const parts = trimmed.split("/").filter(Boolean);
+    const lastPart = parts[parts.length - 1] ?? "";
     return normalizeSlugInput(lastPart);
   }
   return normalizeSlugInput(trimmed);
@@ -203,16 +207,16 @@ export function pickWorkspaceColor(
  */
 export function workspaceSlugProblem(
   slug: string,
-): 'INVALID' | 'RESERVED' | null {
+): "INVALID" | "RESERVED" | null {
   if (
     slug.length < WORKSPACE_SLUG_MIN ||
     slug.length > WORKSPACE_SLUG_MAX ||
     !WORKSPACE_SLUG_PATTERN.test(slug)
   ) {
-    return 'INVALID';
+    return "INVALID";
   }
   if (RESERVED_WORKSPACE_SLUGS.has(slug)) {
-    return 'RESERVED';
+    return "RESERVED";
   }
   return null;
 }
@@ -243,11 +247,10 @@ export interface WorkspaceListResponse {
   lastWorkspaceSlug: string | null;
 }
 
-export type SlugUnavailableReason = 'INVALID' | 'RESERVED' | 'TAKEN';
+export type SlugUnavailableReason = "INVALID" | "RESERVED" | "TAKEN";
 
 export interface SlugCheckResponse {
   slug: string;
   available: boolean;
   reason: SlugUnavailableReason | null;
 }
-

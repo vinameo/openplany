@@ -5,7 +5,7 @@ import {
   PROJECT_ROLE_SUMMARIES,
   PROJECT_ROLES,
   type WorkspaceRole,
-  WORKSPACE_ROLE_LABELS,
+  WORKSPACE_ROLE_QUALIFIED_LABELS,
   WORKSPACE_ROLE_SUMMARIES,
   WORKSPACE_ROLES,
   effectiveProjectRole,
@@ -25,15 +25,15 @@ const TEMP_POLICIES: ProjectAccessPolicies = {
   member: {
     workspaceRole: "member",
     implicitProjectRole: null,
-    lowestAssignableRole: "guest",
+    lowestAssignableRole: "viewer",
     highestAssignableRole: "admin",
     overridesProjectRank: false,
   },
   guest: {
     workspaceRole: "guest",
     implicitProjectRole: null,
-    lowestAssignableRole: "guest",
-    highestAssignableRole: "guest",
+    lowestAssignableRole: "viewer",
+    highestAssignableRole: "viewer",
     overridesProjectRank: false,
   },
 };
@@ -53,7 +53,7 @@ export interface RolesOverview {
 export function buildRolesOverview(): RolesOverview {
   const workspaceRoles = WORKSPACE_ROLES.map((role) => ({
     role,
-    label: WORKSPACE_ROLE_LABELS[role],
+    label: WORKSPACE_ROLE_QUALIFIED_LABELS[role],
     summary: WORKSPACE_ROLE_SUMMARIES[role],
   }));
 
@@ -65,7 +65,7 @@ export function buildRolesOverview(): RolesOverview {
 
   const projectAccess = WORKSPACE_ROLES.map((role) => ({
     role,
-    label: WORKSPACE_ROLE_LABELS[role],
+    label: WORKSPACE_ROLE_QUALIFIED_LABELS[role],
     everyProject: effectiveProjectRole(
       {
         workspaceRole: role,

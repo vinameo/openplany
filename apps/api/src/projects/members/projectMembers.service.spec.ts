@@ -158,7 +158,7 @@ describe('ProjectMembersService', () => {
         avatarUrl: null,
         email: 'an@example.com',
         assignedRole: 'admin',
-        workspaceRole: 'guest', // guest ceiling is guest -> clamped!
+        workspaceRole: 'guest', // guest ceiling is viewer -> clamped!
         joinedAt: new Date('2026-10-10T00:00:00Z'),
         accountActive: true,
       },
@@ -171,7 +171,7 @@ describe('ProjectMembersService', () => {
     expect(res.members).toHaveLength(1);
     expect(res.members[0]).toMatchObject({
       userId: 'u-1',
-      role: 'guest',
+      role: 'viewer',
       assignedRole: 'admin',
       roleLimited: true,
       email: 'an@example.com',
@@ -182,7 +182,7 @@ describe('ProjectMembersService', () => {
       'admin',
       'contributor',
       'commenter',
-      'guest',
+      'viewer',
     ]);
   });
 
@@ -294,7 +294,7 @@ describe('ProjectMembersService', () => {
         email: 'an@openplany.dev',
         avatarUrl: null,
         status: 'addable',
-        addableRoles: ['admin', 'contributor', 'commenter', 'guest'],
+        addableRoles: ['admin', 'contributor', 'commenter', 'viewer'],
       });
 
       expect(events.candidateSearchedEvents).toHaveLength(1);
@@ -411,7 +411,7 @@ describe('ProjectMembersService', () => {
       );
 
       expect(res.candidates[0]!.status).toBe('addable');
-      expect(res.candidates[0]!.addableRoles).toEqual(['guest']);
+      expect(res.candidates[0]!.addableRoles).toEqual(['viewer']);
     });
   });
 
@@ -425,7 +425,7 @@ describe('ProjectMembersService', () => {
           {
             members: [
               { userId: 'u-1', role: 'contributor' },
-              { userId: 'u-1', role: 'guest' },
+              { userId: 'u-1', role: 'viewer' },
             ],
           },
           'req-1',
@@ -482,7 +482,7 @@ describe('ProjectMembersService', () => {
         {
           members: [
             { userId: 'u-1', role: 'contributor' },
-            { userId: 'u-2', role: 'guest' },
+            { userId: 'u-2', role: 'viewer' },
           ],
         },
         'req-add-success',
@@ -503,7 +503,7 @@ describe('ProjectMembersService', () => {
         actorId: 'actor-admin',
         actorRole: 'admin',
         count: 2,
-        roles: ['contributor', 'guest'],
+        roles: ['contributor', 'viewer'],
         requestId: 'req-add-success',
       });
     });

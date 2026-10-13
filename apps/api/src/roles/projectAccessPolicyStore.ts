@@ -16,15 +16,15 @@ const WORKSPACE_ROLE_POLICY: ProjectAccessPolicies = {
   member: {
     workspaceRole: 'member',
     implicitProjectRole: null,
-    lowestAssignableRole: 'guest',
+    lowestAssignableRole: 'viewer',
     highestAssignableRole: 'admin',
     overridesProjectRank: false,
   },
   guest: {
     workspaceRole: 'guest',
     implicitProjectRole: null,
-    lowestAssignableRole: 'guest',
-    highestAssignableRole: 'guest',
+    lowestAssignableRole: 'viewer',
+    highestAssignableRole: 'viewer',
     overridesProjectRank: false,
   },
 };

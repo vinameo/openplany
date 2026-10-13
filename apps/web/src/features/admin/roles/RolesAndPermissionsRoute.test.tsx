@@ -113,9 +113,9 @@ describe("RolesAndPermissionsRoute", { timeout: 15000 }, () => {
       screen.getByRole("table", { name: "Project permissions by role" }),
     ).toBeInTheDocument();
 
-    // Admin cell is locked
+    // Workspace Admin cell is locked
     const adminCheckbox = screen.getByRole("checkbox", {
-      name: "Admin: Edit workspace settings",
+      name: "Workspace Admin: Edit workspace settings",
     });
     expect(adminCheckbox).toBeDisabled();
 
@@ -124,7 +124,9 @@ describe("RolesAndPermissionsRoute", { timeout: 15000 }, () => {
       name: "Guest: Edit workspace settings",
     });
     expect(guestCheckbox).toBeDisabled();
-    expect(screen.getAllByText("Guests can only view").length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText("Guests and Viewers can only view").length,
+    ).toBeGreaterThan(0);
 
     // "Not enforced yet" badge next to Delete workspace
     const deleteRow = screen.getByRole("row", { name: /Delete workspace/i });
@@ -201,7 +203,9 @@ describe("RolesAndPermissionsRoute", { timeout: 15000 }, () => {
     ).toBeInTheDocument();
 
     // Load error shown
-    expect(await screen.findAllByText("Couldn't load permissions.")).toHaveLength(2);
+    expect(
+      await screen.findAllByText("Couldn't load permissions."),
+    ).toHaveLength(2);
 
     shouldFail = false;
     const tryAgainBtns = screen.getAllByRole("button", { name: "Try again" });

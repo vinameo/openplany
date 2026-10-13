@@ -1,9 +1,6 @@
 import { HttpStatus } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
-import type {
-  PermissionItem,
-  RolePermissionsChange,
-} from '@repo/contracts';
+import type { PermissionItem, RolePermissionsChange } from '@repo/contracts';
 import { Clock } from '../../auth/clock.js';
 import { ApiException } from '../../common/apiException.js';
 import { AdminRolesService } from './adminRoles.service.js';
@@ -84,7 +81,7 @@ describe('AdminRolesService', () => {
     },
     {
       scope: 'project',
-      key: 'guest',
+      key: 'viewer',
       version: 1,
       permissions: ['project.settings.view'],
     },
@@ -96,7 +93,9 @@ describe('AdminRolesService', () => {
     const applyChangesMock = vi.fn(
       async (
         _refs: readonly { scope: 'workspace' | 'project'; key: string }[],
-        planFn: (current: readonly StoredRolePermissions[]) => RolePermissionsPlan,
+        planFn: (
+          current: readonly StoredRolePermissions[],
+        ) => RolePermissionsPlan,
         _ctx: ApplyRolePermissionsContext,
       ) => {
         return planFn(sampleStoredRoles);
@@ -185,7 +184,11 @@ describe('AdminRolesService', () => {
       };
 
       await expect(
-        service.updateRolePermissions('actor-uuid-1', [invalidChange], 'req-123'),
+        service.updateRolePermissions(
+          'actor-uuid-1',
+          [invalidChange],
+          'req-123',
+        ),
       ).rejects.toThrow(ApiException);
 
       expect(applyChangesMock).not.toHaveBeenCalled();
@@ -202,7 +205,11 @@ describe('AdminRolesService', () => {
       };
 
       await expect(
-        service.updateRolePermissions('actor-uuid-1', [lockedRoleChange], 'req-123'),
+        service.updateRolePermissions(
+          'actor-uuid-1',
+          [lockedRoleChange],
+          'req-123',
+        ),
       ).rejects.toMatchObject({
         status: HttpStatus.BAD_REQUEST,
         code: 'VALIDATION_ERROR',

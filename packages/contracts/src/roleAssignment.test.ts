@@ -151,7 +151,7 @@ describe("roleAssignment", () => {
       "admin",
       "contributor",
       "commenter",
-      "guest",
+      "viewer",
     ];
 
     it("matches RQ B8.2 rules for project role assignment and removal", () => {
@@ -279,11 +279,11 @@ describe("roleAssignment", () => {
           {
             userId: "target-guest",
             workspaceRole: "guest",
-            assignedRole: "guest",
+            assignedRole: "viewer",
           },
           LEGACY_PROJECT_ACCESS_POLICIES,
         ),
-      ).toEqual(["guest"]);
+      ).toEqual(["viewer"]);
       expect(
         assignableProjectRoles(
           memberAdminActor,
@@ -294,14 +294,14 @@ describe("roleAssignment", () => {
           },
           LEGACY_PROJECT_ACCESS_POLICIES,
         ),
-      ).toEqual(["guest"]);
+      ).toEqual(["viewer"]);
       expect(
         canRemoveProjectMember(
           memberAdminActor,
           {
             userId: "target-guest",
             workspaceRole: "guest",
-            assignedRole: "guest",
+            assignedRole: "viewer",
           },
           LEGACY_PROJECT_ACCESS_POLICIES,
         ),
@@ -455,7 +455,7 @@ describe("roleAssignment", () => {
       };
       expect(
         addableProjectRoleRange(wsAdminActor, LEGACY_PROJECT_ACCESS_POLICIES),
-      ).toEqual(["admin", "contributor", "commenter", "guest"]);
+      ).toEqual(["admin", "contributor", "commenter", "viewer"]);
 
       // Project Admin actor (workspace member, effective role admin)
       const projAdminActor = {
@@ -466,7 +466,7 @@ describe("roleAssignment", () => {
       };
       expect(
         addableProjectRoleRange(projAdminActor, LEGACY_PROJECT_ACCESS_POLICIES),
-      ).toEqual(["admin", "contributor", "commenter", "guest"]);
+      ).toEqual(["admin", "contributor", "commenter", "viewer"]);
 
       // Contributor with hand-crafted project.members.manage
       const contributorWithPerm = {
@@ -480,7 +480,7 @@ describe("roleAssignment", () => {
           contributorWithPerm,
           LEGACY_PROJECT_ACCESS_POLICIES,
         ),
-      ).toEqual(["contributor", "commenter", "guest"]);
+      ).toEqual(["contributor", "commenter", "viewer"]);
 
       // Contributor without permission
       const contributorNoPerm = {
@@ -523,7 +523,7 @@ describe("roleAssignment", () => {
           { userId: "target-1", workspaceRole: "member" },
           LEGACY_PROJECT_ACCESS_POLICIES,
         ),
-      ).toEqual(["admin", "contributor", "commenter", "guest"]);
+      ).toEqual(["admin", "contributor", "commenter", "viewer"]);
 
       // Target in workspace as guest (clamped by guest ceiling)
       expect(
@@ -532,7 +532,7 @@ describe("roleAssignment", () => {
           { userId: "target-guest", workspaceRole: "guest" },
           LEGACY_PROJECT_ACCESS_POLICIES,
         ),
-      ).toEqual(["guest"]);
+      ).toEqual(["viewer"]);
 
       // Target is workspace admin (implicit access -> [])
       expect(

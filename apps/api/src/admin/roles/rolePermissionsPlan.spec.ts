@@ -45,7 +45,11 @@ describe('planRolePermissionChanges', () => {
       scope: 'project',
       key: 'admin',
       version: 1,
-      permissions: ['project.settings.view', 'project.settings.update', 'project.workitems.view'],
+      permissions: [
+        'project.settings.view',
+        'project.settings.update',
+        'project.workitems.view',
+      ],
     },
     {
       scope: 'project',
@@ -61,7 +65,7 @@ describe('planRolePermissionChanges', () => {
     },
     {
       scope: 'project',
-      key: 'guest',
+      key: 'viewer',
       version: 1,
       permissions: ['project.settings.view'],
     },
@@ -163,9 +167,9 @@ describe('planRolePermissionChanges', () => {
 
     expect(revokeAdminPlan.status).toBe('invalid');
     if (revokeAdminPlan.status === 'invalid') {
-      expect(
-        revokeAdminPlan.fields['workspace.admin:workspace.delete'],
-      ).toBe("This role always has its default permissions and can't be changed");
+      expect(revokeAdminPlan.fields['workspace.admin:workspace.delete']).toBe(
+        "This role always has its default permissions and can't be changed",
+      );
     }
 
     // Attempt to revoke from project admin
@@ -182,7 +186,9 @@ describe('planRolePermissionChanges', () => {
     if (revokeProjAdminPlan.status === 'invalid') {
       expect(
         revokeProjAdminPlan.fields['project.admin:project.settings.view'],
-      ).toBe("This role always has its default permissions and can't be changed");
+      ).toBe(
+        "This role always has its default permissions and can't be changed",
+      );
     }
   });
 
@@ -205,8 +211,10 @@ describe('planRolePermissionChanges', () => {
     expect(plan).toEqual({
       status: 'invalid',
       fields: {
-        'workspace.member:workspace.delete': 'Only Admins can have this permission',
-        'workspace.member:workspace.members.add': 'Only Admins can have this permission',
+        'workspace.member:workspace.delete':
+          'Only Admins can have this permission',
+        'workspace.member:workspace.members.add':
+          'Only Admins can have this permission',
       },
     });
   });
@@ -221,7 +229,7 @@ describe('planRolePermissionChanges', () => {
       },
       {
         scope: 'project',
-        key: 'guest',
+        key: 'viewer',
         version: 1,
         permissions: ['project.settings.view', 'project.workitems.create'],
       },
@@ -230,8 +238,10 @@ describe('planRolePermissionChanges', () => {
     expect(plan).toEqual({
       status: 'invalid',
       fields: {
-        'workspace.guest:workspace.projects.browse': 'Guests can only view',
-        'project.guest:project.workitems.create': 'Guests can only view',
+        'workspace.guest:workspace.projects.browse':
+          'Guests and Viewers can only view',
+        'project.viewer:project.workitems.create':
+          'Guests and Viewers can only view',
       },
     });
   });
@@ -280,7 +290,8 @@ describe('planRolePermissionChanges', () => {
     expect(plan).toEqual({
       status: 'invalid',
       fields: {
-        'workspace.guest:workspace.projects.browse': 'Guests can only view',
+        'workspace.guest:workspace.projects.browse':
+          'Guests and Viewers can only view',
       },
     });
   });
@@ -358,4 +369,3 @@ describe('planRolePermissionChanges', () => {
     });
   });
 });
-

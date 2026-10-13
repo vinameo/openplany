@@ -21,7 +21,7 @@ describe("rolePolicy", () => {
     admin: ["project.members.manage", "project.settings.update"],
     contributor: ["project.workitems.create"],
     commenter: ["project.comments.create"],
-    guest: ["project.settings.view"],
+    viewer: ["project.settings.view"],
   };
 
   const sampleWorkspaceRolePermissions: Record<
@@ -130,7 +130,7 @@ describe("rolePolicy", () => {
 
     expect(projectRoleCeilingOf("admin")).toBe("admin");
     expect(projectRoleCeilingOf("member")).toBe("admin");
-    expect(projectRoleCeilingOf("guest")).toBe("guest");
+    expect(projectRoleCeilingOf("guest")).toBe("viewer");
 
     expect(PROJECT_CREATOR_ROLE).toBe("admin");
   });

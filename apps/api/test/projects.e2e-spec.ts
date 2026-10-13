@@ -1,5 +1,13 @@
 import request from 'supertest';
-import { describe, beforeAll, beforeEach, afterAll, it, expect, vi } from 'vitest';
+import {
+  describe,
+  beforeAll,
+  beforeEach,
+  afterAll,
+  it,
+  expect,
+  vi,
+} from 'vitest';
 import { ProjectEvents } from '../src/projects/events/projectEvents.js';
 import {
   DEFAULT_PROJECT_COVER,
@@ -131,7 +139,7 @@ describe('Projects (e2e)', () => {
     projectId: string,
     workspaceId: string,
     memberId: string,
-    role: 'admin' | 'contributor' | 'commenter' | 'guest',
+    role: 'admin' | 'contributor' | 'commenter' | 'viewer',
   ) {
     await e2e.dataSource.query(
       `INSERT INTO project_members (project_id, workspace_id, member_id, role)
@@ -261,7 +269,7 @@ describe('Projects (e2e)', () => {
       await expect(
         e2e.dataSource.query(
           `INSERT INTO project_member_role_history (workspace_id, project_id, member_id, from_role, to_role, change_type)
-           VALUES ($1, $2, $3, 'guest', 'contributor', 'member_added')`,
+           VALUES ($1, $2, $3, 'viewer', 'contributor', 'member_added')`,
           [workspace.id, projectId, ownerId],
         ),
       ).rejects.toMatchObject({
@@ -446,11 +454,18 @@ describe('Projects (e2e)', () => {
       const oldId = await insertProject(workspace.id, 'Web', 'WEB', new Date());
       expect(oldId).toBeDefined();
 
-      const newIdWithSameName = await insertProject(workspace.id, 'Web', 'WEB2');
+      const newIdWithSameName = await insertProject(
+        workspace.id,
+        'Web',
+        'WEB2',
+      );
       expect(newIdWithSameName).toBeDefined();
 
       let error:
-        | { driverError?: { code?: string; constraint?: string }; code?: string }
+        | {
+            driverError?: { code?: string; constraint?: string };
+            code?: string;
+          }
         | undefined;
       try {
         await insertProject(workspace.id, 'Web App', 'WEB');
@@ -462,7 +477,9 @@ describe('Projects (e2e)', () => {
       }
       expect(error).toBeDefined();
       expect(error?.driverError?.code || error?.code).toBe('23505');
-      expect(error?.driverError?.constraint).toBe('projects_workspace_identifier_key');
+      expect(error?.driverError?.constraint).toBe(
+        'projects_workspace_identifier_key',
+      );
     });
 
     it('T-DB-20: creating via API rejects taken identifier of soft-deleted project with 409 and accepts recycled name', async () => {
@@ -535,23 +552,46 @@ describe('Projects (e2e)', () => {
         new Date('2026-10-01T00:00:00Z'),
       );
 
-      const asOwner = { workspaceId: ws1.id, userId: ownerId, workspaceRole: 'admin' as const };
-      const asMember = { workspaceId: ws1.id, userId: memberId, workspaceRole: 'member' as const };
+      const asOwner = {
+        workspaceId: ws1.id,
+        userId: ownerId,
+        workspaceRole: 'admin' as const,
+      };
+      const asMember = {
+        workspaceId: ws1.id,
+        userId: memberId,
+        workspaceRole: 'member' as const,
+      };
 
-      const found = await resolver.forIdentifier({ ...asOwner, identifier: 'ACT1' });
+      const found = await resolver.forIdentifier({
+        ...asOwner,
+        identifier: 'ACT1',
+      });
       expect(found.kind).toBe('accessible');
-      expect(found.kind === 'accessible' && found.project.project.id).toBe(activeId);
+      expect(found.kind === 'accessible' && found.project.project.id).toBe(
+        activeId,
+      );
 
-      expect(await resolver.forIdentifier({ ...asMember, identifier: 'ACT1' })).toEqual({
+      expect(
+        await resolver.forIdentifier({ ...asMember, identifier: 'ACT1' }),
+      ).toEqual({
         kind: 'forbidden',
         projectId: activeId,
       });
       // deleted, other workspace, lowercase -> not found
-      expect(await resolver.forIdentifier({ ...asOwner, identifier: 'DEL1' })).toEqual({ kind: 'not_found' });
       expect(
-        await resolver.forIdentifier({ ...asOwner, workspaceId: ws2.id, identifier: 'ACT1' }),
+        await resolver.forIdentifier({ ...asOwner, identifier: 'DEL1' }),
       ).toEqual({ kind: 'not_found' });
-      expect(await resolver.forIdentifier({ ...asOwner, identifier: 'act1' })).toEqual({ kind: 'not_found' });
+      expect(
+        await resolver.forIdentifier({
+          ...asOwner,
+          workspaceId: ws2.id,
+          identifier: 'ACT1',
+        }),
+      ).toEqual({ kind: 'not_found' });
+      expect(
+        await resolver.forIdentifier({ ...asOwner, identifier: 'act1' }),
+      ).toEqual({ kind: 'not_found' });
     });
 
     it('T-DB-24: ReserveProjectIdentifiers reports Project IDs shared with soft-deleted projects instead of failing on the index', async () => {
@@ -564,7 +604,12 @@ describe('Projects (e2e)', () => {
       await qr.connect();
       try {
         await reserve.down(qr);
-        await insertProject(workspace.id, 'Old Web', 'WEB', new Date('2026-10-01T00:00:00Z'));
+        await insertProject(
+          workspace.id,
+          'Old Web',
+          'WEB',
+          new Date('2026-10-01T00:00:00Z'),
+        );
         await insertProject(workspace.id, 'Web', 'WEB');
 
         await expect(reserve.up(qr)).rejects.toThrow(
@@ -829,7 +874,10 @@ describe('Projects (e2e)', () => {
         workspace,
         ownerId,
         cookie: adminCookie,
-      } = await seedWorkspace('owner-former-mem@openplany.dev', 'former-mem-ws');
+      } = await seedWorkspace(
+        'owner-former-mem@openplany.dev',
+        'former-mem-ws',
+      );
       const projectId = await insertProject(
         workspace.id,
         'Former Member Project',
@@ -919,8 +967,8 @@ describe('Projects (e2e)', () => {
         'Secret Members Project',
         'SMP',
       );
-      // Assign guest role to the guest user in the project
-      await insertProjectMember(p1, workspace.id, guestId, 'guest');
+      // Assign viewer role to the guest user in the project
+      await insertProjectMember(p1, workspace.id, guestId, 'viewer');
 
       const res = await http()
         .get(`/api/workspaces/${workspace.slug}/projects`)
@@ -1432,11 +1480,7 @@ describe('Projects (e2e)', () => {
       const memberId = await createUser('member-nm@openplany.dev');
       await addWorkspaceMember(workspace.id, memberId, 'member');
 
-      const pId = await insertProject(
-        workspace.id,
-        'Member Only Proj',
-        'MOP1',
-      );
+      const pId = await insertProject(workspace.id, 'Member Only Proj', 'MOP1');
       await insertProjectMember(pId, workspace.id, memberId, 'contributor');
 
       const res = await http()
@@ -1459,7 +1503,7 @@ describe('Projects (e2e)', () => {
 
       const p1Id = await insertProject(workspace.id, 'Guest Allowed', 'GST1');
       await insertProjectMember(p1Id, workspace.id, ownerId, 'admin');
-      await insertProjectMember(p1Id, workspace.id, guestId, 'guest');
+      await insertProjectMember(p1Id, workspace.id, guestId, 'viewer');
 
       const p2Id = await insertProject(workspace.id, 'Guest Denied', 'GST2');
       await insertProjectMember(p2Id, workspace.id, ownerId, 'admin');
@@ -1479,7 +1523,7 @@ describe('Projects (e2e)', () => {
       expect(res2.body.code).toBe('FORBIDDEN');
     });
 
-    it('returns members: null and memberCount: null when viewer has project role guest (AC-27)', async () => {
+    it('returns members: null and memberCount: null when viewer has project role viewer (AC-27)', async () => {
       const { workspace, ownerId } = await seedWorkspace(
         'owner-gprev@openplany.dev',
         'ws-gprev',
@@ -1490,7 +1534,7 @@ describe('Projects (e2e)', () => {
 
       const pId = await insertProject(workspace.id, 'Guest Project', 'GPR1');
       await insertProjectMember(pId, workspace.id, ownerId, 'admin');
-      await insertProjectMember(pId, workspace.id, guestId, 'guest');
+      await insertProjectMember(pId, workspace.id, guestId, 'viewer');
 
       const res = await http()
         .get(`/api/workspaces/${workspace.slug}/projects/GPR1`)
@@ -1621,9 +1665,10 @@ describe('Projects (e2e)', () => {
         null,
         null,
       );
-      const rows = await e2e.dataSource.query<
-        { timezone: string | null }[]
-      >(`SELECT timezone FROM projects WHERE id = $1`, [p1]);
+      const rows = await e2e.dataSource.query<{ timezone: string | null }[]>(
+        `SELECT timezone FROM projects WHERE id = $1`,
+        [p1],
+      );
       expect(rows[0]!.timezone).toBeNull();
 
       // Inserting with valid timezone string succeeds
@@ -1634,9 +1679,10 @@ describe('Projects (e2e)', () => {
         null,
         'Asia/Tokyo',
       );
-      const rows2 = await e2e.dataSource.query<
-        { timezone: string | null }[]
-      >(`SELECT timezone FROM projects WHERE id = $1`, [p2]);
+      const rows2 = await e2e.dataSource.query<{ timezone: string | null }[]>(
+        `SELECT timezone FROM projects WHERE id = $1`,
+        [p2],
+      );
       expect(rows2[0]!.timezone).toBe('Asia/Tokyo');
 
       // Inserting empty string fails with CHECK constraint violation
@@ -1751,11 +1797,7 @@ describe('Projects (e2e)', () => {
         'patch-admin@openplany.dev',
         'patch-ws',
       );
-      const projectId = await insertProject(
-        workspace.id,
-        'Old Name',
-        'PTCH1',
-      );
+      const projectId = await insertProject(workspace.id, 'Old Name', 'PTCH1');
       await insertProjectMember(projectId, workspace.id, ownerId, 'admin');
 
       const res = await http()
@@ -1803,7 +1845,9 @@ describe('Projects (e2e)', () => {
         .expect(409);
 
       expect(res.body.code).toBe('PROJECT_NAME_TAKEN');
-      expect(res.body.fields?.name).toBe('A project with this name already exists');
+      expect(res.body.fields?.name).toBe(
+        'A project with this name already exists',
+      );
     });
 
     it('AC-14 & B6 row 9: updating name to match a soft-deleted project succeeds with 200', async () => {
@@ -1846,7 +1890,10 @@ describe('Projects (e2e)', () => {
         })
         .expect(200);
 
-      expect(res1.body.project.icon).toEqual({ name: 'heart', color: '#ABCDEF' });
+      expect(res1.body.project.icon).toEqual({
+        name: 'heart',
+        color: '#ABCDEF',
+      });
       expect(res1.body.project.coverKey).toBe('cover-03');
 
       // Update timezone to Asia/Tokyo
@@ -1981,7 +2028,6 @@ describe('Projects (e2e)', () => {
         PROJECT_FIELD_MESSAGES.coverRequired,
       );
     });
-
 
     it('AC-23 & B6 row 27: two identical concurrent PATCH requests both succeed with 200 and identical result', async () => {
       const { workspace, ownerId, cookie } = await seedWorkspace(
@@ -2173,13 +2219,17 @@ describe('Projects (e2e)', () => {
       await addWorkspaceMember(workspace.id, member1, 'member');
       await addWorkspaceMember(workspace.id, member2, 'member');
 
-      const pId = await insertProject(workspace.id, 'The First Project', 'TFP11');
+      const pId = await insertProject(
+        workspace.id,
+        'The First Project',
+        'TFP11',
+      );
       await insertProjectMember(pId, workspace.id, ownerId, 'admin');
       await insertProjectMember(pId, workspace.id, member1, 'contributor');
-      await insertProjectMember(pId, workspace.id, member2, 'guest');
+      await insertProjectMember(pId, workspace.id, member2, 'viewer');
       await e2e.dataSource.query(
         `INSERT INTO project_member_role_history (workspace_id, project_id, member_id, to_role, change_type)
-         VALUES ($1, $2, $3, 'admin', 'project_created'), ($1, $2, $4, 'contributor', 'project_created'), ($1, $2, $5, 'guest', 'project_created')`,
+         VALUES ($1, $2, $3, 'admin', 'project_created'), ($1, $2, $4, 'contributor', 'project_created'), ($1, $2, $5, 'viewer', 'project_created')`,
         [workspace.id, pId, ownerId, member1, member2],
       );
 
@@ -2212,7 +2262,12 @@ describe('Projects (e2e)', () => {
       const members = (await e2e.dataSource.query(
         `SELECT id, member_id, role, is_active FROM project_members WHERE project_id = $1`,
         [pId],
-      )) as Array<{ id: string; member_id: string; role: string; is_active: boolean }>;
+      )) as Array<{
+        id: string;
+        member_id: string;
+        role: string;
+        is_active: boolean;
+      }>;
       expect(members.length).toBe(3);
       expect(members.every((m) => m.is_active)).toBe(true);
 
@@ -2232,7 +2287,10 @@ describe('Projects (e2e)', () => {
         }),
       );
       // Ensure no name or description in event payload
-      const eventArg = deletedSpy.mock.calls[0]?.[0] as unknown as Record<string, unknown>;
+      const eventArg = deletedSpy.mock.calls[0]?.[0] as unknown as Record<
+        string,
+        unknown
+      >;
       expect(eventArg).not.toHaveProperty('name');
       expect(eventArg).not.toHaveProperty('description');
     });
@@ -2397,6 +2455,3 @@ describe('Projects (e2e)', () => {
     });
   });
 });
-
-
-

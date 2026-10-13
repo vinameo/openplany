@@ -28,6 +28,11 @@ describe("permissionMatrix", () => {
 
       expect(matrix.scope).toBe("workspace");
       expect(matrix.roles.map((r) => r.ref.key)).toEqual([...WORKSPACE_ROLES]);
+      expect(matrix.roles.map((r) => r.label)).toEqual([
+        "Workspace Admin",
+        "Member",
+        "Guest",
+      ]);
 
       const expectedWsPerms = defaultRolesResponse.permissions
         .filter((p) => p.scope === "workspace")
@@ -46,6 +51,12 @@ describe("permissionMatrix", () => {
 
       expect(matrix.scope).toBe("project");
       expect(matrix.roles.map((r) => r.ref.key)).toEqual([...PROJECT_ROLES]);
+      expect(matrix.roles.map((r) => r.label)).toEqual([
+        "Project Admin",
+        "Contributor",
+        "Commenter",
+        "Viewer",
+      ]);
 
       const expectedProjPerms = defaultRolesResponse.permissions
         .filter((p) => p.scope === "project")
@@ -175,6 +186,21 @@ describe("permissionMatrix", () => {
       expect(memberViewCell.disabledReason).toBeNull();
     });
 
+    it("enforces GUEST_VIEW_ONLY for project Viewer role when granting non-view permissions (AC-21)", () => {
+      const projMatrix = buildPermissionMatrix("project", defaultRoles);
+      const allRows = projMatrix.groups.flatMap((g) => g.rows);
+
+      // Viewer: project.workitems.create (not a view permission) -> GUEST_VIEW_ONLY disabledReason
+      const createRow = allRows.find(
+        (r) => r.permission === "project.workitems.create",
+      )!;
+      const viewerCell = createRow.cells.find((c) => c.role.key === "viewer")!;
+      expect(viewerCell.checked).toBe(false);
+      expect(viewerCell.disabledReason).toBe(
+        PERMISSION_GRANT_PROBLEM_MESSAGES.GUEST_VIEW_ONLY,
+      );
+    });
+
     it("marks enforced permissions accurately", () => {
       const wsMatrix = buildPermissionMatrix("workspace", defaultRoles);
       const allRows = wsMatrix.groups.flatMap((g) => g.rows);
@@ -194,7 +220,10 @@ describe("permissionMatrix", () => {
   describe("togglePermission", () => {
     it("adding a permission puts it in draft, toggling off removes role from draft", () => {
       let draft: PermissionDraft = {};
-      const memberRole = { scope: "workspace" as const, key: "member" as const };
+      const memberRole = {
+        scope: "workspace" as const,
+        key: "member" as const,
+      };
 
       // Member currently does not have workspace.settings.update
       draft = togglePermission(
@@ -219,7 +248,10 @@ describe("permissionMatrix", () => {
   describe("diffDraft and toUpdateRequest", () => {
     it("diffDraft lists granted and revoked correctly and toUpdateRequest sends full set + server version", () => {
       let draft: PermissionDraft = {};
-      const memberRole = { scope: "workspace" as const, key: "member" as const };
+      const memberRole = {
+        scope: "workspace" as const,
+        key: "member" as const,
+      };
 
       // Member: add workspace.settings.update, remove workspace.settings.view
       draft = togglePermission(
@@ -252,4 +284,3 @@ describe("permissionMatrix", () => {
     });
   });
 });
-

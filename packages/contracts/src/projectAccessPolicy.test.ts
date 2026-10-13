@@ -33,10 +33,10 @@ describe("projectAccessPolicy", () => {
       "admin",
       "contributor",
       "commenter",
-      "guest",
+      "viewer",
     ]);
     expect(assignableRangeOf(LEGACY_PROJECT_ACCESS_POLICIES.guest)).toEqual([
-      "guest",
+      "viewer",
     ]);
   });
 
@@ -51,7 +51,7 @@ describe("projectAccessPolicy", () => {
     const customMemberPolicy: ProjectAccessPolicy = {
       workspaceRole: "member",
       implicitProjectRole: null,
-      lowestAssignableRole: "guest",
+      lowestAssignableRole: "viewer",
       highestAssignableRole: "contributor",
       overridesProjectRank: false,
     };
