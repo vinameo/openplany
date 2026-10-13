@@ -491,6 +491,68 @@ describe('ProjectMembers (e2e)', () => {
       expect(res.body.members).toHaveLength(1);
       expect(res.body.members[0].userId).toBe(ownerId);
     });
+
+    it('returns assignableRoles and assignedAdminCount (excluding deactivated users)', async () => {
+      const { workspace, ownerId, cookie: wsAdminCookie } = await seedWorkspace(
+        'owner-roles@openplany.dev',
+        'ws-roles',
+      );
+      const projId = await createProject(workspace.id, 'Project Roles', 'PROLE');
+
+      // Member 1: Active Project Admin
+      const m1 = await createUser('m1-admin@openplany.dev', { is_superuser: false, is_active: true });
+      await addWorkspaceMember(workspace.id, m1, 'member');
+      await addProjectMember(projId, workspace.id, m1, 'admin');
+
+      // Member 2: Deactivated Project Admin (should NOT count in assignedAdminCount)
+      const m2 = await createUser('m2-deact@openplany.dev', { is_superuser: false, is_active: false });
+      await addWorkspaceMember(workspace.id, m2, 'member');
+      await addProjectMember(projId, workspace.id, m2, 'admin');
+
+      // Member 3: Contributor
+      const m3 = await createUser('m3-contrib@openplany.dev', { is_superuser: false, is_active: true });
+      await addWorkspaceMember(workspace.id, m3, 'member');
+      await addProjectMember(projId, workspace.id, m3, 'contributor');
+
+      // Member 4: Another Project Admin (actor)
+      const m4 = await createUser('m4-actor@openplany.dev', { is_superuser: false, is_active: true });
+      await addWorkspaceMember(workspace.id, m4, 'member');
+      await addProjectMember(projId, workspace.id, m4, 'admin');
+      const m4Cookie = await signInCookie('m4-actor@openplany.dev');
+
+      // 1. Fetch as Member 4 (Project Admin, Member workspace)
+      const resM4 = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/PROLE/members`)
+        .set('Cookie', m4Cookie)
+        .expect(200);
+
+      // assignedAdminCount: m1 and m4 are active assigned admins -> count = 2 (m2 deactivated, owner is inherited)
+      expect(resM4.body.assignedAdminCount).toBe(2);
+
+      const m4Self = resM4.body.members.find((m: ProjectMemberResponse) => m.userId === m4);
+      const m1Peer = resM4.body.members.find((m: ProjectMemberResponse) => m.userId === m1);
+      const m3Sub = resM4.body.members.find((m: ProjectMemberResponse) => m.userId === m3);
+      const ownerInherited = resM4.body.members.find((m: ProjectMemberResponse) => m.userId === ownerId);
+
+      // Self row has []
+      expect(m4Self.assignableRoles).toEqual([]);
+      // Peer Project Admin has [] (actor is member workspace, target rank >= actor rank)
+      expect(m1Peer.assignableRoles).toEqual([]);
+      // Contributor has ['admin', 'contributor', 'commenter']
+      expect(m3Sub.assignableRoles).toEqual(['admin', 'contributor', 'commenter']);
+      // Inherited has []
+      expect(ownerInherited.assignableRoles).toEqual([]);
+
+      // 2. Fetch as Workspace Admin (owner) -> has overridesProjectRank
+      const resOwner = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/PROLE/members`)
+        .set('Cookie', wsAdminCookie)
+        .expect(200);
+
+      expect(resOwner.body.assignedAdminCount).toBe(2);
+      const m1AsWsAdmin = resOwner.body.members.find((m: ProjectMemberResponse) => m.userId === m1);
+      expect(m1AsWsAdmin.assignableRoles).toEqual(['admin', 'contributor', 'commenter']);
+    });
   });
 
   describe('GET /api/workspaces/:slug/projects/:identifier/member-candidates', () => {
@@ -859,16 +921,19 @@ describe('ProjectMembers (e2e)', () => {
         })
         .expect(201);
 
+      expect(res.body.assignedAdminCount).toBe(1);
       expect(res.body.members).toHaveLength(2);
       expect(res.body.members[0]).toMatchObject({
         userId: anId,
         role: 'contributor',
         assignedRole: 'contributor',
+        assignableRoles: ['admin', 'contributor', 'commenter'],
       });
       expect(res.body.members[1]).toMatchObject({
         userId: chiId,
         role: 'commenter',
         assignedRole: 'commenter',
+        assignableRoles: ['admin', 'contributor', 'commenter'],
       });
 
       // Verify DB project_members rows and joined_at

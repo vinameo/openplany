@@ -80,6 +80,7 @@ export type AddProjectMembersResult =
       status: 'added';
       members: ProjectMemberDbRow[];
       reactivatedCount: number;
+      assignedAdminCount: number;
     }
   | {
       status: 'rejected';
@@ -102,6 +103,11 @@ export abstract class ProjectMembersRepository {
     opts: ListInheritedProjectMembersOpts,
   ): Promise<{ members: InheritedMemberDbRow[]; total: number }>;
 
+  abstract countAssignedAdmins(
+    projectId: string,
+    implicitRoles?: readonly WorkspaceRole[],
+  ): Promise<number>;
+
   abstract searchCandidates(
     input: SearchProjectMemberCandidatesInput,
   ): Promise<ProjectMemberCandidateDbRow[]>;
@@ -110,3 +116,4 @@ export abstract class ProjectMembersRepository {
     input: AddProjectMembersInput,
   ): Promise<AddProjectMembersResult>;
 }
+

@@ -37,10 +37,7 @@ import type { AccessibleProject } from '../access/projectAccessResolver.js';
 import { ProjectEvents } from '../events/projectEvents.js';
 import { ProjectsService } from '../projects.service.js';
 import type { AddProjectMembersDto } from './dto/addProjectMembers.dto.js';
-import {
-  toInheritedProjectMemberResponse,
-  toProjectMemberResponse,
-} from './dto/projectMemberResponse.js';
+import { buildProjectMemberResponse } from './dto/projectMemberResponse.js';
 import { canSeeMemberEmails, toProjectActor } from './projectMemberActor.js';
 import { ProjectMembersRepository } from './projectMembers.repository.js';
 
@@ -118,7 +115,7 @@ export class ProjectMembersService {
     const implicitRoles = workspaceRolesWithImplicitProjectAccess(policies);
     const showInherited = workspace.permissions.includes('workspace.members.view');
 
-    const [assigned, inherited] = await Promise.all([
+    const [assigned, inherited, assignedAdminCount] = await Promise.all([
       this.repository.list(accessible.project.id, {
         includeEmail,
         roleOrder,
@@ -132,6 +129,7 @@ export class ProjectMembersService {
             limit: PROJECT_MEMBER_LIST_MAX,
           })
         : Promise.resolve({ members: [], total: 0 }),
+      this.repository.countAssignedAdmins(accessible.project.id, implicitRoles),
     ]);
 
     let outOfRangeCount = 0;
@@ -152,10 +150,10 @@ export class ProjectMembersService {
     }
 
     const assignedMembers = assigned.members.map((row) =>
-      toProjectMemberResponse(row, { includeEmail, policies }),
+      buildProjectMemberResponse(row, { actor, includeEmail, policies }),
     );
     const inheritedMembers = inherited.members.map((row) =>
-      toInheritedProjectMemberResponse(row, { includeEmail, policies }),
+      buildProjectMemberResponse(row, { actor, includeEmail, policies }),
     );
 
     const total = assigned.total + inherited.total;
@@ -201,6 +199,7 @@ export class ProjectMembersService {
       total,
       truncated,
       addableRoles,
+      assignedAdminCount,
     };
   }
 
@@ -404,9 +403,10 @@ export class ProjectMembersService {
 
     return {
       members: result.members.map((m) =>
-        toProjectMemberResponse(m, { includeEmail, policies }),
+        buildProjectMemberResponse(m, { actor, includeEmail, policies }),
       ),
       project,
+      assignedAdminCount: result.assignedAdminCount,
     };
   }
 

@@ -1,7 +1,9 @@
 import {
+  assignableProjectRoles,
   effectiveProjectRole,
   isProjectRoleLimited,
   type ProjectAccessPolicies,
+  type ProjectActor,
   type ProjectMemberResponse,
   type ProjectRole,
   type WorkspaceRole,
@@ -22,7 +24,11 @@ export interface ProjectMemberDbRow {
 
 export function toProjectMemberResponse(
   row: ProjectMemberDbRow,
-  opts: { includeEmail: boolean; policies: ProjectAccessPolicies },
+  opts: {
+    actor: ProjectActor;
+    includeEmail: boolean;
+    policies: ProjectAccessPolicies;
+  },
 ): ProjectMemberResponse {
   const role = effectiveProjectRole(
     {
@@ -33,6 +39,15 @@ export function toProjectMemberResponse(
   )!;
   const roleLimited = isProjectRoleLimited(
     {
+      workspaceRole: row.workspaceRole,
+      assignedRole: row.assignedRole,
+    },
+    opts.policies,
+  );
+  const assignableRoles = assignableProjectRoles(
+    opts.actor,
+    {
+      userId: row.userId,
       workspaceRole: row.workspaceRole,
       assignedRole: row.assignedRole,
     },
@@ -55,6 +70,7 @@ export function toProjectMemberResponse(
     accountActive: row.accountActive,
     source: 'assigned',
     workspaceRole: row.workspaceRole,
+    assignableRoles,
   };
 
   if (opts.includeEmail && typeof row.email === 'string') {
@@ -77,7 +93,11 @@ export interface InheritedMemberDbRow {
 
 export function toInheritedProjectMemberResponse(
   row: InheritedMemberDbRow,
-  opts: { includeEmail: boolean; policies: ProjectAccessPolicies },
+  opts: {
+    actor?: ProjectActor;
+    includeEmail: boolean;
+    policies: ProjectAccessPolicies;
+  },
 ): ProjectMemberResponse {
   const role = opts.policies[row.workspaceRole].implicitProjectRole!;
   const res: ProjectMemberResponse = {
@@ -93,6 +113,7 @@ export function toInheritedProjectMemberResponse(
     accountActive: row.accountActive,
     source: 'inherited',
     workspaceRole: row.workspaceRole,
+    assignableRoles: [],
   };
 
   if (opts.includeEmail && typeof row.email === 'string') {
@@ -101,4 +122,23 @@ export function toInheritedProjectMemberResponse(
 
   return res;
 }
+
+/**
+ * Builds a project member response for any member row (assigned or inherited).
+ * Shared by `list`, `add`, and `changeRole`.
+ */
+export function buildProjectMemberResponse(
+  row: ProjectMemberDbRow | InheritedMemberDbRow,
+  opts: {
+    actor: ProjectActor;
+    includeEmail: boolean;
+    policies: ProjectAccessPolicies;
+  },
+): ProjectMemberResponse {
+  if ('assignedRole' in row) {
+    return toProjectMemberResponse(row, opts);
+  }
+  return toInheritedProjectMemberResponse(row, opts);
+}
+
 

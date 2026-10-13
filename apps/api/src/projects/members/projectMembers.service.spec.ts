@@ -4,6 +4,7 @@ import {
   PROJECT_ERROR_MESSAGES,
   PROJECT_MEMBER_NOT_ADDABLE_MESSAGES,
   type ProjectListItem,
+  type WorkspaceRole,
 } from '@repo/contracts';
 import { FakeClock } from '../../../test/fakes/authFakes.js';
 import type { MemberWorkspace } from '../../workspaces/repositories/workspaces.repository.js';
@@ -37,6 +38,7 @@ class FakeProjectMembersRepository implements ProjectMembersRepository {
   public lastSearchInput?: SearchProjectMemberCandidatesInput;
   public addResult?: AddProjectMembersResult;
   public lastAddInput?: AddProjectMembersInput;
+  public assignedAdminCount = 1;
 
   async list(
     _projectId: string,
@@ -58,6 +60,13 @@ class FakeProjectMembersRepository implements ProjectMembersRepository {
       members: this.inheritedRows.slice(0, opts.limit),
       total: this.inheritedTotal || this.inheritedRows.length,
     };
+  }
+
+  async countAssignedAdmins(
+    _projectId: string,
+    _implicitRoles?: readonly WorkspaceRole[],
+  ): Promise<number> {
+    return this.assignedAdminCount;
   }
 
   async searchCandidates(
@@ -87,6 +96,7 @@ class FakeProjectMembersRepository implements ProjectMembersRepository {
           accountActive: true,
         })),
         reactivatedCount: 0,
+        assignedAdminCount: this.assignedAdminCount,
       }
     );
   }
@@ -440,6 +450,143 @@ describe('ProjectMembersService', () => {
     );
   });
 
+  it('returns assignedAdminCount from repository in list', async () => {
+    repo.assignedAdminCount = 3;
+    const res = await service.list(workspace, project, 'actor-1');
+    expect(res.assignedAdminCount).toBe(3);
+  });
+
+  describe('assignableRoles in list', () => {
+    it('sets assignableRoles to [] for actor self-row', async () => {
+      repo.rows = [
+        {
+          userId: 'actor-1',
+          firstName: 'Actor',
+          lastName: 'Self',
+          displayName: 'Actor Self',
+          avatarUrl: null,
+          email: 'actor@example.com',
+          assignedRole: 'admin',
+          workspaceRole: 'member',
+          joinedAt: new Date('2026-10-10T00:00:00Z'),
+          accountActive: true,
+        },
+      ];
+
+      const res = await service.list(workspace, project, 'actor-1');
+      expect(res.members[0]!.assignableRoles).toEqual([]);
+    });
+
+    it('sets assignableRoles to [] for inherited rows', async () => {
+      repo.inheritedRows = [
+        {
+          userId: 'u-admin-1',
+          firstName: 'Inherited',
+          lastName: 'Admin',
+          displayName: 'Inherited Admin',
+          avatarUrl: null,
+          email: 'admin@example.com',
+          workspaceRole: 'admin',
+          accountActive: true,
+        },
+      ];
+
+      const res = await service.list(workspace, project, 'actor-1');
+      const inherited = res.members.find((m) => m.source === 'inherited');
+      expect(inherited?.assignableRoles).toEqual([]);
+    });
+
+    it('sets assignableRoles to [] when actor lacks project.members.manage', async () => {
+      repo.rows = [
+        {
+          userId: 'u-target',
+          firstName: 'Target',
+          lastName: 'User',
+          displayName: 'Target User',
+          avatarUrl: null,
+          email: 'target@example.com',
+          assignedRole: 'commenter',
+          workspaceRole: 'member',
+          joinedAt: new Date('2026-10-10T00:00:00Z'),
+          accountActive: true,
+        },
+      ];
+      const projNoManage: AccessibleProject = {
+        ...project,
+        access: {
+          role: 'admin',
+          permissions: ['project.members.view'],
+        },
+      };
+
+      const res = await service.list(workspace, projNoManage, 'actor-1');
+      expect(res.members[0]!.assignableRoles).toEqual([]);
+    });
+
+    it('calculates assignableRoles according to RP B8.2 for peer and subordinate roles', async () => {
+      repo.rows = [
+        {
+          userId: 'u-admin-peer',
+          firstName: 'Peer',
+          lastName: 'Admin',
+          displayName: 'Peer Admin',
+          avatarUrl: null,
+          email: 'peer@example.com',
+          assignedRole: 'admin',
+          workspaceRole: 'member',
+          joinedAt: new Date('2026-10-10T00:00:00Z'),
+          accountActive: true,
+        },
+        {
+          userId: 'u-contributor',
+          firstName: 'Sub',
+          lastName: 'Contributor',
+          displayName: 'Sub Contributor',
+          avatarUrl: null,
+          email: 'sub@example.com',
+          assignedRole: 'contributor',
+          workspaceRole: 'member',
+          joinedAt: new Date('2026-10-10T00:00:00Z'),
+          accountActive: true,
+        },
+        {
+          userId: 'u-guest',
+          firstName: 'Guest',
+          lastName: 'User',
+          displayName: 'Guest User',
+          avatarUrl: null,
+          email: 'guest@example.com',
+          assignedRole: 'viewer',
+          workspaceRole: 'guest',
+          joinedAt: new Date('2026-10-10T00:00:00Z'),
+          accountActive: true,
+        },
+      ];
+
+      // Actor is member workspace, admin in project
+      const res = await service.list(workspace, project, 'actor-1');
+      const peer = res.members.find((m) => m.userId === 'u-admin-peer');
+      const sub = res.members.find((m) => m.userId === 'u-contributor');
+      const guest = res.members.find((m) => m.userId === 'u-guest');
+
+      // Actor is not overridesProjectRank, so peer admin has rank >= actor -> []
+      expect(peer?.assignableRoles).toEqual([]);
+      // Subordinate member: up to actor role ('admin') within member allowable roles -> ['admin', 'contributor', 'commenter']
+      expect(sub?.assignableRoles).toEqual(['admin', 'contributor', 'commenter']);
+      // Guest: bounded by guest policy -> ['viewer']
+      expect(guest?.assignableRoles).toEqual(['viewer']);
+
+      // Workspace Admin actor has overridesProjectRank: can assign peer admin
+      const wsAdmin: MemberWorkspace = {
+        ...workspace,
+        role: 'admin',
+      };
+      const resWsAdmin = await service.list(wsAdmin, project, 'actor-ws-admin');
+      const peerAsWsAdmin = resWsAdmin.members.find((m) => m.userId === 'u-admin-peer');
+      expect(peerAsWsAdmin?.assignableRoles).toEqual(['admin', 'contributor', 'commenter']);
+    });
+  });
+
   describe('searchCandidates (API B4.2)', () => {
     it('uses contains mode and includes email when workspace viewer has email.view permission', async () => {
       repo.candidateRows = [
@@ -676,11 +823,13 @@ describe('ProjectMembersService', () => {
       );
 
       expect(res.members).toHaveLength(2);
+      expect(res.assignedAdminCount).toBe(1);
       expect(res.members[0]).toMatchObject({
         userId: 'u-1',
         email: 'u-1@example.com',
         role: 'contributor',
         assignedRole: 'contributor',
+        assignableRoles: ['admin', 'contributor', 'commenter'],
       });
       expect(res.project).toEqual(fakeProjectListItem);
       expect(events.membersAddedEvents).toHaveLength(1);

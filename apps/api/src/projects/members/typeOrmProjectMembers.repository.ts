@@ -25,6 +25,7 @@ import { ProjectMember } from '../entities/projectMember.entity.js';
 import { ProjectMemberRoleHistory } from '../entities/projectMemberRoleHistory.entity.js';
 import {
   ACTIVE_PROJECT,
+  assignedProjectAdmins,
   inheritedProjectMembersQuery,
   projectMembersQuery,
 } from '../projectFilters.js';
@@ -143,6 +144,19 @@ export class TypeOrmProjectMembersRepository implements ProjectMembersRepository
 
     return { members, total };
   }
+
+  async countAssignedAdmins(
+    projectId: string,
+    implicitRoles?: readonly WorkspaceRole[],
+  ): Promise<number> {
+    const adminCounts = await assignedProjectAdmins(
+      this.dataSource.manager,
+      [projectId],
+      implicitRoles,
+    );
+    return adminCounts.get(projectId) ?? 0;
+  }
+
 
   async searchCandidates(
     input: SearchProjectMemberCandidatesInput,
@@ -411,10 +425,14 @@ async function addMembersOnce(
     readRows.map((row) => [row.userId, toMemberDbRow(row, input.includeEmail)]),
   );
 
+  const adminCounts = await assignedProjectAdmins(manager, [projectId]);
+  const assignedAdminCount = adminCounts.get(projectId) ?? 0;
+
   return {
     status: 'added',
     members: input.members.map((m) => byUserId.get(m.userId)!),
     reactivatedCount: reactivated.length,
+    assignedAdminCount,
   };
 }
 

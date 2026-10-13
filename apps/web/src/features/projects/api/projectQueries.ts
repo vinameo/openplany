@@ -72,6 +72,7 @@ export function addProjectMembersToCache(
         members: nextMembers,
         total: nextTotal,
         truncated: nextTotal > nextMembers.length,
+        assignedAdminCount: res.assignedAdminCount,
       };
     },
   );

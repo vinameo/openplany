@@ -67,6 +67,7 @@ function renderMembersApp({
     total: 0,
     truncated: false,
     addableRoles: ["admin", "contributor", "commenter", "viewer"],
+    assignedAdminCount: 2,
   },
 }: {
   initialEntries?: string[];
@@ -124,6 +125,7 @@ describe("ProjectMembersSettingsPage", () => {
     accountActive: true,
     source: "assigned",
     workspaceRole: "member",
+    assignableRoles: [],
   };
 
   const memberNam: ProjectMemberResponse = {
@@ -140,6 +142,7 @@ describe("ProjectMembersSettingsPage", () => {
     accountActive: true,
     source: "assigned",
     workspaceRole: "member",
+    assignableRoles: [],
   };
 
   it("AC-01: Nam without email view permission sees members table, NO note, NO email column, and sees Add member button", async () => {
@@ -156,6 +159,7 @@ describe("ProjectMembersSettingsPage", () => {
       total: 2,
       truncated: false,
       addableRoles: ["admin", "contributor", "commenter", "viewer"],
+      assignedAdminCount: 2,
     };
 
     renderMembersApp({
@@ -185,6 +189,7 @@ describe("ProjectMembersSettingsPage", () => {
       total: 2,
       truncated: false,
       addableRoles: [], // no addable roles
+      assignedAdminCount: 2,
     };
 
     renderMembersApp({
@@ -213,6 +218,7 @@ describe("ProjectMembersSettingsPage", () => {
       accountActive: true,
       source: "inherited",
       workspaceRole: "admin",
+      assignableRoles: [],
     };
 
     const membersData: ProjectMemberListResponse = {
@@ -220,6 +226,7 @@ describe("ProjectMembersSettingsPage", () => {
       total: 1,
       truncated: false,
       addableRoles: ["admin", "contributor", "commenter", "viewer"],
+      assignedAdminCount: 0,
     };
 
     renderMembersApp({
@@ -243,6 +250,7 @@ describe("ProjectMembersSettingsPage", () => {
       total: 2,
       truncated: false,
       addableRoles: ["admin", "contributor", "commenter", "viewer"],
+      assignedAdminCount: 2,
     };
 
     renderMembersApp({
@@ -285,6 +293,7 @@ describe("ProjectMembersSettingsPage", () => {
       accountActive: true,
       source: "assigned",
       workspaceRole: "guest",
+      assignableRoles: [],
     };
 
     renderMembersApp({
@@ -293,6 +302,7 @@ describe("ProjectMembersSettingsPage", () => {
         total: 1,
         truncated: false,
         addableRoles: [],
+        assignedAdminCount: 0,
       },
     });
 
@@ -318,6 +328,7 @@ describe("ProjectMembersSettingsPage", () => {
       accountActive: false,
       source: "assigned",
       workspaceRole: "member",
+      assignableRoles: [],
     };
 
     renderMembersApp({
@@ -326,6 +337,7 @@ describe("ProjectMembersSettingsPage", () => {
         total: 1,
         truncated: false,
         addableRoles: [],
+        assignedAdminCount: 0,
       },
     });
 
@@ -348,6 +360,7 @@ describe("ProjectMembersSettingsPage", () => {
         total: 1001,
         truncated: true,
         addableRoles: [],
+        assignedAdminCount: 1,
       },
     });
 
@@ -364,6 +377,7 @@ describe("ProjectMembersSettingsPage", () => {
         total: 0,
         truncated: false,
         addableRoles: ["admin", "contributor"],
+        assignedAdminCount: 0,
       },
     });
 
