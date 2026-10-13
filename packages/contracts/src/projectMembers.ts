@@ -10,6 +10,7 @@ import type {
 import type { ProjectRole } from "./projectRoles.js";
 import type { ProjectListItem } from "./project.js";
 import { MEMBER_MESSAGES } from "./memberMessages.js";
+import { isProjectAdminRole } from "./rolePermissionRules.js";
 
 export const PROJECT_MEMBER_LIST_MAX = 1000;
 
@@ -47,6 +48,7 @@ export interface ProjectMemberResponse {
   accountActive: boolean;
   source: ProjectMemberSource;
   workspaceRole: WorkspaceRole;
+  assignableRoles: ProjectRole[];
 }
 
 export interface ProjectMemberListResponse {
@@ -54,6 +56,7 @@ export interface ProjectMemberListResponse {
   total: number;
   truncated: boolean;
   addableRoles: ProjectRole[];
+  assignedAdminCount: number;
 }
 
 export const PROJECT_MEMBER_CANDIDATE_STATUSES = [
@@ -87,7 +90,41 @@ export interface AddProjectMembersRequest {
 export interface AddProjectMembersResponse {
   members: ProjectMemberResponse[];
   project: ProjectListItem;
+  assignedAdminCount: number;
 }
+
+export interface ChangeProjectRoleRequest {
+  fromRole: ProjectRole;
+  role: ProjectRole;
+}
+
+export interface ChangeProjectRoleResponse {
+  member: ProjectMemberResponse;
+  assignedAdminCount: number;
+}
+
+export type ProjectRoleChangeKind = "gain_admin" | "lose_admin" | "other";
+
+export function projectRoleChangeKind(
+  from: ProjectRole,
+  to: ProjectRole,
+): ProjectRoleChangeKind {
+  const fromAdmin = isProjectAdminRole(from);
+  const toAdmin = isProjectAdminRole(to);
+  if (!fromAdmin && toAdmin) {
+    return "gain_admin";
+  }
+  if (fromAdmin && !toAdmin) {
+    return "lose_admin";
+  }
+  return "other";
+}
+
+export const PROJECT_ROLE_CHANGE_MESSAGES = {
+  cantChange: "You can't change this person's role",
+  inherited: "Workspace Admins are Project Admins in every project.",
+  memberGone: "This person is no longer in this project.",
+} as const;
 
 export const PROJECT_MEMBER_NOT_ADDABLE_REASONS = [
   "unavailable",
@@ -120,3 +157,4 @@ export const PROJECT_MEMBER_NOT_ADDABLE_FIELD: Record<
   already_member: "userId",
   role_not_allowed: "role",
 };
+

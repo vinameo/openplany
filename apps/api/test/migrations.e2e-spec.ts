@@ -333,7 +333,8 @@ describe('Migrations (e2e)', () => {
       [wsId, project!.id, ownerId],
     );
 
-    // Revert ApplyProjectAccessPolicies, CreateProjectAccessPolicies and RenameProjectGuestToViewer so AddProjectMemberJoinedAt is the last applied migration
+    // Revert AddProjectRoleChangedHistory, ApplyProjectAccessPolicies, CreateProjectAccessPolicies and RenameProjectGuestToViewer so AddProjectMemberJoinedAt is the last applied migration
+    await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
@@ -445,6 +446,8 @@ describe('Migrations (e2e)', () => {
       [wsId, project!.id, ownerId],
     );
 
+    // Revert AddProjectRoleChangedHistory so ApplyProjectAccessPolicies is the last applied migration
+    await migrationsDs.undoLastMigration({ transaction: 'each' });
     const schemaBefore = await schemaSnapshot(migrationsDs);
     try {
       await expect(
@@ -462,7 +465,8 @@ describe('Migrations (e2e)', () => {
   });
 
   it('AC-16: refuses to revert CreateProjectAccessPolicies if workspace_role_applied role history rows exist', async () => {
-    // 1. Revert ApplyProjectAccessPolicies first (when no later changes exist, it reverts cleanly)
+    // 1. Revert AddProjectRoleChangedHistory and ApplyProjectAccessPolicies first (when no later changes exist, they revert cleanly)
+    await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
 
     const ownerId = await createUser(e2e, 'owner-mig-applied@openplany.dev', {
@@ -507,7 +511,8 @@ describe('Migrations (e2e)', () => {
   });
 
   it('AC-13, AC-14, AC-15: ApplyProjectAccessPolicies updates the 6 input rows and down() restores them', async () => {
-    // 1. Revert ApplyProjectAccessPolicies first
+    // 1. Revert AddProjectRoleChangedHistory and ApplyProjectAccessPolicies first
+    await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
 
     // 2. Setup workspace and project with the 6 rows of AC-13
@@ -674,6 +679,7 @@ describe('Migrations (e2e)', () => {
 
       // 4. Test AC-15: down() reverts all changes and deletes history rows
       await migrationsDs.undoLastMigration({ transaction: 'each' });
+      await migrationsDs.undoLastMigration({ transaction: 'each' });
 
       const rowsAfterDown = await migrationsDs.query<
         { member_id: string; role: string; is_active: boolean }[]
@@ -716,6 +722,60 @@ describe('Migrations (e2e)', () => {
       const schemaAfterDown = await schemaSnapshot(migrationsDs);
       expect(schemaAfterDown).toEqual(schemaBeforeUp);
     } finally {
+      await migrationsDs.runMigrations({ transaction: 'each' });
+    }
+  });
+
+  it('AddProjectRoleChangedHistory down() refuses when role_changed rows exist and succeeds when clean', async () => {
+    const ownerId = await createUser(e2e, 'owner-cpr-mig@openplany.dev', {
+      is_superuser: true,
+    });
+    const memberUser = await createUser(e2e, 'target-cpr-mig@openplany.dev');
+    const created = await request(e2e.app.getHttpServer())
+      .post('/api/workspaces')
+      .set('Cookie', await signInCookie(e2e, 'owner-cpr-mig@openplany.dev'))
+      .set('Origin', DEFAULT_E2E_ORIGIN)
+      .send({
+        name: 'WS Mig CPR',
+        slug: 'ws-mig-cpr',
+        organizationSize: '2-10',
+      })
+      .expect(201);
+    const wsId = created.body.id as string;
+    const [project] = await e2e.dataSource.query<{ id: string }[]>(
+      `INSERT INTO projects (workspace_id, identifier, name, icon_name, icon_color, cover_key, created_by_id)
+       VALUES ($1, 'PRJMC', 'Project Mig CPR', 'square-check', '#868E96', 'cover-01', $2) RETURNING id`,
+      [wsId, ownerId],
+    );
+    const pId = project!.id;
+
+    await migrationsDs.query(
+      `INSERT INTO project_member_role_history (
+        workspace_id, project_id, member_id, role_scope, from_role, to_role, change_type, actor_id, request_id
+      ) VALUES ($1, $2, $3, 'project', 'commenter', 'contributor', 'role_changed', $4, 'req-mig-test')`,
+      [wsId, pId, memberUser, ownerId],
+    );
+
+    try {
+      await expect(
+        migrationsDs.undoLastMigration({ transaction: 'each' }),
+      ).rejects.toThrow(
+        /Cannot revert AddProjectRoleChangedHistory: 1 project role history rows use change_type 'role_changed'/,
+      );
+
+      await migrationsDs.query(
+        `DELETE FROM project_member_role_history WHERE change_type = 'role_changed' AND member_id = $1`,
+        [memberUser],
+      );
+
+      await migrationsDs.undoLastMigration({ transaction: 'each' });
+
+      await migrationsDs.runMigrations({ transaction: 'each' });
+    } finally {
+      await migrationsDs.query(
+        `DELETE FROM project_member_role_history WHERE change_type = 'role_changed' AND member_id = $1`,
+        [memberUser],
+      );
       await migrationsDs.runMigrations({ transaction: 'each' });
     }
   });

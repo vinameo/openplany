@@ -74,6 +74,22 @@ export interface ProjectAddRoleForbiddenEvent {
   requestId?: string;
 }
 
+export interface ProjectMemberRoleChangedEvent {
+  projectId: string;
+  actorId: string;
+  targetId: string;
+  fromRole: ProjectRole;
+  toRole: ProjectRole;
+  requestId?: string;
+}
+
+export interface ProjectMemberRoleForbiddenEvent {
+  projectId: string;
+  actorId: string;
+  targetId: string;
+  requestId?: string;
+}
+
 export abstract class ProjectEvents {
   abstract created(event: ProjectCreatedEvent): Promise<void>;
   abstract updated(event: ProjectUpdatedEvent): Promise<void>;
@@ -93,5 +109,10 @@ export abstract class ProjectEvents {
   abstract addRoleForbidden(
     event: ProjectAddRoleForbiddenEvent,
   ): Promise<void>;
+  abstract roleChanged(event: ProjectMemberRoleChangedEvent): Promise<void>;
+  abstract roleForbidden(
+    event: ProjectMemberRoleForbiddenEvent,
+  ): Promise<void>;
 }
+
 

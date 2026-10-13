@@ -6,10 +6,15 @@ import {
   type SelectQueryBuilder,
 } from 'typeorm';
 import {
+  assignableProjectRoles,
+  assignableRangeOf,
+  effectiveProjectRole,
   escapeLikePattern,
+  hasImplicitProjectAccess,
   parseWorkspacePermissions,
   type ProjectMemberNotAddableReason,
   type ProjectRole,
+  type ProjectTarget,
   type WorkspaceRole,
 } from '@repo/contracts';
 import { User } from '../../auth/entities/user.entity.js';
@@ -18,13 +23,16 @@ import { isForeignKeyViolation } from '../../common/databaseErrors.js';
 import { equalsLowercase } from '../../database/findOperators.js';
 import { runTransactionWithRetry } from '../../database/transactionRetry.js';
 import { loadRolePermissions, rolePermissionsKey } from '../../roles/rolePermissionsQuery.js';
+import { ProjectAccessPolicyStore } from '../../roles/projectAccessPolicyStore.js';
 import { WorkspaceMember } from '../../workspaces/entities/workspaceMember.entity.js';
 import { ProjectAccessResolver } from '../access/projectAccessResolver.js';
 import { Project } from '../entities/project.entity.js';
 import { ProjectMember } from '../entities/projectMember.entity.js';
 import { ProjectMemberRoleHistory } from '../entities/projectMemberRoleHistory.entity.js';
+import { recordProjectRoleChanges } from '../repositories/projectRoleHistory.js';
 import {
   ACTIVE_PROJECT,
+  assignedProjectAdmins,
   inheritedProjectMembersQuery,
   projectMembersQuery,
 } from '../projectFilters.js';
@@ -32,6 +40,8 @@ import type {
   AddProjectMembersActorContext,
   AddProjectMembersInput,
   AddProjectMembersResult,
+  ChangeProjectRoleInput,
+  ChangeProjectRoleResult,
   ListInheritedProjectMembersOpts,
   ListProjectMembersOpts,
   ProjectMemberCandidateDbRow,
@@ -65,6 +75,7 @@ export class TypeOrmProjectMembersRepository implements ProjectMembersRepository
   constructor(
     private readonly dataSource: DataSource,
     private readonly accessResolver: ProjectAccessResolver,
+    private readonly policyStore: ProjectAccessPolicyStore,
   ) {}
 
   async list(
@@ -143,6 +154,19 @@ export class TypeOrmProjectMembersRepository implements ProjectMembersRepository
 
     return { members, total };
   }
+
+  async countAssignedAdmins(
+    projectId: string,
+    implicitRoles?: readonly WorkspaceRole[],
+  ): Promise<number> {
+    const adminCounts = await assignedProjectAdmins(
+      this.dataSource.manager,
+      [projectId],
+      implicitRoles,
+    );
+    return adminCounts.get(projectId) ?? 0;
+  }
+
 
   async searchCandidates(
     input: SearchProjectMemberCandidatesInput,
@@ -236,6 +260,27 @@ export class TypeOrmProjectMembersRepository implements ProjectMembersRepository
       }
       throw err;
     }
+  }
+
+  async changeRole(input: ChangeProjectRoleInput): Promise<ChangeProjectRoleResult> {
+    return await runTransactionWithRetry(
+      this.dataSource,
+      (manager) =>
+        changeProjectRoleOnce(
+          manager,
+          this.accessResolver,
+          this.policyStore,
+          input,
+        ),
+      {
+        maxAttempts: MAX_ADD_ATTEMPTS,
+        onRetry: (attempt) => {
+          this.logger.warn(
+            `project.members.change_role.retry projectId=${input.projectId} attempt=${attempt} requestId=${input.requestId}`,
+          );
+        },
+      },
+    );
   }
 }
 
@@ -411,10 +456,14 @@ async function addMembersOnce(
     readRows.map((row) => [row.userId, toMemberDbRow(row, input.includeEmail)]),
   );
 
+  const adminCounts = await assignedProjectAdmins(manager, [projectId]);
+  const assignedAdminCount = adminCounts.get(projectId) ?? 0;
+
   return {
     status: 'added',
     members: input.members.map((m) => byUserId.get(m.userId)!),
     reactivatedCount: reactivated.length,
+    assignedAdminCount,
   };
 }
 
@@ -470,4 +519,177 @@ function groupByRole(
     else ids.push(m.userId);
   }
   return groups;
+}
+
+async function changeProjectRoleOnce(
+  manager: EntityManager,
+  accessResolver: ProjectAccessResolver,
+  policyStore: ProjectAccessPolicyStore,
+  input: ChangeProjectRoleInput,
+): Promise<ChangeProjectRoleResult> {
+  const { workspaceId, projectId, actorId, targetUserId, now } = input;
+
+  // 1. FOR SHARE: project exists and is active (INV-02)
+  const project = await manager.findOne(Project, {
+    select: { id: true },
+    where: { id: projectId, workspaceId, ...ACTIVE_PROJECT },
+    lock: { mode: 'pessimistic_read' },
+  });
+  if (project === null) return { status: 'project_gone' };
+
+  // 2. Lock workspace memberships of actor and target in memberId order
+  const userIds = [actorId, targetUserId].sort(compareIds);
+  const wmList = await manager.find(WorkspaceMember, {
+    select: { id: true, memberId: true, role: true, roleScope: true, isActive: true },
+    where: { workspaceId, memberId: In(userIds) },
+    order: { memberId: 'ASC' },
+    lock: { mode: 'pessimistic_read' },
+  });
+
+  // 3. Lock project memberships of actor and target in memberId order
+  const pmList = await manager.find(ProjectMember, {
+    select: { id: true, memberId: true, role: true, roleScope: true, isActive: true },
+    where: { projectId, memberId: In(userIds) },
+    order: { memberId: 'ASC' },
+    lock: { mode: 'pessimistic_write' },
+  });
+
+  // Decisions in exact priority order (RQ INV-07):
+  // 1. Target workspace member not found or inactive -> 404 memberGone
+  const targetWm = wmList.find((w) => w.memberId === targetUserId && w.isActive);
+  if (targetWm === undefined) {
+    return { status: 'member_gone' };
+  }
+
+  // 2. Actor workspace member not found or inactive -> 403
+  const actorWm = wmList.find((w) => w.memberId === actorId && w.isActive);
+  if (actorWm === undefined) {
+    return { status: 'actor_forbidden' };
+  }
+
+  // 3. actorId === targetId -> 403
+  if (actorId === targetUserId) {
+    return { status: 'actor_forbidden' };
+  }
+
+  const policies = policyStore.policies();
+
+  // 4. hasImplicitProjectAccess(policies[target.wm.role]) -> actor has workspace.members.view ? 409 ROLE_INHERITED : 404 memberGone (D16)
+  if (hasImplicitProjectAccess(policies[targetWm.role])) {
+    const granted = await loadRolePermissions(manager, [
+      { scope: actorWm.roleScope, key: actorWm.role },
+    ]);
+    const actorWorkspacePermissions = parseWorkspacePermissions(
+      granted.get(rolePermissionsKey(actorWm.roleScope, actorWm.role)) ?? [],
+    );
+    if (actorWorkspacePermissions.includes('workspace.members.view')) {
+      return { status: 'role_inherited' };
+    }
+    return { status: 'member_gone' };
+  }
+
+  // 5. Target does not have an active project_members row -> 404 memberGone
+  const targetPm = pmList.find((p) => p.memberId === targetUserId && p.isActive);
+  if (targetPm === undefined) {
+    return { status: 'member_gone' };
+  }
+
+  // 6. Actor access via accessResolver.forMembership
+  const actorPm = pmList.find((p) => p.memberId === actorId && p.isActive);
+  const actorAccess = await accessResolver.forMembership(manager, {
+    workspaceRole: actorWm.role,
+    assignedRole: actorPm?.role ?? null,
+  });
+  if (actorAccess === null) {
+    return { status: 'actor_forbidden' };
+  }
+
+  const actorProjectActor = toProjectActor(actorId, actorWm.role, actorAccess);
+  const targetProjectTarget: ProjectTarget = {
+    userId: targetUserId,
+    workspaceRole: targetWm.role,
+    assignedRole: targetPm.role,
+  };
+  const assignable = assignableProjectRoles(
+    actorProjectActor,
+    targetProjectTarget,
+    policies,
+  );
+  if (assignable.length === 0) {
+    return { status: 'cant_change' };
+  }
+
+  // 7. current = effectiveProjectRole(target); fromRole !== current -> 409 ROLE_CHANGED
+  const targetEffectiveRole = effectiveProjectRole(
+    {
+      workspaceRole: targetWm.role,
+      assignedRole: targetPm.role,
+    },
+    policies,
+  );
+  if (input.fromRole !== targetEffectiveRole) {
+    return { status: 'role_changed' };
+  }
+
+  // 8. role === current -> 400 ROLE_UNCHANGED
+  if (input.toRole === targetEffectiveRole) {
+    return { status: 'role_unchanged' };
+  }
+
+  // 9. role not in assignableRangeOf(policies[target.wm.role]) -> 400 PROJECT_ROLE_NOT_ALLOWED
+  const allowedForWorkspaceRole = assignableRangeOf(policies[targetWm.role]);
+  if (!allowedForWorkspaceRole.includes(input.toRole)) {
+    return { status: 'role_not_allowed_for_workspace_role' };
+  }
+
+  // 10. role not in assignable -> 403 roleNotAllowed
+  if (!assignable.includes(input.toRole)) {
+    return { status: 'role_not_allowed' };
+  }
+
+  // Writes:
+  // 1. Update ProjectMember
+  await manager.update(
+    ProjectMember,
+    { id: targetPm.id },
+    { role: input.toRole, updatedAt: now },
+  );
+
+  // 2. History: recordProjectRoleChanges (skip if pm.role === toRole because CHECK forbids from = to)
+  if (targetPm.role !== input.toRole) {
+    await recordProjectRoleChanges(manager, [
+      {
+        workspaceId,
+        projectId,
+        memberId: targetUserId,
+        fromRole: targetPm.role,
+        toRole: input.toRole,
+        changeType: 'role_changed',
+        actorId,
+        requestId: input.requestId,
+        createdAt: now,
+      },
+    ]);
+  }
+
+  // 3. Read back
+  const readRow = await selectProjectMemberColumns(
+    projectMembersQuery(manager, { projectId, memberId: targetUserId }),
+    input.includeEmail,
+  ).getRawOne<ProjectMemberDbRow>();
+
+  if (!readRow) {
+    return { status: 'member_gone' };
+  }
+
+  const adminCounts = await assignedProjectAdmins(manager, [projectId]);
+  const assignedAdminCount = adminCounts.get(projectId) ?? 0;
+
+  return {
+    status: 'success',
+    member: toMemberDbRow(readRow, input.includeEmail),
+    fromRole: input.fromRole,
+    toRole: input.toRole,
+    assignedAdminCount,
+  };
 }

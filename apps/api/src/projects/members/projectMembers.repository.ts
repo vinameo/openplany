@@ -80,6 +80,7 @@ export type AddProjectMembersResult =
       status: 'added';
       members: ProjectMemberDbRow[];
       reactivatedCount: number;
+      assignedAdminCount: number;
     }
   | {
       status: 'rejected';
@@ -90,6 +91,36 @@ export type AddProjectMembersResult =
   /** The database rejected a role of the batch (foreign key on `roles`). */
   | { status: 'role_unknown' }
   | { status: 'project_gone' };
+
+export interface ChangeProjectRoleInput {
+  workspaceId: string;
+  projectId: string;
+  actorId: string;
+  targetUserId: string;
+  fromRole: ProjectRole;
+  toRole: ProjectRole;
+  requestId: string;
+  now: Date;
+  includeEmail: boolean;
+}
+
+export type ChangeProjectRoleResult =
+  | {
+      status: 'success';
+      member: ProjectMemberDbRow;
+      fromRole: ProjectRole;
+      toRole: ProjectRole;
+      assignedAdminCount: number;
+    }
+  | { status: 'project_gone' }
+  | { status: 'member_gone' }
+  | { status: 'actor_forbidden' }
+  | { status: 'cant_change' }
+  | { status: 'role_inherited' }
+  | { status: 'role_changed' }
+  | { status: 'role_unchanged' }
+  | { status: 'role_not_allowed_for_workspace_role' }
+  | { status: 'role_not_allowed' };
 
 export abstract class ProjectMembersRepository {
   abstract list(
@@ -102,6 +133,11 @@ export abstract class ProjectMembersRepository {
     opts: ListInheritedProjectMembersOpts,
   ): Promise<{ members: InheritedMemberDbRow[]; total: number }>;
 
+  abstract countAssignedAdmins(
+    projectId: string,
+    implicitRoles?: readonly WorkspaceRole[],
+  ): Promise<number>;
+
   abstract searchCandidates(
     input: SearchProjectMemberCandidatesInput,
   ): Promise<ProjectMemberCandidateDbRow[]>;
@@ -109,4 +145,9 @@ export abstract class ProjectMembersRepository {
   abstract addMembers(
     input: AddProjectMembersInput,
   ): Promise<AddProjectMembersResult>;
+
+  abstract changeRole(
+    input: ChangeProjectRoleInput,
+  ): Promise<ChangeProjectRoleResult>;
 }
+

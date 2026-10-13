@@ -3,7 +3,9 @@ import {
   MEMBER_MESSAGES,
   PROJECT_ERROR_MESSAGES,
   PROJECT_MEMBER_NOT_ADDABLE_MESSAGES,
+  PROJECT_ROLE_CHANGE_MESSAGES,
   type ProjectListItem,
+  type WorkspaceRole,
 } from '@repo/contracts';
 import { FakeClock } from '../../../test/fakes/authFakes.js';
 import type { MemberWorkspace } from '../../workspaces/repositories/workspaces.repository.js';
@@ -13,6 +15,8 @@ import type { ProjectsService } from '../projects.service.js';
 import type {
   AddProjectMembersInput,
   AddProjectMembersResult,
+  ChangeProjectRoleInput,
+  ChangeProjectRoleResult,
   ListInheritedProjectMembersOpts,
   ListProjectMembersOpts,
   ProjectMemberCandidateDbRow,
@@ -37,6 +41,9 @@ class FakeProjectMembersRepository implements ProjectMembersRepository {
   public lastSearchInput?: SearchProjectMemberCandidatesInput;
   public addResult?: AddProjectMembersResult;
   public lastAddInput?: AddProjectMembersInput;
+  public changeRoleResult?: ChangeProjectRoleResult;
+  public lastChangeRoleInput?: ChangeProjectRoleInput;
+  public assignedAdminCount = 1;
 
   async list(
     _projectId: string,
@@ -58,6 +65,13 @@ class FakeProjectMembersRepository implements ProjectMembersRepository {
       members: this.inheritedRows.slice(0, opts.limit),
       total: this.inheritedTotal || this.inheritedRows.length,
     };
+  }
+
+  async countAssignedAdmins(
+    _projectId: string,
+    _implicitRoles?: readonly WorkspaceRole[],
+  ): Promise<number> {
+    return this.assignedAdminCount;
   }
 
   async searchCandidates(
@@ -87,6 +101,33 @@ class FakeProjectMembersRepository implements ProjectMembersRepository {
           accountActive: true,
         })),
         reactivatedCount: 0,
+        assignedAdminCount: this.assignedAdminCount,
+      }
+    );
+  }
+
+  async changeRole(
+    input: ChangeProjectRoleInput,
+  ): Promise<ChangeProjectRoleResult> {
+    this.lastChangeRoleInput = input;
+    return (
+      this.changeRoleResult ?? {
+        status: 'success',
+        member: {
+          userId: input.targetUserId,
+          firstName: 'Target',
+          lastName: 'User',
+          displayName: 'Target User',
+          avatarUrl: null,
+          email: input.includeEmail ? 'target@example.com' : null,
+          assignedRole: input.toRole,
+          workspaceRole: 'member',
+          joinedAt: input.now,
+          accountActive: true,
+        },
+        fromRole: input.fromRole,
+        toRole: input.toRole,
+        assignedAdminCount: this.assignedAdminCount,
       }
     );
   }
@@ -440,6 +481,143 @@ describe('ProjectMembersService', () => {
     );
   });
 
+  it('returns assignedAdminCount from repository in list', async () => {
+    repo.assignedAdminCount = 3;
+    const res = await service.list(workspace, project, 'actor-1');
+    expect(res.assignedAdminCount).toBe(3);
+  });
+
+  describe('assignableRoles in list', () => {
+    it('sets assignableRoles to [] for actor self-row', async () => {
+      repo.rows = [
+        {
+          userId: 'actor-1',
+          firstName: 'Actor',
+          lastName: 'Self',
+          displayName: 'Actor Self',
+          avatarUrl: null,
+          email: 'actor@example.com',
+          assignedRole: 'admin',
+          workspaceRole: 'member',
+          joinedAt: new Date('2026-10-10T00:00:00Z'),
+          accountActive: true,
+        },
+      ];
+
+      const res = await service.list(workspace, project, 'actor-1');
+      expect(res.members[0]!.assignableRoles).toEqual([]);
+    });
+
+    it('sets assignableRoles to [] for inherited rows', async () => {
+      repo.inheritedRows = [
+        {
+          userId: 'u-admin-1',
+          firstName: 'Inherited',
+          lastName: 'Admin',
+          displayName: 'Inherited Admin',
+          avatarUrl: null,
+          email: 'admin@example.com',
+          workspaceRole: 'admin',
+          accountActive: true,
+        },
+      ];
+
+      const res = await service.list(workspace, project, 'actor-1');
+      const inherited = res.members.find((m) => m.source === 'inherited');
+      expect(inherited?.assignableRoles).toEqual([]);
+    });
+
+    it('sets assignableRoles to [] when actor lacks project.members.manage', async () => {
+      repo.rows = [
+        {
+          userId: 'u-target',
+          firstName: 'Target',
+          lastName: 'User',
+          displayName: 'Target User',
+          avatarUrl: null,
+          email: 'target@example.com',
+          assignedRole: 'commenter',
+          workspaceRole: 'member',
+          joinedAt: new Date('2026-10-10T00:00:00Z'),
+          accountActive: true,
+        },
+      ];
+      const projNoManage: AccessibleProject = {
+        ...project,
+        access: {
+          role: 'admin',
+          permissions: ['project.members.view'],
+        },
+      };
+
+      const res = await service.list(workspace, projNoManage, 'actor-1');
+      expect(res.members[0]!.assignableRoles).toEqual([]);
+    });
+
+    it('calculates assignableRoles according to RP B8.2 for peer and subordinate roles', async () => {
+      repo.rows = [
+        {
+          userId: 'u-admin-peer',
+          firstName: 'Peer',
+          lastName: 'Admin',
+          displayName: 'Peer Admin',
+          avatarUrl: null,
+          email: 'peer@example.com',
+          assignedRole: 'admin',
+          workspaceRole: 'member',
+          joinedAt: new Date('2026-10-10T00:00:00Z'),
+          accountActive: true,
+        },
+        {
+          userId: 'u-contributor',
+          firstName: 'Sub',
+          lastName: 'Contributor',
+          displayName: 'Sub Contributor',
+          avatarUrl: null,
+          email: 'sub@example.com',
+          assignedRole: 'contributor',
+          workspaceRole: 'member',
+          joinedAt: new Date('2026-10-10T00:00:00Z'),
+          accountActive: true,
+        },
+        {
+          userId: 'u-guest',
+          firstName: 'Guest',
+          lastName: 'User',
+          displayName: 'Guest User',
+          avatarUrl: null,
+          email: 'guest@example.com',
+          assignedRole: 'viewer',
+          workspaceRole: 'guest',
+          joinedAt: new Date('2026-10-10T00:00:00Z'),
+          accountActive: true,
+        },
+      ];
+
+      // Actor is member workspace, admin in project
+      const res = await service.list(workspace, project, 'actor-1');
+      const peer = res.members.find((m) => m.userId === 'u-admin-peer');
+      const sub = res.members.find((m) => m.userId === 'u-contributor');
+      const guest = res.members.find((m) => m.userId === 'u-guest');
+
+      // Actor is not overridesProjectRank, so peer admin has rank >= actor -> []
+      expect(peer?.assignableRoles).toEqual([]);
+      // Subordinate member: up to actor role ('admin') within member allowable roles -> ['admin', 'contributor', 'commenter']
+      expect(sub?.assignableRoles).toEqual(['admin', 'contributor', 'commenter']);
+      // Guest: bounded by guest policy -> ['viewer']
+      expect(guest?.assignableRoles).toEqual(['viewer']);
+
+      // Workspace Admin actor has overridesProjectRank: can assign peer admin
+      const wsAdmin: MemberWorkspace = {
+        ...workspace,
+        role: 'admin',
+      };
+      const resWsAdmin = await service.list(wsAdmin, project, 'actor-ws-admin');
+      const peerAsWsAdmin = resWsAdmin.members.find((m) => m.userId === 'u-admin-peer');
+      expect(peerAsWsAdmin?.assignableRoles).toEqual(['admin', 'contributor', 'commenter']);
+    });
+  });
+
   describe('searchCandidates (API B4.2)', () => {
     it('uses contains mode and includes email when workspace viewer has email.view permission', async () => {
       repo.candidateRows = [
@@ -676,11 +854,13 @@ describe('ProjectMembersService', () => {
       );
 
       expect(res.members).toHaveLength(2);
+      expect(res.assignedAdminCount).toBe(1);
       expect(res.members[0]).toMatchObject({
         userId: 'u-1',
         email: 'u-1@example.com',
         role: 'contributor',
         assignedRole: 'contributor',
+        assignableRoles: ['admin', 'contributor', 'commenter'],
       });
       expect(res.project).toEqual(fakeProjectListItem);
       expect(events.membersAddedEvents).toHaveLength(1);
@@ -891,6 +1071,226 @@ describe('ProjectMembersService', () => {
           'contributor',
         ),
       ).toBeNull();
+    });
+  });
+
+  describe('changeRole', () => {
+    it('throws 404 PROJECT_NOT_FOUND when project is gone', async () => {
+      repo.changeRoleResult = { status: 'project_gone' };
+      await expect(
+        service.changeRole(
+          workspace,
+          project,
+          'actor-1',
+          'target-1',
+          { fromRole: 'commenter', role: 'contributor' },
+        ),
+      ).rejects.toMatchObject({
+        status: 404,
+        code: 'PROJECT_NOT_FOUND',
+        message: PROJECT_ERROR_MESSAGES.notFound,
+      });
+    });
+
+    it('throws 404 NOT_FOUND when target member is gone', async () => {
+      repo.changeRoleResult = { status: 'member_gone' };
+      await expect(
+        service.changeRole(
+          workspace,
+          project,
+          'actor-1',
+          'target-1',
+          { fromRole: 'commenter', role: 'contributor' },
+        ),
+      ).rejects.toMatchObject({
+        status: 404,
+        code: 'NOT_FOUND',
+        message: PROJECT_ROLE_CHANGE_MESSAGES.memberGone,
+      });
+    });
+
+    it('throws 403 FORBIDDEN and emits roleForbidden when actor is forbidden', async () => {
+      repo.changeRoleResult = { status: 'actor_forbidden' };
+      await expect(
+        service.changeRole(
+          workspace,
+          project,
+          'actor-1',
+          'target-1',
+          { fromRole: 'commenter', role: 'contributor' },
+          'req-1',
+        ),
+      ).rejects.toMatchObject({
+        status: 403,
+        code: 'FORBIDDEN',
+        message: PROJECT_ROLE_CHANGE_MESSAGES.cantChange,
+      });
+      expect(events.roleForbiddenEvents).toHaveLength(1);
+      expect(events.roleForbiddenEvents[0]).toMatchObject({
+        projectId: 'proj-1',
+        actorId: 'actor-1',
+        targetId: 'target-1',
+        requestId: 'req-1',
+      });
+    });
+
+    it('throws 403 FORBIDDEN and emits roleForbidden when cant change target', async () => {
+      repo.changeRoleResult = { status: 'cant_change' };
+      await expect(
+        service.changeRole(
+          workspace,
+          project,
+          'actor-1',
+          'target-1',
+          { fromRole: 'commenter', role: 'contributor' },
+          'req-2',
+        ),
+      ).rejects.toMatchObject({
+        status: 403,
+        code: 'FORBIDDEN',
+        message: PROJECT_ROLE_CHANGE_MESSAGES.cantChange,
+      });
+      expect(events.roleForbiddenEvents).toHaveLength(1);
+    });
+
+    it('throws 409 ROLE_INHERITED when target has implicit access', async () => {
+      repo.changeRoleResult = { status: 'role_inherited' };
+      await expect(
+        service.changeRole(
+          workspace,
+          project,
+          'actor-1',
+          'target-1',
+          { fromRole: 'commenter', role: 'contributor' },
+        ),
+      ).rejects.toMatchObject({
+        status: 409,
+        code: 'ROLE_INHERITED',
+        message: PROJECT_ROLE_CHANGE_MESSAGES.inherited,
+      });
+    });
+
+    it('throws 409 ROLE_CHANGED when fromRole does not match', async () => {
+      repo.changeRoleResult = { status: 'role_changed' };
+      await expect(
+        service.changeRole(
+          workspace,
+          project,
+          'actor-1',
+          'target-1',
+          { fromRole: 'commenter', role: 'contributor' },
+        ),
+      ).rejects.toMatchObject({
+        status: 409,
+        code: 'ROLE_CHANGED',
+        message: MEMBER_MESSAGES.roleChanged,
+      });
+    });
+
+    it('throws 400 ROLE_UNCHANGED when role is unchanged', async () => {
+      repo.changeRoleResult = { status: 'role_unchanged' };
+      await expect(
+        service.changeRole(
+          workspace,
+          project,
+          'actor-1',
+          'target-1',
+          { fromRole: 'commenter', role: 'commenter' },
+        ),
+      ).rejects.toMatchObject({
+        status: 400,
+        code: 'ROLE_UNCHANGED',
+        message: MEMBER_MESSAGES.sameRole,
+      });
+    });
+
+    it('throws 400 PROJECT_ROLE_NOT_ALLOWED when role is out of range for workspace role', async () => {
+      repo.changeRoleResult = {
+        status: 'role_not_allowed_for_workspace_role',
+      };
+      await expect(
+        service.changeRole(
+          workspace,
+          project,
+          'actor-1',
+          'target-1',
+          { fromRole: 'commenter', role: 'viewer' },
+        ),
+      ).rejects.toMatchObject({
+        status: 400,
+        code: 'PROJECT_ROLE_NOT_ALLOWED',
+        message: MEMBER_MESSAGES.roleOutOfRange,
+        fields: { role: MEMBER_MESSAGES.roleOutOfRange },
+      });
+      expect(events.roleChangedEvents).toHaveLength(0);
+      expect(events.roleForbiddenEvents).toHaveLength(0);
+    });
+
+    it('throws 403 FORBIDDEN and emits roleForbidden when role is not allowed for actor (AC-08)', async () => {
+      repo.changeRoleResult = { status: 'role_not_allowed' };
+      await expect(
+        service.changeRole(
+          workspace,
+          project,
+          'actor-1',
+          'target-1',
+          { fromRole: 'commenter', role: 'admin' },
+          'req-forbidden',
+        ),
+      ).rejects.toMatchObject({
+        status: 403,
+        code: 'FORBIDDEN',
+        message: MEMBER_MESSAGES.roleNotAllowed,
+      });
+      expect(events.roleForbiddenEvents).toHaveLength(1);
+      expect(events.roleChangedEvents).toHaveLength(0);
+    });
+
+    it('succeeds: returns member and assignedAdminCount and emits roleChanged', async () => {
+      repo.changeRoleResult = {
+        status: 'success',
+        member: {
+          userId: 'target-1',
+          firstName: 'An',
+          lastName: 'Nguyen',
+          displayName: 'an',
+          avatarUrl: null,
+          email: 'an@example.com',
+          assignedRole: 'contributor',
+          workspaceRole: 'member',
+          joinedAt: new Date('2026-01-01'),
+          accountActive: true,
+        },
+        fromRole: 'commenter',
+        toRole: 'contributor',
+        assignedAdminCount: 2,
+      };
+
+      const res = await service.changeRole(
+        workspace,
+        project,
+        'actor-admin',
+        'target-1',
+        { fromRole: 'commenter', role: 'contributor' },
+        'req-ok',
+      );
+
+      expect(res.assignedAdminCount).toBe(2);
+      expect(res.member).toMatchObject({
+        userId: 'target-1',
+        role: 'contributor',
+        assignedRole: 'contributor',
+        source: 'assigned',
+      });
+      expect(events.roleChangedEvents).toHaveLength(1);
+      expect(events.roleChangedEvents[0]).toMatchObject({
+        projectId: 'proj-1',
+        actorId: 'actor-admin',
+        targetId: 'target-1',
+        fromRole: 'commenter',
+        toRole: 'contributor',
+        requestId: 'req-ok',
+      });
     });
   });
 });

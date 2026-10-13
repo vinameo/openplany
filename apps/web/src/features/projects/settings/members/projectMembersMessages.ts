@@ -54,3 +54,31 @@ export function inheritedRoleTooltip(
     'Project Admin';
   return `${wsLabel}s are ${projLabel}s in every project. Change this in the workspace's Members page.`;
 }
+
+export function makeAdminTitle(name: string): string {
+  return `Make ${name} a Project Admin?`;
+}
+
+export function makeAdminBody(name: string): string {
+  return `Project Admins can manage this project's settings and members. After this, only Workspace Admins can change ${name}'s role.`;
+}
+
+export function changeRoleTitle(name: string, roleLabel: string): string {
+  return `Change ${name}'s role to ${roleLabel}?`;
+}
+
+export function loseAdminBody(name: string): string {
+  return `${name} will no longer be able to manage this project's settings and members.`;
+}
+
+export function lastAdminWarning(projectName: string): string {
+  return `${projectName} will have no Project Admin other than Workspace Admins.`;
+}
+
+export function toastChanged(
+  name: string,
+  roleLabel: string,
+  projectName: string,
+): string {
+  return `${name} is now ${roleLabel} in ${projectName}.`;
+}

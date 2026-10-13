@@ -6,6 +6,8 @@ import {
   PROJECT_MEMBER_NOT_ADDABLE_FIELD,
   PROJECT_MEMBER_NOT_ADDABLE_MESSAGES,
   PROJECT_MEMBER_NOT_ADDABLE_REASONS,
+  projectRoleChangeKind,
+  PROJECT_ROLE_CHANGE_MESSAGES,
 } from './projectMembers.js';
 
 describe('projectMembers contracts', () => {
@@ -62,4 +64,30 @@ describe('projectMembers contracts', () => {
       "This role isn't allowed for their workspace role.",
     );
   });
+
+  it('correctly classifies projectRoleChangeKind for all role pairs', () => {
+    const roles = ['admin', 'contributor', 'commenter', 'viewer'] as const;
+
+    for (const from of roles) {
+      for (const to of roles) {
+        const kind = projectRoleChangeKind(from, to);
+        if (from !== 'admin' && to === 'admin') {
+          expect(kind).toBe('gain_admin');
+        } else if (from === 'admin' && to !== 'admin') {
+          expect(kind).toBe('lose_admin');
+        } else {
+          expect(kind).toBe('other');
+        }
+      }
+    }
+  });
+
+  it('exports PROJECT_ROLE_CHANGE_MESSAGES with exact text from spec', () => {
+    expect(PROJECT_ROLE_CHANGE_MESSAGES).toEqual({
+      cantChange: "You can't change this person's role",
+      inherited: 'Workspace Admins are Project Admins in every project.',
+      memberGone: 'This person is no longer in this project.',
+    });
+  });
 });
+

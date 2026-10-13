@@ -162,38 +162,40 @@ describe("projectQueries cache helpers", () => {
 
   it("addProjectMembersToCache updates members query, deduping and setting total", () => {
     const qc = new QueryClient();
-    const existingMember = {
+    const existingMember: ProjectMemberResponse = {
       userId: "u-1",
       firstName: "User",
       lastName: "One",
       displayName: "User One",
       avatarUrl: null,
-      role: "admin" as const,
-      assignedRole: "admin" as const,
+      role: "admin",
+      assignedRole: "admin",
       accountActive: true,
       roleLimited: false,
       joinedAt: "2026-10-12T00:00:00Z",
-      source: "assigned" as const,
-      workspaceRole: "member" as const,
+      source: "assigned",
+      workspaceRole: "member",
+      assignableRoles: [],
     };
-    const newMember1 = {
+    const newMember1: ProjectMemberResponse = {
       userId: "u-2",
       firstName: "User",
       lastName: "Two",
       displayName: "User Two",
       avatarUrl: null,
-      role: "contributor" as const,
-      assignedRole: "contributor" as const,
+      role: "contributor",
+      assignedRole: "contributor",
       accountActive: true,
       roleLimited: false,
       joinedAt: "2026-10-13T00:00:00Z",
-      source: "assigned" as const,
-      workspaceRole: "member" as const,
+      source: "assigned",
+      workspaceRole: "member",
+      assignableRoles: ["admin", "contributor", "commenter"],
     };
-    const duplicateMember = {
+    const duplicateMember: ProjectMemberResponse = {
       ...existingMember,
-      role: "contributor" as const,
-      assignedRole: "contributor" as const,
+      role: "contributor",
+      assignedRole: "contributor",
     };
 
     qc.setQueryData(projectKeys.members(slug, "P1"), {
@@ -201,6 +203,7 @@ describe("projectQueries cache helpers", () => {
       total: 1,
       truncated: false,
       addableRoles: ["contributor" as const],
+      assignedAdminCount: 1,
     });
 
     const projectUpdate = makeItem("1", "P1", "Project 1");
@@ -209,6 +212,7 @@ describe("projectQueries cache helpers", () => {
     addProjectMembersToCache(qc, slug, "P1", {
       members: [newMember1, duplicateMember],
       project: projectUpdate,
+      assignedAdminCount: 1,
     });
 
     const cachedMembers = qc.getQueryData<ProjectMemberListResponse>(
@@ -219,6 +223,70 @@ describe("projectQueries cache helpers", () => {
     expect(cachedMembers?.total).toBe(2);
     expect(cachedMembers?.truncated).toBe(false);
     expect(cachedMembers?.addableRoles).toEqual(["contributor"]);
+    expect(cachedMembers?.assignedAdminCount).toBe(1);
+  });
+
+  it("AC-22 (cache): addProjectMembersToCache updates assignedAdminCount from response and preserves assignableRoles", () => {
+    const qc = new QueryClient();
+    const nam: ProjectMemberResponse = {
+      userId: "u-nam",
+      firstName: "Nam",
+      lastName: "Tran",
+      displayName: "Nam Tran",
+      avatarUrl: null,
+      role: "admin",
+      assignedRole: "admin",
+      accountActive: true,
+      roleLimited: false,
+      joinedAt: "2026-10-12T00:00:00Z",
+      source: "assigned",
+      workspaceRole: "member",
+      assignableRoles: [],
+    };
+    const binh: ProjectMemberResponse = {
+      userId: "u-binh",
+      firstName: "Binh",
+      lastName: "Do",
+      displayName: "Binh Do",
+      avatarUrl: null,
+      role: "admin",
+      assignedRole: "admin",
+      accountActive: true,
+      roleLimited: false,
+      joinedAt: "2026-10-13T00:00:00Z",
+      source: "assigned",
+      workspaceRole: "member",
+      assignableRoles: ["admin", "contributor", "commenter"],
+    };
+
+    qc.setQueryData(projectKeys.members(slug, "P1"), {
+      members: [nam],
+      total: 1,
+      truncated: false,
+      addableRoles: ["admin" as const],
+      assignedAdminCount: 1,
+    });
+
+    const projectUpdate = makeItem("1", "P1", "Project 1");
+    projectUpdate.memberCount = 2;
+
+    addProjectMembersToCache(qc, slug, "P1", {
+      members: [binh],
+      project: projectUpdate,
+      assignedAdminCount: 2,
+    });
+
+    const cached = qc.getQueryData<ProjectMemberListResponse>(
+      projectKeys.members(slug, "P1"),
+    );
+    expect(cached?.assignedAdminCount).toBe(2);
+    expect(cached?.members).toHaveLength(2);
+    const cachedBinh = cached?.members.find((m) => m.userId === "u-binh");
+    expect(cachedBinh?.assignableRoles).toEqual([
+      "admin",
+      "contributor",
+      "commenter",
+    ]);
   });
 
   it("addProjectMembersToCache keeps the list bound and marks it truncated past the cap", () => {
@@ -236,6 +304,7 @@ describe("projectQueries cache helpers", () => {
       joinedAt: "2026-10-12T00:00:00Z",
       source: "assigned",
       workspaceRole: "member",
+      assignableRoles: [],
     });
     const full = Array.from({ length: PROJECT_MEMBER_LIST_MAX }, (_, i) =>
       member(i),
@@ -245,6 +314,7 @@ describe("projectQueries cache helpers", () => {
       total: PROJECT_MEMBER_LIST_MAX,
       truncated: false,
       addableRoles: ["contributor" as const],
+      assignedAdminCount: 1,
     });
 
     const projectUpdate = makeItem("1", "P1", "Project 1");
@@ -252,6 +322,7 @@ describe("projectQueries cache helpers", () => {
     addProjectMembersToCache(qc, slug, "P1", {
       members: [1, 2, 3].map((n) => member(PROJECT_MEMBER_LIST_MAX + n)),
       project: projectUpdate,
+      assignedAdminCount: 1,
     });
 
     const cached = qc.getQueryData<ProjectMemberListResponse>(

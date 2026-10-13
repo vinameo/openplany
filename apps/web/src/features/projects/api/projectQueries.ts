@@ -3,6 +3,7 @@ import {
   PROJECT_MEMBER_LIST_MAX,
   type AddProjectMembersResponse,
   type ProjectListItem,
+  type ProjectMemberResponse,
   type ProjectMemberListResponse,
   type ProjectListResponse,
 } from "@repo/contracts";
@@ -33,6 +34,23 @@ export const projectKeys = {
           ...projectKeys.detail(workspaceSlug, identifier),
           "member-candidates",
         ] as const),
+};
+
+export const projectMemberMutationKeys = {
+  all: (workspaceSlug: string, identifier: string) =>
+    [
+      "workspaces",
+      workspaceSlug,
+      "projects",
+      identifier,
+      "member-mutations",
+    ] as const,
+  changeRole: (workspaceSlug: string, identifier: string, userId: string) =>
+    [
+      ...projectMemberMutationKeys.all(workspaceSlug, identifier),
+      "change-role",
+      userId,
+    ] as const,
 };
 
 export function clearProjectMemberCandidates(
@@ -72,6 +90,31 @@ export function addProjectMembersToCache(
         members: nextMembers,
         total: nextTotal,
         truncated: nextTotal > nextMembers.length,
+        assignedAdminCount: res.assignedAdminCount,
+      };
+    },
+  );
+}
+
+export function replaceProjectMemberInCache(
+  qc: QueryClient,
+  slug: string,
+  identifier: string,
+  payload: {
+    member: ProjectMemberResponse;
+    assignedAdminCount: number;
+  },
+): void {
+  qc.setQueryData<ProjectMemberListResponse>(
+    projectKeys.members(slug, identifier),
+    (curr) => {
+      if (!curr) return curr;
+      return {
+        ...curr,
+        members: curr.members.map((m) =>
+          m.userId === payload.member.userId ? payload.member : m,
+        ),
+        assignedAdminCount: payload.assignedAdminCount,
       };
     },
   );

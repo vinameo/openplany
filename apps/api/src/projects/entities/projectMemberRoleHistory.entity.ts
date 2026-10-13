@@ -3,7 +3,10 @@ import type { ProjectRole, RoleScope } from '@repo/contracts';
 import { AppendOnly } from '../../database/appendOnly.js';
 
 export type ProjectRoleChangeType =
-  'project_created' | 'member_added' | 'workspace_role_applied';
+  | 'project_created'
+  | 'member_added'
+  | 'workspace_role_applied'
+  | 'role_changed';
 
 @AppendOnly()
 @Entity({ name: 'project_member_role_history' })
