@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Notifications, notifications } from "@mantine/notifications";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppUiProvider } from "@repo/ui";
 import type { MemberCandidate, WorkspaceRole } from "@repo/contracts";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -48,24 +49,34 @@ function renderModal({
     reload: reloadWorkspace,
   };
 
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+
   const result = render(
-    <AppUiProvider>
-      <Notifications />
-      <AuthContext.Provider value={authValue}>
-        <CurrentWorkspaceContext.Provider value={wsValue}>
-          <AddMembersModal
-            opened={opened}
-            onClose={onClose}
-            slug="openstudy"
-            addableRoles={addableRoles}
-            onSuccess={onSuccess}
-          />
-        </CurrentWorkspaceContext.Provider>
-      </AuthContext.Provider>
-    </AppUiProvider>,
+    <QueryClientProvider client={queryClient}>
+      <AppUiProvider>
+        <Notifications />
+        <AuthContext.Provider value={authValue}>
+          <CurrentWorkspaceContext.Provider value={wsValue}>
+            <AddMembersModal
+              opened={opened}
+              onClose={onClose}
+              slug="openstudy"
+              addableRoles={addableRoles}
+              onSuccess={onSuccess}
+            />
+          </CurrentWorkspaceContext.Provider>
+        </AuthContext.Provider>
+      </AppUiProvider>
+    </QueryClientProvider>,
   );
 
-  return { ...result, onClose, onSuccess, reloadWorkspace };
+  return { ...result, onClose, onSuccess, reloadWorkspace, queryClient };
 }
 
 afterEach(() => {
@@ -341,5 +352,85 @@ describe("AddMembersModal", () => {
       expect(onClose).toHaveBeenCalled();
       expect(reloadWorkspace).toHaveBeenCalled();
     });
+  });
+
+  it("AC-44: clearing candidates cache after successful add ensures re-querying email shows 'Already a member'", async () => {
+    const user = userEvent.setup();
+    let isAdded = false;
+
+    mockFetch({
+      "GET /api/workspaces/openstudy/member-candidates": () =>
+        jsonResponse(200, {
+          candidates: [
+            {
+              ...candidates[0]!,
+              alreadyMember: isAdded,
+            },
+          ],
+        }),
+      "POST /api/workspaces/openstudy/members": () => {
+        isAdded = true;
+        return jsonResponse(201, {
+          members: [{ ...candidates[0]!, role: "member" }],
+        });
+      },
+    });
+
+    const { rerender, queryClient } = renderModal();
+
+    // 1. Search for alice and add her
+    const emailInput = screen.getByRole("textbox", { name: "Email" });
+    await user.type(emailInput, "alice@example.com");
+
+    const option = await screen.findByRole("option");
+    expect(option).toHaveTextContent("alice@example.com");
+    await user.click(option);
+
+    const submitBtn = screen.getByRole("button", { name: "Add member" });
+    await user.click(submitBtn);
+
+    await waitFor(() => {
+      expect(isAdded).toBe(true);
+    });
+
+    // 2. Re-open modal
+    const baseSession = makeSession();
+    const authValue: AuthContextValue = {
+      state: { status: "authenticated", session: baseSession },
+      signIn: vi.fn(),
+      signOut: vi.fn(),
+      updateUser: vi.fn(),
+      expireSession: vi.fn(),
+    };
+    const ws = makeWorkspace({ id: "ws-1", slug: "openstudy", name: "OpenStudy", role: "admin" });
+    const wsValue = { workspace: ws, applyWorkspaceUpdate: vi.fn(), reload: vi.fn().mockResolvedValue(undefined) };
+
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <AppUiProvider>
+          <Notifications />
+          <AuthContext.Provider value={authValue}>
+            <CurrentWorkspaceContext.Provider value={wsValue}>
+              <AddMembersModal
+                opened={true}
+                onClose={vi.fn()}
+                slug="openstudy"
+                addableRoles={["admin", "member", "guest"]}
+                onSuccess={vi.fn()}
+              />
+            </CurrentWorkspaceContext.Provider>
+          </AuthContext.Provider>
+        </AppUiProvider>
+      </QueryClientProvider>,
+    );
+
+    // 3. Search for alice again
+    const newEmailInput = screen.getByRole("textbox", { name: "Email" });
+    await user.type(newEmailInput, "alice@example.com");
+
+    // Because cache was invalidated, candidate re-fetched with alreadyMember: true
+    const updatedOption = await screen.findByRole("option");
+    expect(updatedOption).toHaveTextContent("Already a member");
+    expect(updatedOption).toHaveAttribute("data-combobox-disabled", "true");
   });
 });

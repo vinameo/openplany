@@ -1,86 +1,24 @@
-import { useEffect, useState } from "react";
-import { useDebouncedValue } from "@mantine/hooks";
 import {
   MEMBER_CANDIDATE_QUERY_MIN,
   type MemberCandidate,
 } from "@repo/contracts";
-import { ApiRequestError } from "../../../../lib/apiClient";
-import { membersApi } from "./api/membersApi";
+import {
+  useMemberCandidateSearch,
+  type MemberCandidateState,
+} from "../../../members/useMemberCandidateSearch";
+import { membersApi, workspaceMemberKeys } from "./api/membersApi";
 
-export type MemberCandidateState =
-  | { status: "too_short" }
-  | { status: "loading" }
-  | { status: "ready"; candidates: MemberCandidate[] }
-  | { status: "error"; message?: string; retryAfterSeconds?: number | null };
+export type { MemberCandidateState };
 
 export function useMemberCandidates(
   slug: string,
   query: string,
-): MemberCandidateState {
-  const trimmed = query.trim();
-  const [debouncedQuery] = useDebouncedValue(trimmed, 250);
-  const [asyncState, setAsyncState] = useState<{
-    query: string;
-    slug: string;
-    state: MemberCandidateState;
-  }>({
-    query: "",
-    slug: "",
-    state: { status: "too_short" },
+): MemberCandidateState<MemberCandidate> {
+  return useMemberCandidateSearch<MemberCandidate>({
+    queryKey: (q) => workspaceMemberKeys.candidates(slug, q),
+    fetcher: (q, signal) => membersApi.searchCandidates(slug, q, signal),
+    query,
+    isReady: (trimmed) => trimmed.length >= MEMBER_CANDIDATE_QUERY_MIN,
+    notReadyHint: "Type at least 3 characters",
   });
-
-  useEffect(() => {
-    if (debouncedQuery.length < MEMBER_CANDIDATE_QUERY_MIN) {
-      return;
-    }
-
-    const controller = new AbortController();
-
-    membersApi
-      .searchCandidates(slug, debouncedQuery, controller.signal)
-      .then((res) => {
-        setAsyncState({
-          query: debouncedQuery,
-          slug,
-          state: { status: "ready", candidates: res.candidates },
-        });
-      })
-      .catch((err: unknown) => {
-        if (controller.signal.aborted) return;
-        if (err instanceof ApiRequestError && err.status === 429) {
-          setAsyncState({
-            query: debouncedQuery,
-            slug,
-            state: {
-              status: "error",
-              retryAfterSeconds: err.retryAfterSeconds ?? 60,
-            },
-          });
-          return;
-        }
-        setAsyncState({
-          query: debouncedQuery,
-          slug,
-          state: { status: "error" },
-        });
-      });
-
-    return () => {
-      controller.abort();
-    };
-  }, [slug, debouncedQuery]);
-
-  if (trimmed.length < MEMBER_CANDIDATE_QUERY_MIN) {
-    return { status: "too_short" };
-  }
-
-  if (
-    debouncedQuery !== trimmed ||
-    asyncState.query !== debouncedQuery ||
-    asyncState.slug !== slug
-  ) {
-    return { status: "loading" };
-  }
-
-  return asyncState.state;
 }

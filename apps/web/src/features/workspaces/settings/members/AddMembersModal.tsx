@@ -1,38 +1,29 @@
-import { useMemo, useReducer, useState } from "react";
-import {
-  Alert,
-  Button,
-  CloseButton,
-  Group,
-  Modal,
-  Select,
-  Stack,
-  Text,
-} from "@mantine/core";
-import { useMediaQuery } from "@mantine/hooks";
+import { useMemo } from "react";
 import { notifications } from "@mantine/notifications";
+import { useQueryClient } from "@tanstack/react-query";
 import {
-  ADD_MEMBERS_MAX,
   DEFAULT_ADDED_WORKSPACE_ROLE,
   isWorkspaceAdminRole,
-  WORKSPACE_ROLE_LABELS,
   WORKSPACE_ROLE_RANK,
+  type MemberCandidate,
   type WorkspaceRole,
 } from "@repo/contracts";
 import { ApiRequestError } from "../../../../lib/apiClient";
-import { ConfirmDiscardModal } from "../../ConfirmDiscardModal";
-import { useCurrentWorkspace } from "../../currentWorkspace/useCurrentWorkspace";
-import { PlusIcon } from "../../icons";
 import {
-  addMemberRowsReducer,
-  createInitialRow,
+  AddMembersModalFrame,
+  type SubmitOutcome,
+} from "../../../members/AddMembersModalFrame";
+import {
   mapFieldErrors,
-  toAddMembersRequest,
   type AddMemberRow,
-} from "./addMembersRows";
-import { membersApi } from "./api/membersApi";
+} from "../../../members/addMembersRows";
+import { WORKSPACE_ROLE_SCHEME } from "../../../members/roleScheme";
+import { useCurrentWorkspace } from "../../currentWorkspace/useCurrentWorkspace";
+import {
+  clearWorkspaceMemberCandidates,
+  membersApi,
+} from "./api/membersApi";
 import { MemberCandidateSelect } from "./MemberCandidateSelect";
-import classes from "./AddMembersModal.module.css";
 
 interface AddMembersModalProps {
   opened: boolean;
@@ -49,7 +40,7 @@ export function AddMembersModal({
   addableRoles,
   onSuccess,
 }: AddMembersModalProps) {
-  const isMobile = useMediaQuery("(max-width: 48em)");
+  const queryClient = useQueryClient();
   const { reload: reloadWorkspace } = useCurrentWorkspace();
 
   const sortedAddableRoles = useMemo(() => {
@@ -65,237 +56,88 @@ export function AddMembersModal({
     return sortedAddableRoles[0] ?? DEFAULT_ADDED_WORKSPACE_ROLE;
   }, [addableRoles, sortedAddableRoles]);
 
-  const [rows, dispatch] = useReducer(
-    (currentRows: AddMemberRow[], action: Parameters<typeof addMemberRowsReducer>[1]) =>
-      addMemberRowsReducer(currentRows, action, { defaultRole }),
-    [createInitialRow(defaultRole)],
-  );
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [globalAlert, setGlobalAlert] = useState<string | null>(null);
-  const [confirmDiscardOpened, setConfirmDiscardOpened] = useState(false);
-
   const highestAddableRole = sortedAddableRoles[sortedAddableRoles.length - 1];
 
-  const handleAttemptClose = () => {
-    const hasCandidate = rows.some((r) => r.candidate !== null);
-    if (hasCandidate) {
-      setConfirmDiscardOpened(true);
-    } else {
-      handleForceClose();
-    }
-  };
-
-  const handleForceClose = () => {
-    setConfirmDiscardOpened(false);
-    setGlobalAlert(null);
-    dispatch({ type: "reset" });
-    onClose();
-  };
-
-  const handleSubmit = async () => {
-    const { body, rowIdByIndex } = toAddMembersRequest(rows);
-    if (body.members.length === 0) return;
-
-    setIsSubmitting(true);
-    setGlobalAlert(null);
-
+  const handleSubmit = async (
+    body: { members: { userId: string; role: WorkspaceRole }[] },
+    rowIdByIndex: readonly string[],
+  ): Promise<SubmitOutcome> => {
     try {
       const res = await membersApi.add(slug, body);
       const count = res.members.length;
       notifications.show({
         message: `Added ${count} member${count === 1 ? "" : "s"}`,
       });
-      handleForceClose();
+      clearWorkspaceMemberCandidates(queryClient, slug);
       await reloadWorkspace();
       onSuccess();
+      return { kind: "done" };
     } catch (err: unknown) {
       if (err instanceof ApiRequestError) {
         if (err.status === 403) {
-          handleForceClose();
           notifications.show({
             color: "red",
             message: err.message || "You don't have permission to do this",
           });
           await reloadWorkspace();
-          return;
+          return { kind: "done" };
         }
 
         if (err.status === 429) {
           const seconds = err.retryAfterSeconds;
-          setGlobalAlert(
-            seconds
+          return {
+            kind: "alert",
+            message: seconds
               ? `Too many attempts. Try again in ${seconds} seconds.`
               : "Too many attempts. Try again later.",
-          );
-          return;
+          };
         }
 
         if (err.status === 409 || err.status === 400) {
           if (err.fields && Object.keys(err.fields).length > 0) {
             const rowErrors = mapFieldErrors(err.fields, rowIdByIndex);
             if (Object.keys(rowErrors).length > 0) {
-              dispatch({ type: "errors", byRowId: rowErrors });
-              return;
+              return { kind: "rowErrors", byRowId: rowErrors };
             }
           }
-          setGlobalAlert(err.message || "Check the highlighted fields");
-          return;
+          return {
+            kind: "alert",
+            message: err.message || "Check the highlighted fields",
+          };
         }
       }
 
-      setGlobalAlert("Something went wrong. Please try again.");
-    } finally {
-      setIsSubmitting(false);
+      return {
+        kind: "alert",
+        message: "Something went wrong. Please try again.",
+      };
     }
   };
 
-  const roleOptions = useMemo(
-    () =>
-      sortedAddableRoles.map((role) => ({
-        value: role,
-        label: WORKSPACE_ROLE_LABELS[role],
-      })),
-    [sortedAddableRoles],
-  );
-
-  const hasAnySelected = rows.some((r) => r.candidate !== null);
-
   return (
-    <>
-      <Modal
-        opened={opened}
-        onClose={handleAttemptClose}
-        title="Add member"
-        size="lg"
-        fullScreen={isMobile}
-      >
-        <Stack gap="md">
-          <Text size="sm" c="dimmed">
-            Add members to collaborate in your workspace.
-          </Text>
-
-          {globalAlert && (
-            <Alert color="red" role="alert">
-              {globalAlert}
-            </Alert>
-          )}
-
-          <Stack gap="sm">
-            {rows.map((row) => {
-              const isAdminNotice =
-                row.role === highestAddableRole &&
-                isWorkspaceAdminRole(row.role);
-
-              const otherSelectedIds = rows
-                .filter((r) => r.id !== row.id && r.candidate !== null)
-                .map((r) => r.candidate!.userId);
-
-              return (
-                <div key={row.id}>
-                  <Group
-                    gap="xs"
-                    align="flex-start"
-                    wrap={isMobile ? "wrap" : "nowrap"}
-                  >
-                    <div className={classes.candidateField}>
-                      <MemberCandidateSelect
-                        slug={slug}
-                        value={row.candidate}
-                        onChange={(candidate) =>
-                          dispatch({
-                            type: "select",
-                            id: row.id,
-                            candidate,
-                          })
-                        }
-                        selectedUserIds={otherSelectedIds}
-                        error={row.error}
-                        disabled={isSubmitting}
-                      />
-                    </div>
-
-                    <Group gap="xs" wrap="nowrap" className={classes.roleGroup}>
-                      <Select
-                        aria-label="Role"
-                        data={roleOptions}
-                        value={row.role}
-                        onChange={(val) => {
-                          if (val) {
-                            dispatch({
-                              type: "role",
-                              id: row.id,
-                              role: val as WorkspaceRole,
-                            });
-                          }
-                        }}
-                        disabled={isSubmitting}
-                        comboboxProps={{ withinPortal: false }}
-                        allowDeselect={false}
-                        className={classes.roleSelect}
-                      />
-
-                      {rows.length > 1 && (
-                        <CloseButton
-                          aria-label="Remove row"
-                          onClick={() =>
-                            dispatch({ type: "remove", id: row.id })
-                          }
-                          disabled={isSubmitting}
-                          size="lg"
-                        />
-                      )}
-                    </Group>
-                  </Group>
-
-                  {isAdminNotice && (
-                    <Text size="xs" c="dimmed" mt={4}>
-                      Admins can manage everyone in this workspace, including you.
-                    </Text>
-                  )}
-                </div>
-              );
-            })}
-          </Stack>
-
-          {rows.length < ADD_MEMBERS_MAX && (
-            <div>
-              <Button
-                variant="subtle"
-                size="xs"
-                leftSection={<PlusIcon width={14} height={14} />}
-                onClick={() => dispatch({ type: "add" })}
-                disabled={isSubmitting}
-              >
-                + Add more
-              </Button>
-            </div>
-          )}
-
-          <Group justify="flex-end" gap="xs" mt="md">
-            <Button
-              variant="default"
-              onClick={handleAttemptClose}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              disabled={!hasAnySelected || isSubmitting}
-              loading={isSubmitting}
-            >
-              Add member
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
-
-      <ConfirmDiscardModal
-        opened={confirmDiscardOpened}
-        onClose={() => setConfirmDiscardOpened(false)}
-        onDiscard={handleForceClose}
-      />
-    </>
+    <AddMembersModalFrame<WorkspaceRole, MemberCandidate>
+      opened={opened}
+      onClose={onClose}
+      title="Add member"
+      description="Add members to collaborate in your workspace."
+      scheme={WORKSPACE_ROLE_SCHEME}
+      defaultRole={defaultRole}
+      roleOptionsFor={() => sortedAddableRoles}
+      renderCandidate={(row, otherSelectedIds, onSelect) => (
+        <MemberCandidateSelect
+          slug={slug}
+          value={row.candidate}
+          onChange={onSelect}
+          selectedUserIds={otherSelectedIds}
+          error={row.error}
+        />
+      )}
+      notice={(row: AddMemberRow<WorkspaceRole, MemberCandidate>) =>
+        row.role === highestAddableRole && isWorkspaceAdminRole(row.role)
+          ? "Admins can manage everyone in this workspace, including you."
+          : null
+      }
+      onSubmit={handleSubmit}
+    />
   );
 }

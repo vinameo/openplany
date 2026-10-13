@@ -1,3 +1,4 @@
+import type { QueryClient } from "@tanstack/react-query";
 import { request } from "../../../../../lib/apiClient";
 import type {
   AddWorkspaceMembersRequest,
@@ -5,6 +6,20 @@ import type {
   MemberCandidateListResponse,
   WorkspaceMemberListResponse,
 } from "@repo/contracts";
+
+export const workspaceMemberKeys = {
+  candidates: (slug: string, query?: string) =>
+    query !== undefined
+      ? (["workspaces", slug, "member-candidates", query] as const)
+      : (["workspaces", slug, "member-candidates"] as const),
+};
+
+export function clearWorkspaceMemberCandidates(
+  qc: QueryClient,
+  slug: string,
+): void {
+  qc.removeQueries({ queryKey: ["workspaces", slug, "member-candidates"] });
+}
 
 export const membersApi = {
   list: (slug: string, signal?: AbortSignal) =>
