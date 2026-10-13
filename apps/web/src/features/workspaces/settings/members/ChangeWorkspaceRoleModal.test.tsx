@@ -11,6 +11,7 @@ import type {
 import { MEMBER_MESSAGES } from "@repo/contracts";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CurrentWorkspaceContext } from "../../currentWorkspace/currentWorkspaceContext";
+import { projectKeys } from "../../../projects/api/projectQueries";
 import { makeWorkspace } from "../../test/workspaceFixtures";
 import { apiError, jsonResponse, mockFetch } from "../../../../test/fetchMock";
 import { ChangeWorkspaceRoleModal } from "./ChangeWorkspaceRoleModal";
@@ -420,5 +421,148 @@ describe("ChangeWorkspaceRoleModal", () => {
     ).toBeInTheDocument();
 
     expect(reloadWorkspace).toHaveBeenCalled();
+  });
+
+  it("AC-29: renders preview for gain_implicit and saves on confirm without projectRole", async () => {
+    const user = userEvent.setup();
+    const namMember: WorkspaceMemberResponse = {
+      ...baseTargetMember,
+      userId: "u-nam",
+      firstName: "Nam",
+      lastName: "Do",
+      displayName: "namdo",
+      role: "member",
+    };
+
+    const { onClose, onSuccess, fetchMock, queryClient } = renderModal({
+      member: namMember,
+      toRole: "admin",
+      previewResponse: {
+        userId: "u-nam",
+        effect: "gain_implicit",
+        fromRole: "member",
+        toRole: "admin",
+        actorCanChooseProjectRole: true,
+        projectRoleChoices: [],
+        defaultProjectRole: null,
+        affectedProjects: {
+          total: 2,
+          hiddenCount: 0,
+          projects: [
+            { id: "p-1", name: "Alpha Project", identifier: "ALP" },
+            { id: "p-2", name: "Beta Project", identifier: "BET" },
+          ],
+        },
+        projectsLosingAssignedAdmin: { total: 0, hiddenCount: 0, projects: [] },
+      },
+      routes: {
+        "PATCH /api/workspaces/openstudy/members/u-nam": () =>
+          jsonResponse(200, {
+            member: { ...namMember, role: "admin" },
+            appliedProjectCount: 2,
+            effect: "gain_implicit",
+          }),
+      },
+    });
+
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+
+    expect(
+      await screen.findByRole("dialog", {
+        name: "Change Nam Do's role to Workspace Admin?",
+      }),
+    ).toBeInTheDocument();
+
+    expect(
+      await screen.findByText(
+        "As a Workspace Admin, Nam Do will be a Project Admin in every project of this workspace, including private ones.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Their roles in 2 projects will be replaced."),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Alpha Project \(ALP\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Beta Project \(BET\)/)).toBeInTheDocument();
+
+    const confirmBtn = screen.getByRole("button", {
+      name: "Change to Workspace Admin",
+    });
+    await user.click(confirmBtn);
+
+    await waitFor(() => {
+      expect(onSuccess).toHaveBeenCalled();
+      expect(onClose).toHaveBeenCalled();
+    });
+
+    const patchCall = fetchMock.mock.calls.find(
+      ([input, init]) =>
+        String(input).includes("/api/workspaces/openstudy/members/u-nam") &&
+        init?.method === "PATCH",
+    );
+    expect(patchCall).toBeDefined();
+    expect(JSON.parse(patchCall![1]!.body as string)).toEqual({
+      fromRole: "member",
+      role: "admin",
+    });
+
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: projectKeys.list("openstudy"),
+    });
+  });
+
+  it("AC-20: invalidates project list cache when lose_implicit succeeds", async () => {
+    const user = userEvent.setup();
+    const adminMember: WorkspaceMemberResponse = {
+      ...baseTargetMember,
+      userId: "u-lan",
+      firstName: "Lan",
+      lastName: "Pham",
+      displayName: "lan",
+      role: "admin",
+    };
+
+    const { onClose, onSuccess, queryClient } = renderModal({
+      member: adminMember,
+      toRole: "member",
+      previewResponse: {
+        userId: "u-lan",
+        effect: "lose_implicit",
+        fromRole: "admin",
+        toRole: "member",
+        actorCanChooseProjectRole: true,
+        projectRoleChoices: [],
+        defaultProjectRole: null,
+        affectedProjects: {
+          total: 7,
+          hiddenCount: 0,
+          projects: [{ id: "p-1", name: "Alpha", identifier: "ALP" }],
+        },
+        projectsLosingAssignedAdmin: { total: 0, hiddenCount: 0, projects: [] },
+      },
+      routes: {
+        "PATCH /api/workspaces/openstudy/members/u-lan": () =>
+          jsonResponse(200, {
+            member: { ...adminMember, role: "member" },
+            appliedProjectCount: 0,
+            effect: "lose_implicit",
+          }),
+      },
+    });
+
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+
+    const confirmBtn = await screen.findByRole("button", {
+      name: "Change to Member",
+    });
+    await user.click(confirmBtn);
+
+    await waitFor(() => {
+      expect(onSuccess).toHaveBeenCalled();
+      expect(onClose).toHaveBeenCalled();
+    });
+
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: projectKeys.list("openstudy"),
+    });
   });
 });

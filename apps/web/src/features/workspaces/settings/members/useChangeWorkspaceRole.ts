@@ -52,8 +52,8 @@ export function useChangeWorkspaceRole({
       replaceWorkspaceMemberInCache(qc, slug, res.member);
 
       if (
-        res.member.role === "admin" ||
-        vars.body.fromRole === "admin" ||
+        res.effect === "gain_implicit" ||
+        res.effect === "lose_implicit" ||
         res.appliedProjectCount > 0
       ) {
         void qc.invalidateQueries({ queryKey: projectKeys.list(slug) });

@@ -1431,6 +1431,211 @@ describe('WorkspaceMembers (e2e)', () => {
       expect(res61.body.code).toBe('TOO_MANY_ATTEMPTS');
       expect(res61.body.retryAfterSeconds).toBeDefined();
     });
+
+    it('24. AC-03: Promote Member to Workspace Admin (gain_implicit) deactivates project members, records history with to_role=null, gains implicit access', async () => {
+      const { workspace, cookie: adminCookie } = await seedWorkspace(
+        'admin-ac03@openplany.dev',
+        'wm-ac03',
+      );
+      const p1 = await createProject(workspace.id, 'Project 1', 'P1A03');
+      const p2 = await createProject(workspace.id, 'Project 2', 'P2A03');
+
+      const namId = await createUser('nam-ac03@openplany.dev', { is_superuser: false });
+      await e2e.dataSource.query(
+        `INSERT INTO workspace_members (workspace_id, member_id, role, is_active, created_at, updated_at, joined_at)
+         VALUES ($1, $2, 'member', true, now(), now(), now())`,
+        [workspace.id, namId],
+      );
+      await addProjectMember(p1, workspace.id, namId, 'contributor');
+      await addProjectMember(p2, workspace.id, namId, 'commenter');
+
+      const previewRes = await http()
+        .get(`/api/workspaces/${workspace.slug}/members/${namId}/role-change-preview?role=admin`)
+        .set('Cookie', adminCookie)
+        .expect(200);
+
+      expect(previewRes.body.effect).toBe('gain_implicit');
+      expect(previewRes.body.affectedProjects.total).toBe(2);
+      expect(previewRes.body.actorCanChooseProjectRole).toBe(true);
+      expect(previewRes.body.defaultProjectRole).toBeNull();
+      expect(previewRes.body.projectRoleChoices).toEqual([]);
+
+      const patchRes = await http()
+        .patch(`/api/workspaces/${workspace.slug}/members/${namId}`)
+        .set('Cookie', adminCookie)
+        .set('Origin', ORIGIN)
+        .send({
+          fromRole: 'member',
+          role: 'admin',
+        })
+        .expect(200);
+
+      expect(patchRes.body.effect).toBe('gain_implicit');
+      expect(patchRes.body.appliedProjectCount).toBe(2);
+      expect(patchRes.body.member.role).toBe('admin');
+
+      // Verify DB: project_members deactivated
+      const pmRows = await e2e.dataSource.query<{ is_active: boolean }[]>(
+        `SELECT is_active FROM project_members WHERE workspace_id = $1 AND member_id = $2`,
+        [workspace.id, namId],
+      );
+      expect(pmRows).toHaveLength(2);
+      expect(pmRows.every((r) => !r.is_active)).toBe(true);
+
+      // Verify project role history recorded with to_role = null
+      const pmHistories = await e2e.dataSource.query<{ to_role: string | null; change_type: string }[]>(
+        `SELECT to_role, change_type FROM project_member_role_history WHERE workspace_id = $1 AND member_id = $2 ORDER BY created_at ASC`,
+        [workspace.id, namId],
+      );
+      expect(pmHistories).toHaveLength(2);
+      expect(pmHistories[0]!.to_role).toBeNull();
+      expect(pmHistories[0]!.change_type).toBe('workspace_role_applied');
+
+      // Verify Nam has implicit Project Admin access to projects
+      const namCookie = await signInCookie('nam-ac03@openplany.dev');
+      const projRes = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/P1A03`)
+        .set('Cookie', namCookie)
+        .expect(200);
+      expect(projRes.body.project.id).toBe(p1);
+    });
+
+    it('25. AC-04: Demote Workspace Admin to Member (lose_implicit), 7 active projects and 1 deleted project, target loses access', async () => {
+      const { workspace, cookie: adminCookie } = await seedWorkspace(
+        'admin-ac04@openplany.dev',
+        'wm-ac04',
+      );
+
+      // 7 active projects
+      for (let i = 1; i <= 7; i++) {
+        await createProject(workspace.id, `Proj ${i}`, `P040${i}`);
+      }
+      // 1 soft-deleted project
+      await e2e.dataSource.query(
+        `INSERT INTO projects (workspace_id, name, identifier, icon_name, icon_color, cover_key, timezone, deleted_at)
+         VALUES ($1, 'Deleted Proj', 'P04DL', 'square-check', '#868E96', 'cover-01', 'UTC', now()) RETURNING id`,
+        [workspace.id],
+      );
+
+      const lanId = await createUser('lan-ac04@openplany.dev', { is_superuser: false });
+      await e2e.dataSource.query(
+        `INSERT INTO workspace_members (workspace_id, member_id, role, is_active, created_at, updated_at, joined_at)
+         VALUES ($1, $2, 'admin', true, now(), now(), now())`,
+        [workspace.id, lanId],
+      );
+
+      const previewRes = await http()
+        .get(`/api/workspaces/${workspace.slug}/members/${lanId}/role-change-preview?role=member`)
+        .set('Cookie', adminCookie)
+        .expect(200);
+
+      expect(previewRes.body.effect).toBe('lose_implicit');
+      expect(previewRes.body.affectedProjects.total).toBe(7);
+
+      const patchRes = await http()
+        .patch(`/api/workspaces/${workspace.slug}/members/${lanId}`)
+        .set('Cookie', adminCookie)
+        .set('Origin', ORIGIN)
+        .send({
+          fromRole: 'admin',
+          role: 'member',
+        })
+        .expect(200);
+
+      expect(patchRes.body.effect).toBe('lose_implicit');
+      expect(patchRes.body.appliedProjectCount).toBe(0);
+      expect(patchRes.body.member.role).toBe('member');
+
+      // Verify Lan loses project access (no explicit project membership)
+      const lanCookie = await signInCookie('lan-ac04@openplany.dev');
+      await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/P0401`)
+        .set('Cookie', lanCookie)
+        .expect(403);
+    });
+
+    it('26. AC-10: Two Admins demoting each other simultaneously -> exactly one succeeds, one fails with 403, 1 admin remains', async () => {
+      const { workspace, ownerId, cookie: adminACookie } = await seedWorkspace(
+        'admin-a-ac10@openplany.dev',
+        'wm-ac10',
+      );
+      const adminBId = await createUser('admin-b-ac10@openplany.dev', { is_superuser: false });
+      await e2e.dataSource.query(
+        `INSERT INTO workspace_members (workspace_id, member_id, role, is_active, created_at, updated_at, joined_at)
+         VALUES ($1, $2, 'admin', true, now(), now(), now())`,
+        [workspace.id, adminBId],
+      );
+      const adminBCookie = await signInCookie('admin-b-ac10@openplany.dev');
+
+      const aDemotesB = () =>
+        http()
+          .patch(`/api/workspaces/${workspace.slug}/members/${adminBId}`)
+          .set('Cookie', adminACookie)
+          .set('Origin', ORIGIN)
+          .send({ fromRole: 'admin', role: 'member' });
+
+      const bDemotesA = () =>
+        http()
+          .patch(`/api/workspaces/${workspace.slug}/members/${ownerId}`)
+          .set('Cookie', adminBCookie)
+          .set('Origin', ORIGIN)
+          .send({ fromRole: 'admin', role: 'member' });
+
+      const [resA, resB] = await Promise.all([aDemotesB(), bDemotesA()]);
+      const statuses = [resA.status, resB.status].sort((a, b) => a - b);
+      expect(statuses).toEqual([200, 403]);
+
+      const forbiddenRes = resA.status === 403 ? resA : resB;
+      expect(forbiddenRes.body.code).toBe('FORBIDDEN');
+
+      // Exactly 1 admin remains active
+      const adminCountRows = await e2e.dataSource.query<{ count: number }[]>(
+        `SELECT count(*)::int AS count FROM workspace_members WHERE workspace_id = $1 AND role = 'admin' AND is_active`,
+        [workspace.id],
+      );
+      expect(adminCountRows[0]!.count).toBe(1);
+    });
+
+    it('27. AC-24: 20 parallel executions of PATCH member role and POST project members never 5xx or deadlock', async () => {
+      const { workspace, cookie: adminCookie } = await seedWorkspace(
+        'admin-ac24@openplany.dev',
+        'wm-ac24',
+      );
+      await createProject(workspace.id, 'Project AC24', 'PAC24');
+
+      const myId = await createUser('my-ac24@openplany.dev', { is_superuser: false });
+      await e2e.dataSource.query(
+        `INSERT INTO workspace_members (workspace_id, member_id, role, is_active, created_at, updated_at, joined_at)
+         VALUES ($1, $2, 'member', true, now(), now(), now())`,
+        [workspace.id, myId],
+      );
+
+      const operations = Array.from({ length: 20 }, (_, i) => {
+        if (i % 2 === 0) {
+          return http()
+            .patch(`/api/workspaces/${workspace.slug}/members/${myId}`)
+            .set('Cookie', adminCookie)
+            .set('Origin', ORIGIN)
+            .send({
+              fromRole: i % 4 === 0 ? 'member' : 'guest',
+              role: i % 4 === 0 ? 'guest' : 'member',
+            });
+        } else {
+          return http()
+            .post(`/api/workspaces/${workspace.slug}/projects/PAC24/members`)
+            .set('Cookie', adminCookie)
+            .set('Origin', ORIGIN)
+            .send({
+              members: [{ userId: myId, role: 'viewer' }],
+            });
+        }
+      });
+
+      const results = await Promise.all(operations);
+      for (const res of results) {
+        expect(res.status).toBeLessThan(500);
+      }
+    });
   });
 });
 
