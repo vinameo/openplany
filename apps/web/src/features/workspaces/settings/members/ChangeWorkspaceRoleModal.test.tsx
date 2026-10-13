@@ -565,4 +565,110 @@ describe("ChangeWorkspaceRoleModal", () => {
       queryKey: projectKeys.list("openstudy"),
     });
   });
+
+  it("AC-13: renders BoundedProjectList with hiddenCount (and 2 projects you can't see)", async () => {
+    renderModal({
+      previewResponse: {
+        userId: "u-guest",
+        effect: "apply_project_role",
+        fromRole: "guest",
+        toRole: "member",
+        actorCanChooseProjectRole: false,
+        projectRoleChoices: ["commenter"],
+        defaultProjectRole: "commenter",
+        affectedProjects: {
+          total: 3,
+          hiddenCount: 2,
+          projects: [{ id: "p-1", name: "Visible Project", identifier: "VIS" }],
+        },
+        projectsLosingAssignedAdmin: { total: 0, hiddenCount: 0, projects: [] },
+      },
+    });
+
+    expect(
+      await screen.findByText(/Visible Project \(VIS\)/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/and 2 projects you can't see/),
+    ).toBeInTheDocument();
+  });
+
+  it("AC-14: renders BoundedProjectList with moreCount (and 15 more)", async () => {
+    const tenProjects = Array.from({ length: 10 }, (_, i) => ({
+      id: `p-${i + 1}`,
+      name: `Project ${i + 1}`,
+      identifier: `P${i + 1}`,
+    }));
+
+    renderModal({
+      previewResponse: {
+        userId: "u-guest",
+        effect: "apply_project_role",
+        fromRole: "guest",
+        toRole: "member",
+        actorCanChooseProjectRole: true,
+        projectRoleChoices: ["admin", "contributor", "commenter"],
+        defaultProjectRole: "commenter",
+        affectedProjects: {
+          total: 25,
+          hiddenCount: 0,
+          projects: tenProjects,
+        },
+        projectsLosingAssignedAdmin: { total: 0, hiddenCount: 0, projects: [] },
+      },
+    });
+
+    expect(await screen.findByText(/Project 1 \(P1\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Project 10 \(P10\)/)).toBeInTheDocument();
+    expect(screen.getByText(/and 15 more/)).toBeInTheDocument();
+  });
+
+  it("AC-15: renders warning alert with losingAdminWarning and project list", async () => {
+    renderModal({
+      previewResponse: {
+        userId: "u-guest",
+        effect: "apply_project_role",
+        fromRole: "guest",
+        toRole: "member",
+        actorCanChooseProjectRole: true,
+        projectRoleChoices: ["admin", "contributor", "commenter"],
+        defaultProjectRole: "commenter",
+        affectedProjects: {
+          total: 1,
+          hiddenCount: 0,
+          projects: [{ id: "p-1", name: "Alpha", identifier: "ALP" }],
+        },
+        projectsLosingAssignedAdmin: {
+          total: 1,
+          hiddenCount: 0,
+          projects: [{ id: "p-1", name: "Alpha", identifier: "ALP" }],
+        },
+      },
+    });
+
+    expect(
+      await screen.findByText(
+        "These projects will have no Project Admin other than Workspace Admins:",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("AC-28: renders 429 error message without Try again button", async () => {
+    renderModal({
+      previewResponse: () =>
+        apiError(
+          429,
+          "TOO_MANY_ATTEMPTS",
+          "Too many attempts. Try again later.",
+          { retryAfterSeconds: 30 },
+        ),
+    });
+
+    expect(
+      await screen.findByText("Too many attempts. Try again in 30 seconds."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Try again" }),
+    ).not.toBeInTheDocument();
+  });
 });

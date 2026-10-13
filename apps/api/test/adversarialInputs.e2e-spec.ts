@@ -415,6 +415,84 @@ describe('Adversarial inputs (e2e)', () => {
       .send({ fromRole: 'admin', role: 'member' })
       .expect(403);
     expect(resSelf.body.code).toBe('FORBIDDEN');
+
+    // Specific B5.2 inputs for PATCH
+    const targetUser2 = await newUser();
+    await e2e.dataSource.query(
+      `INSERT INTO workspace_members (workspace_id, member_id, role, is_active, created_at, updated_at, joined_at)
+       VALUES ($1, $2, 'guest', true, now(), now(), now())`,
+      [ws.id, targetUser2.id],
+    );
+
+    await http()
+      .patch(`/api/workspaces/${ws.slug}/members/${targetUser2.id}`)
+      .set('Cookie', admin.cookie)
+      .set('Origin', ORIGIN)
+      .send({ fromRole: 'guest', role: 'member', projectRole: 'guest' })
+      .expect(400);
+
+    await http()
+      .patch(`/api/workspaces/${ws.slug}/members/${targetUser2.id}`)
+      .set('Cookie', admin.cookie)
+      .set('Origin', ORIGIN)
+      .send({ fromRole: 'guest', role: 'member', projectRole: 'Viewer' })
+      .expect(400);
+
+    await http()
+      .patch(`/api/workspaces/${ws.slug}/members/${targetUser2.id}`)
+      .set('Cookie', admin.cookie)
+      .set('Origin', ORIGIN)
+      .send({ fromRole: 'guest', role: 'member', projectRole: 123 })
+      .expect(400);
+
+    // projectRole: null is accepted (treated as omitted)
+    await http()
+      .patch(`/api/workspaces/${ws.slug}/members/${targetUser2.id}`)
+      .set('Cookie', admin.cookie)
+      .set('Origin', ORIGIN)
+      .send({ fromRole: 'guest', role: 'member', projectRole: null })
+      .expect(200);
+  });
+
+  it('GET /workspaces/:slug/members/:userId/role-change-preview (API B5.2)', async () => {
+    const ws = await seedWorkspace();
+    const targetUser = await newUser();
+    await e2e.dataSource.query(
+      `INSERT INTO workspace_members (workspace_id, member_id, role, is_active, created_at, updated_at, joined_at)
+       VALUES ($1, $2, 'guest', true, now(), now(), now())`,
+      [ws.id, targetUser.id],
+    );
+    const admin = await newWorkspaceAdmin(ws.id);
+
+    // Missing role
+    await http()
+      .get(`/api/workspaces/${ws.slug}/members/${targetUser.id}/role-change-preview`)
+      .set('Cookie', admin.cookie)
+      .expect(400);
+
+    // Invalid role
+    await http()
+      .get(`/api/workspaces/${ws.slug}/members/${targetUser.id}/role-change-preview?role=xyz`)
+      .set('Cookie', admin.cookie)
+      .expect(400);
+
+    // Empty role
+    await http()
+      .get(`/api/workspaces/${ws.slug}/members/${targetUser.id}/role-change-preview?role=`)
+      .set('Cookie', admin.cookie)
+      .expect(400);
+
+    // Duplicate role
+    await http()
+      .get(`/api/workspaces/${ws.slug}/members/${targetUser.id}/role-change-preview?role=member&role=guest`)
+      .set('Cookie', admin.cookie)
+      .expect(400);
+
+    // Malformed userId
+    await http()
+      .get(`/api/workspaces/${ws.slug}/members/not-a-uuid/role-change-preview?role=member`)
+      .set('Cookie', admin.cookie)
+      .expect(400);
   });
 
   it('POST /auth/sign-in', async () => {
