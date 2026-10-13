@@ -10,6 +10,8 @@ import { AddProjectMembersModal } from './AddProjectMembersModal';
 
 import { CurrentProjectContext } from '../../detail/currentProjectContext';
 import type { SubmitOutcome } from '../../../members/AddMembersModalFrame';
+import { SOMETHING_WENT_WRONG } from '../../../members/membersMessages';
+import { projectKeys } from '../../api/projectQueries';
 
 function renderModal({
   opened = true,
@@ -561,6 +563,66 @@ describe('AddProjectMembersModal', () => {
       expect(onClose).toHaveBeenCalled();
       expect(reload).toHaveBeenCalled();
     });
+  });
+
+  it('marks the member list stale on 403 so addableRoles is refetched', async () => {
+    mockFetch({
+      'GET /api/workspaces/ws-1/projects/P1/member-candidates': () =>
+        jsonResponse(200, { candidates }),
+      'POST /api/workspaces/ws-1/projects/P1/members': () =>
+        apiError(403, 'FORBIDDEN', "You don't have permission to do this"),
+    });
+
+    const user = userEvent.setup();
+    const { queryClient } = renderModal();
+    queryClient.setQueryData(projectKeys.members('ws-1', 'P1'), {
+      members: [],
+      total: 0,
+      truncated: false,
+      addableRoles: ['admin', 'contributor'],
+    });
+
+    await user.type(screen.getByRole('textbox', { name: 'Email' }), 'alice');
+    await user.click(
+      await screen.findByRole('option', { name: /alice@openplany\.dev/i }),
+    );
+    await user.click(screen.getByRole('button', { name: 'Add member' }));
+
+    await waitFor(() => {
+      expect(
+        queryClient.getQueryState(projectKeys.members('ws-1', 'P1'))
+          ?.isInvalidated,
+      ).toBe(true);
+    });
+  });
+
+  it('shows a generic alert instead of an unhandled rejection when submit throws', async () => {
+    mockFetch({
+      'GET /api/workspaces/ws-1/projects/P1/member-candidates': () =>
+        jsonResponse(200, { candidates }),
+    });
+    const consoleError = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+    const onSubmit = vi.fn().mockRejectedValue(new Error('boom'));
+
+    const user = userEvent.setup();
+    renderModal({ onSubmit });
+
+    await user.type(screen.getByRole('textbox', { name: 'Email' }), 'alice');
+    await user.click(
+      await screen.findByRole('option', { name: /alice@openplany\.dev/i }),
+    );
+    await user.click(screen.getByRole('button', { name: 'Add member' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      SOMETHING_WENT_WRONG,
+    );
+    expect(consoleError).toHaveBeenCalledWith(
+      'members.add.submit_failed',
+      expect.any(Error),
+    );
+    consoleError.mockRestore();
   });
 
   it('shows 429 rate limit alert with retryAfterSeconds on add submit', async () => {

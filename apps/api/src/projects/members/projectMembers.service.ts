@@ -18,18 +18,60 @@ import {
   type ProjectMemberCandidateListResponse,
   type ProjectMemberCandidateStatus,
   type ProjectMemberListResponse,
+  type ProjectMemberNotAddableReason,
   type ProjectRole,
+  type WorkspaceRole,
 } from '@repo/contracts';
 import { Clock } from '../../auth/clock.js';
 import { ApiException } from '../../common/apiException.js';
-import { duplicateMemberRowFields } from '../../common/memberRows.js';
+import {
+  duplicateMemberRowFields,
+  unknownRoleFields,
+} from '../../common/memberRows.js';
 import type { MemberWorkspace } from '../../workspaces/repositories/workspaces.repository.js';
 import type { AccessibleProject } from '../access/projectAccessResolver.js';
 import { ProjectEvents } from '../events/projectEvents.js';
 import { ProjectsService } from '../projects.service.js';
 import type { AddProjectMembersDto } from './dto/addProjectMembers.dto.js';
 import { toProjectMemberResponse } from './dto/projectMemberResponse.js';
+import { canSeeMemberEmails, toProjectActor } from './projectMemberActor.js';
 import { ProjectMembersRepository } from './projectMembers.repository.js';
+
+/** The actor of a request and what they may see, derived once per request. */
+interface MembersView {
+  actor: ProjectActor;
+  includeEmail: boolean;
+}
+
+/**
+ * Whether a workspace member can be added to the project at all. One rule for
+ * the candidate search and for the batch check inside the add transaction.
+ */
+function candidateStatus(
+  workspaceRole: WorkspaceRole,
+  alreadyMember: boolean,
+): ProjectMemberCandidateStatus {
+  if (workspaceRolesWithImplicitProjectAccess().includes(workspaceRole)) {
+    return 'workspace_admin';
+  }
+  return alreadyMember ? 'already_member' : 'addable';
+}
+
+function rowRejection(
+  actor: ProjectActor,
+  target: {
+    userId: string;
+    workspaceRole: WorkspaceRole;
+    alreadyMember: boolean;
+  },
+  role: ProjectRole,
+): ProjectMemberNotAddableReason | null {
+  const status = candidateStatus(target.workspaceRole, target.alreadyMember);
+  if (status !== 'addable') return status;
+  return addableProjectRoles(actor, target).includes(role)
+    ? null
+    : 'role_not_allowed';
+}
 
 @Injectable()
 export class ProjectMembersService {
@@ -46,19 +88,10 @@ export class ProjectMembersService {
     actorId: string,
     requestId?: string,
   ): Promise<ProjectMemberListResponse> {
-    const actor: ProjectActor = {
-      userId: actorId,
-      workspaceRole: workspace.role,
-      effectiveRole: accessible.access.role,
-      permissions: accessible.access.permissions,
-    };
-
+    const { actor, includeEmail } = this.viewOf(workspace, accessible, actorId);
     const canAdd = canAddProjectMembers(
       accessible.access.permissions,
       workspace.permissions,
-    );
-    const includeEmail = workspace.permissions.includes(
-      'workspace.members.email.view',
     );
 
     const roleOrder: ProjectRole[] = [...PROJECT_ROLES].sort(
@@ -104,18 +137,8 @@ export class ProjectMembersService {
     query: string,
     requestId?: string,
   ): Promise<ProjectMemberCandidateListResponse> {
-    const actor: ProjectActor = {
-      userId: actorId,
-      workspaceRole: workspace.role,
-      effectiveRole: accessible.access.role,
-      permissions: accessible.access.permissions,
-    };
-
-    const mode: 'contains' | 'exact' = workspace.permissions.includes(
-      'workspace.members.email.view',
-    )
-      ? 'contains'
-      : 'exact';
+    const { actor, includeEmail } = this.viewOf(workspace, accessible, actorId);
+    const mode: 'contains' | 'exact' = includeEmail ? 'contains' : 'exact';
 
     const rows = await this.repository.searchCandidates({
       workspaceId: workspace.id,
@@ -125,15 +148,8 @@ export class ProjectMembersService {
       limit: MEMBER_CANDIDATE_LIMIT,
     });
 
-    const implicitWsRoles = workspaceRolesWithImplicitProjectAccess();
-
     const candidates: ProjectMemberCandidate[] = rows.map((row) => {
-      const isWorkspaceAdmin = implicitWsRoles.includes(row.workspaceRole);
-      const status: ProjectMemberCandidateStatus = isWorkspaceAdmin
-        ? 'workspace_admin'
-        : row.alreadyMember
-          ? 'already_member'
-          : 'addable';
+      const status = candidateStatus(row.workspaceRole, row.alreadyMember);
 
       const addableRoles =
         status === 'addable'
@@ -176,16 +192,7 @@ export class ProjectMembersService {
     dto: AddProjectMembersDto,
     requestId?: string,
   ): Promise<AddProjectMembersResponse> {
-    const actor: ProjectActor = {
-      userId: actorId,
-      workspaceRole: workspace.role,
-      effectiveRole: accessible.access.role,
-      permissions: accessible.access.permissions,
-    };
-
-    const includeEmail = workspace.permissions.includes(
-      'workspace.members.email.view',
-    );
+    const { actor, includeEmail } = this.viewOf(workspace, accessible, actorId);
 
     const dup = duplicateMemberRowFields(dto.members);
     if (Object.keys(dup).length > 0) {
@@ -222,7 +229,7 @@ export class ProjectMembersService {
       canAdd: (a) =>
         canAddProjectMembers(a.projectPermissions, a.workspacePermissions),
       roleRange: (a) => addableProjectRoleRange(a.actor),
-      addableRolesFor: (a, target) => addableProjectRoles(a.actor, target),
+      rowRejection: (a, target, role) => rowRejection(a.actor, target, role),
     });
 
     if (result.status === 'project_gone') {
@@ -251,6 +258,15 @@ export class ProjectMembersService {
         HttpStatus.FORBIDDEN,
         'FORBIDDEN',
         MEMBER_MESSAGES.roleNotAllowed,
+      );
+    }
+
+    if (result.status === 'role_unknown') {
+      throw new ApiException(
+        HttpStatus.BAD_REQUEST,
+        'VALIDATION_ERROR',
+        MEMBER_MESSAGES.checkFields,
+        { fields: unknownRoleFields(dto.members) },
       );
     }
 
@@ -288,6 +304,17 @@ export class ProjectMembersService {
         toProjectMemberResponse(m, { includeEmail }),
       ),
       project,
+    };
+  }
+
+  private viewOf(
+    workspace: MemberWorkspace,
+    accessible: AccessibleProject,
+    actorId: string,
+  ): MembersView {
+    return {
+      actor: toProjectActor(actorId, workspace.role, accessible.access),
+      includeEmail: canSeeMemberEmails(workspace.permissions),
     };
   }
 }

@@ -952,6 +952,34 @@ describe('ProjectMembers (e2e)', () => {
         expect(res.body.fields?.['members.2.userId']).toBe(MEMBER_MESSAGES.rowDuplicate);
       });
 
+      it('Row 9b: uppercase userId of a workspace member is added under its canonical id', async () => {
+        const { workspace, namCookie, anId } = await seedB63Fixture();
+        const res = await http()
+          .post(`/api/workspaces/${workspace.slug}/projects/PB63/members`)
+          .set('Cookie', namCookie)
+          .set('Origin', ORIGIN)
+          .send({ members: [{ userId: anId.toUpperCase(), role: 'contributor' }] })
+          .expect(201);
+        expect(res.body.members).toHaveLength(1);
+        expect(res.body.members[0]).toMatchObject({ userId: anId, role: 'contributor' });
+      });
+
+      it('Row 9c: the same userId in two cases is a duplicate row', async () => {
+        const { workspace, namCookie, anId } = await seedB63Fixture();
+        const res = await http()
+          .post(`/api/workspaces/${workspace.slug}/projects/PB63/members`)
+          .set('Cookie', namCookie)
+          .set('Origin', ORIGIN)
+          .send({
+            members: [
+              { userId: anId, role: 'contributor' },
+              { userId: anId.toUpperCase(), role: 'commenter' },
+            ],
+          })
+          .expect(400);
+        expect(res.body.fields?.['members.1.userId']).toBe(MEMBER_MESSAGES.rowDuplicate);
+      });
+
       it('Row 10: non-existent random UUID v4 returns 409 members.0.userId not_in_workspace', async () => {
         const { workspace, namCookie } = await seedB63Fixture();
         const nonExistentId = 'a0000000-0000-4000-8000-000000000001';

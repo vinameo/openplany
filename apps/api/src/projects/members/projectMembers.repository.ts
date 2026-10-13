@@ -49,10 +49,20 @@ export interface AddProjectMembersInput {
   members: readonly { userId: string; role: ProjectRole }[];
   canAdd: (context: AddProjectMembersActorContext) => boolean;
   roleRange: (context: AddProjectMembersActorContext) => readonly ProjectRole[];
-  addableRolesFor: (
+  /**
+   * Why one row cannot be added, or null. Called only for workspace members
+   * whose account can be added; the repository supplies the locked facts and
+   * the service owns the rule.
+   */
+  rowRejection: (
     context: AddProjectMembersActorContext,
-    target: { userId: string; workspaceRole: WorkspaceRole },
-  ) => readonly ProjectRole[];
+    target: {
+      userId: string;
+      workspaceRole: WorkspaceRole;
+      alreadyMember: boolean;
+    },
+    role: ProjectRole,
+  ) => ProjectMemberNotAddableReason | null;
 }
 
 export type AddProjectMembersResult =
@@ -67,6 +77,8 @@ export type AddProjectMembersResult =
     }
   | { status: 'actor_forbidden' }
   | { status: 'role_forbidden' }
+  /** The database rejected a role of the batch (foreign key on `roles`). */
+  | { status: 'role_unknown' }
   | { status: 'project_gone' };
 
 export abstract class ProjectMembersRepository {

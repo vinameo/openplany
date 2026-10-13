@@ -1,5 +1,10 @@
 import { QueryClient } from "@tanstack/react-query";
-import type { ProjectListItem, ProjectListResponse } from "@repo/contracts";
+import {
+  PROJECT_MEMBER_LIST_MAX,
+  type ProjectListItem,
+  type ProjectListResponse,
+  type ProjectMemberResponse,
+} from "@repo/contracts";
 import { describe, expect, it } from "vitest";
 import {
   addProjectMembersToCache,
@@ -210,5 +215,44 @@ describe("projectQueries cache helpers", () => {
     expect(cachedMembers?.total).toBe(2);
     expect(cachedMembers?.truncated).toBe(false);
     expect(cachedMembers?.addableRoles).toEqual(["contributor"]);
+  });
+
+  it("addProjectMembersToCache keeps the list bound and marks it truncated past the cap", () => {
+    const qc = new QueryClient();
+    const member = (n: number): ProjectMemberResponse => ({
+      userId: `u-${n}`,
+      firstName: "User",
+      lastName: String(n),
+      displayName: `User ${n}`,
+      avatarUrl: null,
+      role: "contributor",
+      assignedRole: "contributor",
+      accountActive: true,
+      roleLimited: false,
+      joinedAt: "2026-10-12T00:00:00Z",
+    });
+    const full = Array.from({ length: PROJECT_MEMBER_LIST_MAX }, (_, i) =>
+      member(i),
+    );
+    qc.setQueryData(projectKeys.members(slug, "P1"), {
+      members: full,
+      total: PROJECT_MEMBER_LIST_MAX,
+      truncated: false,
+      addableRoles: ["contributor" as const],
+    });
+
+    const projectUpdate = makeItem("1", "P1", "Project 1");
+    projectUpdate.memberCount = PROJECT_MEMBER_LIST_MAX + 3;
+    addProjectMembersToCache(qc, slug, "P1", {
+      members: [1, 2, 3].map((n) => member(PROJECT_MEMBER_LIST_MAX + n)),
+      project: projectUpdate,
+    });
+
+    const cached = qc.getQueryData<ProjectMemberListResponse>(
+      projectKeys.members(slug, "P1"),
+    );
+    expect(cached?.members).toHaveLength(PROJECT_MEMBER_LIST_MAX);
+    expect(cached?.total).toBe(PROJECT_MEMBER_LIST_MAX + 3);
+    expect(cached?.truncated).toBe(true);
   });
 });

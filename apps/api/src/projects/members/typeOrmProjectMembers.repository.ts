@@ -1,24 +1,25 @@
-import { HttpStatus, Injectable, Logger } from '@nestjs/common';
-import { DataSource, EntityManager, In } from 'typeorm';
+import { Injectable, Logger } from '@nestjs/common';
 import {
-  effectiveProjectRole,
+  DataSource,
+  EntityManager,
+  In,
+  type SelectQueryBuilder,
+} from 'typeorm';
+import {
   escapeLikePattern,
-  parseProjectPermissions,
   parseWorkspacePermissions,
-  workspaceRolesWithImplicitProjectAccess,
-  type ProjectActor,
   type ProjectMemberNotAddableReason,
   type ProjectRole,
   type WorkspaceRole,
 } from '@repo/contracts';
 import { User } from '../../auth/entities/user.entity.js';
 import { ADDABLE_USER } from '../../auth/addableUser.js';
-import { ApiException } from '../../common/apiException.js';
 import { isForeignKeyViolation } from '../../common/databaseErrors.js';
 import { equalsLowercase } from '../../database/findOperators.js';
 import { runTransactionWithRetry } from '../../database/transactionRetry.js';
 import { loadRolePermissions, rolePermissionsKey } from '../../roles/rolePermissionsQuery.js';
 import { WorkspaceMember } from '../../workspaces/entities/workspaceMember.entity.js';
+import { ProjectAccessResolver } from '../access/projectAccessResolver.js';
 import { Project } from '../entities/project.entity.js';
 import { ProjectMember } from '../entities/projectMember.entity.js';
 import { ProjectMemberRoleHistory } from '../entities/projectMemberRoleHistory.entity.js';
@@ -33,6 +34,7 @@ import type {
   SearchProjectMemberCandidatesInput,
 } from './projectMembers.repository.js';
 import type { ProjectMemberDbRow } from './dto/projectMemberResponse.js';
+import { toProjectActor } from './projectMemberActor.js';
 
 interface RawCandidateRow {
   userId: string;
@@ -52,29 +54,20 @@ const PROJECT_MEMBER_UNIQUE = 'project_members_project_member_key';
 export class TypeOrmProjectMembersRepository implements ProjectMembersRepository {
   private readonly logger = new Logger(TypeOrmProjectMembersRepository.name);
 
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly accessResolver: ProjectAccessResolver,
+  ) {}
 
   async list(
     projectId: string,
     opts: ListProjectMembersOpts,
   ): Promise<{ members: ProjectMemberDbRow[]; total: number }> {
-    const qb = projectMembersQuery(this.dataSource.manager, { projectId })
-      .select('pm.memberId', 'userId')
-      .addSelect('u.firstName', 'firstName')
-      .addSelect('u.lastName', 'lastName')
-      .addSelect('u.displayName', 'displayName')
-      .addSelect('u.avatar', 'avatarUrl')
-      .addSelect('pm.role', 'assignedRole')
-      .addSelect('wm.role', 'workspaceRole')
-      .addSelect('pm.joinedAt', 'joinedAt')
-      .addSelect('u.isActive', 'accountActive')
-      .addSelect('count(*) OVER ()', 'total');
-
-    if (opts.includeEmail) {
-      qb.addSelect('u.email', 'email');
-    }
-
-    const rows = await qb
+    const rows = await selectProjectMemberColumns(
+      projectMembersQuery(this.dataSource.manager, { projectId }),
+      opts.includeEmail,
+    )
+      .addSelect('count(*) OVER ()', 'total')
       .orderBy('array_position(CAST(:roleOrder AS varchar[]), pm.role)')
       .addOrderBy(
         `lower(COALESCE(NULLIF(btrim(u.firstName || ' ' || u.lastName), ''), u.displayName))`,
@@ -85,19 +78,7 @@ export class TypeOrmProjectMembersRepository implements ProjectMembersRepository
       .getRawMany<ProjectMemberDbRow & { total: string | number }>();
 
     const total = rows.length > 0 ? Number(rows[0]!.total) : 0;
-    const members: ProjectMemberDbRow[] = rows.map((row) => ({
-      userId: row.userId,
-      firstName: row.firstName,
-      lastName: row.lastName,
-      displayName: row.displayName,
-      avatarUrl: row.avatarUrl,
-      email: opts.includeEmail ? row.email : null,
-      assignedRole: row.assignedRole,
-      workspaceRole: row.workspaceRole,
-      joinedAt: row.joinedAt,
-      accountActive: row.accountActive,
-      total: row.total,
-    }));
+    const members = rows.map((row) => toMemberDbRow(row, opts.includeEmail));
 
     return { members, total };
   }
@@ -172,7 +153,7 @@ export class TypeOrmProjectMembersRepository implements ProjectMembersRepository
     try {
       return await runTransactionWithRetry(
         this.dataSource,
-        (manager) => addMembersOnce(manager, input),
+        (manager) => addMembersOnce(manager, this.accessResolver, input),
         {
           maxAttempts: MAX_ADD_ATTEMPTS,
           retryOnUnique: PROJECT_MEMBER_UNIQUE,
@@ -184,13 +165,13 @@ export class TypeOrmProjectMembersRepository implements ProjectMembersRepository
         },
       );
     } catch (err: unknown) {
+      // Every other reference is locked before the write, so only a role the
+      // `roles` table no longer holds can break a foreign key here.
       if (isForeignKeyViolation(err)) {
-        throw new ApiException(
-          HttpStatus.BAD_REQUEST,
-          'VALIDATION_ERROR',
-          'Check the highlighted fields',
-          { fields: { members: 'Invalid role' } },
+        this.logger.warn(
+          `project.members.add.role_unknown projectId=${input.projectId} requestId=${input.requestId}`,
         );
+        return { status: 'role_unknown' };
       }
       throw err;
     }
@@ -203,6 +184,7 @@ export class TypeOrmProjectMembersRepository implements ProjectMembersRepository
  */
 async function addMembersOnce(
   manager: EntityManager,
+  accessResolver: ProjectAccessResolver,
   input: AddProjectMembersInput,
 ): Promise<AddProjectMembersResult> {
   const { workspaceId, projectId, actorId, now } = input;
@@ -247,36 +229,24 @@ async function addMembersOnce(
     lock: { mode: 'pessimistic_write' },
   });
 
-  // 5. Decision on actor
+  // 5. Decision on actor, from the rows locked above. Access is decided by
+  // the same resolver the guard uses.
   const pmActor = pmList.find((p) => p.memberId === actorId && p.isActive);
-  const actorEffectiveRole = effectiveProjectRole({
+  const actorAccess = await accessResolver.forMembership(manager, {
     workspaceRole: wmActor.role,
     assignedRole: pmActor?.role ?? null,
   });
-  if (actorEffectiveRole === null) return { status: 'actor_forbidden' };
+  if (actorAccess === null) return { status: 'actor_forbidden' };
 
   const granted = await loadRolePermissions(manager, [
-    { scope: 'project', key: actorEffectiveRole },
     { scope: wmActor.roleScope, key: wmActor.role },
   ]);
-  const actorProjectPerms = parseProjectPermissions(
-    granted.get(rolePermissionsKey('project', actorEffectiveRole)) ?? [],
-  );
-  const actorWorkspacePerms = parseWorkspacePermissions(
-    granted.get(rolePermissionsKey(wmActor.roleScope, wmActor.role)) ?? [],
-  );
-
-  const actorNow: ProjectActor = {
-    userId: actorId,
-    workspaceRole: wmActor.role,
-    effectiveRole: actorEffectiveRole,
-    permissions: actorProjectPerms,
-  };
-
   const actorContext: AddProjectMembersActorContext = {
-    actor: actorNow,
-    projectPermissions: actorProjectPerms,
-    workspacePermissions: actorWorkspacePerms,
+    actor: toProjectActor(actorId, wmActor.role, actorAccess),
+    projectPermissions: actorAccess.permissions,
+    workspacePermissions: parseWorkspacePermissions(
+      granted.get(rolePermissionsKey(wmActor.roleScope, wmActor.role)) ?? [],
+    ),
   };
 
   if (!input.canAdd(actorContext)) {
@@ -291,7 +261,6 @@ async function addMembersOnce(
   // 6. Evaluate row errors in priority order
   const wmByMember = new Map(wmList.map((w) => [w.memberId, w]));
   const pmByMember = new Map(pmList.map((p) => [p.memberId, p]));
-  const implicitWsRoles = workspaceRolesWithImplicitProjectAccess();
 
   const rejected: { index: number; reason: ProjectMemberNotAddableReason }[] = [];
   input.members.forEach((m, index) => {
@@ -304,23 +273,16 @@ async function addMembersOnce(
       rejected.push({ index, reason: 'unavailable' });
       return;
     }
-    if (implicitWsRoles.includes(wm.role)) {
-      rejected.push({ index, reason: 'workspace_admin' });
-      return;
-    }
-    const pm = pmByMember.get(m.userId);
-    if (pm?.isActive === true) {
-      rejected.push({ index, reason: 'already_member' });
-      return;
-    }
-    const allowedRoles = input.addableRolesFor(actorContext, {
-      userId: m.userId,
-      workspaceRole: wm.role,
-    });
-    if (!allowedRoles.includes(m.role)) {
-      rejected.push({ index, reason: 'role_not_allowed' });
-      return;
-    }
+    const reason = input.rowRejection(
+      actorContext,
+      {
+        userId: m.userId,
+        workspaceRole: wm.role,
+        alreadyMember: pmByMember.get(m.userId)?.isActive === true,
+      },
+      m.role,
+    );
+    if (reason !== null) rejected.push({ index, reason });
   });
 
   if (rejected.length > 0) {
@@ -379,12 +341,28 @@ async function addMembersOnce(
     })),
   );
 
-  // 9. Read back
-  const readQuery = projectMembersQuery(manager, {
-    projectId,
-    memberId: In(targetIds),
-  })
-    .select('pm.memberId', 'userId')
+  // 9. Read back, in the same shape as `list`
+  const readRows = await selectProjectMemberColumns(
+    projectMembersQuery(manager, { projectId, memberId: In(targetIds) }),
+    input.includeEmail,
+  ).getRawMany<ProjectMemberDbRow>();
+  const byUserId = new Map(
+    readRows.map((row) => [row.userId, toMemberDbRow(row, input.includeEmail)]),
+  );
+
+  return {
+    status: 'added',
+    members: input.members.map((m) => byUserId.get(m.userId)!),
+    reactivatedCount: reactivated.length,
+  };
+}
+
+/** The columns of one project member row, shared by `list` and the read-back after `addMembers`. */
+function selectProjectMemberColumns(
+  qb: SelectQueryBuilder<ProjectMember>,
+  includeEmail: boolean,
+): SelectQueryBuilder<ProjectMember> {
+  qb.select('pm.memberId', 'userId')
     .addSelect('u.firstName', 'firstName')
     .addSelect('u.lastName', 'lastName')
     .addSelect('u.displayName', 'displayName')
@@ -393,26 +371,25 @@ async function addMembersOnce(
     .addSelect('wm.role', 'workspaceRole')
     .addSelect('pm.joinedAt', 'joinedAt')
     .addSelect('u.isActive', 'accountActive');
+  if (includeEmail) qb.addSelect('u.email', 'email');
+  return qb;
+}
 
-  if (input.includeEmail) {
-    readQuery.addSelect('u.email', 'email');
-  }
-
-  const readRows = await readQuery.getRawMany<ProjectMemberDbRow>();
-  const byUserId = new Map(
-    readRows.map((row) => [
-      row.userId,
-      {
-        ...row,
-        email: input.includeEmail ? (row.email ?? null) : null,
-      },
-    ]),
-  );
-
+function toMemberDbRow(
+  row: ProjectMemberDbRow,
+  includeEmail: boolean,
+): ProjectMemberDbRow {
   return {
-    status: 'added',
-    members: input.members.map((m) => byUserId.get(m.userId)!),
-    reactivatedCount: reactivated.length,
+    userId: row.userId,
+    firstName: row.firstName,
+    lastName: row.lastName,
+    displayName: row.displayName,
+    avatarUrl: row.avatarUrl,
+    email: includeEmail ? (row.email ?? null) : null,
+    assignedRole: row.assignedRole,
+    workspaceRole: row.workspaceRole,
+    joinedAt: row.joinedAt,
+    accountActive: row.accountActive,
   };
 }
 

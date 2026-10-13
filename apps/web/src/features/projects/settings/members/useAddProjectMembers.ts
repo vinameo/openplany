@@ -4,11 +4,13 @@ import type {
   AddProjectMembersResponse,
 } from "@repo/contracts";
 import { useContext } from "react";
+import { ApiRequestError } from "../../../../lib/apiClient";
 import { CurrentProjectContext } from "../../detail/currentProjectContext";
 import { projectMembersApi } from "../../api/projectMembersApi";
 import {
   addProjectMembersToCache,
   clearProjectMemberCandidates,
+  projectKeys,
 } from "../../api/projectQueries";
 
 export function useAddProjectMembers(slug: string, identifier: string) {
@@ -26,6 +28,19 @@ export function useAddProjectMembers(slug: string, identifier: string) {
       addProjectMembersToCache(qc, slug, identifier, res);
       currentProject?.applyProjectUpdate(res.project);
       clearProjectMemberCandidates(qc, slug, identifier);
+    },
+    onError: (err) => {
+      // The actor lost the right to add, or the project is gone: the member
+      // list's addableRoles is stale too, so refetch it rather than offer the
+      // same failing add again.
+      if (
+        err instanceof ApiRequestError &&
+        (err.status === 403 || err.status === 404)
+      ) {
+        void qc.invalidateQueries({
+          queryKey: projectKeys.members(slug, identifier),
+        });
+      }
     },
   });
 }

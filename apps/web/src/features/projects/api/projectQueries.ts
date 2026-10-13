@@ -1,9 +1,10 @@
 import type { QueryClient } from "@tanstack/react-query";
-import type {
-  AddProjectMembersResponse,
-  ProjectListItem,
-  ProjectMemberListResponse,
-  ProjectListResponse,
+import {
+  PROJECT_MEMBER_LIST_MAX,
+  type AddProjectMembersResponse,
+  type ProjectListItem,
+  type ProjectMemberListResponse,
+  type ProjectListResponse,
 } from "@repo/contracts";
 
 /**
@@ -58,13 +59,19 @@ export function addProjectMembersToCache(
       const newMembers = res.members.filter(
         (m) => !existingUserIds.has(m.userId),
       );
-      const nextMembers = [...curr.members, ...newMembers];
+      // Same bound as the server's list: at most PROJECT_MEMBER_LIST_MAX rows,
+      // and `truncated` whenever the total is larger than what is held.
+      const nextMembers = [...curr.members, ...newMembers].slice(
+        0,
+        PROJECT_MEMBER_LIST_MAX,
+      );
       const nextTotal =
         res.project.memberCount ?? curr.total + newMembers.length;
       return {
         ...curr,
         members: nextMembers,
         total: nextTotal,
+        truncated: nextTotal > nextMembers.length,
       };
     },
   );

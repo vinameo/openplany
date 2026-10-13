@@ -1,5 +1,6 @@
 import {
   MEMBER_CANDIDATE_QUERY_MIN,
+  MEMBER_MESSAGES,
   type MemberCandidate,
 } from "@repo/contracts";
 import {
@@ -19,6 +20,6 @@ export function useMemberCandidates(
     fetcher: (q, signal) => membersApi.searchCandidates(slug, q, signal),
     query,
     isReady: (trimmed) => trimmed.length >= MEMBER_CANDIDATE_QUERY_MIN,
-    notReadyHint: "Type at least 3 characters",
+    notReadyHint: MEMBER_MESSAGES.candidateQueryTooShort,
   });
 }

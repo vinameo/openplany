@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   ArrayMinSize,
@@ -14,8 +14,10 @@ import {
   type AddProjectMembersRequest,
   type ProjectRole,
 } from '@repo/contracts';
+import { toCanonicalUserId } from '../../../common/memberRows.js';
 
 export class AddProjectMemberDto {
+  @Transform(toCanonicalUserId)
   @IsUUID('4', { message: MEMBER_MESSAGES.choosePerson })
   userId!: string;
 
