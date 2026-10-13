@@ -3,10 +3,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PROJECT_CREATOR_ROLE } from '@repo/contracts';
 import { DataSource, In } from 'typeorm';
 import { User } from '../../auth/entities/user.entity.js';
-import {
-  isTransactionConflict,
-  isUniqueViolation,
-} from '../../common/databaseErrors.js';
+import { isUniqueViolation } from '../../common/databaseErrors.js';
+import { runTransactionWithRetry } from '../../database/transactionRetry.js';
 import { WorkspaceMember } from '../../workspaces/entities/workspaceMember.entity.js';
 import {
   toProjectRow,
@@ -137,9 +135,10 @@ export class TypeOrmProjectsRepository extends ProjectsRepository {
 
     const projectId = randomUUID();
 
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      try {
-        await this.dataSource.transaction(async (manager) => {
+    try {
+      return await runTransactionWithRetry(
+        this.dataSource,
+        async (manager) => {
           // 1. insert Project
           await manager.insert(Project, {
             id: projectId,
@@ -183,35 +182,36 @@ export class TypeOrmProjectsRepository extends ProjectsRepository {
             requestId: requestId ?? null,
             createdAt: now,
           });
-        });
 
-        return { projectId };
-      } catch (err: unknown) {
-        if (isTransactionConflict(err) && attempt < 2) {
-          this.logger.warn(
-            `project.create.retry conflict attempt=${attempt} requestId=${requestId ?? ''}`,
-          );
-          continue;
-        }
-        if (isUniqueViolation(err, PROJECT_NAME_UNIQUE)) {
-          throw new ProjectNameTakenError();
-        }
-        if (isUniqueViolation(err, PROJECT_IDENTIFIER_UNIQUE)) {
-          throw new ProjectIdentifierTakenError();
-        }
-        throw err;
+          return { projectId };
+        },
+        {
+          maxAttempts: 2,
+          onRetry: (attempt) => {
+            this.logger.warn(
+              `project.create.retry conflict attempt=${attempt} requestId=${requestId ?? ''}`,
+            );
+          },
+        },
+      );
+    } catch (err: unknown) {
+      if (isUniqueViolation(err, PROJECT_NAME_UNIQUE)) {
+        throw new ProjectNameTakenError();
       }
+      if (isUniqueViolation(err, PROJECT_IDENTIFIER_UNIQUE)) {
+        throw new ProjectIdentifierTakenError();
+      }
+      throw err;
     }
-
-    throw new Error('Project creation failed after retries');
   }
 
   async update(input: UpdateProjectInput): Promise<ProjectRow | null> {
     const { projectId, workspaceId, actorId, now, changes } = input;
 
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      try {
-        return await this.dataSource.transaction(async (manager) => {
+    try {
+      return await runTransactionWithRetry(
+        this.dataSource,
+        async (manager) => {
           const updateResult = await manager.update(
             Project,
             { id: projectId, workspaceId, ...ACTIVE_PROJECT },
@@ -227,22 +227,22 @@ export class TypeOrmProjectsRepository extends ProjectsRepository {
           });
 
           return updatedProject ? toProjectRow(updatedProject) : null;
-        });
-      } catch (err: unknown) {
-        if (isTransactionConflict(err) && attempt < 2) {
-          this.logger.warn(
-            `project.update.retry conflict attempt=${attempt} projectId=${projectId}`,
-          );
-          continue;
-        }
-        if (isUniqueViolation(err, PROJECT_NAME_UNIQUE)) {
-          throw new ProjectNameTakenError();
-        }
-        throw err;
+        },
+        {
+          maxAttempts: 2,
+          onRetry: (attempt) => {
+            this.logger.warn(
+              `project.update.retry conflict attempt=${attempt} projectId=${projectId}`,
+            );
+          },
+        },
+      );
+    } catch (err: unknown) {
+      if (isUniqueViolation(err, PROJECT_NAME_UNIQUE)) {
+        throw new ProjectNameTakenError();
       }
+      throw err;
     }
-
-    throw new Error('Project update failed after retries');
   }
 
   async softDelete(input: SoftDeleteProjectInput): Promise<boolean> {

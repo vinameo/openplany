@@ -12,6 +12,7 @@ import { ProjectPermissionGuard } from './projects/access/projectPermissionGuard
 import { WorkspaceMemberGuard } from './workspaces/workspaceMemberGuard.js';
 import { WorkspacePermissionGuard } from './workspaces/workspacePermissionGuard.js';
 import { WorkspaceWriteRateLimitGuard } from './workspaces/workspaceWriteRateLimitGuard.js';
+import { MemberCandidateRateLimitGuard } from './workspaces/members/memberCandidateRateLimitGuard.js';
 
 /**
  * Fitness functions: rules that every endpoint, present and future, must keep.
@@ -171,5 +172,20 @@ describe('Architecture', () => {
       )
       .map((f) => relative(SRC, f));
     expect(callers.filter((f) => !allowed.has(f))).toEqual([]);
+  });
+
+  it('places MemberCandidateRateLimitGuard before WorkspaceMemberGuard on candidate search routes (INV-15)', () => {
+    const candidateRoutes = routes.filter((r) =>
+      r.guards.includes(MemberCandidateRateLimitGuard),
+    );
+    expect(candidateRoutes.length).toBeGreaterThan(0);
+    for (const route of candidateRoutes) {
+      expect(route.guards).toContain(WorkspaceMemberGuard);
+      const rateLimitIndex = route.guards.indexOf(
+        MemberCandidateRateLimitGuard,
+      );
+      const memberIndex = route.guards.indexOf(WorkspaceMemberGuard);
+      expect(rateLimitIndex).toBeLessThan(memberIndex);
+    }
   });
 });

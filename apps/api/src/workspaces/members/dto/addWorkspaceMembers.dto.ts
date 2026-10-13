@@ -9,24 +9,25 @@ import {
 } from 'class-validator';
 import {
   ADD_MEMBERS_MAX,
+  MEMBER_MESSAGES,
   WORKSPACE_ROLES,
   type AddWorkspaceMembersRequest,
   type WorkspaceRole,
 } from '@repo/contracts';
 
 export class AddWorkspaceMemberDto {
-  @IsUUID('4', { message: 'Choose a person' })
+  @IsUUID('4', { message: MEMBER_MESSAGES.choosePerson })
   userId!: string;
 
-  @IsIn(WORKSPACE_ROLES, { message: 'Choose a role' })
+  @IsIn(WORKSPACE_ROLES, { message: MEMBER_MESSAGES.chooseRole })
   role!: WorkspaceRole;
 }
 
 export class AddWorkspaceMembersDto implements AddWorkspaceMembersRequest {
   @IsArray()
-  @ArrayMinSize(1, { message: 'Add at least one person' })
+  @ArrayMinSize(1, { message: MEMBER_MESSAGES.addAtLeastOne })
   @ArrayMaxSize(ADD_MEMBERS_MAX, {
-    message: `Add up to ${ADD_MEMBERS_MAX} people at a time`,
+    message: MEMBER_MESSAGES.addAtMost,
   })
   @ValidateNested({ each: true })
   @Type(() => AddWorkspaceMemberDto)

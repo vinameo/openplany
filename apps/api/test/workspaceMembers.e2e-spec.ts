@@ -427,6 +427,18 @@ describe('WorkspaceMembers (e2e)', () => {
     const escapeEmails = escapeRes.body.candidates.map((c: { email: string }) => c.email);
     expect(escapeEmails).toContain(specialEmail);
     expect(escapeEmails).not.toContain(normalEmail);
+
+    // 4. AC-41: Control characters (e.g. NUL) return 400 with validation message
+    const ctrlRes = await http()
+      .get(`/api/workspaces/${workspace.slug}/member-candidates?email=an%00b`)
+      .set('Cookie', adminCookie)
+      .expect(400);
+
+    expect(ctrlRes.body.code).toBe('VALIDATION_ERROR');
+    expect(ctrlRes.body.fields).toHaveProperty(
+      'email',
+      'Remove special characters from the email',
+    );
   });
 
   it('12. AC-13 & API-21: rate limits candidate searches to 60/min per user and evaluates limiter before slug check', async () => {

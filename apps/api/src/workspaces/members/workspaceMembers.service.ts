@@ -1,6 +1,7 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import {
   MEMBER_CANDIDATE_LIMIT,
+  MEMBER_MESSAGES,
   MEMBER_NOT_ADDABLE_MESSAGES,
   WORKSPACE_ROLES,
   WORKSPACE_ROLE_RANK,
@@ -12,6 +13,7 @@ import {
   type WorkspaceRole,
 } from '@repo/contracts';
 import { ApiException } from '../../common/apiException.js';
+import { duplicateMemberRowFields } from '../../common/memberRows.js';
 import { Clock } from '../../auth/clock.js';
 import type { MemberWorkspace } from '../repositories/workspaces.repository.js';
 import { WorkspaceMembersRepository } from './workspaceMembers.repository.js';
@@ -101,22 +103,12 @@ export class WorkspaceMembersService {
     requestId: string,
   ): Promise<AddWorkspaceMembersResponse> {
     // 1. Trùng userId (API-F3)
-    const seenUserIds = new Set<string>();
-    const duplicateFields: Record<string, string> = {};
-    dto.members.forEach((m, index) => {
-      if (seenUserIds.has(m.userId)) {
-        duplicateFields[`members.${index}.userId`] =
-          'This person is already in another row';
-      } else {
-        seenUserIds.add(m.userId);
-      }
-    });
-
+    const duplicateFields = duplicateMemberRowFields(dto.members);
     if (Object.keys(duplicateFields).length > 0) {
       throw new ApiException(
         HttpStatus.BAD_REQUEST,
         'VALIDATION_ERROR',
-        'Check the highlighted fields',
+        MEMBER_MESSAGES.checkFields,
         { fields: duplicateFields },
       );
     }
@@ -135,7 +127,7 @@ export class WorkspaceMembersService {
       throw new ApiException(
         HttpStatus.FORBIDDEN,
         'FORBIDDEN',
-        "You can't assign this role",
+        MEMBER_MESSAGES.roleNotAllowed,
       );
     }
 
@@ -161,7 +153,7 @@ export class WorkspaceMembersService {
       throw new ApiException(
         HttpStatus.FORBIDDEN,
         'FORBIDDEN',
-        "You don't have permission to do this",
+        MEMBER_MESSAGES.notAllowed,
       );
     }
 
@@ -184,7 +176,7 @@ export class WorkspaceMembersService {
       throw new ApiException(
         HttpStatus.CONFLICT,
         'MEMBERS_NOT_ADDABLE',
-        "Some people couldn't be added",
+        MEMBER_MESSAGES.someNotAdded,
         { fields },
       );
     }
