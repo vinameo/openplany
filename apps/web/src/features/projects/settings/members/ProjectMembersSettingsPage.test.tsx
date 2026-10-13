@@ -1,4 +1,6 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { Notifications } from "@mantine/notifications";
 import { AppUiProvider } from "@repo/ui";
 import type {
   ProjectListItem,
@@ -86,6 +88,7 @@ function renderMembersApp({
 
   const utils = render(
     <AppUiProvider>
+      <Notifications />
       <AuthProvider>
         <RouterProvider router={router} />
       </AuthProvider>
@@ -129,7 +132,7 @@ describe("ProjectMembersSettingsPage", () => {
     accountActive: true,
   };
 
-  it("AC-01: Nam without email view permission sees count, note, members table, NO email column, and NO add member button (ticket 06)", async () => {
+  it("AC-01: Nam without email view permission sees count, note, members table, NO email column, and sees Add member button", async () => {
     const workspaceNam = makeWorkspace({
       id: "ws-1",
       slug: "the-firsts",
@@ -158,8 +161,24 @@ describe("ProjectMembersSettingsPage", () => {
     expect(screen.queryByRole("columnheader", { name: /^email$/i })).not.toBeInTheDocument();
     expect(screen.queryByText("kai@openplany.dev")).not.toBeInTheDocument();
 
-    // Add member button is not shown in ticket 06
-    expect(screen.queryByRole("button", { name: /add member/i })).not.toBeInTheDocument();
+    // Add member button is visible
+    expect(screen.getByRole("button", { name: /^add member$/i })).toBeInTheDocument();
+  });
+
+  it("AC-05: Contributor without addableRoles does not see Add member button", async () => {
+    const membersData: ProjectMemberListResponse = {
+      members: [memberKai, memberNam],
+      total: 2,
+      truncated: false,
+      addableRoles: [], // no addable roles
+    };
+
+    renderMembersApp({
+      membersResponse: membersData,
+    });
+
+    expect(await screen.findByText(WORKSPACE_ADMINS_NOTE)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^add member$/i })).not.toBeInTheDocument();
   });
 
   it("AC-03: Kai with email view permission sees Email column with full email addresses", async () => {
@@ -271,13 +290,14 @@ describe("ProjectMembersSettingsPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("AC-39: displays No members yet when total is 0", async () => {
+  it("AC-39: displays No members yet and Add member button when total is 0 and canAddMember is true", async () => {
+    const user = userEvent.setup();
     renderMembersApp({
       membersResponse: {
         members: [],
         total: 0,
         truncated: false,
-        addableRoles: [],
+        addableRoles: ["admin", "contributor"],
       },
     });
 
@@ -285,5 +305,145 @@ describe("ProjectMembersSettingsPage", () => {
     expect(
       screen.queryByText("No members match your search"),
     ).not.toBeInTheDocument();
+
+    const addBtn = screen.getByRole("button", { name: /^add member$/i });
+    expect(addBtn).toBeInTheDocument();
+
+    // Clicking Add member opens modal
+    await user.click(addBtn);
+    expect(await screen.findByRole("dialog", { name: "Add member" })).toBeInTheDocument();
+  });
+
+  it("successfully adds members, updates table, updates count, shows toast, and clears candidate cache (AC-12, AC-44)", async () => {
+    const user = userEvent.setup();
+    const candidateAn = {
+      userId: "u-an",
+      firstName: "An",
+      lastName: "Nguyen",
+      displayName: "An Nguyen",
+      email: "an@openplany.dev",
+      avatarUrl: null,
+      status: "addable" as const,
+      addableRoles: ["contributor" as const, "commenter" as const, "guest" as const],
+    };
+
+    let searchCallCount = 0;
+
+    mockFetch({
+      "GET /api/auth/session": () => jsonResponse(200, makeSession()),
+      "GET /api/workspaces": () =>
+        jsonResponse(200, {
+          workspaces: [baseWorkspace],
+          lastWorkspaceSlug: "the-firsts",
+        }),
+      "GET /api/workspaces/the-firsts": () => jsonResponse(200, baseWorkspace),
+      "GET /api/workspaces/the-firsts/projects/TFP11": () =>
+        jsonResponse(200, { project: sampleProject }),
+      "GET /api/workspaces/the-firsts/projects/TFP11/members": () =>
+        jsonResponse(200, {
+          members: [memberKai],
+          total: 1,
+          truncated: false,
+          addableRoles: ["admin", "contributor", "commenter", "guest"],
+        }),
+      "GET /api/workspaces/the-firsts/projects/TFP11/member-candidates": () => {
+        searchCallCount += 1;
+        if (searchCallCount === 1) {
+          return jsonResponse(200, { candidates: [candidateAn] });
+        }
+        // Second search after add (AC-44): candidate now already_member!
+        return jsonResponse(200, {
+          candidates: [{ ...candidateAn, status: "already_member", addableRoles: [] }],
+        });
+      },
+      "POST /api/workspaces/the-firsts/projects/TFP11/members": () =>
+        jsonResponse(201, {
+          members: [
+            {
+              userId: "u-an",
+              firstName: "An",
+              lastName: "Nguyen",
+              displayName: "An Nguyen",
+              email: "an@openplany.dev",
+              avatarUrl: null,
+              role: "contributor",
+              assignedRole: "contributor",
+              roleLimited: false,
+              joinedAt: "2026-10-13T10:00:00.000Z",
+              accountActive: true,
+            },
+          ],
+          project: {
+            ...sampleProject,
+            memberCount: 2,
+          },
+        }),
+    });
+
+    const router = createMemoryRouter(appRoutes, {
+      initialEntries: ["/the-firsts/projects/TFP11/settings/members"],
+    });
+
+    render(
+      <AppUiProvider>
+        <Notifications />
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
+      </AppUiProvider>,
+    );
+
+    // Initial page shows Kai Tran
+    expect(await screen.findByText("Kai Tran")).toBeInTheDocument();
+
+    // Click Add member
+    const openModalBtn = screen.getByRole("button", { name: /^add member$/i });
+    await user.click(openModalBtn);
+
+    // Modal opens
+    const modal = await screen.findByRole("dialog", { name: "Add member" });
+    expect(modal).toBeInTheDocument();
+
+    // Search for An
+    const emailInput = screen.getByRole("textbox", { name: "Email" });
+    await user.type(emailInput, "an@");
+
+    await waitFor(() => {
+      expect(screen.getByText("an@openplany.dev")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("option", { name: /an@openplany\.dev/i }));
+
+    // Submit modal
+    const submitBtn = within(modal).getByRole("button", { name: "Add member" });
+    await user.click(submitBtn);
+
+    // Modal closes
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: "Add member" })).not.toBeInTheDocument();
+    });
+
+    // Toast appears
+    expect(await screen.findByText("Added 1 member")).toBeInTheDocument();
+
+    // Table now has An Nguyen
+    expect(
+      within(screen.getByRole("table")).getByText("an@openplany.dev"),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("table")).getAllByText("An Nguyen").length,
+    ).toBeGreaterThanOrEqual(1);
+
+    // AC-44: Reopen modal and search An again -> candidate query was cleared, calls API again and shows "Already in this project"
+    await user.click(screen.getByRole("button", { name: /^add member$/i }));
+    const modalAgain = await screen.findByRole("dialog", { name: "Add member" });
+    expect(modalAgain).toBeInTheDocument();
+
+    const emailInputAgain = within(modalAgain).getByRole("textbox", { name: "Email" });
+    await user.type(emailInputAgain, "an@");
+
+    await waitFor(() => {
+      expect(screen.getByText("Already in this project")).toBeInTheDocument();
+    });
   });
 });

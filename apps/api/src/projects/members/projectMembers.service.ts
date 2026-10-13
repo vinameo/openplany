@@ -1,23 +1,33 @@
-import { Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
 import {
   addableProjectRoleRange,
   addableProjectRoles,
   canAddProjectMembers,
   MEMBER_CANDIDATE_LIMIT,
+  MEMBER_MESSAGES,
+  PROJECT_ERROR_MESSAGES,
   PROJECT_MEMBER_LIST_MAX,
+  PROJECT_MEMBER_NOT_ADDABLE_FIELD,
+  PROJECT_MEMBER_NOT_ADDABLE_MESSAGES,
   PROJECT_ROLE_RANK,
   PROJECT_ROLES,
+  workspaceRolesWithImplicitProjectAccess,
+  type AddProjectMembersResponse,
   type ProjectActor,
   type ProjectMemberCandidate,
   type ProjectMemberCandidateListResponse,
   type ProjectMemberCandidateStatus,
   type ProjectMemberListResponse,
   type ProjectRole,
-  workspaceRolesWithImplicitProjectAccess,
 } from '@repo/contracts';
+import { Clock } from '../../auth/clock.js';
+import { ApiException } from '../../common/apiException.js';
+import { duplicateMemberRowFields } from '../../common/memberRows.js';
 import type { MemberWorkspace } from '../../workspaces/repositories/workspaces.repository.js';
 import type { AccessibleProject } from '../access/projectAccessResolver.js';
 import { ProjectEvents } from '../events/projectEvents.js';
+import { ProjectsService } from '../projects.service.js';
+import type { AddProjectMembersDto } from './dto/addProjectMembers.dto.js';
 import { toProjectMemberResponse } from './dto/projectMemberResponse.js';
 import { ProjectMembersRepository } from './projectMembers.repository.js';
 
@@ -26,6 +36,8 @@ export class ProjectMembersService {
   constructor(
     private readonly repository: ProjectMembersRepository,
     private readonly events: ProjectEvents,
+    private readonly projectsService: ProjectsService,
+    private readonly clock: Clock,
   ) {}
 
   async list(
@@ -156,5 +168,126 @@ export class ProjectMembersService {
 
     return { candidates };
   }
-}
 
+  async add(
+    workspace: MemberWorkspace,
+    accessible: AccessibleProject,
+    actorId: string,
+    dto: AddProjectMembersDto,
+    requestId?: string,
+  ): Promise<AddProjectMembersResponse> {
+    const actor: ProjectActor = {
+      userId: actorId,
+      workspaceRole: workspace.role,
+      effectiveRole: accessible.access.role,
+      permissions: accessible.access.permissions,
+    };
+
+    const includeEmail = workspace.permissions.includes(
+      'workspace.members.email.view',
+    );
+
+    const dup = duplicateMemberRowFields(dto.members);
+    if (Object.keys(dup).length > 0) {
+      throw new ApiException(
+        HttpStatus.BAD_REQUEST,
+        'VALIDATION_ERROR',
+        MEMBER_MESSAGES.checkFields,
+        { fields: dup },
+      );
+    }
+
+    const range = addableProjectRoleRange(actor);
+    if (dto.members.some((m) => !range.includes(m.role))) {
+      await this.events.addRoleForbidden({
+        projectId: accessible.project.id,
+        actorId,
+        requestId,
+      });
+      throw new ApiException(
+        HttpStatus.FORBIDDEN,
+        'FORBIDDEN',
+        MEMBER_MESSAGES.roleNotAllowed,
+      );
+    }
+
+    const result = await this.repository.addMembers({
+      workspaceId: workspace.id,
+      projectId: accessible.project.id,
+      actorId,
+      requestId: requestId ?? '',
+      now: this.clock.now(),
+      includeEmail,
+      members: dto.members,
+      canAdd: (a) =>
+        canAddProjectMembers(a.projectPermissions, a.workspacePermissions),
+      roleRange: (a) => addableProjectRoleRange(a.actor),
+      addableRolesFor: (a, target) => addableProjectRoles(a.actor, target),
+    });
+
+    if (result.status === 'project_gone') {
+      throw new ApiException(
+        HttpStatus.NOT_FOUND,
+        'PROJECT_NOT_FOUND',
+        PROJECT_ERROR_MESSAGES.notFound,
+      );
+    }
+
+    if (result.status === 'actor_forbidden') {
+      throw new ApiException(
+        HttpStatus.FORBIDDEN,
+        'FORBIDDEN',
+        MEMBER_MESSAGES.notAllowed,
+      );
+    }
+
+    if (result.status === 'role_forbidden') {
+      await this.events.addRoleForbidden({
+        projectId: accessible.project.id,
+        actorId,
+        requestId,
+      });
+      throw new ApiException(
+        HttpStatus.FORBIDDEN,
+        'FORBIDDEN',
+        MEMBER_MESSAGES.roleNotAllowed,
+      );
+    }
+
+    if (result.status === 'rejected') {
+      const fields: Record<string, string> = {};
+      for (const r of result.rows) {
+        const fieldName = PROJECT_MEMBER_NOT_ADDABLE_FIELD[r.reason];
+        fields[`members.${r.index}.${fieldName}`] =
+          PROJECT_MEMBER_NOT_ADDABLE_MESSAGES[r.reason];
+      }
+      throw new ApiException(
+        HttpStatus.CONFLICT,
+        'MEMBERS_NOT_ADDABLE',
+        MEMBER_MESSAGES.someNotAdded,
+        { fields },
+      );
+    }
+
+    const roles = Array.from(new Set(dto.members.map((m) => m.role)));
+    await this.events.membersAdded({
+      projectId: accessible.project.id,
+      workspaceId: workspace.id,
+      actorId,
+      actorRole: actor.effectiveRole,
+      count: result.members.length,
+      reactivatedCount: result.reactivatedCount,
+      roles,
+      requestId,
+    });
+
+    const { project } = await this.projectsService.get(workspace, accessible);
+
+    return {
+      members: result.members.map((m) =>
+        toProjectMemberResponse(m, { includeEmail }),
+      ),
+      project,
+    };
+  }
+}

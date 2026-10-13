@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { notifications } from '@mantine/notifications';
 import {
   DEFAULT_ADDED_PROJECT_ROLE,
   PROJECT_ROLE_LABELS,
@@ -10,6 +11,10 @@ import {
   type SubmitOutcome,
 } from '../../../members/AddMembersModalFrame';
 import {
+  addedMembersMessage,
+  SOMETHING_WENT_WRONG,
+} from '../../../members/membersMessages';
+import {
   highestRole,
   isTopRole,
   PROJECT_ROLE_SCHEME,
@@ -20,6 +25,7 @@ import {
   limitedToRoleMessage,
   PROJECT_ADMIN_NOTICE,
 } from './projectMembersMessages';
+import { useAddProjectMembers } from './useAddProjectMembers';
 
 export interface AddProjectMembersModalProps {
   opened: boolean;
@@ -43,6 +49,8 @@ export function AddProjectMembersModal({
   canSeeEmail,
   onSubmit,
 }: AddProjectMembersModalProps) {
+  const addMutation = useAddProjectMembers(slug, identifier);
+
   const defaultRole: ProjectRole = useMemo(() => {
     if (addableRoles.includes(DEFAULT_ADDED_PROJECT_ROLE)) {
       return DEFAULT_ADDED_PROJECT_ROLE;
@@ -67,8 +75,24 @@ export function AddProjectMembersModal({
 
   const handleSubmit = useMemo(() => {
     if (onSubmit) return onSubmit;
-    return async (): Promise<SubmitOutcome> => ({ kind: 'done' });
-  }, [onSubmit]);
+    return async (
+      body: { members: { userId: string; role: ProjectRole }[] },
+    ): Promise<SubmitOutcome> => {
+      try {
+        const res = await addMutation.mutateAsync(body);
+        const count = res.members.length;
+        notifications.show({
+          message: addedMembersMessage(count),
+        });
+        return { kind: 'done' };
+      } catch {
+        return {
+          kind: 'alert',
+          message: SOMETHING_WENT_WRONG,
+        };
+      }
+    };
+  }, [onSubmit, addMutation]);
 
   return (
     <AddMembersModalFrame<ProjectRole, ProjectMemberCandidate>

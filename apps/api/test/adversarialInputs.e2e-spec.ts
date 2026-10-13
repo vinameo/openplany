@@ -242,6 +242,51 @@ describe('Adversarial inputs (e2e)', () => {
     );
   });
 
+  it('POST /workspaces/:slug/projects/:identifier/members', async () => {
+    const ws = await seedWorkspace();
+    const admin = await newWorkspaceAdmin(ws.id);
+    const created = await http()
+      .post(`/api/workspaces/${ws.slug}/projects`)
+      .set('Cookie', admin.cookie)
+      .set('Origin', ORIGIN)
+      .send({
+        name: 'Project Members Target',
+        identifier: 'PMT',
+        description: 'Initial',
+        icon: { name: DEFAULT_PROJECT_ICON, color: DEFAULT_PROJECT_ICON_COLOR },
+        coverKey: DEFAULT_PROJECT_COVER,
+      })
+      .expect(201);
+    const identifier = created.body.project.identifier as string;
+    const projectId = created.body.project.id as string;
+
+    const cookieFor = rotatingCookie(async () => {
+      const u = await newWorkspaceAdmin(ws.id);
+      await e2e.dataSource.query(
+        `INSERT INTO project_members (project_id, workspace_id, member_id, role, role_scope, is_active, created_at, updated_at, joined_at)
+         VALUES ($1, $2, $3, 'admin', 'project', true, now(), now(), now())`,
+        [projectId, ws.id, u.id],
+      );
+      return u;
+    });
+
+    const targetUser = await newUser();
+    await e2e.dataSource.query(
+      `INSERT INTO workspace_members (workspace_id, member_id, role, is_active, created_at, updated_at, joined_at)
+       VALUES ($1, $2, 'member', true, now(), now(), now())`,
+      [ws.id, targetUser.id],
+    );
+
+    const valid = { members: [{ userId: targetUser.id, role: 'contributor' }] };
+    await expectNoServerErrors(adversarialBodies(valid), async (body, i) =>
+      http()
+        .post(`/api/workspaces/${ws.slug}/projects/${identifier}/members`)
+        .set('Cookie', await cookieFor(i))
+        .set('Origin', ORIGIN)
+        .send(body as object),
+    );
+  });
+
   it('POST /auth/sign-in', async () => {
     const user = await newUser();
     const valid = { email: user.email, password: 'Secret123!' };
@@ -253,3 +298,4 @@ describe('Adversarial inputs (e2e)', () => {
     );
   });
 });
+

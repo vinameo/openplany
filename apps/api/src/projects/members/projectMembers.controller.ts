@@ -1,7 +1,19 @@
-import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
-import type {
-  ProjectMemberCandidateListResponse,
-  ProjectMemberListResponse,
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ADD_PROJECT_MEMBERS_REQUIREMENT,
+  type AddProjectMembersResponse,
+  type ProjectMemberCandidateListResponse,
+  type ProjectMemberListResponse,
 } from '@repo/contracts';
 import type { Request } from 'express';
 import { CurrentUserId } from '../../auth/currentUser.decorator.js';
@@ -13,9 +25,11 @@ import {
   CurrentProject,
   ProjectMemberCandidateSearch,
   ProjectRead,
+  ProjectWrite,
 } from '../access/projectAccess.decorator.js';
 import { PROJECT_ROUTE_PARAM } from '../access/projectAccessGuard.js';
 import type { AccessibleProject } from '../access/projectAccessResolver.js';
+import { AddProjectMembersDto } from './dto/addProjectMembers.dto.js';
 import { ProjectMembersService } from './projectMembers.service.js';
 
 @Controller('workspaces/:slug')
@@ -50,5 +64,18 @@ export class ProjectMembersController {
       q.email,
       req.requestId,
     );
+  }
+
+  @Post(`projects/:${PROJECT_ROUTE_PARAM}/members`)
+  @ProjectWrite(ADD_PROJECT_MEMBERS_REQUIREMENT)
+  @HttpCode(HttpStatus.CREATED)
+  add(
+    @CurrentWorkspace() ws: MemberWorkspace,
+    @CurrentProject() project: AccessibleProject,
+    @CurrentUserId() userId: string,
+    @Body() dto: AddProjectMembersDto,
+    @Req() req: Request & { requestId?: string },
+  ): Promise<AddProjectMembersResponse> {
+    return this.service.add(ws, project, userId, dto, req.requestId);
   }
 }

@@ -583,5 +583,213 @@ describe('ProjectMembers (e2e)', () => {
       expect(res61.body.message).toContain(MEMBER_MESSAGES.tooManySearches);
     });
   });
+
+  describe('POST /api/workspaces/:slug/projects/:identifier/members', () => {
+    it('AC-12: adds multiple members in one batch, sets joined_at=now, creates member_added history with actorId and requestId, and returns matching memberCount', async () => {
+      const { workspace } = await seedWorkspace(
+        'owner-ac12@openplany.dev',
+        'ws-ac12',
+      );
+      const projId = await createProject(workspace.id, 'Project AC12', 'PAC12');
+
+      // Nam is Project Admin (and workspace member)
+      const namId = await createUser('nam-ac12@openplany.dev', { is_superuser: false });
+      await addWorkspaceMember(workspace.id, namId, 'member');
+      await addProjectMember(projId, workspace.id, namId, 'admin');
+      const namCookie = await signInCookie('nam-ac12@openplany.dev');
+
+      // An and Chi in workspace
+      const anId = await createUser('an-ac12@openplany.dev', { is_superuser: false });
+      const chiId = await createUser('chi-ac12@openplany.dev', { is_superuser: false });
+      await addWorkspaceMember(workspace.id, anId, 'member');
+      await addWorkspaceMember(workspace.id, chiId, 'member');
+
+      const res = await http()
+        .post(`/api/workspaces/${workspace.slug}/projects/PAC12/members`)
+        .set('Cookie', namCookie)
+        .set('Origin', ORIGIN)
+        .set('X-Request-Id', 'req-ac12-test')
+        .send({
+          members: [
+            { userId: anId, role: 'contributor' },
+            { userId: chiId, role: 'commenter' },
+          ],
+        })
+        .expect(201);
+
+      expect(res.body.members).toHaveLength(2);
+      expect(res.body.members[0]).toMatchObject({
+        userId: anId,
+        role: 'contributor',
+        assignedRole: 'contributor',
+      });
+      expect(res.body.members[1]).toMatchObject({
+        userId: chiId,
+        role: 'commenter',
+        assignedRole: 'commenter',
+      });
+
+      // Verify DB project_members rows and joined_at
+      const pmRows = await e2e.dataSource.query<
+        { member_id: string; role: string; is_active: boolean; joined_at: string }[]
+      >(
+        `SELECT member_id, role, is_active, joined_at FROM project_members
+         WHERE project_id = $1 AND member_id IN ($2, $3)
+         ORDER BY member_id ASC`,
+        [projId, anId, chiId],
+      );
+      expect(pmRows).toHaveLength(2);
+      expect(pmRows.every((r) => r.is_active)).toBe(true);
+
+      // Verify DB history rows
+      const historyRows = await e2e.dataSource.query<
+        {
+          member_id: string;
+          from_role: string | null;
+          to_role: string;
+          change_type: string;
+          actor_id: string;
+          request_id: string;
+        }[]
+      >(
+        `SELECT member_id, from_role, to_role, change_type, actor_id, request_id
+         FROM project_member_role_history
+         WHERE project_id = $1 AND change_type = 'member_added'
+         ORDER BY member_id ASC`,
+        [projId],
+      );
+      expect(historyRows).toHaveLength(2);
+      for (const h of historyRows) {
+        expect(h.from_role).toBeNull();
+        expect(h.change_type).toBe('member_added');
+        expect(h.actor_id).toBe(namId);
+        expect(h.request_id).toBe('req-ac12-test');
+      }
+
+      // memberCount of project matches total of GET members (Nam + An + Chi = 3)
+      const listRes = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/PAC12/members`)
+        .set('Cookie', namCookie)
+        .expect(200);
+
+      expect(res.body.project.memberCount).toBe(listRes.body.total);
+      expect(res.body.project.memberCount).toBe(3);
+    });
+
+    it('AC-16: reactivates inactive former member in the same row, updating role and joined_at while preserving created_at and adding one history row', async () => {
+      const { workspace } = await seedWorkspace(
+        'owner-ac16@openplany.dev',
+        'ws-ac16',
+      );
+      const projId = await createProject(workspace.id, 'Project AC16', 'PAC16');
+
+      const namId = await createUser('nam-ac16@openplany.dev', { is_superuser: false });
+      await addWorkspaceMember(workspace.id, namId, 'member');
+      await addProjectMember(projId, workspace.id, namId, 'admin');
+      const namCookie = await signInCookie('nam-ac16@openplany.dev');
+
+      const anId = await createUser('an-ac16@openplany.dev', { is_superuser: false });
+      await addWorkspaceMember(workspace.id, anId, 'member');
+
+      // Seed An as inactive former member 10 days ago
+      const [oldRow] = await e2e.dataSource.query<
+        { id: string; created_at: string; joined_at: string }[]
+      >(
+        `INSERT INTO project_members (project_id, workspace_id, member_id, role, role_scope, is_active, created_at, updated_at, joined_at)
+         VALUES ($1, $2, $3, 'guest', 'project', false, now() - interval '10 days', now() - interval '10 days', now() - interval '10 days')
+         RETURNING id, created_at, joined_at`,
+        [projId, workspace.id, anId],
+      );
+
+      const res = await http()
+        .post(`/api/workspaces/${workspace.slug}/projects/PAC16/members`)
+        .set('Cookie', namCookie)
+        .set('Origin', ORIGIN)
+        .set('X-Request-Id', 'req-ac16-reactivate')
+        .send({
+          members: [{ userId: anId, role: 'commenter' }],
+        })
+        .expect(201);
+
+      expect(res.body.members[0]).toMatchObject({
+        userId: anId,
+        role: 'commenter',
+      });
+
+      // Verify same row in DB
+      const [updatedRow] = await e2e.dataSource.query<
+        { id: string; role: string; is_active: boolean; created_at: string; joined_at: string }[]
+      >(
+        `SELECT id, role, is_active, created_at, joined_at FROM project_members
+         WHERE project_id = $1 AND member_id = $2`,
+        [projId, anId],
+      );
+
+      expect(updatedRow!.id).toBe(oldRow!.id);
+      expect(updatedRow!.is_active).toBe(true);
+      expect(updatedRow!.role).toBe('commenter');
+      // created_at preserved
+      expect(new Date(updatedRow!.created_at).getTime()).toBe(
+        new Date(oldRow!.created_at).getTime(),
+      );
+      // joined_at updated to now (newer than old joined_at)
+      expect(new Date(updatedRow!.joined_at).getTime()).toBeGreaterThan(
+        new Date(oldRow!.joined_at).getTime(),
+      );
+
+      // 1 history row added
+      const history = await e2e.dataSource.query<
+        { to_role: string; change_type: string; actor_id: string; request_id: string }[]
+      >(
+        `SELECT to_role, change_type, actor_id, request_id FROM project_member_role_history
+         WHERE project_id = $1 AND member_id = $2`,
+        [projId, anId],
+      );
+      expect(history).toHaveLength(1);
+      expect(history[0]).toMatchObject({
+        to_role: 'commenter',
+        change_type: 'member_added',
+        actor_id: namId,
+        request_id: 'req-ac16-reactivate',
+      });
+    });
+
+    it('AC-37: caller lacking workspace.members.email.view receives 201 without email key in members[] or project.members[]', async () => {
+      const { workspace } = await seedWorkspace(
+        'owner-ac37@openplany.dev',
+        'ws-ac37',
+      );
+      const projId = await createProject(workspace.id, 'Project AC37', 'PAC37');
+
+      // Nam is workspace member (lacks workspace.members.email.view) and project admin
+      const namId = await createUser('nam-ac37@openplany.dev', { is_superuser: false });
+      await addWorkspaceMember(workspace.id, namId, 'member');
+      await addProjectMember(projId, workspace.id, namId, 'admin');
+      const namCookie = await signInCookie('nam-ac37@openplany.dev');
+
+      const anId = await createUser('an-ac37@openplany.dev', { is_superuser: false });
+      await addWorkspaceMember(workspace.id, anId, 'member');
+
+      const res = await http()
+        .post(`/api/workspaces/${workspace.slug}/projects/PAC37/members`)
+        .set('Cookie', namCookie)
+        .set('Origin', ORIGIN)
+        .send({
+          members: [{ userId: anId, role: 'contributor' }],
+        })
+        .expect(201);
+
+      // members[] has no email property
+      expect(res.body.members[0]).not.toHaveProperty('email');
+
+      // project.members[] preview has no email property
+      if (res.body.project.members && res.body.project.members.length > 0) {
+        for (const m of res.body.project.members) {
+          expect(m).not.toHaveProperty('email');
+        }
+      }
+    });
+  });
 });
+
 

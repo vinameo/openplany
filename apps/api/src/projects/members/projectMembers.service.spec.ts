@@ -1,8 +1,18 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import {
+  MEMBER_MESSAGES,
+  PROJECT_ERROR_MESSAGES,
+  PROJECT_MEMBER_NOT_ADDABLE_MESSAGES,
+  type ProjectListItem,
+} from '@repo/contracts';
+import { FakeClock } from '../../../test/fakes/authFakes.js';
 import type { MemberWorkspace } from '../../workspaces/repositories/workspaces.repository.js';
 import type { AccessibleProject } from '../access/projectAccessResolver.js';
 import { FakeProjectEvents } from '../../../test/fakes/projectsFakes.js';
+import type { ProjectsService } from '../projects.service.js';
 import type {
+  AddProjectMembersInput,
+  AddProjectMembersResult,
   ListProjectMembersOpts,
   ProjectMemberCandidateDbRow,
   ProjectMembersRepository,
@@ -17,6 +27,8 @@ class FakeProjectMembersRepository implements ProjectMembersRepository {
   public total = 0;
   public lastOpts?: ListProjectMembersOpts;
   public lastSearchInput?: SearchProjectMemberCandidatesInput;
+  public addResult?: AddProjectMembersResult;
+  public lastAddInput?: AddProjectMembersInput;
 
   async list(
     _projectId: string,
@@ -35,12 +47,38 @@ class FakeProjectMembersRepository implements ProjectMembersRepository {
     this.lastSearchInput = input;
     return this.candidateRows;
   }
+
+  async addMembers(
+    input: AddProjectMembersInput,
+  ): Promise<AddProjectMembersResult> {
+    this.lastAddInput = input;
+    return (
+      this.addResult ?? {
+        status: 'added',
+        members: input.members.map((m) => ({
+          userId: m.userId,
+          firstName: 'User',
+          lastName: m.userId,
+          displayName: `User ${m.userId}`,
+          avatarUrl: null,
+          email: input.includeEmail ? `${m.userId}@example.com` : null,
+          assignedRole: m.role,
+          workspaceRole: 'member',
+          joinedAt: input.now,
+          accountActive: true,
+        })),
+        reactivatedCount: 0,
+      }
+    );
+  }
 }
 
 describe('ProjectMembersService', () => {
   let service: ProjectMembersService;
   let repo: FakeProjectMembersRepository;
   let events: FakeProjectEvents;
+  let clock: FakeClock;
+  let fakeProjectsService: ProjectsService;
 
   const workspace: MemberWorkspace = {
     id: 'ws-1',
@@ -76,11 +114,38 @@ describe('ProjectMembersService', () => {
     },
   };
 
+  const fakeProjectListItem: ProjectListItem = {
+    id: project.project.id,
+    name: project.project.name,
+    identifier: project.project.identifier,
+    description: project.project.description ?? '',
+    icon: { name: project.project.iconName, color: project.project.iconColor },
+    coverKey: project.project.coverKey ?? '',
+    createdAt: project.project.createdAt.toISOString(),
+    updatedAt: project.project.updatedAt.toISOString(),
+    timezone: project.project.timezone,
+    effectiveTimezone: 'UTC',
+    role: 'admin',
+    permissions: ['project.members.manage'],
+    memberCount: 3,
+    members: [],
+  };
+
   beforeEach(() => {
     repo = new FakeProjectMembersRepository();
     events = new FakeProjectEvents();
-    service = new ProjectMembersService(repo, events);
+    clock = new FakeClock(new Date('2026-10-10T12:00:00.000Z'));
+    fakeProjectsService = {
+      get: async () => ({ project: fakeProjectListItem }),
+    } as unknown as ProjectsService;
+    service = new ProjectMembersService(
+      repo,
+      events,
+      fakeProjectsService,
+      clock,
+    );
   });
+
 
   it('lists members with effective role, roleLimited, and includes email when permitted', async () => {
     repo.rows = [
@@ -348,5 +413,210 @@ describe('ProjectMembersService', () => {
       expect(res.candidates[0]!.addableRoles).toEqual(['guest']);
     });
   });
+
+  describe('add', () => {
+    it('rejects duplicate member rows with 400 VALIDATION_ERROR', async () => {
+      await expect(
+        service.add(
+          workspace,
+          project,
+          'actor-admin',
+          {
+            members: [
+              { userId: 'u-1', role: 'contributor' },
+              { userId: 'u-1', role: 'guest' },
+            ],
+          },
+          'req-1',
+        ),
+      ).rejects.toMatchObject({
+        status: 400,
+        code: 'VALIDATION_ERROR',
+        message: MEMBER_MESSAGES.checkFields,
+        fields: {
+          'members.1.userId': MEMBER_MESSAGES.rowDuplicate,
+        },
+      });
+    });
+
+    it('rejects role outside actor addableProjectRoleRange with 403 and records addRoleForbidden event', async () => {
+      // Contributor actor with manage permission cannot assign admin
+      const contributorProject: AccessibleProject = {
+        ...project,
+        access: {
+          role: 'contributor',
+          permissions: ['project.members.manage', 'project.members.view'],
+        },
+      };
+
+      await expect(
+        service.add(
+          workspace,
+          contributorProject,
+          'actor-contributor',
+          {
+            members: [{ userId: 'u-1', role: 'admin' }],
+          },
+          'req-forbidden-role',
+        ),
+      ).rejects.toMatchObject({
+        status: 403,
+        code: 'FORBIDDEN',
+        message: MEMBER_MESSAGES.roleNotAllowed,
+      });
+
+      expect(events.addRoleForbiddenEvents).toHaveLength(1);
+      expect(events.addRoleForbiddenEvents[0]).toEqual({
+        projectId: 'proj-1',
+        actorId: 'actor-contributor',
+        requestId: 'req-forbidden-role',
+      });
+    });
+
+    it('adds members, includes email when permitted, logs membersAdded, and returns project from projectsService.get', async () => {
+      const res = await service.add(
+        workspace,
+        project,
+        'actor-admin',
+        {
+          members: [
+            { userId: 'u-1', role: 'contributor' },
+            { userId: 'u-2', role: 'guest' },
+          ],
+        },
+        'req-add-success',
+      );
+
+      expect(res.members).toHaveLength(2);
+      expect(res.members[0]).toMatchObject({
+        userId: 'u-1',
+        email: 'u-1@example.com',
+        role: 'contributor',
+        assignedRole: 'contributor',
+      });
+      expect(res.project).toEqual(fakeProjectListItem);
+      expect(events.membersAddedEvents).toHaveLength(1);
+      expect(events.membersAddedEvents[0]).toMatchObject({
+        projectId: 'proj-1',
+        workspaceId: 'ws-1',
+        actorId: 'actor-admin',
+        actorRole: 'admin',
+        count: 2,
+        roles: ['contributor', 'guest'],
+        requestId: 'req-add-success',
+      });
+    });
+
+    it('omits email from response members when workspace lacks email.view', async () => {
+      const noEmailWorkspace: MemberWorkspace = {
+        ...workspace,
+        permissions: ['workspace.members.view'],
+      };
+
+      const res = await service.add(
+        noEmailWorkspace,
+        project,
+        'actor-admin',
+        {
+          members: [{ userId: 'u-1', role: 'contributor' }],
+        },
+        'req-no-email',
+      );
+
+      expect(res.members[0]!.email).toBeUndefined();
+    });
+
+    it('maps project_gone to 404 PROJECT_NOT_FOUND', async () => {
+      repo.addResult = { status: 'project_gone' };
+
+      await expect(
+        service.add(
+          workspace,
+          project,
+          'actor-admin',
+          { members: [{ userId: 'u-1', role: 'contributor' }] },
+          'req-gone',
+        ),
+      ).rejects.toMatchObject({
+        status: 404,
+        code: 'PROJECT_NOT_FOUND',
+        message: PROJECT_ERROR_MESSAGES.notFound,
+      });
+    });
+
+    it('maps actor_forbidden to 403 FORBIDDEN', async () => {
+      repo.addResult = { status: 'actor_forbidden' };
+
+      await expect(
+        service.add(
+          workspace,
+          project,
+          'actor-admin',
+          { members: [{ userId: 'u-1', role: 'contributor' }] },
+          'req-actor-forbidden',
+        ),
+      ).rejects.toMatchObject({
+        status: 403,
+        code: 'FORBIDDEN',
+        message: MEMBER_MESSAGES.notAllowed,
+      });
+    });
+
+    it('maps role_forbidden inside transaction to 403 and records addRoleForbidden event', async () => {
+      repo.addResult = { status: 'role_forbidden' };
+
+      await expect(
+        service.add(
+          workspace,
+          project,
+          'actor-admin',
+          { members: [{ userId: 'u-1', role: 'contributor' }] },
+          'req-tx-role-forbidden',
+        ),
+      ).rejects.toMatchObject({
+        status: 403,
+        code: 'FORBIDDEN',
+        message: MEMBER_MESSAGES.roleNotAllowed,
+      });
+
+      expect(events.addRoleForbiddenEvents).toHaveLength(1);
+    });
+
+    it('maps rejected row errors with field mapping for userId and role', async () => {
+      repo.addResult = {
+        status: 'rejected',
+        rows: [
+          { index: 0, reason: 'not_in_workspace' },
+          { index: 1, reason: 'role_not_allowed' },
+        ],
+      };
+
+      await expect(
+        service.add(
+          workspace,
+          project,
+          'actor-admin',
+          {
+            members: [
+              { userId: 'u-1', role: 'contributor' },
+              { userId: 'u-2', role: 'admin' },
+            ],
+          },
+          'req-rejected',
+        ),
+      ).rejects.toMatchObject({
+        status: 409,
+        code: 'MEMBERS_NOT_ADDABLE',
+        message: MEMBER_MESSAGES.someNotAdded,
+        fields: {
+          'members.0.userId':
+            PROJECT_MEMBER_NOT_ADDABLE_MESSAGES.not_in_workspace,
+          'members.1.role':
+            PROJECT_MEMBER_NOT_ADDABLE_MESSAGES.role_not_allowed,
+        },
+      });
+    });
+  });
 });
+
 
