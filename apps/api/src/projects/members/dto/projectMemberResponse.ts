@@ -53,6 +53,8 @@ export function toProjectMemberResponse(
         ? row.joinedAt.toISOString()
         : new Date(row.joinedAt).toISOString(),
     accountActive: row.accountActive,
+    source: 'assigned',
+    workspaceRole: row.workspaceRole,
   };
 
   if (opts.includeEmail && typeof row.email === 'string') {
@@ -61,3 +63,42 @@ export function toProjectMemberResponse(
 
   return res;
 }
+
+export interface InheritedMemberDbRow {
+  userId: string;
+  firstName: string | null;
+  lastName: string | null;
+  displayName: string | null;
+  avatarUrl: string | null;
+  email?: string | null;
+  workspaceRole: WorkspaceRole;
+  accountActive: boolean;
+}
+
+export function toInheritedProjectMemberResponse(
+  row: InheritedMemberDbRow,
+  opts: { includeEmail: boolean; policies: ProjectAccessPolicies },
+): ProjectMemberResponse {
+  const role = opts.policies[row.workspaceRole].implicitProjectRole!;
+  const res: ProjectMemberResponse = {
+    userId: row.userId,
+    firstName: row.firstName ?? '',
+    lastName: row.lastName ?? '',
+    displayName: row.displayName ?? '',
+    avatarUrl: row.avatarUrl ?? null,
+    role,
+    assignedRole: null,
+    roleLimited: false,
+    joinedAt: null,
+    accountActive: row.accountActive,
+    source: 'inherited',
+    workspaceRole: row.workspaceRole,
+  };
+
+  if (opts.includeEmail && typeof row.email === 'string') {
+    res.email = row.email;
+  }
+
+  return res;
+}
+

@@ -25,7 +25,7 @@ export interface MemberRowView<R extends string> {
   email?: string;
   avatarUrl?: string | null;
   role: R;
-  joinedAt: string;
+  joinedAt: string | null;
   accountActive: boolean;
 }
 
@@ -101,9 +101,17 @@ export function applyMemberListQuery<
         : (WORKSPACE_ROLE_RANK[b.role as keyof typeof WORKSPACE_ROLE_RANK] ?? 0);
       diff = factor * (rankA - rankB);
     } else if (key === 'joinedAt') {
-      diff =
-        factor *
-        (new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime());
+      if (a.joinedAt === null && b.joinedAt === null) {
+        diff = 0;
+      } else if (a.joinedAt === null) {
+        return 1;
+      } else if (b.joinedAt === null) {
+        return -1;
+      } else {
+        diff =
+          factor *
+          (new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime());
+      }
     } else if (key === 'fullName') {
       diff =
         factor * collator.compare(memberDisplayName(a), memberDisplayName(b));

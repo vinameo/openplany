@@ -23,17 +23,25 @@ import { ProjectAccessResolver } from '../access/projectAccessResolver.js';
 import { Project } from '../entities/project.entity.js';
 import { ProjectMember } from '../entities/projectMember.entity.js';
 import { ProjectMemberRoleHistory } from '../entities/projectMemberRoleHistory.entity.js';
-import { ACTIVE_PROJECT, projectMembersQuery } from '../projectFilters.js';
+import {
+  ACTIVE_PROJECT,
+  inheritedProjectMembersQuery,
+  projectMembersQuery,
+} from '../projectFilters.js';
 import type {
   AddProjectMembersActorContext,
   AddProjectMembersInput,
   AddProjectMembersResult,
+  ListInheritedProjectMembersOpts,
   ListProjectMembersOpts,
   ProjectMemberCandidateDbRow,
   ProjectMembersRepository,
   SearchProjectMemberCandidatesInput,
 } from './projectMembers.repository.js';
-import type { ProjectMemberDbRow } from './dto/projectMemberResponse.js';
+import type {
+  InheritedMemberDbRow,
+  ProjectMemberDbRow,
+} from './dto/projectMemberResponse.js';
 import { toProjectActor } from './projectMemberActor.js';
 
 interface RawCandidateRow {
@@ -64,7 +72,11 @@ export class TypeOrmProjectMembersRepository implements ProjectMembersRepository
     opts: ListProjectMembersOpts,
   ): Promise<{ members: ProjectMemberDbRow[]; total: number }> {
     const rows = await selectProjectMemberColumns(
-      projectMembersQuery(this.dataSource.manager, { projectId }),
+      projectMembersQuery(
+        this.dataSource.manager,
+        { projectId },
+        opts.implicitRoles,
+      ),
       opts.includeEmail,
     )
       .addSelect('count(*) OVER ()', 'total')
@@ -79,6 +91,55 @@ export class TypeOrmProjectMembersRepository implements ProjectMembersRepository
 
     const total = rows.length > 0 ? Number(rows[0]!.total) : 0;
     const members = rows.map((row) => toMemberDbRow(row, opts.includeEmail));
+
+    return { members, total };
+  }
+
+  async listInherited(
+    workspaceId: string,
+    opts: ListInheritedProjectMembersOpts,
+  ): Promise<{ members: InheritedMemberDbRow[]; total: number }> {
+    if (opts.implicitRoles.length === 0) {
+      return { members: [], total: 0 };
+    }
+    const qb = inheritedProjectMembersQuery(
+      this.dataSource.manager,
+      workspaceId,
+      opts.implicitRoles,
+    );
+
+    const total = await qb.clone().getCount();
+
+    qb.select('wm.memberId', 'userId')
+      .addSelect('u.firstName', 'firstName')
+      .addSelect('u.lastName', 'lastName')
+      .addSelect('u.displayName', 'displayName')
+      .addSelect('u.avatar', 'avatarUrl')
+      .addSelect('wm.role', 'workspaceRole')
+      .addSelect('u.isActive', 'accountActive')
+      .orderBy(
+        `lower(COALESCE(NULLIF(btrim(u.firstName || ' ' || u.lastName), ''), u.displayName))`,
+      )
+      .addOrderBy('wm.memberId')
+      .limit(opts.limit);
+
+    if (opts.includeEmail) {
+      qb.addSelect('u.email', 'email');
+    }
+
+    const rows = await qb.getRawMany<
+      InheritedMemberDbRow & { total: string | number }
+    >();
+    const members: InheritedMemberDbRow[] = rows.map((row) => ({
+      userId: row.userId,
+      firstName: row.firstName ?? '',
+      lastName: row.lastName ?? '',
+      displayName: row.displayName ?? '',
+      avatarUrl: row.avatarUrl ?? null,
+      email: opts.includeEmail && typeof row.email === 'string' ? row.email : null,
+      workspaceRole: row.workspaceRole,
+      accountActive: Boolean(row.accountActive),
+    }));
 
     return { members, total };
   }

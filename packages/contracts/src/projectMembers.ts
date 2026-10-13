@@ -27,6 +27,8 @@ export function canAddProjectMembers(
   );
 }
 
+export type ProjectMemberSource = 'assigned' | 'inherited';
+
 export interface ProjectMemberResponse {
   userId: string;
   firstName: string;
@@ -35,10 +37,12 @@ export interface ProjectMemberResponse {
   email?: string;
   avatarUrl: string | null;
   role: ProjectRole; // effective role
-  assignedRole: ProjectRole;
+  assignedRole: ProjectRole | null;
   roleLimited: boolean;
-  joinedAt: string; // ISO 8601
+  joinedAt: string | null; // ISO 8601
   accountActive: boolean;
+  source: ProjectMemberSource;
+  workspaceRole: WorkspaceRole;
 }
 
 export interface ProjectMemberListResponse {

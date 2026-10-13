@@ -32,6 +32,7 @@ import {
 import {
   ProjectsRepository,
   type CreateProjectInput,
+  type MembersOfOpts,
   type SoftDeleteProjectInput,
   type UpdateProjectInput,
 } from '../../src/projects/repositories/projects.repository.js';
@@ -92,12 +93,12 @@ export class FakeProjectsRepository extends ProjectsRepository {
   public updateError?: Error;
   public lastMembersOfQuery?: {
     projectIds: readonly string[];
-    opts: { includeEmail: boolean; limitPerProject: number };
+    opts: MembersOfOpts;
   };
 
   async membersOf(
     projectIds: readonly string[],
-    opts: { includeEmail: boolean; limitPerProject: number },
+    opts: MembersOfOpts,
   ): Promise<Map<string, ProjectMembersPreview>> {
     this.lastMembersOfQuery = { projectIds, opts };
     const res = new Map<string, ProjectMembersPreview>();

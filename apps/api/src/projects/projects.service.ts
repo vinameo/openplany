@@ -4,6 +4,7 @@ import {
   projectCreatorMembershipRole,
   PROJECT_ERROR_MESSAGES,
   PROJECT_MEMBER_PREVIEW_MAX,
+  workspaceRolesWithImplicitProjectAccess,
   type CreateProjectResponse,
   type ProjectListItem,
   type ProjectListResponse,
@@ -342,10 +343,18 @@ export class ProjectsService {
     const visible = rows
       .filter((r) => r.access.permissions.includes('project.members.view'))
       .map((r) => r.project.id);
+    const showInherited = workspace.permissions.includes(
+      'workspace.members.view',
+    );
+    const policies = this.policyStore.policies();
+    const implicitRoles = workspaceRolesWithImplicitProjectAccess(policies);
     const previews =
       visible.length === 0
         ? new Map<string, ProjectMembersPreview>()
         : await this.repository.membersOf(visible, {
+            workspaceId: workspace.id,
+            showInherited,
+            implicitRoles,
             includeEmail: workspace.permissions.includes(
               'workspace.members.email.view',
             ),

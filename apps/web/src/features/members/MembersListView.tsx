@@ -50,6 +50,8 @@ export interface MembersListViewProps<
   note?: ReactNode;
   alerts?: ReactNode;
   roleHint?: (m: M) => string | null;
+  roleBadge?: (m: M) => ReactNode;
+  isReadOnly?: (m: M) => boolean;
   emptyState?: ReactNode;
 }
 
@@ -66,6 +68,8 @@ export function MembersListView<
   note,
   alerts,
   roleHint,
+  roleBadge,
+  isReadOnly,
   emptyState,
 }: MembersListViewProps<R, M>) {
   const [search, setSearch] = useState('');
@@ -181,6 +185,8 @@ export function MembersListView<
               currentSort={sort}
               onSortChange={setSort}
               roleHint={roleHint}
+              roleBadge={roleBadge}
+              isReadOnly={isReadOnly}
             />
           )}
         </>

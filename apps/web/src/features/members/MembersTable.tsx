@@ -1,3 +1,4 @@
+import { type ReactNode } from 'react';
 import { Badge, Group, Table, Text, Tooltip, VisuallyHidden } from '@mantine/core';
 import type { WorkspaceRole } from '@repo/contracts';
 import { MemberAvatar } from './MemberAvatar';
@@ -23,6 +24,8 @@ export interface MembersTableProps<
   onSortChange: (sort: MemberSort) => void;
   caption?: string;
   roleHint?: (m: M) => string | null;
+  roleBadge?: (m: M) => ReactNode;
+  isReadOnly?: (m: M) => boolean;
 }
 
 export function MembersTable<
@@ -36,6 +39,8 @@ export function MembersTable<
   onSortChange,
   caption = 'Workspace members',
   roleHint,
+  roleBadge,
+  isReadOnly,
 }: MembersTableProps<R, M>) {
   return (
     <Table.ScrollContainer
@@ -98,7 +103,10 @@ export function MembersTable<
             const name = memberDisplayName(member);
             const hint = roleHint?.(member);
             return (
-              <Table.Tr key={member.userId}>
+              <Table.Tr
+                key={member.userId}
+                data-readonly={isReadOnly?.(member) || undefined}
+              >
                 <Table.Td className={dataTableClasses.stickyColumn}>
                   <Group gap="sm" wrap="nowrap">
                     <MemberAvatar
@@ -124,27 +132,37 @@ export function MembersTable<
                   </Table.Td>
                 )}
                 <Table.Td className={classes.roleCell}>
-                  {hint ? (
-                    <Tooltip
-                      label={hint}
-                      withArrow
-                      multiline
-                      events={{ hover: true, focus: true, touch: true }}
-                    >
-                      <span
-                        tabIndex={0}
-                        aria-label={hint}
-                        className={classes.roleHintWrapper}
+                  <Group gap="xs" wrap="nowrap">
+                    {hint ? (
+                      <Tooltip
+                        label={hint}
+                        withArrow
+                        multiline
+                        events={{ hover: true, focus: true, touch: true }}
                       >
-                        <Text size="sm">{scheme.labels[member.role]}</Text>
-                      </span>
-                    </Tooltip>
-                  ) : (
-                    <Text size="sm">{scheme.labels[member.role]}</Text>
-                  )}
+                        <span
+                          tabIndex={0}
+                          aria-label={hint}
+                          className={classes.roleHintWrapper}
+                        >
+                          <Text size="sm">{scheme.labels[member.role]}</Text>
+                        </span>
+                      </Tooltip>
+                    ) : (
+                      <Text size="sm">{scheme.labels[member.role]}</Text>
+                    )}
+                    {roleBadge?.(member)}
+                  </Group>
                 </Table.Td>
                 <Table.Td className={classes.dateCell}>
-                  <Text size="sm">{formatJoiningDate(member.joinedAt)}</Text>
+                  {member.joinedAt === null ? (
+                    <Text size="sm">
+                      <span aria-hidden="true">—</span>
+                      <VisuallyHidden>Not added to this project</VisuallyHidden>
+                    </Text>
+                  ) : (
+                    <Text size="sm">{formatJoiningDate(member.joinedAt)}</Text>
+                  )}
                 </Table.Td>
               </Table.Tr>
             );

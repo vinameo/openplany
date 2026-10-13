@@ -712,11 +712,11 @@ describe('Projects (e2e)', () => {
       expect(res.body.total).toBe(1);
       expect(res.body.projects[0].name).toBe('Adminless Project');
       expect(res.body.projects[0].role).toBe('admin');
-      // Admin is not in members array:
+      // Feature 13 Ticket 06: Active workspace admin is inherited into preview members
       const memberUserIds = res.body.projects[0].members.map(
         (m: { userId: string }) => m.userId,
       );
-      expect(memberUserIds).not.toContain(ownerId);
+      expect(memberUserIds).toContain(ownerId);
       expect(memberUserIds).toContain(memberId);
     });
 
@@ -1035,10 +1035,11 @@ describe('Projects (e2e)', () => {
 
   describe('POST /api/workspaces/:slug/projects', () => {
     it('AC-01 & AC-23: admin creates project -> 201; 1 member (creator, admin); 1 history row; response matches GET', async () => {
-      const { workspace, cookie: adminCookie } = await seedWorkspace(
-        'admin-create@openplany.dev',
-        'create-ws',
-      );
+      const {
+        workspace,
+        ownerId,
+        cookie: adminCookie,
+      } = await seedWorkspace('admin-create@openplany.dev', 'create-ws');
 
       const res = await http()
         .post(`/api/workspaces/${workspace.slug}/projects`)
@@ -1063,7 +1064,8 @@ describe('Projects (e2e)', () => {
       expect(proj.coverKey).toBe('cover-02');
       expect(proj.role).toBe('admin');
       expect(proj.permissions).toContain('project.members.view');
-      expect(proj.members).toHaveLength(0);
+      expect(proj.members).toHaveLength(1);
+      expect(proj.members[0].userId).toBe(ownerId);
       expect(proj.timezone).toBeNull();
       expect(proj.effectiveTimezone).toBe('UTC');
       expect(typeof proj.updatedAt).toBe('string');
@@ -1170,7 +1172,11 @@ describe('Projects (e2e)', () => {
         .expect(201);
 
       expect(res.body.project.role).toBe('admin');
-      expect(res.body.project.members[0].userId).toBe(memberId);
+      expect(
+        res.body.project.members.some(
+          (m: { userId: string }) => m.userId === memberId,
+        ),
+      ).toBe(true);
 
       // Verify DB tables (AC-09): Member has project_members and role history row
       const memberRows = await e2e.dataSource.query<

@@ -1,9 +1,10 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import {
   addableProjectRoleRange,
   addableProjectRoles,
   canAddProjectMembers,
   hasImplicitProjectAccess,
+  isProjectRoleOutOfRange,
   MEMBER_CANDIDATE_LIMIT,
   MEMBER_MESSAGES,
   PROJECT_ERROR_MESSAGES,
@@ -12,6 +13,7 @@ import {
   PROJECT_MEMBER_NOT_ADDABLE_MESSAGES,
   PROJECT_ROLE_RANK,
   PROJECT_ROLES,
+  workspaceRolesWithImplicitProjectAccess,
   type AddProjectMembersResponse,
   type ProjectAccessPolicies,
   type ProjectActor,
@@ -35,7 +37,10 @@ import type { AccessibleProject } from '../access/projectAccessResolver.js';
 import { ProjectEvents } from '../events/projectEvents.js';
 import { ProjectsService } from '../projects.service.js';
 import type { AddProjectMembersDto } from './dto/addProjectMembers.dto.js';
-import { toProjectMemberResponse } from './dto/projectMemberResponse.js';
+import {
+  toInheritedProjectMemberResponse,
+  toProjectMemberResponse,
+} from './dto/projectMemberResponse.js';
 import { canSeeMemberEmails, toProjectActor } from './projectMemberActor.js';
 import { ProjectMembersRepository } from './projectMembers.repository.js';
 
@@ -83,6 +88,8 @@ function rowRejection(
 
 @Injectable()
 export class ProjectMembersService {
+  private readonly logger = new Logger(ProjectMembersService.name);
+
   constructor(
     private readonly repository: ProjectMembersRepository,
     private readonly events: ProjectEvents,
@@ -108,20 +115,77 @@ export class ProjectMembersService {
       (a, b) => PROJECT_ROLE_RANK[b] - PROJECT_ROLE_RANK[a],
     );
 
-    const { members: rows, total } = await this.repository.list(
-      accessible.project.id,
-      {
+    const implicitRoles = workspaceRolesWithImplicitProjectAccess(policies);
+    const showInherited = workspace.permissions.includes('workspace.members.view');
+
+    const [assigned, inherited] = await Promise.all([
+      this.repository.list(accessible.project.id, {
         includeEmail,
         roleOrder,
         limit: PROJECT_MEMBER_LIST_MAX,
-      },
-    );
+        implicitRoles,
+      }),
+      showInherited && implicitRoles.length > 0
+        ? this.repository.listInherited(workspace.id, {
+            implicitRoles,
+            includeEmail,
+            limit: PROJECT_MEMBER_LIST_MAX,
+          })
+        : Promise.resolve({ members: [], total: 0 }),
+    ]);
 
-    const members = rows.map((row) =>
+    let outOfRangeCount = 0;
+    for (const row of assigned.members) {
+      if (
+        isProjectRoleOutOfRange(
+          { workspaceRole: row.workspaceRole, assignedRole: row.assignedRole },
+          policies,
+        )
+      ) {
+        outOfRangeCount++;
+      }
+    }
+    if (outOfRangeCount > 0) {
+      this.logger.warn(
+        `project.members.out_of_range projectId=${accessible.project.id} count=${outOfRangeCount}`,
+      );
+    }
+
+    const assignedMembers = assigned.members.map((row) =>
       toProjectMemberResponse(row, { includeEmail, policies }),
     );
+    const inheritedMembers = inherited.members.map((row) =>
+      toInheritedProjectMemberResponse(row, { includeEmail, policies }),
+    );
 
-    const truncated = total > members.length;
+    const total = assigned.total + inherited.total;
+
+    // When combined count exceeds PROJECT_MEMBER_LIST_MAX, keep inherited first
+    const remaining = Math.max(
+      0,
+      PROJECT_MEMBER_LIST_MAX - inheritedMembers.length,
+    );
+    const combined = [
+      ...inheritedMembers,
+      ...assignedMembers.slice(0, remaining),
+    ];
+
+    // Return order: role rank descending -> name -> memberId
+    combined.sort((a, b) => {
+      const rankDiff = PROJECT_ROLE_RANK[b.role] - PROJECT_ROLE_RANK[a.role];
+      if (rankDiff !== 0) return rankDiff;
+      const nameA = (
+        `${a.firstName} ${a.lastName}`.trim() || a.displayName
+      ).toLowerCase();
+      const nameB = (
+        `${b.firstName} ${b.lastName}`.trim() || b.displayName
+      ).toLowerCase();
+      const nameDiff = nameA.localeCompare(nameB);
+      if (nameDiff !== 0) return nameDiff;
+      return a.userId.localeCompare(b.userId);
+    });
+
+    const truncated = total > combined.length;
     if (truncated) {
       await this.events.membersListTruncated({
         projectId: accessible.project.id,
@@ -133,7 +197,7 @@ export class ProjectMembersService {
     const addableRoles = canAdd ? addableProjectRoleRange(actor, policies) : [];
 
     return {
-      members,
+      members: combined,
       total,
       truncated,
       addableRoles,

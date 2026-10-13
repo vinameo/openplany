@@ -12,6 +12,8 @@ import { Logger } from '@nestjs/common';
 import {
   MEMBER_MESSAGES,
   PROJECT_MEMBER_NOT_ADDABLE_MESSAGES,
+  type ProjectListItem,
+  type ProjectMemberResponse,
 } from '@repo/contracts';
 import { createE2eApp, type E2eApp } from './createE2eApp.js';
 import {
@@ -251,7 +253,7 @@ describe('ProjectMembers (e2e)', () => {
     });
 
     it('AC-04: Workspace Admin sees all project members including email', async () => {
-      const { workspace, cookie } = await seedWorkspace(
+      const { workspace, ownerId, cookie } = await seedWorkspace(
         'ws-admin-viewer@openplany.dev',
         'ws-admin-v',
       );
@@ -266,15 +268,29 @@ describe('ProjectMembers (e2e)', () => {
         .set('Cookie', cookie)
         .expect(200);
 
-      expect(res.body.total).toBe(1);
-      expect(res.body.members).toHaveLength(1);
-      expect(res.body.members[0]).toMatchObject({
+      expect(res.body.total).toBe(2);
+      expect(res.body.members).toHaveLength(2);
+      const m1Member = res.body.members.find(
+        (m: ProjectMemberResponse) => m.userId === m1,
+      );
+      expect(m1Member).toMatchObject({
         userId: m1,
         role: 'contributor',
         assignedRole: 'contributor',
         roleLimited: false,
         email: 'm1@openplany.dev',
         accountActive: true,
+      });
+      const ownerMember = res.body.members.find(
+        (m: ProjectMemberResponse) => m.userId === ownerId,
+      );
+      expect(ownerMember).toMatchObject({
+        userId: ownerId,
+        role: 'admin',
+        assignedRole: null,
+        source: 'inherited',
+        workspaceRole: 'admin',
+        email: 'ws-admin-viewer@openplany.dev',
       });
       expect(res.body.truncated).toBe(false);
       // Workspace admin has project.members.manage
@@ -306,9 +322,17 @@ describe('ProjectMembers (e2e)', () => {
         .set('Cookie', viewerCookie)
         .expect(200);
 
-      expect(res.body.members).toHaveLength(1);
-      expect(res.body.members[0].email).toBeUndefined();
-      expect(res.body.members[0].userId).toBe(viewerId);
+      expect(res.body.members).toHaveLength(2);
+      const viewerMember = res.body.members.find(
+        (m: ProjectMemberResponse) => m.userId === viewerId,
+      );
+      expect(viewerMember?.email).toBeUndefined();
+      expect(viewerMember?.userId).toBe(viewerId);
+      expect(
+        res.body.members.every(
+          (m: ProjectMemberResponse) => m.email === undefined,
+        ),
+      ).toBe(true);
     });
 
     it('AC-02: former workspace member (is_active=false) is excluded from members and total', async () => {
@@ -347,9 +371,18 @@ describe('ProjectMembers (e2e)', () => {
         .set('Cookie', cookie)
         .expect(200);
 
-      expect(res.body.total).toBe(1);
-      expect(res.body.members).toHaveLength(1);
-      expect(res.body.members[0].userId).toBe(activeMemberId);
+      expect(res.body.total).toBe(2);
+      expect(res.body.members).toHaveLength(2);
+      expect(
+        res.body.members.some(
+          (m: ProjectMemberResponse) => m.userId === activeMemberId,
+        ),
+      ).toBe(true);
+      expect(
+        res.body.members.some(
+          (m: ProjectMemberResponse) => m.userId === formerMemberId,
+        ),
+      ).toBe(false);
     });
 
     it('AC-05: viewer without project.members.manage receives addableRoles: []', async () => {
@@ -399,8 +432,11 @@ describe('ProjectMembers (e2e)', () => {
         .set('Cookie', cookie)
         .expect(200);
 
-      expect(res.body.members).toHaveLength(1);
-      expect(res.body.members[0]).toMatchObject({
+      expect(res.body.members).toHaveLength(2);
+      const guest = res.body.members.find(
+        (m: ProjectMemberResponse) => m.userId === guestMemberId,
+      );
+      expect(guest).toMatchObject({
         userId: guestMemberId,
         role: 'viewer',
         assignedRole: 'contributor',
@@ -427,15 +463,18 @@ describe('ProjectMembers (e2e)', () => {
         .set('Cookie', cookie)
         .expect(200);
 
-      expect(res.body.members).toHaveLength(1);
-      expect(res.body.members[0]).toMatchObject({
+      expect(res.body.members).toHaveLength(2);
+      const deact = res.body.members.find(
+        (m: ProjectMemberResponse) => m.userId === deactUserId,
+      );
+      expect(deact).toMatchObject({
         userId: deactUserId,
         accountActive: false,
       });
     });
 
     it('ignores unknown query parameters and returns 200', async () => {
-      const { workspace, cookie } = await seedWorkspace(
+      const { workspace, ownerId, cookie } = await seedWorkspace(
         'owner-query@openplany.dev',
         'ws-query',
       );
@@ -448,8 +487,9 @@ describe('ProjectMembers (e2e)', () => {
         .set('Cookie', cookie)
         .expect(200);
 
-      expect(res.body.total).toBe(0);
-      expect(res.body.members).toEqual([]);
+      expect(res.body.total).toBe(1);
+      expect(res.body.members).toHaveLength(1);
+      expect(res.body.members[0].userId).toBe(ownerId);
     });
   });
 
@@ -880,7 +920,7 @@ describe('ProjectMembers (e2e)', () => {
         .expect(200);
 
       expect(res.body.project.memberCount).toBe(listRes.body.total);
-      expect(res.body.project.memberCount).toBe(3);
+      expect(res.body.project.memberCount).toBe(4);
     });
 
     it('AC-16: reactivates inactive former member in the same row, updating role and joined_at while preserving created_at and adding one history row', async () => {
@@ -1644,6 +1684,143 @@ describe('ProjectMembers (e2e)', () => {
           debugSpy.mockRestore();
         }
       });
+    });
+  });
+
+  describe('Feature 13 Ticket 06: Inherited members in project member list (AC-10, AC-11, AC-23)', () => {
+    it('AC-10 & AC-11: combines assigned and active workspace admins, excludes deactivated workspace members', async () => {
+      const { workspace, ownerId, cookie } = await seedWorkspace(
+        'owner-ac10@openplany.dev',
+        'ws-ac10',
+      );
+
+      const admin2Id = await createUser('admin2-ac10@openplany.dev');
+      await addWorkspaceMember(workspace.id, admin2Id, 'admin', true);
+
+      const adminDeactivatedId = await createUser(
+        'admin-deactivated@openplany.dev',
+        { is_active: false },
+      );
+      await addWorkspaceMember(workspace.id, adminDeactivatedId, 'admin', true);
+
+      const adminLeftId = await createUser('admin-left@openplany.dev');
+      await addWorkspaceMember(workspace.id, adminLeftId, 'admin', false);
+
+      const projectId = await createProject(
+        workspace.id,
+        'Project AC10',
+        'PAC10',
+      );
+
+      const member1Id = await createUser('member1-ac10@openplany.dev');
+      await addWorkspaceMember(workspace.id, member1Id, 'member', true);
+      const member2Id = await createUser('member2-ac10@openplany.dev');
+      await addWorkspaceMember(workspace.id, member2Id, 'member', true);
+
+      await e2e.dataSource.query(
+        `INSERT INTO project_members (workspace_id, project_id, member_id, role, is_active, created_by_id, joined_at, created_at, updated_at)
+         VALUES ($1, $2, $3, 'contributor', true, $4, now(), now(), now()),
+                ($1, $2, $5, 'commenter', true, $4, now(), now(), now())`,
+        [workspace.id, projectId, member1Id, ownerId, member2Id],
+      );
+
+      const res = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/PAC10/members`)
+        .set('Cookie', cookie)
+        .expect(200);
+
+      expect(res.body.total).toBe(5);
+      expect(res.body.members).toHaveLength(5);
+
+      const inherited = res.body.members.filter(
+        (m: ProjectMemberResponse) => m.source === 'inherited',
+      );
+      expect(inherited).toHaveLength(3);
+      for (const m of inherited) {
+        expect(m.role).toBe('admin');
+        expect(m.assignedRole).toBeNull();
+        expect(m.joinedAt).toBeNull();
+        expect(m.workspaceRole).toBe('admin');
+      }
+
+      const deactivatedMember = inherited.find(
+        (m: ProjectMemberResponse) => m.userId === adminDeactivatedId,
+      );
+      expect(deactivatedMember).toBeDefined();
+      expect(deactivatedMember.accountActive).toBe(false);
+
+      const leftMember = res.body.members.find(
+        (m: ProjectMemberResponse) => m.userId === adminLeftId,
+      );
+      expect(leftMember).toBeUndefined();
+
+      const projectsRes = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', cookie)
+        .expect(200);
+
+      const proj = projectsRes.body.projects.find(
+        (p: ProjectListItem) => p.identifier === 'PAC10',
+      );
+      expect(proj).toBeDefined();
+      expect(proj.memberCount).toBe(5);
+    });
+
+    it('AC-23: omits inherited members when viewer lacks workspace.members.view', async () => {
+      const { workspace, ownerId } = await seedWorkspace(
+        'owner-ac23@openplany.dev',
+        'ws-ac23',
+      );
+      const projectId = await createProject(
+        workspace.id,
+        'Project AC23',
+        'PAC23',
+      );
+
+      const guestId = await createUser('guest-ac23@openplany.dev');
+      await addWorkspaceMember(workspace.id, guestId, 'guest', true);
+
+      await e2e.dataSource.query(
+        `INSERT INTO project_members (workspace_id, project_id, member_id, role, is_active, created_by_id, joined_at, created_at, updated_at)
+         VALUES ($1, $2, $3, 'viewer', true, $4, now(), now(), now())`,
+        [workspace.id, projectId, guestId, ownerId],
+      );
+
+      // Grant project.members.view to project viewer role (e.g. customized by instance admin)
+      await e2e.dataSource.query(
+        `INSERT INTO role_permissions (scope, role_key, permission_key)
+         VALUES ('project', 'viewer', 'project.members.view')
+         ON CONFLICT DO NOTHING`,
+      );
+
+      try {
+        const guestCookie = await signInCookie('guest-ac23@openplany.dev');
+
+        const res = await http()
+          .get(`/api/workspaces/${workspace.slug}/projects/PAC23/members`)
+          .set('Cookie', guestCookie)
+          .expect(200);
+
+        expect(res.body.total).toBe(1);
+        expect(res.body.members).toHaveLength(1);
+        expect(res.body.members[0].source).toBe('assigned');
+        expect(res.body.members[0].userId).toBe(guestId);
+
+        const projectsRes = await http()
+          .get(`/api/workspaces/${workspace.slug}/projects`)
+          .set('Cookie', guestCookie)
+          .expect(200);
+
+        const proj = projectsRes.body.projects.find(
+          (p: ProjectListItem) => p.identifier === 'PAC23',
+        );
+        expect(proj).toBeDefined();
+        expect(proj.memberCount).toBe(1);
+      } finally {
+        await e2e.dataSource.query(
+          `DELETE FROM role_permissions WHERE scope = 'project' AND role_key = 'viewer' AND permission_key = 'project.members.view'`,
+        );
+      }
     });
   });
 });

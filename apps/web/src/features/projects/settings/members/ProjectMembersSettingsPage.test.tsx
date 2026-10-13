@@ -122,6 +122,8 @@ describe("ProjectMembersSettingsPage", () => {
     roleLimited: false,
     joinedAt: "2026-10-12T10:00:00.000Z",
     accountActive: true,
+    source: "assigned",
+    workspaceRole: "member",
   };
 
   const memberNam: ProjectMemberResponse = {
@@ -136,9 +138,11 @@ describe("ProjectMembersSettingsPage", () => {
     roleLimited: false,
     joinedAt: "2026-10-12T10:00:00.000Z",
     accountActive: true,
+    source: "assigned",
+    workspaceRole: "member",
   };
 
-  it("AC-01: Nam without email view permission sees count, note, members table, NO email column, and sees Add member button", async () => {
+  it("AC-01: Nam without email view permission sees members table, NO note, NO email column, and sees Add member button", async () => {
     const workspaceNam = makeWorkspace({
       id: "ws-1",
       slug: "the-firsts",
@@ -159,9 +163,9 @@ describe("ProjectMembersSettingsPage", () => {
       membersResponse: membersData,
     });
 
-    expect(await screen.findByText(WORKSPACE_ADMINS_NOTE)).toBeInTheDocument();
-    expect(screen.getByText("Kai Tran")).toBeInTheDocument();
+    expect(await screen.findByText("Kai Tran")).toBeInTheDocument();
     expect(screen.getByText("Nam Nguyen")).toBeInTheDocument();
+    expect(screen.queryByText(WORKSPACE_ADMINS_NOTE)).not.toBeInTheDocument();
 
     // No Email column
     expect(
@@ -187,10 +191,50 @@ describe("ProjectMembersSettingsPage", () => {
       membersResponse: membersData,
     });
 
-    expect(await screen.findByText(WORKSPACE_ADMINS_NOTE)).toBeInTheDocument();
+    expect(await screen.findByText("Kai Tran")).toBeInTheDocument();
+    expect(screen.queryByText(WORKSPACE_ADMINS_NOTE)).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /^add member$/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it("AC-12: Inherited member renders Workspace Admin badge with tooltip and Joining date dash", async () => {
+    const inheritedKai: ProjectMemberResponse = {
+      userId: "u-kai-admin",
+      firstName: "Kai",
+      lastName: "Tran",
+      displayName: "kaitran",
+      email: "kai@openplany.dev",
+      avatarUrl: null,
+      role: "admin",
+      assignedRole: null,
+      roleLimited: false,
+      joinedAt: null,
+      accountActive: true,
+      source: "inherited",
+      workspaceRole: "admin",
+    };
+
+    const membersData: ProjectMemberListResponse = {
+      members: [inheritedKai],
+      total: 1,
+      truncated: false,
+      addableRoles: ["admin", "contributor", "commenter", "viewer"],
+    };
+
+    renderMembersApp({
+      membersResponse: membersData,
+    });
+
+    expect(await screen.findByText("Kai Tran")).toBeInTheDocument();
+
+    // Badge Workspace Admin exists
+    const badge = screen.getByText("Workspace Admin");
+    expect(badge).toBeInTheDocument();
+
+    // Joining date dash with accessible text
+    expect(screen.getByText("—")).toBeInTheDocument();
+    expect(screen.getByText("Not added to this project")).toBeInTheDocument();
   });
 
   it("AC-03: Kai with email view permission sees Email column with full email addresses", async () => {
@@ -239,6 +283,8 @@ describe("ProjectMembersSettingsPage", () => {
       roleLimited: true,
       joinedAt: "2026-10-12T10:00:00.000Z",
       accountActive: true,
+      source: "assigned",
+      workspaceRole: "guest",
     };
 
     renderMembersApp({
@@ -270,6 +316,8 @@ describe("ProjectMembersSettingsPage", () => {
       roleLimited: false,
       joinedAt: "2026-10-12T10:00:00.000Z",
       accountActive: false,
+      source: "assigned",
+      workspaceRole: "member",
     };
 
     renderMembersApp({
