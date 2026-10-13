@@ -53,5 +53,56 @@ export class FakeWorkspaceMembersRepository extends WorkspaceMembersRepository {
       }
     );
   }
+
+  public previewRoleChangeResult?: Awaited<
+    ReturnType<WorkspaceMembersRepository['previewRoleChange']>
+  >;
+  public previewRoleChangeInput?: unknown;
+  public changeRoleResult?: Awaited<
+    ReturnType<WorkspaceMembersRepository['changeRole']>
+  >;
+  public changeRoleInput?: unknown;
+
+  async previewRoleChange(
+    input: Parameters<WorkspaceMembersRepository['previewRoleChange']>[0],
+  ): Promise<
+    Awaited<ReturnType<WorkspaceMembersRepository['previewRoleChange']>>
+  > {
+    this.previewRoleChangeInput = input;
+    if (!this.previewRoleChangeResult) {
+      throw new Error(
+        'FakeWorkspaceMembersRepository.previewRoleChangeResult not set',
+      );
+    }
+    return this.previewRoleChangeResult;
+  }
+
+  async changeRole(
+    input: Parameters<WorkspaceMembersRepository['changeRole']>[0],
+  ): Promise<
+    Awaited<ReturnType<WorkspaceMembersRepository['changeRole']>>
+  > {
+    this.changeRoleInput = input;
+    return (
+      this.changeRoleResult ?? {
+        status: 'success',
+        member: {
+          userId: input.targetUserId,
+          firstName: 'Target',
+          lastName: 'User',
+          displayName: 'Target User',
+          email: 'target@example.com',
+          avatarUrl: null,
+          role: input.toRole,
+          accountActive: true,
+          joinedAt: new Date(),
+        },
+        fromRole: input.fromRole,
+        toRole: input.toRole,
+        effect: 'apply_project_role',
+        appliedProjectCount: 0,
+      }
+    );
+  }
 }
 

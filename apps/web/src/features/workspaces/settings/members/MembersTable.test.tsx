@@ -15,6 +15,7 @@ const mockMembers: WorkspaceMemberResponse[] = [
     role: "admin",
     accountActive: true,
     joinedAt: "2026-10-09T10:00:00.000Z",
+    assignableRoles: [],
   },
   {
     userId: "u-2",
@@ -26,6 +27,7 @@ const mockMembers: WorkspaceMemberResponse[] = [
     role: "admin",
     accountActive: true,
     joinedAt: "2026-10-11T10:00:00.000Z",
+    assignableRoles: [],
   },
   {
     userId: "u-3",
@@ -37,6 +39,7 @@ const mockMembers: WorkspaceMemberResponse[] = [
     role: "member",
     accountActive: false,
     joinedAt: "2026-10-11T10:00:00.000Z",
+    assignableRoles: [],
   },
 ];
 

@@ -1,4 +1,4 @@
-import { type ReactNode, useMemo, useState } from 'react';
+import { type ReactNode, useMemo, useState } from "react";
 import {
   Alert,
   Badge,
@@ -8,29 +8,29 @@ import {
   Stack,
   Text,
   Title,
-} from '@mantine/core';
-import { truncatedMembersMessage } from '@repo/contracts';
+} from "@mantine/core";
+import { truncatedMembersMessage } from "@repo/contracts";
 import {
   COULDNT_LOAD_MEMBERS,
   TRY_AGAIN,
   NO_MEMBERS_MATCH,
   CLEAR_SEARCH_AND_FILTERS,
-} from './membersMessages';
+} from "./membersMessages";
 import {
   applyMemberListQuery,
   DEFAULT_MEMBER_SORT,
   type MemberRowView,
   type MemberSort,
-} from './memberListView';
-import { MembersTable } from './MembersTable';
-import { MembersToolbar } from './MembersToolbar';
-import type { RoleScheme } from './roleScheme';
+} from "./memberListView";
+import { MembersTable } from "./MembersTable";
+import { MembersToolbar } from "./MembersToolbar";
+import type { RoleScheme } from "./roleScheme";
 
 export type MembersListState<M> =
-  | { status: 'loading' }
-  | { status: 'error'; retry: () => void }
+  | { status: "loading" }
+  | { status: "error"; retry: () => void }
   | {
-      status: 'ready';
+      status: "ready";
       members: readonly M[];
       total: number;
       truncated: boolean;
@@ -51,37 +51,36 @@ export interface MembersListViewProps<
   alerts?: ReactNode;
   roleHint?: (m: M) => string | null;
   roleBadge?: (m: M) => ReactNode;
+  roleControl?: (m: M, roleHint?: string | null) => ReactNode | null;
   isReadOnly?: (m: M) => boolean;
   emptyState?: ReactNode;
 }
 
-export function MembersListView<
-  R extends string,
-  M extends MemberRowView<R>,
->({
+export function MembersListView<R extends string, M extends MemberRowView<R>>({
   scheme,
   state,
   canSeeEmail,
   canAddMember,
   onAddMember,
-  title = 'Members',
+  title = "Members",
   note,
   alerts,
   roleHint,
   roleBadge,
+  roleControl,
   isReadOnly,
   emptyState,
 }: MembersListViewProps<R, M>) {
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const [roles, setRoles] = useState<R[]>([]);
   const [sort, setSort] = useState<MemberSort>(DEFAULT_MEMBER_SORT);
 
   const clearSearchAndFilters = () => {
-    setSearch('');
+    setSearch("");
     setRoles([]);
   };
 
-  const rawMembers = state.status === 'ready' ? state.members : undefined;
+  const rawMembers = state.status === "ready" ? state.members : undefined;
   const filteredMembers = useMemo(
     () =>
       applyMemberListQuery(
@@ -92,7 +91,7 @@ export function MembersListView<
     [rawMembers, search, roles, sort, canSeeEmail, scheme],
   );
 
-  if (state.status === 'loading') {
+  if (state.status === "loading") {
     return (
       <Stack gap="md">
         <Group gap="xs" align="center">
@@ -108,7 +107,7 @@ export function MembersListView<
     );
   }
 
-  if (state.status === 'error') {
+  if (state.status === "error") {
     return (
       <Stack gap="md">
         <Group gap="xs" align="center">
@@ -186,6 +185,7 @@ export function MembersListView<
               onSortChange={setSort}
               roleHint={roleHint}
               roleBadge={roleBadge}
+              roleControl={roleControl}
               isReadOnly={isReadOnly}
             />
           )}

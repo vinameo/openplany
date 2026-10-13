@@ -5,12 +5,18 @@ export const ENFORCED_WORKSPACE_PERMISSIONS = [
   'workspace.members.view',
   'workspace.members.email.view',
   'workspace.members.add',
+  'workspace.members.role.update',
   'workspace.projects.create',
   'workspace.projects.delete',
 ] as const satisfies readonly WorkspacePermission[];
 
 export type EnforcedWorkspacePermission =
   (typeof ENFORCED_WORKSPACE_PERMISSIONS)[number];
+
+export const CHANGE_WORKSPACE_ROLE_REQUIREMENT = [
+  'workspace.members.role.update',
+  'workspace.members.view',
+] as const satisfies readonly EnforcedWorkspacePermission[];
 
 export function parseWorkspacePermissions(
   keys: readonly string[],

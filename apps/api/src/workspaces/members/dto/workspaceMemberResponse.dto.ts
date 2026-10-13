@@ -1,7 +1,9 @@
-import type {
-  MemberCandidate,
-  WorkspaceMemberResponse,
-  WorkspaceRole,
+import {
+  type MemberCandidate,
+  type WorkspaceMemberResponse,
+  type WorkspaceRole,
+  type WorkspaceActor,
+  assignableWorkspaceRoles,
 } from '@repo/contracts';
 
 export interface WorkspaceMemberRow {
@@ -18,7 +20,7 @@ export interface WorkspaceMemberRow {
 
 export function toWorkspaceMemberResponse(
   row: WorkspaceMemberRow,
-  opts: { includeEmail: boolean },
+  opts: { includeEmail: boolean; actor?: WorkspaceActor },
 ): WorkspaceMemberResponse {
   const res: WorkspaceMemberResponse = {
     userId: row.userId,
@@ -29,6 +31,12 @@ export function toWorkspaceMemberResponse(
     role: row.role,
     joinedAt: new Date(row.joinedAt).toISOString(),
     accountActive: row.accountActive,
+    assignableRoles: opts.actor
+      ? assignableWorkspaceRoles(opts.actor, {
+          userId: row.userId,
+          role: row.role,
+        })
+      : [],
   };
 
   if (opts.includeEmail && row.email !== null && row.email !== undefined) {

@@ -40,6 +40,7 @@ describe('workspacePermissions', () => {
         'workspace.settings.view',
         'workspace.members.view',
         'workspace.members.email.view',
+        'workspace.members.role.update',
         'workspace.settings.update',
         'workspace.projects.create',
         'workspace.projects.delete',
@@ -48,6 +49,7 @@ describe('workspacePermissions', () => {
       'workspace.settings.update',
       'workspace.members.view',
       'workspace.members.email.view',
+      'workspace.members.role.update',
       'workspace.projects.create',
       'workspace.projects.delete',
     ]);

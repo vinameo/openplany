@@ -19,6 +19,8 @@ import { WorkspacesRepository } from './repositories/workspaces.repository.js';
 import {
   MEMBER_CANDIDATE_ALERT_LIMITER,
   MEMBER_CANDIDATE_LIMITER,
+  ROLE_CHANGE_PREVIEW_ALERT_LIMITER,
+  ROLE_CHANGE_PREVIEW_LIMITER,
   SLUG_CHECK_LIMITER,
   WORKSPACE_WRITE_LIMITER,
 } from './tokens.js';
@@ -26,6 +28,7 @@ import { WorkspaceMemberGuard } from './workspaceMemberGuard.js';
 import { WorkspacePermissionGuard } from './workspacePermissionGuard.js';
 import { WorkspaceWriteRateLimitGuard } from './workspaceWriteRateLimitGuard.js';
 import { MemberCandidateRateLimitGuard } from './members/memberCandidateRateLimitGuard.js';
+import { RoleChangePreviewRateLimitGuard } from './members/roleChangePreviewRateLimitGuard.js';
 import { WorkspacesController } from './workspaces.controller.js';
 import { WorkspacesService } from './workspaces.service.js';
 import { WorkspaceMembersController } from './members/workspaceMembers.controller.js';
@@ -33,15 +36,26 @@ import { WorkspaceMembersService } from './members/workspaceMembers.service.js';
 import { WorkspaceMembersRepository } from './members/workspaceMembers.repository.js';
 import { TypeOrmWorkspaceMembersRepository } from './members/typeOrmWorkspaceMembers.repository.js';
 
+import { ProjectAccessModule } from '../projects/access/projectAccess.module.js';
+import { RolesModule } from '../roles/roles.module.js';
+import { Project } from '../projects/entities/project.entity.js';
+import { ProjectMember } from '../projects/entities/projectMember.entity.js';
+import { ProjectMemberRoleHistory } from '../projects/entities/projectMemberRoleHistory.entity.js';
+
 @Module({
   imports: [
     AuthModule,
+    RolesModule,
+    ProjectAccessModule,
     TypeOrmModule.forFeature([
       User,
       Workspace,
       WorkspaceMember,
       WorkspaceMemberRoleHistory,
       RolePermission,
+      Project,
+      ProjectMember,
+      ProjectMemberRoleHistory,
     ]),
   ],
   controllers: [WorkspacesController, WorkspaceMembersController],
@@ -52,6 +66,7 @@ import { TypeOrmWorkspaceMembersRepository } from './members/typeOrmWorkspaceMem
     WorkspacePermissionGuard,
     WorkspaceWriteRateLimitGuard,
     MemberCandidateRateLimitGuard,
+    RoleChangePreviewRateLimitGuard,
     {
       provide: WorkspacesRepository,
       useClass: TypeOrmWorkspacesRepository,
@@ -83,6 +98,16 @@ import { TypeOrmWorkspaceMembersRepository } from './members/typeOrmWorkspaceMem
       provide: MEMBER_CANDIDATE_ALERT_LIMITER,
       useFactory: () =>
         new InMemorySlidingWindowLimiter({ limit: 1, windowMs: 600_000 }),
+    },
+    {
+      provide: ROLE_CHANGE_PREVIEW_LIMITER,
+      useFactory: () =>
+        new InMemorySlidingWindowLimiter({ limit: 60, windowMs: 60_000 }),
+    },
+    {
+      provide: ROLE_CHANGE_PREVIEW_ALERT_LIMITER,
+      useFactory: () =>
+        new InMemorySlidingWindowLimiter({ limit: 1, windowMs: 60_000 }),
     },
   ],
   exports: [

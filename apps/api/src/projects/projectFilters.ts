@@ -1,9 +1,16 @@
 import {
+  In,
   type EntityManager,
   type FindOptionsWhere,
   IsNull,
   type SelectQueryBuilder,
 } from 'typeorm';
+import {
+  PROJECT_ROLES,
+  WORKSPACE_ROLES,
+  isProjectAdminRole,
+  isWorkspaceAdminRole,
+} from '@repo/contracts';
 import { User } from '../auth/entities/user.entity.js';
 import { WorkspaceMember } from '../workspaces/entities/workspaceMember.entity.js';
 import type { Project } from './entities/project.entity.js';
@@ -63,3 +70,48 @@ export function inheritedProjectMembersQuery(
     .andWhere('wm.role IN (:...implicitRoles)', { implicitRoles });
 }
 
+function isQueryBuilder(
+  target: EntityManager | SelectQueryBuilder<ProjectMember>,
+): target is SelectQueryBuilder<ProjectMember> {
+  return 'connection' in target && 'expressionMap' in target;
+}
+
+/**
+ * Counts assigned Project Admins grouped by project for a set of projectIds (DB B3.2, DB-04).
+ * Uses the project member filter (active membership, active user, non-implicit workspace role)
+ * and groups by pm.projectId in a single query.
+ */
+export async function assignedProjectAdmins(
+  managerOrQb: EntityManager | SelectQueryBuilder<ProjectMember>,
+  projectIds: readonly string[],
+  implicitRoles: readonly string[] = WORKSPACE_ROLES.filter(
+    isWorkspaceAdminRole,
+  ),
+): Promise<Map<string, number>> {
+  if (projectIds.length === 0) {
+    return new Map();
+  }
+
+  const projectAdminRoles = PROJECT_ROLES.filter(isProjectAdminRole);
+  const qb = isQueryBuilder(managerOrQb)
+    ? managerOrQb
+    : projectMembersQuery(
+        managerOrQb,
+        { projectId: In(projectIds) },
+        implicitRoles,
+      );
+
+  const rows = await qb
+    .select('pm.projectId', 'projectId')
+    .addSelect('count(*)', 'count')
+    .andWhere('u.isActive = :userActive', { userActive: true })
+    .andWhere('pm.role IN (:...projectAdminRoles)', { projectAdminRoles })
+    .groupBy('pm.projectId')
+    .getRawMany<{ projectId: string; count: string | number }>();
+
+  const map = new Map<string, number>();
+  for (const row of rows) {
+    map.set(row.projectId, Number(row.count));
+  }
+  return map;
+}

@@ -63,7 +63,11 @@ describe('TypeOrmProjectAccessResolver', () => {
     } as unknown as Project;
   }
 
-  function makeMember(projectId: string, memberId: string, role: ProjectRole): ProjectMember {
+  function makeMember(
+    projectId: string,
+    memberId: string,
+    role: ProjectRole,
+  ): ProjectMember {
     return {
       projectId,
       memberId,
@@ -98,7 +102,11 @@ describe('TypeOrmProjectAccessResolver', () => {
       if (entity === Project) return [p1, p2, p3];
       if (entity === RolePermission) {
         return [
-          { scope: 'project', roleKey: 'viewer', permissionKey: 'project.workitems.view' },
+          {
+            scope: 'project',
+            roleKey: 'viewer',
+            permissionKey: 'project.workitems.view',
+          },
         ];
       }
       return [];
@@ -194,5 +202,90 @@ describe('TypeOrmProjectAccessResolver', () => {
     expect(warnSpy).toHaveBeenCalledWith(
       'project.role.out_of_range userId=u-1 workspaceRole=member count=1 projectId=p-1',
     );
+  });
+
+  describe('filterAccessible', () => {
+    it('returns empty set immediately when projectIds is empty', async () => {
+      mockManager.find = vi.fn();
+      const viewer: ProjectViewer = {
+        workspaceId: 'ws-1',
+        userId: 'u-1',
+        workspaceRole: 'admin',
+      };
+
+      const result = await resolver.filterAccessible(viewer, []);
+
+      expect(result.size).toBe(0);
+      expect(mockManager.find).not.toHaveBeenCalled();
+    });
+
+    it('returns accessible project IDs for role with implicit access', async () => {
+      const viewer: ProjectViewer = {
+        workspaceId: 'ws-1',
+        userId: 'u-admin',
+        workspaceRole: 'admin',
+      };
+
+      const p1 = makeProject('p-1', 'PR1');
+      const p2 = makeProject('p-2', 'PR2');
+
+      mockManager.find = vi.fn().mockImplementation(async (entity: unknown) => {
+        if (entity === ProjectMember) return [];
+        if (entity === Project) return [p1, p2];
+        return [];
+      });
+
+      const result = await resolver.filterAccessible(viewer, [
+        'p-1',
+        'p-2',
+        'p-3',
+      ]);
+
+      expect(result).toEqual(new Set(['p-1', 'p-2']));
+    });
+
+    it('returns only member project IDs for role without implicit access', async () => {
+      const viewer: ProjectViewer = {
+        workspaceId: 'ws-1',
+        userId: 'u-member',
+        workspaceRole: 'member',
+      };
+
+      const m1 = makeMember('p-1', 'u-member', 'contributor');
+      const p1 = makeProject('p-1', 'PR1');
+
+      mockManager.find = vi.fn().mockImplementation(async (entity: unknown) => {
+        if (entity === ProjectMember) return [m1];
+        if (entity === Project) return [p1];
+        return [];
+      });
+
+      const result = await resolver.filterAccessible(viewer, [
+        'p-1',
+        'p-2',
+        'p-3',
+      ]);
+
+      expect(result).toEqual(new Set(['p-1']));
+    });
+
+    it('returns empty set when member has no project memberships', async () => {
+      const viewer: ProjectViewer = {
+        workspaceId: 'ws-1',
+        userId: 'u-member',
+        workspaceRole: 'member',
+      };
+
+      mockManager.find = vi.fn().mockImplementation(async (entity: unknown) => {
+        if (entity === ProjectMember) return [];
+        return [];
+      });
+
+      const result = await resolver.filterAccessible(viewer, ['p-1', 'p-2']);
+
+      expect(result.size).toBe(0);
+      // Project entity should not be queried since candidateIds is empty
+      expect(mockManager.find).toHaveBeenCalledTimes(1);
+    });
   });
 });

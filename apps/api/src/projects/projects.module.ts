@@ -12,10 +12,7 @@ import { RolePermission } from '../roles/entities/rolePermission.entity.js';
 import { WorkspaceMember } from '../workspaces/entities/workspaceMember.entity.js';
 import { WorkspacesModule } from '../workspaces/workspaces.module.js';
 import { ProjectAccessGuard } from './access/projectAccessGuard.js';
-import {
-  ProjectAccessResolver,
-  TypeOrmProjectAccessResolver,
-} from './access/projectAccessResolver.js';
+import { ProjectAccessModule } from './access/projectAccess.module.js';
 import { Project } from './entities/project.entity.js';
 import { ProjectMember } from './entities/projectMember.entity.js';
 import { ProjectMemberRoleHistory } from './entities/projectMemberRoleHistory.entity.js';
@@ -41,6 +38,7 @@ import { RolesModule } from '../roles/roles.module.js';
     AuthModule,
     WorkspacesModule,
     RolesModule,
+    ProjectAccessModule,
     TypeOrmModule.forFeature([
       Project,
       ProjectMember,
@@ -63,10 +61,6 @@ import { RolesModule } from '../roles/roles.module.js';
       useClass: TypeOrmProjectMembersRepository,
     },
     {
-      provide: ProjectAccessResolver,
-      useClass: TypeOrmProjectAccessResolver,
-    },
-    {
       provide: ProjectEvents,
       useClass: LoggingProjectEvents,
     },
@@ -87,7 +81,7 @@ import { RolesModule } from '../roles/roles.module.js';
     ProjectsRepository,
     ProjectMembersService,
     ProjectMembersRepository,
-    ProjectAccessResolver,
+    ProjectAccessModule,
     ProjectAccessGuard,
     ProjectEvents,
     PROJECT_LOOKUP_LIMITER,

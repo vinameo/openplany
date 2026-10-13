@@ -1,17 +1,21 @@
-import type { WorkspaceRole } from './workspace.js';
+import type { WorkspaceRole } from "./workspace.js";
 import type {
   EnforcedWorkspacePermission,
   WorkspacePermission,
-} from './workspacePermissions.js';
-import type { EnforcedProjectPermission, ProjectPermission } from './projectPermissions.js';
-import type { ProjectRole } from './projectRoles.js';
-import type { ProjectListItem } from './project.js';
+} from "./workspacePermissions.js";
+import type {
+  EnforcedProjectPermission,
+  ProjectPermission,
+} from "./projectPermissions.js";
+import type { ProjectRole } from "./projectRoles.js";
+import type { ProjectListItem } from "./project.js";
+import { MEMBER_MESSAGES } from "./memberMessages.js";
 
 export const PROJECT_MEMBER_LIST_MAX = 1000;
 
 export const ADD_PROJECT_MEMBERS_REQUIREMENT = {
-  project: 'project.members.manage',
-  workspace: 'workspace.members.view',
+  project: "project.members.manage",
+  workspace: "workspace.members.view",
 } as const satisfies {
   project: EnforcedProjectPermission;
   workspace: EnforcedWorkspacePermission;
@@ -27,7 +31,7 @@ export function canAddProjectMembers(
   );
 }
 
-export type ProjectMemberSource = 'assigned' | 'inherited';
+export type ProjectMemberSource = "assigned" | "inherited";
 
 export interface ProjectMemberResponse {
   userId: string;
@@ -53,9 +57,9 @@ export interface ProjectMemberListResponse {
 }
 
 export const PROJECT_MEMBER_CANDIDATE_STATUSES = [
-  'addable',
-  'already_member',
-  'workspace_admin',
+  "addable",
+  "already_member",
+  "workspace_admin",
 ] as const;
 export type ProjectMemberCandidateStatus =
   (typeof PROJECT_MEMBER_CANDIDATE_STATUSES)[number];
@@ -86,11 +90,11 @@ export interface AddProjectMembersResponse {
 }
 
 export const PROJECT_MEMBER_NOT_ADDABLE_REASONS = [
-  'unavailable',
-  'not_in_workspace',
-  'workspace_admin',
-  'already_member',
-  'role_not_allowed',
+  "unavailable",
+  "not_in_workspace",
+  "workspace_admin",
+  "already_member",
+  "role_not_allowed",
 ] as const;
 export type ProjectMemberNotAddableReason =
   (typeof PROJECT_MEMBER_NOT_ADDABLE_REASONS)[number];
@@ -99,20 +103,20 @@ export const PROJECT_MEMBER_NOT_ADDABLE_MESSAGES: Record<
   ProjectMemberNotAddableReason,
   string
 > = {
-  already_member: 'Already a member of this project',
-  not_in_workspace: 'This person is no longer in this workspace.',
+  already_member: "Already a member of this project",
+  not_in_workspace: "This person is no longer in this workspace.",
   unavailable: "This person can't be added. Their account may be deactivated.",
-  role_not_allowed: "This role isn't allowed for their workspace role.",
-  workspace_admin: 'Workspace Admins can already access every project.',
+  role_not_allowed: MEMBER_MESSAGES.roleOutOfRange,
+  workspace_admin: "Workspace Admins can already access every project.",
 };
 
 export const PROJECT_MEMBER_NOT_ADDABLE_FIELD: Record<
   ProjectMemberNotAddableReason,
-  'userId' | 'role'
+  "userId" | "role"
 > = {
-  unavailable: 'userId',
-  not_in_workspace: 'userId',
-  workspace_admin: 'userId',
-  already_member: 'userId',
-  role_not_allowed: 'role',
+  unavailable: "userId",
+  not_in_workspace: "userId",
+  workspace_admin: "userId",
+  already_member: "userId",
+  role_not_allowed: "role",
 };

@@ -36,11 +36,45 @@ export interface WorkspaceMembersAddedEvent {
   roles: Partial<Record<WorkspaceRole, number>>;
 }
 
+export interface WorkspaceMemberRoleChangedEvent {
+  workspaceId: string;
+  actorId: string;
+  targetId: string;
+  fromRole: WorkspaceRole;
+  toRole: WorkspaceRole;
+  effect: string;
+  appliedProjectCount: number;
+  requestId?: string;
+}
+
+export interface WorkspaceMemberRoleForbiddenEvent {
+  workspaceId: string;
+  actorId: string;
+  targetId: string;
+  requestId?: string;
+}
+
+export interface WorkspaceMemberRoleLastAdminEvent {
+  workspaceId: string;
+  actorId: string;
+  targetId: string;
+  requestId?: string;
+}
+
 export abstract class WorkspaceEvents {
   abstract updated(event: WorkspaceUpdatedEvent): Promise<void>;
   abstract memberCandidatesSearched(
     event: MemberCandidatesSearchedEvent,
   ): Promise<void>;
   abstract membersAdded(event: WorkspaceMembersAddedEvent): Promise<void>;
+  abstract memberRoleChanged(
+    event: WorkspaceMemberRoleChangedEvent,
+  ): Promise<void>;
+  abstract memberRoleForbidden(
+    event: WorkspaceMemberRoleForbiddenEvent,
+  ): Promise<void>;
+  abstract memberRoleLastAdmin(
+    event: WorkspaceMemberRoleLastAdminEvent,
+  ): Promise<void>;
 }
 

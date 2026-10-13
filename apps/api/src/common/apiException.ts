@@ -18,6 +18,10 @@ export const API_ERROR_CODES = [
   'PROJECT_NAME_TAKEN',
   'PROJECT_IDENTIFIER_TAKEN',
   'PROJECT_NOT_FOUND',
+  'ROLE_UNCHANGED',
+  'PROJECT_ROLE_NOT_ALLOWED',
+  'ROLE_CHANGED',
+  'LAST_ADMIN',
   'INTERNAL_ERROR',
 ] as const;
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number];

@@ -1,0 +1,12 @@
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mantine-spacing-md);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--mantine-spacing-sm);
+  margin-top: var(--mantine-spacing-md);
+}

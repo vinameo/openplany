@@ -19,6 +19,7 @@ describe("memberListView", () => {
         role: "member",
         accountActive: true,
         joinedAt: "2026-10-08T00:00:00.000Z",
+        assignableRoles: [],
       };
       expect(memberDisplayName(member)).toBe("Tran Van A");
     });
@@ -33,6 +34,7 @@ describe("memberListView", () => {
         role: "guest",
         accountActive: true,
         joinedAt: "2026-10-08T00:00:00.000Z",
+        assignableRoles: [],
       };
       expect(memberDisplayName(memberEmpty)).toBe("user_two");
 
@@ -45,6 +47,7 @@ describe("memberListView", () => {
         role: "admin",
         accountActive: false,
         joinedAt: "2026-10-08T00:00:00.000Z",
+        assignableRoles: [],
       };
       expect(memberDisplayName(memberWhitespace)).toBe("user_three");
     });
@@ -80,6 +83,7 @@ describe("memberListView", () => {
         role: "admin",
         accountActive: true,
         joinedAt: "2026-10-01T00:00:00.000Z",
+        assignableRoles: [],
       },
       {
         userId: "u-2",
@@ -91,6 +95,7 @@ describe("memberListView", () => {
         role: "member",
         accountActive: true,
         joinedAt: "2026-10-05T00:00:00.000Z",
+        assignableRoles: [],
       },
       {
         userId: "u-3",
@@ -102,6 +107,7 @@ describe("memberListView", () => {
         role: "guest",
         accountActive: true,
         joinedAt: "2026-10-03T00:00:00.000Z",
+        assignableRoles: [],
       },
       {
         userId: "u-4",
@@ -113,6 +119,7 @@ describe("memberListView", () => {
         role: "admin",
         accountActive: true,
         joinedAt: "2026-10-02T00:00:00.000Z",
+        assignableRoles: [],
       },
     ];
 

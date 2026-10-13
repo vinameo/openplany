@@ -115,5 +115,9 @@ A role whose permission set can never be changed: Workspace Admin and Project Ad
 **Permission guardrail**:
 A rule that limits which permissions a role may be given: only same-level permissions, deleting a workspace for Admins only, and view-only permissions for workspace Guests and Viewers.
 
+**Change role**:
+Giving a workspace member or a project member a different role. A workspace role change also changes the person's role in every project they are in, following the project access policy; whoever makes the change sees that effect before confirming. Nobody can change their own role.
+_Avoid_: Promote/demote (fine in prose, not as a term)
+
 **Last Admin**:
-The only active Admin left in a workspace. They cannot be demoted or removed, and cannot leave, so the workspace is never left without someone to manage it.
+The only active Admin left in a workspace. They cannot be demoted or removed, and cannot leave, so the workspace is never left without someone to manage it. Two Admins demoting each other at the same moment cannot both succeed.

@@ -5,6 +5,7 @@ import {
   isRoleLocked,
   isViewOnlyRole,
   isWorkspaceAdminRole,
+  isProjectAdminRole,
   permissionGrantProblem,
   permissionRevokeProblem,
   scopeOfPermission,
@@ -127,6 +128,13 @@ describe("rolePermissionRules", () => {
     expect(isWorkspaceAdminRole("admin")).toBe(true);
     expect(isWorkspaceAdminRole("member")).toBe(false);
     expect(isWorkspaceAdminRole("guest")).toBe(false);
+  });
+
+  it("isProjectAdminRole is true only for the locked project role", () => {
+    expect(isProjectAdminRole("admin")).toBe(true);
+    expect(isProjectAdminRole("contributor")).toBe(false);
+    expect(isProjectAdminRole("commenter")).toBe(false);
+    expect(isProjectAdminRole("viewer")).toBe(false);
   });
 
   it("permissionRevokeProblem only reports ROLE_LOCKED for locked roles", () => {

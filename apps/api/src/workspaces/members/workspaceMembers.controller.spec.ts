@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { WorkspaceMembersController } from './workspaceMembers.controller.js';
 import { MemberCandidateRateLimitGuard } from './memberCandidateRateLimitGuard.js';
+import { RoleChangePreviewRateLimitGuard } from './roleChangePreviewRateLimitGuard.js';
 import { WorkspaceMemberGuard } from '../workspaceMemberGuard.js';
 import { WorkspacePermissionGuard } from '../workspacePermissionGuard.js';
 
@@ -13,6 +14,11 @@ describe('WorkspaceMembersController', () => {
   const addFn = Object.getOwnPropertyDescriptor(
     WorkspaceMembersController.prototype,
     'add',
+  )?.value as object;
+
+  const previewFn = Object.getOwnPropertyDescriptor(
+    WorkspaceMembersController.prototype,
+    'preview',
   )?.value as object;
 
   it('API-21: guards on candidate search endpoint are in correct order', () => {
@@ -38,5 +44,26 @@ describe('WorkspaceMembersController', () => {
     expect(perm).toBe('workspace.members.add');
     expect(guards).toBeDefined();
     expect(guards.length).toBe(3);
+  });
+
+  it('API B3: guards on role change preview endpoint are in correct order', () => {
+    const guards = Reflect.getMetadata('__guards__', previewFn);
+    const perm = Reflect.getMetadata('workspacePermission', previewFn);
+
+    expect(perm).toEqual([
+      'workspace.members.role.update',
+      'workspace.members.view',
+    ]);
+    expect(guards).toBeDefined();
+
+    const rateLimitIdx = guards.indexOf(RoleChangePreviewRateLimitGuard);
+    const memberIdx = guards.indexOf(WorkspaceMemberGuard);
+    const permIdx = guards.indexOf(WorkspacePermissionGuard);
+
+    expect(rateLimitIdx).toBeGreaterThanOrEqual(0);
+    expect(memberIdx).toBeGreaterThanOrEqual(0);
+    expect(permIdx).toBeGreaterThanOrEqual(0);
+    // Decorators evaluate bottom-to-top so UseGuards(RoleChangePreviewRateLimitGuard) executes after WorkspaceRead guards
+    expect(memberIdx).toBeLessThan(permIdx);
   });
 });

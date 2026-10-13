@@ -1,25 +1,14 @@
-import type { QueryClient } from "@tanstack/react-query";
 import { request } from "../../../../../lib/apiClient";
 import type {
   AddWorkspaceMembersRequest,
   AddWorkspaceMembersResponse,
+  ChangeWorkspaceRoleRequest,
+  ChangeWorkspaceRoleResponse,
   MemberCandidateListResponse,
   WorkspaceMemberListResponse,
+  WorkspaceRole,
+  WorkspaceRoleChangePreview,
 } from "@repo/contracts";
-
-export const workspaceMemberKeys = {
-  candidates: (slug: string, query?: string) =>
-    query !== undefined
-      ? (["workspaces", slug, "member-candidates", query] as const)
-      : (["workspaces", slug, "member-candidates"] as const),
-};
-
-export function clearWorkspaceMemberCandidates(
-  qc: QueryClient,
-  slug: string,
-): void {
-  qc.removeQueries({ queryKey: ["workspaces", slug, "member-candidates"] });
-}
 
 export const membersApi = {
   list: (slug: string, signal?: AbortSignal) =>
@@ -44,4 +33,32 @@ export const membersApi = {
         signal,
       },
     ),
+
+  previewRoleChange: (
+    slug: string,
+    userId: string,
+    role: WorkspaceRole,
+    signal?: AbortSignal,
+  ) =>
+    request<WorkspaceRoleChangePreview>(
+      `/api/workspaces/${encodeURIComponent(slug)}/members/${encodeURIComponent(userId)}/role-change-preview?role=${encodeURIComponent(role)}`,
+      { signal },
+    ),
+
+  changeRole: (
+    slug: string,
+    userId: string,
+    body: ChangeWorkspaceRoleRequest,
+    signal?: AbortSignal,
+  ) =>
+    request<ChangeWorkspaceRoleResponse>(
+      `/api/workspaces/${encodeURIComponent(slug)}/members/${encodeURIComponent(userId)}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal,
+      },
+    ),
 };
+

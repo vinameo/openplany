@@ -28,6 +28,7 @@ const baseMembersResponse: WorkspaceMemberListResponse = {
       role: "admin",
       accountActive: true,
       joinedAt: "2026-10-08T12:00:00.000Z",
+      assignableRoles: [],
     },
     {
       userId: "u-member",
@@ -39,6 +40,7 @@ const baseMembersResponse: WorkspaceMemberListResponse = {
       role: "member",
       accountActive: false,
       joinedAt: "2026-10-08T12:00:00.000Z",
+      assignableRoles: [],
     },
   ],
   total: 2,
@@ -185,6 +187,7 @@ describe("MembersSettingsPage", () => {
           role: "admin",
           accountActive: false,
           joinedAt: "2026-10-08T12:00:00.000Z",
+          assignableRoles: [],
         },
         {
           userId: "u-member",
@@ -196,6 +199,7 @@ describe("MembersSettingsPage", () => {
           role: "member",
           accountActive: true,
           joinedAt: "2026-10-08T12:00:00.000Z",
+          assignableRoles: [],
         },
       ],
     };
@@ -351,6 +355,154 @@ describe("MembersSettingsPage", () => {
 
     await screen.findByRole("heading", { name: "Members", level: 2 });
     expect(screen.queryByRole("button", { name: "Add member" })).not.toBeInTheDocument();
+  });
+
+  it("AC-16: renders plain text role for self and RoleSelectCell for member with multiple assignableRoles", async () => {
+    const membersWithAssignableRoles: WorkspaceMemberListResponse = {
+      members: [
+        {
+          userId: "user-1", // self (matching makeSession user-1)
+          firstName: "Admin",
+          lastName: "Alice",
+          displayName: "alice",
+          email: "alice@example.com",
+          avatarUrl: null,
+          role: "admin",
+          accountActive: true,
+          joinedAt: "2026-10-08T12:00:00.000Z",
+          assignableRoles: ["admin"],
+        },
+        {
+          userId: "u-bob",
+          firstName: "Bob",
+          lastName: "Builder",
+          displayName: "bob",
+          email: "bob@example.com",
+          avatarUrl: null,
+          role: "guest",
+          accountActive: true,
+          joinedAt: "2026-10-08T12:00:00.000Z",
+          assignableRoles: ["guest", "member"],
+        },
+      ],
+      total: 2,
+      truncated: false,
+      addableRoles: ["member", "guest"],
+    };
+
+    renderMembersApp({}, membersWithAssignableRoles);
+
+    await screen.findByRole("heading", { name: "Members", level: 2 });
+
+    // Self should NOT have a combobox
+    expect(
+      screen.queryByRole("combobox", { name: "Role for Admin Alice" }),
+    ).not.toBeInTheDocument();
+
+    // Bob should have a combobox
+    const bobSelect = screen.getByRole("combobox", { name: "Role for Bob Builder" });
+    expect(bobSelect).toBeInTheDocument();
+    expect(bobSelect).toHaveValue("Guest");
+  });
+
+  it("AC-17: selecting different role opens modal, retains table role on cancel without PATCH", async () => {
+    const user = userEvent.setup();
+    const membersWithAssignableRoles: WorkspaceMemberListResponse = {
+      members: [
+        {
+          userId: "user-1",
+          firstName: "Admin",
+          lastName: "Alice",
+          displayName: "alice",
+          email: "alice@example.com",
+          avatarUrl: null,
+          role: "admin",
+          accountActive: true,
+          joinedAt: "2026-10-08T12:00:00.000Z",
+          assignableRoles: ["admin"],
+        },
+        {
+          userId: "u-bob",
+          firstName: "Bob",
+          lastName: "Builder",
+          displayName: "bob",
+          email: "bob@example.com",
+          avatarUrl: null,
+          role: "guest",
+          accountActive: true,
+          joinedAt: "2026-10-08T12:00:00.000Z",
+          assignableRoles: ["guest", "member"],
+        },
+      ],
+      total: 2,
+      truncated: false,
+      addableRoles: ["member", "guest"],
+    };
+
+    let patchCalled = false;
+    renderMembersApp(
+      {},
+      membersWithAssignableRoles,
+      {
+        "GET /api/workspaces/openstudy/members/u-bob/role-change-preview": () =>
+          jsonResponse(200, {
+            userId: "u-bob",
+            fromRole: "guest",
+            toRole: "member",
+            effect: "apply_project_role",
+            affectedProjects: {
+              projects: [{ id: "p-1", name: "Alpha", identifier: "ALP" }],
+              total: 1,
+              hiddenCount: 0,
+            },
+            projectsLosingAssignedAdmin: {
+              projects: [],
+              total: 0,
+              hiddenCount: 0,
+            },
+            projectRoleChoices: ["member", "admin", "viewer"],
+            defaultProjectRole: "member",
+            actorCanChooseProjectRole: true,
+          }),
+        "PATCH /api/workspaces/openstudy/members/u-bob": () => {
+          patchCalled = true;
+          return jsonResponse(200, {
+            userId: "u-bob",
+            role: "member",
+            accountActive: true,
+            joinedAt: "2026-10-08T12:00:00.000Z",
+            assignableRoles: ["guest", "member"],
+          });
+        },
+      },
+    );
+
+    await screen.findByRole("heading", { name: "Members", level: 2 });
+
+    const bobSelect = screen.getByRole("combobox", { name: "Role for Bob Builder" });
+    await user.click(bobSelect);
+
+    const memberOption = await screen.findByRole("option", { name: "Member" });
+    await user.click(memberOption);
+
+    // Modal opens
+    const modalTitle = await screen.findByText("Change Bob Builder's role to Member?");
+    expect(modalTitle).toBeInTheDocument();
+
+    // Bob select in table still displays Guest (table retains old role while modal is open)
+    expect(bobSelect).toHaveValue("Guest");
+
+    // Click Cancel
+    const cancelBtn = screen.getByRole("button", { name: "Cancel" });
+    await user.click(cancelBtn);
+
+    // Modal closes
+    await waitFor(() => {
+      expect(screen.queryByText("Change Bob Builder's role to Member?")).not.toBeInTheDocument();
+    });
+
+    expect(patchCalled).toBe(false);
+    expect(bobSelect).toHaveValue("Guest");
   });
 });
 
