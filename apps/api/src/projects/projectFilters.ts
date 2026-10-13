@@ -5,7 +5,12 @@ import {
   IsNull,
   type SelectQueryBuilder,
 } from 'typeorm';
-import { PROJECT_ROLES, isProjectAdminRole } from '@repo/contracts';
+import {
+  PROJECT_ROLES,
+  WORKSPACE_ROLES,
+  isProjectAdminRole,
+  isWorkspaceAdminRole,
+} from '@repo/contracts';
 import { User } from '../auth/entities/user.entity.js';
 import { WorkspaceMember } from '../workspaces/entities/workspaceMember.entity.js';
 import type { Project } from './entities/project.entity.js';
@@ -79,7 +84,9 @@ function isQueryBuilder(
 export async function assignedProjectAdmins(
   managerOrQb: EntityManager | SelectQueryBuilder<ProjectMember>,
   projectIds: readonly string[],
-  implicitRoles: readonly string[] = ['admin'],
+  implicitRoles: readonly string[] = WORKSPACE_ROLES.filter(
+    isWorkspaceAdminRole,
+  ),
 ): Promise<Map<string, number>> {
   if (projectIds.length === 0) {
     return new Map();
