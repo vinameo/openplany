@@ -295,6 +295,7 @@ describe('ProjectMembersService', () => {
         avatarUrl: null,
         status: 'addable',
         addableRoles: ['admin', 'contributor', 'commenter'],
+        workspaceRole: 'member',
       });
 
       expect(events.candidateSearchedEvents).toHaveLength(1);

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { MemberCandidate, ProjectRole } from "@repo/contracts";
+import type {
+  MemberCandidate,
+  ProjectRole,
+  WorkspaceRole,
+} from "@repo/contracts";
 import {
   addMemberRowsReducer,
   createInitialRow,
@@ -7,7 +11,15 @@ import {
   toAddMembersRequest,
   type AddMemberRow,
 } from "./addMembersRows";
-import { PROJECT_ROLE_SCHEME, highestRole } from "./roleScheme";
+import {
+  PROJECT_ROLE_SCHEME,
+  highestRole,
+  closestRole,
+} from "./roleScheme";
+import {
+  limitedToRoleMessage,
+  roleRaisedHint,
+} from "../projects/settings/members/projectMembersMessages";
 
 describe("addMembersRows", () => {
   const candidate1: MemberCandidate = {
@@ -266,4 +278,162 @@ describe("addMembersRows", () => {
       expect(updated[0]!.roleError).toBe("Role is invalid");
     });
   });
+
+  describe("closestRole (WEB B3.2)", () => {
+    it("returns null if allowedRoles is empty", () => {
+      expect(closestRole(PROJECT_ROLE_SCHEME, "viewer", [])).toBeNull();
+    });
+
+    it("picks highest permitted with rank <= currentRole (lowered)", () => {
+      // admin (rank 40), allowed: viewer(10), commenter(20), contributor(30)
+      const res = closestRole(PROJECT_ROLE_SCHEME, "admin", [
+        "viewer",
+        "commenter",
+        "contributor",
+      ]);
+      expect(res).toEqual({ role: "contributor", reason: "lowered" });
+    });
+
+    it("picks lowest permitted with rank > currentRole when none <= currentRole (raised)", () => {
+      // viewer (rank 10), allowed: commenter(20), contributor(30), admin(40)
+      const res = closestRole(PROJECT_ROLE_SCHEME, "viewer", [
+        "admin",
+        "contributor",
+        "commenter",
+      ]);
+      expect(res).toEqual({ role: "commenter", reason: "raised" });
+    });
+  });
+
+  describe("closest role in project modal with rank and roleNotice (WEB B3.2, AC-24)", () => {
+    interface ProjectCandidateWithWs {
+      userId: string;
+      workspaceRole: WorkspaceRole;
+      addableRoles: ProjectRole[];
+    }
+
+    const projectClosestCtx = {
+      defaultRole: "contributor" as ProjectRole,
+      rolesFor: (c: ProjectCandidateWithWs) => c.addableRoles,
+      rank: PROJECT_ROLE_SCHEME.rank,
+      roleNotice: ({
+        role,
+        reason,
+        candidate,
+      }: {
+        role: ProjectRole;
+        reason: "lowered" | "raised";
+        candidate: ProjectCandidateWithWs;
+      }) => {
+        if (reason === "lowered") {
+          return limitedToRoleMessage(PROJECT_ROLE_SCHEME.labels[role]);
+        }
+        return roleRaisedHint(candidate.workspaceRole, role);
+      },
+    };
+
+    it("Guest candidate with viewer only lowers Contributor to Viewer with lowered notice", () => {
+      const initialRow: AddMemberRow<ProjectRole, ProjectCandidateWithWs> = {
+        id: "row-1",
+        candidate: null,
+        role: "contributor",
+        error: null,
+        roleError: null,
+        roleNotice: null,
+      };
+
+      const guestCandidate: ProjectCandidateWithWs = {
+        userId: "u-guest",
+        workspaceRole: "guest",
+        addableRoles: ["viewer"],
+      };
+
+      const updated = addMemberRowsReducer(
+        [initialRow],
+        { type: "select", id: "row-1", candidate: guestCandidate },
+        projectClosestCtx,
+      );
+
+      expect(updated[0]!.role).toBe("viewer");
+      expect(updated[0]!.roleNotice).toBe(
+        "Limited to Viewer by their workspace role.",
+      );
+    });
+
+    it("Guest candidate preserves Viewer when current role is already Viewer with no notice", () => {
+      const initialRow: AddMemberRow<ProjectRole, ProjectCandidateWithWs> = {
+        id: "row-1",
+        candidate: null,
+        role: "viewer",
+        error: null,
+        roleError: null,
+        roleNotice: null,
+      };
+
+      const guestCandidate: ProjectCandidateWithWs = {
+        userId: "u-guest",
+        workspaceRole: "guest",
+        addableRoles: ["viewer"],
+      };
+
+      const updated = addMemberRowsReducer(
+        [initialRow],
+        { type: "select", id: "row-1", candidate: guestCandidate },
+        projectClosestCtx,
+      );
+
+      expect(updated[0]!.role).toBe("viewer");
+      expect(updated[0]!.roleNotice).toBeNull();
+    });
+
+    it("Member candidate raises Viewer to Commenter with roleRaisedHint notice", () => {
+      const initialRow: AddMemberRow<ProjectRole, ProjectCandidateWithWs> = {
+        id: "row-1",
+        candidate: null,
+        role: "viewer",
+        error: null,
+        roleError: null,
+        roleNotice: null,
+      };
+
+      const memberCandidate: ProjectCandidateWithWs = {
+        userId: "u-member",
+        workspaceRole: "member",
+        addableRoles: ["admin", "contributor", "commenter"],
+      };
+
+      const updated = addMemberRowsReducer(
+        [initialRow],
+        { type: "select", id: "row-1", candidate: memberCandidate },
+        projectClosestCtx,
+      );
+
+      expect(updated[0]!.role).toBe("commenter");
+      expect(updated[0]!.roleNotice).toBe(
+        "Members are added as Commenter or higher.",
+      );
+    });
+
+    it("workspace modal behavior preserved (no rolesFor / no rank provided)", () => {
+      const initialRow: AddMemberRow = {
+        id: "row-1",
+        candidate: null,
+        role: "member",
+        error: "err",
+        roleError: null,
+        roleNotice: null,
+      };
+
+      const updated = addMemberRowsReducer(
+        [initialRow],
+        { type: "select", id: "row-1", candidate: candidate1 },
+        { defaultRole: "member" },
+      );
+
+      expect(updated[0]!.role).toBe("member");
+      expect(updated[0]!.roleNotice).toBeNull();
+      expect(updated[0]!.error).toBeNull();
+    });
+  });
 });
+

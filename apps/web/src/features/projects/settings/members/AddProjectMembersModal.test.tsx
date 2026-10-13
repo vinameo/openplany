@@ -92,7 +92,8 @@ const candidates: ProjectMemberCandidate[] = [
     displayName: "Alice Smith",
     avatarUrl: null,
     status: "addable",
-    addableRoles: ["admin", "contributor", "commenter", "viewer"],
+    addableRoles: ["admin", "contributor", "commenter"],
+    workspaceRole: "member",
   },
   {
     userId: "u-hoa",
@@ -103,6 +104,7 @@ const candidates: ProjectMemberCandidate[] = [
     avatarUrl: null,
     status: "already_member",
     addableRoles: [],
+    workspaceRole: "member",
   },
   {
     userId: "u-kai",
@@ -113,6 +115,7 @@ const candidates: ProjectMemberCandidate[] = [
     avatarUrl: null,
     status: "workspace_admin",
     addableRoles: [],
+    workspaceRole: "admin",
   },
   {
     userId: "u-binh",
@@ -123,6 +126,7 @@ const candidates: ProjectMemberCandidate[] = [
     avatarUrl: null,
     status: "addable",
     addableRoles: ["viewer"],
+    workspaceRole: "guest",
   },
   {
     userId: "u-admin-cli",
@@ -133,6 +137,7 @@ const candidates: ProjectMemberCandidate[] = [
     avatarUrl: null,
     status: "addable",
     addableRoles: ["admin", "contributor", "commenter", "viewer"],
+    workspaceRole: "member",
   },
 ];
 
@@ -804,4 +809,73 @@ describe("AddProjectMembersModal", () => {
     // Role select has aria-describedby containing roleError id
     expect(roleSelect.getAttribute("aria-describedby")).toContain(roleError.id);
   });
+
+  it("AC-24: selecting Member candidate when role is Viewer raises role to Commenter and displays Members are added as Commenter or higher.", async () => {
+    mockFetch({
+      "GET /api/workspaces/ws-1/projects/P1/member-candidates": () =>
+        jsonResponse(200, { candidates }),
+    });
+
+    const user = userEvent.setup();
+    renderModal({
+      addableRoles: ["admin", "contributor", "commenter", "viewer"],
+    });
+
+    // 1. Initial role is Contributor; switch it to Viewer first
+    const roleSelect = screen.getByRole("combobox", { name: "Role" });
+    await user.click(roleSelect);
+    await user.click(await screen.findByRole("option", { name: "Viewer" }));
+    expect(roleSelect).toHaveValue("Viewer");
+
+    // 2. Search and select Alice (workspace Member, addableRoles: admin, contributor, commenter)
+    const input = screen.getByRole("textbox", { name: "Email" });
+    await user.type(input, "alice");
+    await waitFor(() => {
+      expect(
+        screen.getByRole("option", { name: /alice@openplany\.dev/i }),
+      ).toBeInTheDocument();
+    });
+    await user.click(
+      screen.getByRole("option", { name: /alice@openplany\.dev/i }),
+    );
+
+    // 3. Role is automatically raised to Commenter (closest permitted role)
+    expect(roleSelect).toHaveValue("Commenter");
+    expect(
+      screen.getByText("Members are added as Commenter or higher."),
+    ).toBeInTheDocument();
+  });
+
+  it("displays 409 role_not_allowed error under role select when server rejects with role error", async () => {
+    mockFetch({
+      "GET /api/workspaces/ws-1/projects/P1/member-candidates": () =>
+        jsonResponse(200, { candidates }),
+      "POST /api/workspaces/ws-1/projects/P1/members": () =>
+        apiError(409, "MEMBERS_NOT_ADDABLE", "Some people couldn't be added", {
+          fields: {
+            "members.0.role":
+              "This role isn't allowed for their workspace role.",
+          },
+        }),
+    });
+
+    const user = userEvent.setup();
+    renderModal();
+
+    const input = screen.getByRole("textbox", { name: "Email" });
+    await user.type(input, "alice");
+    await user.click(
+      await screen.findByRole("option", { name: /alice@openplany\.dev/i }),
+    );
+
+    const submitBtn = screen.getByRole("button", { name: "Add member" });
+    await user.click(submitBtn);
+
+    expect(
+      await screen.findByText(
+        "This role isn't allowed for their workspace role.",
+      ),
+    ).toBeInTheDocument();
+  });
 });
+

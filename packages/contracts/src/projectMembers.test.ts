@@ -58,5 +58,8 @@ describe('projectMembers contracts', () => {
 
     expect(PROJECT_MEMBER_NOT_ADDABLE_FIELD.role_not_allowed).toBe('role');
     expect(PROJECT_MEMBER_NOT_ADDABLE_FIELD.already_member).toBe('userId');
+    expect(PROJECT_MEMBER_NOT_ADDABLE_MESSAGES.role_not_allowed).toBe(
+      "This role isn't allowed for their workspace role.",
+    );
   });
 });

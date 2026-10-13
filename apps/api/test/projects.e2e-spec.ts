@@ -1,4 +1,5 @@
 import request from 'supertest';
+import { Logger } from '@nestjs/common';
 import {
   describe,
   beforeAll,
@@ -982,6 +983,53 @@ describe('Projects (e2e)', () => {
       expect(res.body.total).toBe(1);
       expect(res.body.projects[0].members).toBeNull();
       expect(res.body.projects[0].memberCount).toBeNull();
+    });
+
+    it('AC-07: corrupted Member + viewer role in 3 projects has effective role Viewer (not elevated) and logs project.role.out_of_range count=3', async () => {
+      const { workspace } = await seedWorkspace(
+        'ws-ac07@openplany.dev',
+        'ac07-ws',
+      );
+      const memberId = await createUser('member-ac07@openplany.dev');
+      const memberCookie = await signInCookie('member-ac07@openplany.dev');
+      await addWorkspaceMember(workspace.id, memberId, 'member');
+
+      const p1 = await insertProject(workspace.id, 'Project One', 'PO1');
+      const p2 = await insertProject(workspace.id, 'Project Two', 'PO2');
+      const p3 = await insertProject(workspace.id, 'Project Three', 'PO3');
+
+      // Insert corrupted / legacy Member + viewer role directly
+      await insertProjectMember(p1, workspace.id, memberId, 'viewer');
+      await insertProjectMember(p2, workspace.id, memberId, 'viewer');
+      await insertProjectMember(p3, workspace.id, memberId, 'viewer');
+
+      const warnSpy = vi
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation(() => {});
+
+      try {
+        const res = await http()
+          .get(`/api/workspaces/${workspace.slug}/projects`)
+          .set('Cookie', memberCookie)
+          .expect(200);
+
+        expect(res.body.projects).toHaveLength(3);
+        for (const proj of res.body.projects) {
+          expect(proj.role).toBe('viewer');
+        }
+
+        const outOfRangeCalls = warnSpy.mock.calls.filter(
+          (call) =>
+            typeof call[0] === 'string' &&
+            call[0].includes('project.role.out_of_range'),
+        );
+        expect(outOfRangeCalls).toHaveLength(1);
+        expect(outOfRangeCalls[0]![0]).toBe(
+          `project.role.out_of_range userId=${memberId} workspaceRole=${memberId ? 'member' : ''} count=3`,
+        );
+      } finally {
+        warnSpy.mockRestore();
+      }
     });
   });
 

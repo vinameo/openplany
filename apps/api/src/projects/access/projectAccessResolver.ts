@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import {
   hasImplicitProjectAccess,
+  isProjectRoleOutOfRange,
   PROJECT_LIST_MAX,
   PROJECT_ROLES,
   resolveProjectAccess,
@@ -95,6 +96,8 @@ interface AccessScope {
 
 @Injectable()
 export class TypeOrmProjectAccessResolver extends ProjectAccessResolver {
+  private readonly logger = new Logger(TypeOrmProjectAccessResolver.name);
+
   constructor(
     private readonly dataSource: DataSource,
     private readonly policyStore: ProjectAccessPolicyStore,
@@ -118,6 +121,24 @@ export class TypeOrmProjectAccessResolver extends ProjectAccessResolver {
         ? projects.length
         : await manager.count(Project, { where: scope.where });
     if (projects.length === 0) return { projects: [], total };
+
+    let outOfRangeCount = 0;
+    for (const project of projects) {
+      const assignedRole = scope.assignedRoles.get(project.id) ?? null;
+      if (
+        isProjectRoleOutOfRange(
+          { workspaceRole: viewer.workspaceRole, assignedRole },
+          policies,
+        )
+      ) {
+        outOfRangeCount++;
+      }
+    }
+    if (outOfRangeCount > 0) {
+      this.logger.warn(
+        `project.role.out_of_range userId=${viewer.userId} workspaceRole=${viewer.workspaceRole} count=${outOfRangeCount}`,
+      );
+    }
 
     const matrix = await loadProjectRoleMatrix(manager);
     return {
@@ -146,6 +167,18 @@ export class TypeOrmProjectAccessResolver extends ProjectAccessResolver {
     });
     if (project === null) return null;
 
+    const assignedRole = scope.assignedRoles.get(project.id) ?? null;
+    if (
+      isProjectRoleOutOfRange(
+        { workspaceRole: viewer.workspaceRole, assignedRole },
+        policies,
+      )
+    ) {
+      this.logger.warn(
+        `project.role.out_of_range userId=${viewer.userId} workspaceRole=${viewer.workspaceRole} count=1 projectId=${project.id}`,
+      );
+    }
+
     const matrix = await loadProjectRoleMatrix(manager);
     return (
       toAccessibleProject(project, viewer, scope, policies, matrix)[0] ?? null
@@ -168,6 +201,18 @@ export class TypeOrmProjectAccessResolver extends ProjectAccessResolver {
 
     const scope = await accessScope(manager, viewer, policies, project.id);
     if (scope === null) return { kind: 'forbidden', projectId: project.id };
+
+    const assignedRole = scope.assignedRoles.get(project.id) ?? null;
+    if (
+      isProjectRoleOutOfRange(
+        { workspaceRole: viewer.workspaceRole, assignedRole },
+        policies,
+      )
+    ) {
+      this.logger.warn(
+        `project.role.out_of_range userId=${viewer.userId} workspaceRole=${viewer.workspaceRole} count=1 projectId=${project.id}`,
+      );
+    }
 
     const matrix = await loadProjectRoleMatrix(manager);
     const [accessible] = toAccessibleProject(

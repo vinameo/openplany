@@ -1,3 +1,4 @@
+import type { WorkspaceRole } from './workspace.js';
 import type {
   EnforcedWorkspacePermission,
   WorkspacePermission,
@@ -64,6 +65,7 @@ export interface ProjectMemberCandidate {
   avatarUrl: string | null;
   status: ProjectMemberCandidateStatus;
   addableRoles: ProjectRole[];
+  workspaceRole?: WorkspaceRole;
 }
 
 export interface ProjectMemberCandidateListResponse {
@@ -96,7 +98,7 @@ export const PROJECT_MEMBER_NOT_ADDABLE_MESSAGES: Record<
   already_member: 'Already a member of this project',
   not_in_workspace: 'This person is no longer in this workspace.',
   unavailable: "This person can't be added. Their account may be deactivated.",
-  role_not_allowed: 'This role is above what their workspace role allows.',
+  role_not_allowed: "This role isn't allowed for their workspace role.",
   workspace_admin: 'Workspace Admins can already access every project.',
 };
 

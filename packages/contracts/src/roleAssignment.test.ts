@@ -11,6 +11,7 @@ import {
   canRemoveWorkspaceMember,
 } from "./roleAssignment.js";
 import { DEFAULT_PROJECT_ACCESS_POLICIES } from "./testing.js";
+import type { ProjectAccessPolicies } from "./projectAccessPolicy.js";
 import type { WorkspaceRole } from "./workspace.js";
 import type { ProjectRole } from "./projectRoles.js";
 
@@ -532,6 +533,77 @@ describe("roleAssignment", () => {
           DEFAULT_PROJECT_ACCESS_POLICIES,
         ),
       ).toEqual([]);
+    });
+
+    it("respects custom policies with a different floor", () => {
+      const customPolicies: ProjectAccessPolicies = {
+        admin: {
+          workspaceRole: "admin",
+          implicitProjectRole: "admin",
+          lowestAssignableRole: "admin",
+          highestAssignableRole: "admin",
+          overridesProjectRank: true,
+        },
+        member: {
+          workspaceRole: "member",
+          implicitProjectRole: null,
+          lowestAssignableRole: "contributor", // floor raised to contributor
+          highestAssignableRole: "admin",
+          overridesProjectRank: false,
+        },
+        guest: {
+          workspaceRole: "guest",
+          implicitProjectRole: null,
+          lowestAssignableRole: "commenter", // floor raised to commenter
+          highestAssignableRole: "commenter",
+          overridesProjectRank: false,
+        },
+      };
+
+      const actor = {
+        userId: "actor-1",
+        workspaceRole: "member" as WorkspaceRole,
+        effectiveRole: "admin" as ProjectRole,
+        permissions: ["project.members.manage" as const],
+      };
+
+      // Member target has floor contributor: ['admin', 'contributor'] (not commenter or viewer)
+      expect(
+        addableProjectRoles(
+          actor,
+          { userId: "target-member", workspaceRole: "member" },
+          customPolicies,
+        ),
+      ).toEqual(["admin", "contributor"]);
+
+      // Guest target has floor and ceiling commenter: ['commenter']
+      expect(
+        addableProjectRoles(
+          actor,
+          { userId: "target-guest", workspaceRole: "guest" },
+          customPolicies,
+        ),
+      ).toEqual(["commenter"]);
+
+      // Member actor addable role range is union of member and guest ranges
+      expect(addableProjectRoleRange(actor, customPolicies)).toEqual([
+        "admin",
+        "contributor",
+        "commenter",
+      ]);
+
+      // Assignable for existing member with assignedRole contributor: ['admin', 'contributor']
+      expect(
+        assignableProjectRoles(
+          actor,
+          {
+            userId: "target-member",
+            workspaceRole: "member",
+            assignedRole: "contributor",
+          },
+          customPolicies,
+        ),
+      ).toEqual(["admin", "contributor"]);
     });
   });
 });

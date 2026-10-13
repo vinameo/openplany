@@ -21,6 +21,7 @@ import {
   ADD_PROJECT_MEMBERS_DESCRIPTION,
   limitedToRoleMessage,
   PROJECT_ADMIN_NOTICE,
+  roleRaisedHint,
 } from './projectMembersMessages';
 import { useAddProjectMembers } from './useAddProjectMembers';
 
@@ -65,8 +66,23 @@ export function AddProjectMembersModal({
     () => ({
       defaultRole,
       rolesFor: (c: ProjectMemberCandidate) => c.addableRoles,
+      rank: PROJECT_ROLE_SCHEME.rank,
       highest: (roles: readonly ProjectRole[]) =>
         highestRole(PROJECT_ROLE_SCHEME, roles),
+      roleNotice: ({
+        role,
+        reason,
+        candidate,
+      }: {
+        role: ProjectRole;
+        reason: 'lowered' | 'raised';
+        candidate: ProjectMemberCandidate;
+      }) => {
+        if (reason === 'lowered') {
+          return limitedToRoleMessage(PROJECT_ROLE_LABELS[role]);
+        }
+        return roleRaisedHint(candidate.workspaceRole ?? 'member', role);
+      },
       limitedNotice: (r: ProjectRole) =>
         limitedToRoleMessage(PROJECT_ROLE_LABELS[r]),
     }),

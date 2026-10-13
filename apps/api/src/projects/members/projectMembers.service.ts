@@ -189,6 +189,7 @@ export class ProjectMembersService {
         avatarUrl: row.avatarUrl,
         status,
         addableRoles,
+        workspaceRole: row.workspaceRole,
       };
     });
 

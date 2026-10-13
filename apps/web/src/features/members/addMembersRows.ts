@@ -12,11 +12,21 @@ export interface AddMemberRow<R = WorkspaceRole, C = { userId: string }> {
   roleNotice: string | null;  // notice below row ("Limited to ...")
 }
 
-export interface RowsContext<R, C> {
+export interface RowsContext<R extends string = WorkspaceRole, C = { userId: string }> {
   defaultRole: R;
   /** When undefined, roles are not limited by candidate (workspace). */
   rolesFor?: (candidate: C) => readonly R[];
+  rank?: Readonly<Record<R, number>>;
+  closest?: (
+    currentRole: R,
+    allowed: readonly R[],
+  ) => { role: R; reason: 'lowered' | 'raised' } | null;
   highest?: (roles: readonly R[]) => R | null;
+  roleNotice?: (info: {
+    role: R;
+    reason: 'lowered' | 'raised';
+    candidate: C;
+  }) => string | null;
   limitedNotice?: (role: R) => string;
 }
 
@@ -86,13 +96,50 @@ export function addMemberRowsReducer<R extends string, C extends { userId: strin
 
         let newRole = r.role;
         let roleNotice: string | null = null;
-        if (ctx.rolesFor && ctx.highest) {
+        if (ctx.rolesFor) {
           const allowed = ctx.rolesFor(action.candidate);
           if (!allowed.includes(r.role)) {
-            const highest = ctx.highest(allowed);
-            if (highest) {
-              newRole = highest;
-              roleNotice = ctx.limitedNotice ? ctx.limitedNotice(newRole) : null;
+            let chosen: R | null = null;
+            let reason: 'lowered' | 'raised' = 'lowered';
+
+            if (ctx.closest) {
+              const res = ctx.closest(r.role, allowed);
+              if (res) {
+                chosen = res.role;
+                reason = res.reason;
+              }
+            } else if (ctx.rank) {
+              const currRank = ctx.rank[r.role];
+              const atOrBelow = allowed.filter(
+                (role) => ctx.rank![role] <= currRank,
+              );
+              if (atOrBelow.length > 0) {
+                chosen = atOrBelow.reduce((prev, role) =>
+                  ctx.rank![role] > ctx.rank![prev] ? role : prev,
+                );
+                reason = 'lowered';
+              } else if (allowed.length > 0) {
+                chosen = allowed.reduce((prev, role) =>
+                  ctx.rank![role] < ctx.rank![prev] ? role : prev,
+                );
+                reason = 'raised';
+              }
+            } else if (ctx.highest) {
+              chosen = ctx.highest(allowed);
+              reason = 'lowered';
+            }
+
+            if (chosen) {
+              newRole = chosen;
+              if (ctx.roleNotice) {
+                roleNotice = ctx.roleNotice({
+                  role: newRole,
+                  reason,
+                  candidate: action.candidate,
+                });
+              } else if (ctx.limitedNotice && reason === 'lowered') {
+                roleNotice = ctx.limitedNotice(newRole);
+              }
             }
           }
         }
