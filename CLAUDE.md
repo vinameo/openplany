@@ -332,7 +332,13 @@ The `spec-review` skill (user-level, shared across projects) reads this section.
 - **P6 Shared copy.** Validation and error messages are `@repo/contracts` constants, used by both the API DTO and the web form.
 - **P7 Glossary.** Terms follow `/CONTEXT.md`. The product the drafts imitate is never named.
 
-**Feature workflow skills** (`.claude/skills/`): `write-feature-spec` (grill → five spec files → `spec-reviewer` subagent, which runs the user-level `spec-review` skill with the checks above → tickets) and `implement-ticket` (one ticket, and the final self-review and merge).
+**Feature workflow skills** (`.claude/skills/`): `write-feature-spec` (grill → five spec files → `spec-reviewer` subagent, which runs the user-level `spec-review` skill with the checks above → tickets) `implement-ticket` (one ticket, and the final self-review and merge) and `implement-feature` (`/implement-feature <docs path>`: every ticket in order through the `deep-coder` subagent, then the branch review and merge).
+
+**Other coding agents (Codex, Antigravity).** `AGENTS.md` is a symlink to this file, and `.agents/skills` and `.agents/agents` are symlinks to `.claude/skills` and `.claude/agents`, so every agent reads the same rules, skills and subagents. In an agent's frontmatter, restrict tools with `disallowedTools`, never `tools:`: Antigravity drops an agent whose `tools:` names Claude Code tools (`agy agents` must list every file in `.claude/agents`). Antigravity gets the merge-gate hook from `.agents/hooks.json`, which runs the same `.claude/hooks/requireBranchReview.mjs`. When a skill names a Claude Code feature your agent lacks:
+- A subagent (`deep-coder`, `spec-reviewer`) your agent cannot start (Codex): read `.claude/agents/<name>.md` and do its job yourself, one ticket at a time, with its preloaded skills as background where you have them.
+- `/code-review` or `/security-review`: review `git diff develop...HEAD` yourself against §5 (OWASP), §7 and the design pass in §8.
+- `$ARGUMENTS`: the path or number the user gave with the request.
+- Codex has no merge-gate hook: write the review report before `git merge` anyway.
 
 Work that isn't tied to one `packages/docs/<n>-…` directory (cross-cutting fixes, review follow-ups) uses `fix/` / `refactor/` / `chore/` with a short description and the same flow.
 
