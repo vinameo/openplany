@@ -1,5 +1,5 @@
 import {
-  type ProjectAccessPolicies,
+  type ProjectAccessPolicyResponse,
   type ProjectRole,
   PROJECT_ROLE_LABELS,
   PROJECT_ROLE_SUMMARIES,
@@ -8,45 +8,21 @@ import {
   WORKSPACE_ROLE_QUALIFIED_LABELS,
   WORKSPACE_ROLE_SUMMARIES,
   WORKSPACE_ROLES,
-  effectiveProjectRole,
 } from "@repo/contracts";
 
 export const ROLES_AND_PERMISSIONS_PATH = "/roles-and-permissions";
 
-/** TEMP until ticket 07 (Roles page loads projectAccessPolicies from API) */
-const TEMP_POLICIES: ProjectAccessPolicies = {
-  admin: {
-    workspaceRole: "admin",
-    implicitProjectRole: "admin",
-    lowestAssignableRole: "admin",
-    highestAssignableRole: "admin",
-    overridesProjectRank: true,
-  },
-  member: {
-    workspaceRole: "member",
-    implicitProjectRole: null,
-    lowestAssignableRole: "viewer",
-    highestAssignableRole: "admin",
-    overridesProjectRank: false,
-  },
-  guest: {
-    workspaceRole: "guest",
-    implicitProjectRole: null,
-    lowestAssignableRole: "viewer",
-    highestAssignableRole: "viewer",
-    overridesProjectRank: false,
-  },
-};
+export interface ProjectAccessRow {
+  role: WorkspaceRole;
+  label: string;
+  everyProject: ProjectRole | null;
+  lowest: ProjectRole | null;
+  highest: ProjectRole | null;
+}
 
 export interface RolesOverview {
   workspaceRoles: { role: WorkspaceRole; label: string; summary: string }[];
   projectRoles: { role: ProjectRole; label: string; summary: string }[];
-  projectAccess: {
-    role: WorkspaceRole;
-    label: string;
-    everyProject: ProjectRole | null;
-    highestProjectRole: ProjectRole;
-  }[];
 }
 
 /** Không nhận tham số: bộ luật giống nhau ở mọi workspace (WEB-F7). */
@@ -63,22 +39,20 @@ export function buildRolesOverview(): RolesOverview {
     summary: PROJECT_ROLE_SUMMARIES[role],
   }));
 
-  const projectAccess = WORKSPACE_ROLES.map((role) => ({
-    role,
-    label: WORKSPACE_ROLE_QUALIFIED_LABELS[role],
-    everyProject: effectiveProjectRole(
-      {
-        workspaceRole: role,
-        assignedRole: null,
-      },
-      TEMP_POLICIES,
-    ),
-    highestProjectRole: TEMP_POLICIES[role].highestAssignableRole,
-  }));
-
   return {
     workspaceRoles,
     projectRoles,
-    projectAccess,
   };
+}
+
+export function buildProjectAccessRows(
+  policies: readonly ProjectAccessPolicyResponse[],
+): ProjectAccessRow[] {
+  return policies.map((p) => ({
+    role: p.workspaceRole,
+    label: WORKSPACE_ROLE_QUALIFIED_LABELS[p.workspaceRole],
+    everyProject: p.implicitProjectRole,
+    lowest: p.implicitProjectRole === null ? p.lowestAssignableRole : null,
+    highest: p.implicitProjectRole === null ? p.highestAssignableRole : null,
+  }));
 }

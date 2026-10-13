@@ -11,6 +11,7 @@ import { makeSession } from "../../../test/authFixtures";
 import { apiError, jsonResponse, mockFetch } from "../../../test/fetchMock";
 import { makeDefaultRolesResponse } from "./test/rolesFixtures";
 import { ROLES_AND_PERMISSIONS_PATH } from "./rolesOverview";
+import { rolesLoadError } from "./api/adminRoleQueries";
 
 function renderRoute(options?: {
   isInstanceAdmin?: boolean;
@@ -57,7 +58,7 @@ afterEach(() => {
 });
 
 describe("RolesAndPermissionsRoute", { timeout: 15000 }, () => {
-  it("renders page with title 'Roles & Permissions', document title, and 5 tables found by caption for instance admin", async () => {
+  it("renders page with title 'Roles & Permissions', document title, and tabs with Workspace roles active by default", async () => {
     renderRoute({ isInstanceAdmin: true });
 
     expect(
@@ -68,18 +69,17 @@ describe("RolesAndPermissionsRoute", { timeout: 15000 }, () => {
     ).toBeInTheDocument();
     expect(document.title).toBe("Roles & Permissions · OpenPlany");
 
-    // Section headings
+    // Two tabs
+    const wsTab = screen.getByRole("tab", { name: "Workspace roles" });
+    const projTab = screen.getByRole("tab", { name: "Project roles" });
+    expect(wsTab).toBeInTheDocument();
+    expect(projTab).toBeInTheDocument();
+    expect(wsTab).toHaveAttribute("aria-selected", "true");
+    expect(projTab).toHaveAttribute("aria-selected", "false");
+
+    // In Workspace tab: Workspace roles table & Workspace permissions table
     expect(
       screen.getByRole("heading", { level: 2, name: "Workspace roles" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { level: 2, name: "Project roles" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", {
-        level: 2,
-        name: "Workspace roles in projects",
-      }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
@@ -87,30 +87,14 @@ describe("RolesAndPermissionsRoute", { timeout: 15000 }, () => {
         name: "Workspace permissions",
       }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", {
-        level: 2,
-        name: "Project permissions",
-      }),
-    ).toBeInTheDocument();
 
-    // 5 tables found by caption
     expect(
       screen.getByRole("table", { name: "Workspace roles" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("table", { name: "Project roles" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("table", { name: "Project access by workspace role" }),
     ).toBeInTheDocument();
     expect(
       await screen.findByRole("table", {
         name: "Workspace permissions by role",
       }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("table", { name: "Project permissions by role" }),
     ).toBeInTheDocument();
 
     // Workspace Admin cell is locked
@@ -131,11 +115,140 @@ describe("RolesAndPermissionsRoute", { timeout: 15000 }, () => {
     // "Not enforced yet" badge next to Delete workspace
     const deleteRow = screen.getByRole("row", { name: /Delete workspace/i });
     expect(within(deleteRow).getByText("Not enforced yet")).toBeInTheDocument();
+  });
 
-    // Project access table has accessible placeholder
+  it("opens Project roles tab when URL has ?tab=project, and falls back to workspace on unknown param", async () => {
+    // 1. Initial URL with ?tab=project
+    const { router: projectRouter } = renderRoute({
+      initialEntries: [`${ROLES_AND_PERMISSIONS_PATH}?tab=project`],
+    });
+
+    const projectTab = await screen.findByRole("tab", {
+      name: "Project roles",
+    });
+    expect(projectTab).toHaveAttribute("aria-selected", "true");
+
     expect(
-      screen.getAllByText("Only projects they're added to").length,
+      screen.getByRole("heading", { level: 2, name: "Project roles" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        level: 2,
+        name: "Workspace roles in projects",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        level: 2,
+        name: "Project permissions",
+      }),
+    ).toBeInTheDocument();
+
+    expect(projectRouter.state.location.search).toBe("?tab=project");
+  });
+
+  it("falls back to workspace tab when URL has unknown tab param", async () => {
+    renderRoute({
+      initialEntries: [`${ROLES_AND_PERMISSIONS_PATH}?tab=unknown_tab`],
+    });
+
+    const wsTab = await screen.findByRole("tab", { name: "Workspace roles" });
+    expect(wsTab).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("renders 4-column project access table with locked selects, focus/hover tooltip, and null placeholders (AC-17)", async () => {
+    const { user } = renderRoute({
+      initialEntries: [`${ROLES_AND_PERMISSIONS_PATH}?tab=project`],
+    });
+
+    const policyTable = await screen.findByRole("table", {
+      name: "Workspace roles in projects",
+    });
+    expect(policyTable).toBeInTheDocument();
+
+    // Check 4 columns in header
+    expect(
+      within(policyTable).getByRole("columnheader", { name: "Workspace role" }),
+    ).toBeInTheDocument();
+    expect(
+      within(policyTable).getByRole("columnheader", { name: "Every project" }),
+    ).toBeInTheDocument();
+    expect(
+      within(policyTable).getByRole("columnheader", {
+        name: "Lowest role when added",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(policyTable).getByRole("columnheader", {
+        name: "Highest role when added",
+      }),
+    ).toBeInTheDocument();
+
+    // Check 3 rows: Workspace Admin, Member, Guest
+    const rows = within(policyTable).getAllByRole("row");
+    // Row 0 is header, rows 1..3 are data
+    expect(rows).toHaveLength(4);
+
+    // Workspace Admin row has locked select for "Every project", and "—" for lowest and highest
+    const adminSelect = within(policyTable).getByRole("combobox", {
+      name: "Workspace Admin: Every project",
+    });
+    expect(adminSelect).toBeDisabled();
+
+    // Focus wrapper and verify tooltip text
+    const wrapper = adminSelect.closest("span[tabindex='0']");
+    expect(wrapper).not.toBeNull();
+    if (wrapper) {
+      await user.hover(wrapper);
+      expect(
+        await screen.findByText("Set by OpenPlany. It can't be changed here."),
+      ).toBeInTheDocument();
+      await user.unhover(wrapper);
+    }
+
+    // Accessible placeholders for nulls
+    expect(
+      within(policyTable).getAllByText("Only projects they're added to").length,
     ).toBeGreaterThan(0);
+    expect(
+      within(policyTable).getAllByText("Not added to projects").length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("switches tab and preserves unsaved changes with indicator dot on tab (WEB B4.1, AC-17)", async () => {
+    const { user, router } = renderRoute();
+
+    // Make a change on workspace tab
+    const memberCheckbox = await screen.findByRole("checkbox", {
+      name: "Member: Edit workspace settings",
+    });
+    await user.click(memberCheckbox);
+    expect(memberCheckbox).toBeChecked();
+
+    // SaveChangesBar is visible
+    expect(screen.getByText("1 unsaved change")).toBeInTheDocument();
+
+    // Switch to Project roles tab
+    const projTab = screen.getByRole("tab", { name: "Project roles" });
+    await user.click(projTab);
+
+    // URL is updated to ?tab=project
+    await waitFor(() => {
+      expect(router.state.location.search).toBe("?tab=project");
+    });
+
+    // SaveChangesBar is still visible outside panel
+    expect(screen.getByText("1 unsaved change")).toBeInTheDocument();
+
+    // Workspace tab has unsaved changes indicator
+    expect(screen.getByText("(unsaved changes)")).toBeInTheDocument();
+
+    // Switch back to Workspace roles tab
+    const wsTab = screen.getByRole("tab", { name: /Workspace roles/i });
+    await user.click(wsTab);
+
+    // Checkbox is still checked
+    expect(memberCheckbox).toBeChecked();
   });
 
   it("redirects non-instance admin away to / (AC-12b)", async () => {
@@ -178,38 +291,37 @@ describe("RolesAndPermissionsRoute", { timeout: 15000 }, () => {
     }
   });
 
-  it("renders first 3 blocks even when GET /api/admin/roles fails, and recovers with Try again", async () => {
+  it("renders rolesLoadError without leaking err.message when GET /api/admin/roles fails, and recovers with Try again", async () => {
     let shouldFail = true;
     const { user } = renderRoute({
       extraMocks: {
         "GET /api/admin/roles": () => {
           if (shouldFail) {
-            return apiError(500, "INTERNAL_ERROR", "Database error");
+            return apiError(
+              500,
+              "INTERNAL_ERROR",
+              "Sensitive DB error message",
+            );
           }
           return jsonResponse(200, makeDefaultRolesResponse());
         },
       },
     });
 
-    // First 3 tables are still rendered
+    // Static overview section still renders
     expect(
       await screen.findByRole("table", { name: "Workspace roles" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("table", { name: "Project roles" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("table", { name: "Project access by workspace role" }),
-    ).toBeInTheDocument();
 
-    // Load error shown
+    // Load error shown with rolesLoadError message, NOT the sensitive error message
     expect(
-      await screen.findAllByText("Couldn't load permissions."),
-    ).toHaveLength(2);
+      screen.queryByText("Sensitive DB error message"),
+    ).not.toBeInTheDocument();
+    expect(await screen.findByText(rolesLoadError)).toBeInTheDocument();
 
     shouldFail = false;
-    const tryAgainBtns = screen.getAllByRole("button", { name: "Try again" });
-    await user.click(tryAgainBtns[0]!);
+    const tryAgainBtn = screen.getByRole("button", { name: "Try again" });
+    await user.click(tryAgainBtn);
 
     // Recovered
     expect(

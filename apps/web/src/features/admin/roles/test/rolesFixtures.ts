@@ -6,6 +6,7 @@ import {
   PROJECT_ROLES,
   WORKSPACE_ROLES,
 } from "@repo/contracts";
+import { DEFAULT_PROJECT_ACCESS_POLICIES } from "@repo/contracts/testing";
 
 export const DEFAULT_PERMISSION_ITEMS: PermissionItem[] = [
   // Workspace permissions (12)
@@ -316,7 +317,16 @@ export function makeDefaultRolesResponse(): RolesResponse {
     })),
   ];
 
-  return { roles, permissions: DEFAULT_PERMISSION_ITEMS };
+  const projectAccessPolicies = WORKSPACE_ROLES.map((role) => ({
+    ...DEFAULT_PROJECT_ACCESS_POLICIES[role],
+    locked: true as const,
+  }));
+
+  return {
+    roles,
+    permissions: DEFAULT_PERMISSION_ITEMS,
+    projectAccessPolicies,
+  };
 }
 
 export function makeRolesResponse(

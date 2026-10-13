@@ -56,6 +56,7 @@ export {
   type PermissionResponse,
   type RoleResponse,
   type RolesResponse,
+  type ProjectAccessPolicyResponse,
   type RolePermissionsChange,
   type UpdateRolePermissionsRequest,
   ROLE_PERMISSIONS_CHANGES_MAX,

@@ -12,6 +12,7 @@ import type {
   RolePermissionsPlan,
   StoredRolePermissions,
 } from './rolePermissionsPlan.js';
+import type { ProjectAccessPolicyStore } from '../../roles/projectAccessPolicyStore.js';
 
 class FakeClock extends Clock {
   private currentTime = new Date('2026-10-10T12:00:00.000Z');
@@ -108,12 +109,41 @@ describe('AdminRolesService', () => {
       applyChanges: applyChangesMock,
     };
 
+    const samplePolicies = {
+      admin: {
+        workspaceRole: 'admin' as const,
+        implicitProjectRole: 'admin' as const,
+        lowestAssignableRole: 'admin' as const,
+        highestAssignableRole: 'admin' as const,
+        overridesProjectRank: false,
+      },
+      member: {
+        workspaceRole: 'member' as const,
+        implicitProjectRole: null,
+        lowestAssignableRole: 'commenter' as const,
+        highestAssignableRole: 'admin' as const,
+        overridesProjectRank: false,
+      },
+      guest: {
+        workspaceRole: 'guest' as const,
+        implicitProjectRole: null,
+        lowestAssignableRole: 'viewer' as const,
+        highestAssignableRole: 'viewer' as const,
+        overridesProjectRank: false,
+      },
+    };
+    const policyStore = {
+      policies: vi.fn(() => samplePolicies),
+    } as unknown as ProjectAccessPolicyStore;
+
     const clock = new FakeClock();
-    const service = new AdminRolesService(repository, clock);
+    const service = new AdminRolesService(repository, clock, policyStore);
 
     return {
       service,
       repository,
+      policyStore,
+      samplePolicies,
       listRolesMock,
       listPermissionsMock,
       applyChangesMock,
@@ -147,6 +177,33 @@ describe('AdminRolesService', () => {
       expect(wsMember).toBeDefined();
       expect(wsMember?.locked).toBe(false);
       expect(wsMember?.permissions).toEqual(['workspace.settings.view']);
+
+      expect(result.projectAccessPolicies).toEqual([
+        {
+          workspaceRole: 'admin',
+          implicitProjectRole: 'admin',
+          lowestAssignableRole: 'admin',
+          highestAssignableRole: 'admin',
+          overridesProjectRank: false,
+          locked: true,
+        },
+        {
+          workspaceRole: 'member',
+          implicitProjectRole: null,
+          lowestAssignableRole: 'commenter',
+          highestAssignableRole: 'admin',
+          overridesProjectRank: false,
+          locked: true,
+        },
+        {
+          workspaceRole: 'guest',
+          implicitProjectRole: null,
+          lowestAssignableRole: 'viewer',
+          highestAssignableRole: 'viewer',
+          overridesProjectRank: false,
+          locked: true,
+        },
+      ]);
     });
   });
 

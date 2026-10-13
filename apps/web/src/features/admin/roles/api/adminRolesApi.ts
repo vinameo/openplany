@@ -4,7 +4,7 @@ import type {
 } from "@repo/contracts";
 import { request } from "../../../../lib/apiClient";
 
-export const GENERIC_LOAD_ROLES_ERROR = "Couldn't load permissions.";
+export const GENERIC_LOAD_ROLES_ERROR = "Couldn't load roles and permissions.";
 export const GENERIC_UPDATE_ROLES_ERROR =
   "Couldn't update permissions. Please try again.";
 
@@ -31,4 +31,3 @@ export const adminRolesApi = {
     );
   },
 };
-

@@ -3,14 +3,17 @@ import {
   Alert,
   Button,
   Group,
+  Indicator,
   Modal,
   Skeleton,
   Stack,
+  Tabs,
   Text,
   Title,
+  VisuallyHidden,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { Navigate, useNavigate } from "react-router";
+import { Navigate, useNavigate, useSearchParams } from "react-router";
 import { ColorSchemeToggle } from "@repo/ui";
 import type { RoleRef } from "@repo/contracts";
 import { useAuth } from "../../auth/useAuth";
@@ -18,7 +21,7 @@ import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
 import { useUnsavedChangesGuard } from "../../../hooks/useUnsavedChangesGuard";
 import { ArrowLeftIcon } from "../../workspaces/icons";
 import { SettingsSection } from "../../workspaces/settings/SettingsSection";
-import { buildRolesOverview } from "./rolesOverview";
+import { buildProjectAccessRows, buildRolesOverview } from "./rolesOverview";
 import {
   ProjectAccessTable,
   ProjectRolesTable,
@@ -35,6 +38,7 @@ import { PermissionMatrixTable } from "./PermissionMatrixTable";
 import { SaveChangesBar } from "./SaveChangesBar";
 import { ConfirmPermissionChangesModal } from "./ConfirmPermissionChangesModal";
 import { useRolePermissions } from "./useRolePermissions";
+import { rolesLoadError } from "./api/adminRoleQueries";
 import classes from "./RolesAndPermissionsRoute.module.css";
 
 type SaveErrorState =
@@ -47,6 +51,22 @@ export function RolesAndPermissionsRoute() {
   useDocumentTitle("Roles & Permissions · OpenPlany");
   const { state: authState } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const currentTab =
+    searchParams.get("tab") === "project" ? "project" : "workspace";
+
+  function handleTabChange(value: string | null) {
+    const nextTab = value === "project" ? "project" : "workspace";
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("tab", nextTab);
+        return next;
+      },
+      { replace: true },
+    );
+  }
 
   const overview = useMemo(() => buildRolesOverview(), []);
   const { state: roleState, reload, save } = useRolePermissions();
@@ -68,8 +88,21 @@ export function RolesAndPermissionsRoute() {
     );
   }, [diff]);
 
+  const hasWorkspaceChanges = useMemo(() => {
+    return diff.some((item) => item.role.scope === "workspace");
+  }, [diff]);
+
+  const hasProjectChanges = useMemo(() => {
+    return diff.some((item) => item.role.scope === "project");
+  }, [diff]);
+
   const hasChanges = totalUnsavedChanges > 0;
   const { blocked, proceed, stay } = useUnsavedChangesGuard(hasChanges);
+
+  const projectAccessRows = useMemo(() => {
+    if (roleState.status !== "ready") return [];
+    return buildProjectAccessRows(roleState.projectAccessPolicies);
+  }, [roleState]);
 
   const workspaceMatrix = useMemo(() => {
     if (roleState.status !== "ready") return null;
@@ -184,114 +217,164 @@ export function RolesAndPermissionsRoute() {
           </Text>
         </div>
 
-        <Stack gap="xl">
-          <SettingsSection
-            titleOrder={2}
-            title="Workspace roles"
-            description="What each role can do in a workspace."
+        {saveError?.type === "conflict" && (
+          <Alert
+            color="yellow"
+            mb="xl"
+            title="Someone else changed these permissions. Reload to see the latest."
           >
-            <WorkspaceRolesTable rows={overview.workspaceRoles} />
-          </SettingsSection>
+            <Group justify="flex-end" mt="xs">
+              <Button
+                size="xs"
+                variant="default"
+                onClick={handleConflictReload}
+              >
+                Reload
+              </Button>
+            </Group>
+          </Alert>
+        )}
 
-          <SettingsSection
-            titleOrder={2}
-            title="Project roles"
-            description="Each project member has one of these roles in that project."
-          >
-            <ProjectRolesTable rows={overview.projectRoles} />
-          </SettingsSection>
+        {saveError?.type === "invalid" && (
+          <Alert color="red" mb="xl" title="Validation error">
+            {Object.entries(saveError.fields).map(([field, msg]) => (
+              <div key={field}>{msg}</div>
+            ))}
+          </Alert>
+        )}
 
-          <SettingsSection
-            titleOrder={2}
-            title="Workspace roles in projects"
-            description="How a workspace role affects access to projects."
-          >
-            <ProjectAccessTable rows={overview.projectAccess} />
-          </SettingsSection>
+        {saveError?.type === "failed" && (
+          <Alert color="red" mb="xl" title="Error">
+            {saveError.message}
+          </Alert>
+        )}
 
-          {saveError?.type === "conflict" && (
-            <Alert
-              color="yellow"
-              title="Someone else changed these permissions. Reload to see the latest."
+        <Tabs value={currentTab} onChange={handleTabChange} keepMounted={false}>
+          <Tabs.List mb="xl">
+            <Tabs.Tab
+              value="workspace"
+              rightSection={
+                hasWorkspaceChanges ? (
+                  <>
+                    <Indicator size={6} color="blue" offset={0} inline />
+                    <VisuallyHidden> (unsaved changes)</VisuallyHidden>
+                  </>
+                ) : null
+              }
             >
-              <Group justify="flex-end" mt="xs">
-                <Button size="xs" variant="default" onClick={handleConflictReload}>
-                  Reload
-                </Button>
-              </Group>
-            </Alert>
-          )}
+              Workspace roles
+            </Tabs.Tab>
+            <Tabs.Tab
+              value="project"
+              rightSection={
+                hasProjectChanges ? (
+                  <>
+                    <Indicator size={6} color="blue" offset={0} inline />
+                    <VisuallyHidden> (unsaved changes)</VisuallyHidden>
+                  </>
+                ) : null
+              }
+            >
+              Project roles
+            </Tabs.Tab>
+          </Tabs.List>
 
-          {saveError?.type === "invalid" && (
-            <Alert color="red" title="Validation error">
-              {Object.entries(saveError.fields).map(([field, msg]) => (
-                <div key={field}>{msg}</div>
-              ))}
-            </Alert>
-          )}
+          <Tabs.Panel value="workspace">
+            <Stack gap="xl">
+              <SettingsSection
+                titleOrder={2}
+                title="Workspace roles"
+                description="What each role can do in a workspace."
+              >
+                <WorkspaceRolesTable rows={overview.workspaceRoles} />
+              </SettingsSection>
 
-          {saveError?.type === "failed" && (
-            <Alert color="red" title="Error">
-              {saveError.message}
-            </Alert>
-          )}
+              <SettingsSection
+                titleOrder={2}
+                title="Workspace permissions"
+                description="Choose what each workspace role can do. Changes apply to every workspace on this instance."
+              >
+                {roleState.status === "loading" && (
+                  <Stack gap="xs">
+                    <Skeleton height={40} />
+                    <Skeleton height={200} />
+                  </Stack>
+                )}
+                {roleState.status === "error" && (
+                  <Alert color="red">
+                    <Text mb="xs">{rolesLoadError}</Text>
+                    <Button size="xs" variant="default" onClick={reload}>
+                      Try again
+                    </Button>
+                  </Alert>
+                )}
+                {roleState.status === "ready" && workspaceMatrix && (
+                  <PermissionMatrixTable
+                    matrix={workspaceMatrix}
+                    readOnly={isSaving}
+                    onToggle={handleToggle}
+                  />
+                )}
+              </SettingsSection>
+            </Stack>
+          </Tabs.Panel>
 
-          <SettingsSection
-            titleOrder={2}
-            title="Workspace permissions"
-            description="Choose what each workspace role can do. Changes apply to every workspace on this instance."
-          >
-            {roleState.status === "loading" && (
-              <Stack gap="xs">
-                <Skeleton height={40} />
-                <Skeleton height={200} />
-              </Stack>
-            )}
-            {roleState.status === "error" && (
-              <Alert color="red">
-                <Text mb="xs">Couldn't load permissions.</Text>
-                <Button size="xs" variant="default" onClick={reload}>
-                  Try again
-                </Button>
-              </Alert>
-            )}
-            {roleState.status === "ready" && workspaceMatrix && (
-              <PermissionMatrixTable
-                matrix={workspaceMatrix}
-                readOnly={isSaving}
-                onToggle={handleToggle}
-              />
-            )}
-          </SettingsSection>
+          <Tabs.Panel value="project">
+            <Stack gap="xl">
+              <SettingsSection
+                titleOrder={2}
+                title="Project roles"
+                description="Each project member has one of these roles in that project."
+              >
+                <ProjectRolesTable rows={overview.projectRoles} />
+              </SettingsSection>
 
-          <SettingsSection
-            titleOrder={2}
-            title="Project permissions"
-            description="Choose what each project role can do. Changes apply to every project on this instance."
-          >
-            {roleState.status === "loading" && (
-              <Stack gap="xs">
-                <Skeleton height={40} />
-                <Skeleton height={200} />
-              </Stack>
-            )}
-            {roleState.status === "error" && (
-              <Alert color="red">
-                <Text mb="xs">Couldn't load permissions.</Text>
-                <Button size="xs" variant="default" onClick={reload}>
-                  Try again
-                </Button>
-              </Alert>
-            )}
-            {roleState.status === "ready" && projectMatrix && (
-              <PermissionMatrixTable
-                matrix={projectMatrix}
-                readOnly={isSaving}
-                onToggle={handleToggle}
-              />
-            )}
-          </SettingsSection>
-        </Stack>
+              <SettingsSection
+                titleOrder={2}
+                title="Workspace roles in projects"
+                description="How each workspace role decides access to projects. Set by OpenPlany and the same in every workspace."
+              >
+                {roleState.status === "loading" && (
+                  <Stack gap="xs">
+                    <Skeleton height={40} />
+                    <Skeleton height={140} />
+                  </Stack>
+                )}
+                {roleState.status === "error" && (
+                  <Alert color="red">
+                    <Text mb="xs">{rolesLoadError}</Text>
+                    <Button size="xs" variant="default" onClick={reload}>
+                      Try again
+                    </Button>
+                  </Alert>
+                )}
+                {roleState.status === "ready" && (
+                  <ProjectAccessTable rows={projectAccessRows} />
+                )}
+              </SettingsSection>
+
+              <SettingsSection
+                titleOrder={2}
+                title="Project permissions"
+                description="Choose what each project role can do. Changes apply to every project on this instance."
+              >
+                {roleState.status === "loading" && (
+                  <Stack gap="xs">
+                    <Skeleton height={40} />
+                    <Skeleton height={200} />
+                  </Stack>
+                )}
+                {roleState.status === "ready" && projectMatrix && (
+                  <PermissionMatrixTable
+                    matrix={projectMatrix}
+                    readOnly={isSaving}
+                    onToggle={handleToggle}
+                  />
+                )}
+              </SettingsSection>
+            </Stack>
+          </Tabs.Panel>
+        </Tabs>
 
         <SaveChangesBar
           changeCount={totalUnsavedChanges}
@@ -306,14 +389,12 @@ export function RolesAndPermissionsRoute() {
           diff={diff}
           onConfirm={handleConfirmSave}
           isSaving={isSaving}
-          permissions={roleState.status === "ready" ? roleState.permissions : []}
+          permissions={
+            roleState.status === "ready" ? roleState.permissions : []
+          }
         />
 
-        <Modal
-          opened={blocked}
-          onClose={stay}
-          title="Discard unsaved changes?"
-        >
+        <Modal opened={blocked} onClose={stay} title="Discard unsaved changes?">
           <Stack gap="md">
             <Text size="sm">
               You have unsaved changes that will be lost if you leave this page.

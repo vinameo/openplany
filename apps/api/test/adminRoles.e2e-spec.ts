@@ -128,6 +128,33 @@ describe('Admin Roles & Role Permissions (e2e)', () => {
         scope: 'workspace',
         label: 'View workspace settings',
       });
+
+      expect(res.body.projectAccessPolicies).toEqual([
+        {
+          workspaceRole: 'admin',
+          implicitProjectRole: 'admin',
+          lowestAssignableRole: 'admin',
+          highestAssignableRole: 'admin',
+          overridesProjectRank: true,
+          locked: true,
+        },
+        {
+          workspaceRole: 'member',
+          implicitProjectRole: null,
+          lowestAssignableRole: 'commenter',
+          highestAssignableRole: 'admin',
+          overridesProjectRank: false,
+          locked: true,
+        },
+        {
+          workspaceRole: 'guest',
+          implicitProjectRole: null,
+          lowestAssignableRole: 'viewer',
+          highestAssignableRole: 'viewer',
+          overridesProjectRank: false,
+          locked: true,
+        },
+      ]);
     });
   });
 

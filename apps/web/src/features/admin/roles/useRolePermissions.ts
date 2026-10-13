@@ -1,16 +1,24 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   PermissionItem,
+  ProjectAccessPolicyResponse,
   RoleResponse,
   UpdateRolePermissionsRequest,
 } from "@repo/contracts";
 import { ApiRequestError } from "../../../lib/apiClient";
 import { adminRolesApi } from "./api/adminRolesApi";
+import { adminRoleKeys, rolesLoadError } from "./api/adminRoleQueries";
 
 export type RolePermissionsState =
   | { status: "loading" }
   | { status: "error"; message: string }
-  | { status: "ready"; roles: RoleResponse[]; permissions: PermissionItem[] };
+  | {
+      status: "ready";
+      roles: RoleResponse[];
+      permissions: PermissionItem[];
+      projectAccessPolicies: ProjectAccessPolicyResponse[];
+    };
 
 export type SaveResult =
   | { status: "saved" }
@@ -23,54 +31,38 @@ export function useRolePermissions(): {
   reload: () => void;
   save: (body: UpdateRolePermissionsRequest) => Promise<SaveResult>;
 } {
-  const [state, setState] = useState<RolePermissionsState>({
-    status: "loading",
+  const queryClient = useQueryClient();
+
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: adminRoleKeys.roles,
+    queryFn: () => adminRolesApi.list(),
+    retry: false,
   });
-  const [reloadIndex, setReloadIndex] = useState(0);
+
+  const state: RolePermissionsState = useMemo(() => {
+    if (isLoading || (!data && !isError)) {
+      return { status: "loading" };
+    }
+    if (isError || !data) {
+      return { status: "error", message: rolesLoadError };
+    }
+    return {
+      status: "ready",
+      roles: data.roles,
+      permissions: data.permissions,
+      projectAccessPolicies: data.projectAccessPolicies ?? [],
+    };
+  }, [isLoading, isError, data]);
 
   const reload = useCallback(() => {
-    setState({ status: "loading" });
-    setReloadIndex((prev) => prev + 1);
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function fetchRoles() {
-      try {
-        const response = await adminRolesApi.list();
-        if (!cancelled) {
-          setState({
-            status: "ready",
-            roles: response.roles,
-            permissions: response.permissions,
-          });
-        }
-      } catch (err: unknown) {
-        if (!cancelled) {
-          const message =
-            err instanceof Error ? err.message : "Couldn't load permissions.";
-          setState({ status: "error", message });
-        }
-      }
-    }
-
-    void fetchRoles();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [reloadIndex]);
+    void refetch();
+  }, [refetch]);
 
   const save = useCallback(
     async (body: UpdateRolePermissionsRequest): Promise<SaveResult> => {
       try {
         const response = await adminRolesApi.updatePermissions(body);
-        setState({
-          status: "ready",
-          roles: response.roles,
-          permissions: response.permissions,
-        });
+        queryClient.setQueryData(adminRoleKeys.roles, response);
         return { status: "saved" };
       } catch (err: unknown) {
         if (err instanceof ApiRequestError) {
@@ -95,7 +87,7 @@ export function useRolePermissions(): {
         };
       }
     },
-    [],
+    [queryClient],
   );
 
   return {
@@ -104,4 +96,3 @@ export function useRolePermissions(): {
     save,
   };
 }
-

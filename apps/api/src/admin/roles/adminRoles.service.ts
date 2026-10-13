@@ -12,6 +12,7 @@ import {
 import { Clock } from '../../auth/clock.js';
 import { ApiException } from '../../common/apiException.js';
 import { isForeignKeyViolation } from '../../common/databaseErrors.js';
+import { ProjectAccessPolicyStore } from '../../roles/projectAccessPolicyStore.js';
 import {
   planRolePermissionChanges,
   type StoredRolePermissions,
@@ -25,6 +26,7 @@ export class AdminRolesService {
   constructor(
     private readonly repository: RolePermissionsRepository,
     private readonly clock: Clock,
+    private readonly policyStore: ProjectAccessPolicyStore,
   ) {}
 
   async getRoles(): Promise<RolesResponse> {
@@ -32,8 +34,13 @@ export class AdminRolesService {
       this.repository.listRoles(),
       this.repository.listPermissions(),
     ]);
+    const policies = this.policyStore.policies();
     const roles = this.formatRoles(stored);
-    return { roles, permissions };
+    const projectAccessPolicies = WORKSPACE_ROLES.map((role) => ({
+      ...policies[role],
+      locked: true as const,
+    }));
+    return { roles, permissions, projectAccessPolicies };
   }
 
   async updateRolePermissions(
