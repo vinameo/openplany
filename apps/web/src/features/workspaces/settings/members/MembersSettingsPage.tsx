@@ -1,158 +1,77 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState } from 'react';
+import { Alert } from '@mantine/core';
 import {
-  Alert,
-  Badge,
-  Button,
-  Group,
-  Skeleton,
-  Stack,
-  Text,
-  Title,
-} from "@mantine/core";
-import { isWorkspaceAdminRole, type WorkspaceRole } from "@repo/contracts";
-import { useCurrentWorkspace } from "../../currentWorkspace/useCurrentWorkspace";
-import { AddMembersModal } from "./AddMembersModal";
+  isWorkspaceAdminRole,
+  WORKSPACE_MEMBER_LIST_MAX,
+  type WorkspaceMemberResponse,
+} from '@repo/contracts';
+import { useCurrentWorkspace } from '../../currentWorkspace/useCurrentWorkspace';
 import {
-  applyMemberListQuery,
-  DEFAULT_MEMBER_SORT,
-  type MemberSort,
-} from "./memberListView";
-import { MembersTable } from "./MembersTable";
-import { MembersToolbar } from "./MembersToolbar";
-import { useWorkspaceMembers } from "./useWorkspaceMembers";
+  MembersListView,
+  type MembersListState,
+} from '../../../members/MembersListView';
+import { WORKSPACE_ROLE_SCHEME } from '../../../members/roleScheme';
+import { AddMembersModal } from './AddMembersModal';
+import { useWorkspaceMembers } from './useWorkspaceMembers';
 
 export function MembersSettingsPage() {
   const { workspace } = useCurrentWorkspace();
   const { state, reload } = useWorkspaceMembers(workspace.slug);
-
-  const [search, setSearch] = useState("");
-  const [roles, setRoles] = useState<WorkspaceRole[]>([]);
-  const [sort, setSort] = useState<MemberSort>(DEFAULT_MEMBER_SORT);
   const [addModalOpened, setAddModalOpened] = useState(false);
 
   const canSeeEmail = workspace.permissions.includes(
-    "workspace.members.email.view",
+    'workspace.members.email.view',
   );
   const canAddMember = workspace.permissions.includes(
-    "workspace.members.add",
+    'workspace.members.add',
   );
 
-  const rawMembers = state.status === "ready" ? state.data.members : undefined;
-  const filteredMembers = useMemo(
-    () =>
-      applyMemberListQuery(
-        rawMembers ?? [],
-        { search, roles, sort },
-        { canSeeEmail },
-      ),
-    [rawMembers, search, roles, sort, canSeeEmail],
-  );
+  const listViewState: MembersListState<WorkspaceMemberResponse> = useMemo(() => {
+    if (state.status === 'loading') return { status: 'loading' };
+    if (state.status === 'error') return { status: 'error', retry: reload };
+    return {
+      status: 'ready',
+      members: state.data.members,
+      total: state.data.total,
+      truncated: state.data.truncated,
+      listMax: WORKSPACE_MEMBER_LIST_MAX,
+    };
+  }, [state, reload]);
 
-  if (state.status === "loading") {
-    return (
-      <Stack gap="md">
-        <Group gap="xs" align="center">
-          <Skeleton height={28} width={120} />
-          <Skeleton height={20} width={40} radius="xl" />
-        </Group>
-        <Stack gap="xs">
-          <Skeleton height={40} />
-          <Skeleton height={40} />
-          <Skeleton height={40} />
-          <Skeleton height={40} />
-          <Skeleton height={40} />
-          <Skeleton height={40} />
-        </Stack>
-      </Stack>
-    );
-  }
-
-  if (state.status === "error") {
-    return (
-      <Stack gap="md">
-        <Group gap="xs" align="center">
-          <Title order={2}>Members</Title>
-        </Group>
-        <Alert color="red" role="alert">
-          <Group justify="space-between" align="center">
-            <Text size="sm">Couldn't load members.</Text>
-            <Button variant="subtle" color="red" size="xs" onClick={reload}>
-              Try again
-            </Button>
-          </Group>
-        </Alert>
-      </Stack>
-    );
-  }
-
-  const { data } = state;
-
-  const adminMembers = data.members.filter((m) => isWorkspaceAdminRole(m.role));
-  const hasActiveAdmin = adminMembers.some((m) => m.accountActive);
-  const showNoActiveAdmin = !data.truncated && !hasActiveAdmin;
-
-  const formattedTotal = new Intl.NumberFormat("en-US").format(data.total);
-
-  const clearSearchAndFilters = () => {
-    setSearch("");
-    setRoles([]);
-  };
+  const hasActiveAdmin =
+    state.status === 'ready' &&
+    state.data.members
+      .filter((m) => isWorkspaceAdminRole(m.role))
+      .some((m) => m.accountActive);
+  const showNoActiveAdmin =
+    state.status === 'ready' && !state.data.truncated && !hasActiveAdmin;
 
   return (
-    <Stack gap="md">
-      <Group gap="xs" align="center">
-        <Title order={2}>Members</Title>
-        <Badge variant="light" color="gray" size="sm">
-          {data.total}
-        </Badge>
-      </Group>
-
-      {data.truncated && (
-        <Alert color="yellow" role="alert">
-          {`Showing the first 1,000 of ${formattedTotal} members.`}
-        </Alert>
-      )}
-
-      {showNoActiveAdmin && (
-        <Alert color="red" role="alert">
-          No active Admin. Ask your instance admin for help.
-        </Alert>
-      )}
-
-      <MembersToolbar
-        search={search}
-        onSearchChange={setSearch}
-        selectedRoles={roles}
-        onRolesChange={setRoles}
+    <>
+      <MembersListView
+        scheme={WORKSPACE_ROLE_SCHEME}
+        state={listViewState}
+        canSeeEmail={canSeeEmail}
         canAddMember={canAddMember}
         onAddMember={() => setAddModalOpened(true)}
+        alerts={
+          showNoActiveAdmin ? (
+            <Alert color="red" role="alert">
+              No active Admin. Ask your instance admin for help.
+            </Alert>
+          ) : undefined
+        }
       />
 
-      {filteredMembers.length === 0 ? (
-        <Stack align="center" gap="xs" py="xl">
-          <Text size="sm" c="dimmed">
-            No members match your search
-          </Text>
-          <Button variant="subtle" size="sm" onClick={clearSearchAndFilters}>
-            Clear search and filters
-          </Button>
-        </Stack>
-      ) : (
-        <MembersTable
-          members={filteredMembers}
-          canSeeEmail={canSeeEmail}
-          currentSort={sort}
-          onSortChange={setSort}
+      {state.status === 'ready' && (
+        <AddMembersModal
+          opened={addModalOpened}
+          onClose={() => setAddModalOpened(false)}
+          slug={workspace.slug}
+          addableRoles={state.data.addableRoles}
+          onSuccess={reload}
         />
       )}
-
-      <AddMembersModal
-        opened={addModalOpened}
-        onClose={() => setAddModalOpened(false)}
-        slug={workspace.slug}
-        addableRoles={data.addableRoles}
-        onSuccess={reload}
-      />
-    </Stack>
+    </>
   );
 }

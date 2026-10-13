@@ -16,6 +16,10 @@ _Avoid_: Superuser, god mode, system admin
 
 ### Workspaces
 
+**Workspace**:
+The shared space of one team inside the company that runs the instance. A company with several teams has several workspaces; a person who works in two teams is a member of both.
+_Avoid_: Organization, company, team space
+
 **Workspace member**:
 A User with an active membership in a workspace, holding exactly one workspace role. Covers every role, Admin through Guest.
 _Avoid_: "Member" on its own when the role is not meant
@@ -46,7 +50,7 @@ _Avoid_: Inactive member (that would be a Former member)
 ### Projects and work
 
 **Project**:
-A place inside one workspace where a group of people track work items together. Every project belongs to exactly one workspace and has a name that is unique within it. A project is private: only its project members and the workspace's Admins can see it; nobody can join one on their own.
+One of a team's projects: a place inside one workspace where a group of people track work items together. Every project belongs to exactly one workspace and has a name that is unique within it. A project is private: only its project members and the workspace's Admins can see it; nobody can join one on their own.
 
 **Project ID**:
 The short uppercase code of a project, unique within its workspace and never reused there, even after the project is deleted, that will prefix its work items' numbers (for example `OPS-12`). Suggested from the project name when the project is created. It appears in project URLs (`/<workspace>/projects/OPS`).
@@ -82,8 +86,8 @@ _Avoid_: Issue, ticket
 ### Roles and permissions
 
 **Project role**:
-The level of trust a person has inside one project: Project Admin, Contributor, Commenter or Guest. Workspace Admins act as Project Admin in every project.
-_Avoid_: Project member role
+The level of trust a person has inside one project: Project Admin, Contributor, Commenter or Guest. Workspace Admins act as Project Admin in every project. The same person can hold different project roles in different projects of one workspace. A project's lead, in everyday speech, is a Project Admin; a project may have several.
+_Avoid_: Project member role, Lead (as a role name)
 
 **Effective project role**:
 The project role a person can actually use: the role they were given, capped by what their workspace role allows (a workspace Guest can never act above project Guest), or Project Admin for workspace Admins. This is the role shown on the project's member list.
