@@ -1,7 +1,7 @@
 ---
 name: spec-reviewer
 description: Read-only reviewer of an OpenPlany feature spec (packages/docs/<n>-<feature>/). Use after a spec is written or changed and before it is split into tickets; pass the feature directory.
-tools: Read, Grep, Glob, Bash
+disallowedTools: Write, Edit, NotebookEdit, mcp__postgres-mcp__postgres_mcp_modify, mcp__postgres-mcp__postgres_mcp_bulk_load_csv
 skills:
   - spec-review
   - mattpocock-skills:codebase-design
