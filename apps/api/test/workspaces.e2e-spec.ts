@@ -491,6 +491,7 @@ describe('Workspaces (e2e)', () => {
         'workspace.members.view',
         'workspace.members.email.view',
         'workspace.members.add',
+        'workspace.members.role.update',
         'workspace.projects.create',
         'workspace.projects.delete',
       ]);
@@ -805,6 +806,7 @@ describe('Workspaces (e2e)', () => {
         'workspace.members.view',
         'workspace.members.email.view',
         'workspace.members.add',
+        'workspace.members.role.update',
         'workspace.projects.create',
         'workspace.projects.delete',
       ]);
@@ -834,6 +836,7 @@ describe('Workspaces (e2e)', () => {
         'workspace.members.view',
         'workspace.members.email.view',
         'workspace.members.add',
+        'workspace.members.role.update',
         'workspace.projects.create',
         'workspace.projects.delete',
       ]);
@@ -851,6 +854,7 @@ describe('Workspaces (e2e)', () => {
         'workspace.members.view',
         'workspace.members.email.view',
         'workspace.members.add',
+        'workspace.members.role.update',
         'workspace.projects.create',
         'workspace.projects.delete',
       ]);

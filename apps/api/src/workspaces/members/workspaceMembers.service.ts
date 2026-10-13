@@ -6,11 +6,14 @@ import {
   WORKSPACE_ROLES,
   WORKSPACE_ROLE_RANK,
   WORKSPACE_MEMBER_LIST_MAX,
+  WORKSPACE_ROLE_CHANGE_MESSAGES,
   addableWorkspaceRoles,
   type AddWorkspaceMembersResponse,
+  type ChangeWorkspaceRoleResponse,
   type MemberCandidateListResponse,
   type WorkspaceMemberListResponse,
   type WorkspaceRole,
+  type WorkspaceRoleChangePreview,
 } from '@repo/contracts';
 import { ApiException } from '../../common/apiException.js';
 import {
@@ -26,6 +29,8 @@ import {
 } from './dto/workspaceMemberResponse.dto.js';
 import { WorkspaceEvents } from '../events/workspaceEvents.js';
 import type { AddWorkspaceMembersDto } from './dto/addWorkspaceMembers.dto.js';
+import type { RoleChangePreviewQueryDto } from './dto/roleChangePreviewQuery.dto.js';
+import type { ChangeWorkspaceRoleDto } from './dto/changeWorkspaceRole.dto.js';
 
 @Injectable()
 export class WorkspaceMembersService {
@@ -60,14 +65,18 @@ export class WorkspaceMembersService {
       );
     }
 
-    const addableRoles = addableWorkspaceRoles({
+    const actor = {
       userId,
       role: ws.role,
       permissions: ws.permissions,
-    });
+    };
+
+    const addableRoles = addableWorkspaceRoles(actor);
 
     return {
-      members: members.map((m) => toWorkspaceMemberResponse(m, { includeEmail })),
+      members: members.map((m) =>
+        toWorkspaceMemberResponse(m, { includeEmail, actor }),
+      ),
       total,
       truncated,
       addableRoles,
@@ -209,13 +218,163 @@ export class WorkspaceMembersService {
       roles,
     });
 
+    const actor = {
+      userId: actorId,
+      role: ws.role,
+      permissions: ws.permissions,
+    };
     const includeEmail = ws.permissions.includes(
       'workspace.members.email.view',
     );
     return {
       members: result.members.map((m) =>
-        toWorkspaceMemberResponse(m, { includeEmail }),
+        toWorkspaceMemberResponse(m, { includeEmail, actor }),
       ),
+    };
+  }
+
+  async previewRoleChange(
+    ws: MemberWorkspace,
+    actorId: string,
+    targetUserId: string,
+    query: RoleChangePreviewQueryDto,
+    _requestId: string,
+  ): Promise<WorkspaceRoleChangePreview> {
+    const actor = {
+      userId: actorId,
+      role: ws.role,
+      permissions: ws.permissions,
+    };
+    return this.repository.previewRoleChange({
+      workspaceId: ws.id,
+      actor,
+      targetUserId,
+      targetRole: query.role,
+    });
+  }
+
+  async changeRole(
+    ws: MemberWorkspace,
+    actorId: string,
+    targetUserId: string,
+    dto: ChangeWorkspaceRoleDto,
+    requestId: string,
+  ): Promise<ChangeWorkspaceRoleResponse> {
+    const now = this.clock.now();
+    const result = await this.repository.changeRole({
+      workspaceId: ws.id,
+      actorId,
+      targetUserId,
+      fromRole: dto.fromRole,
+      toRole: dto.role,
+      projectRole: dto.projectRole,
+      requestId,
+      now,
+    });
+
+    if (result.status === 'member_gone') {
+      throw new ApiException(
+        HttpStatus.NOT_FOUND,
+        'NOT_FOUND',
+        WORKSPACE_ROLE_CHANGE_MESSAGES.memberGone,
+      );
+    }
+
+    if (result.status === 'actor_forbidden') {
+      await this.events.memberRoleForbidden({
+        workspaceId: ws.id,
+        actorId,
+        targetId: targetUserId,
+        requestId,
+      });
+      throw new ApiException(
+        HttpStatus.FORBIDDEN,
+        'FORBIDDEN',
+        MEMBER_MESSAGES.roleNotAllowed,
+      );
+    }
+
+    if (result.status === 'role_changed') {
+      throw new ApiException(
+        HttpStatus.CONFLICT,
+        'ROLE_CHANGED',
+        MEMBER_MESSAGES.roleChanged,
+      );
+    }
+
+    if (result.status === 'same_role') {
+      throw new ApiException(
+        HttpStatus.BAD_REQUEST,
+        'ROLE_UNCHANGED',
+        MEMBER_MESSAGES.sameRole,
+      );
+    }
+
+    if (result.status === 'actor_cannot_choose') {
+      await this.events.memberRoleForbidden({
+        workspaceId: ws.id,
+        actorId,
+        targetId: targetUserId,
+        requestId,
+      });
+      throw new ApiException(
+        HttpStatus.FORBIDDEN,
+        'FORBIDDEN',
+        MEMBER_MESSAGES.roleNotAllowed,
+      );
+    }
+
+    if (result.status === 'project_role_out_of_range') {
+      throw new ApiException(
+        HttpStatus.BAD_REQUEST,
+        'PROJECT_ROLE_NOT_ALLOWED',
+        MEMBER_MESSAGES.roleOutOfRange,
+        { fields: { projectRole: MEMBER_MESSAGES.roleOutOfRange } },
+      );
+    }
+
+    if (result.status === 'last_admin') {
+      await this.events.memberRoleLastAdmin({
+        workspaceId: ws.id,
+        actorId,
+        targetId: targetUserId,
+        requestId,
+      });
+      throw new ApiException(
+        HttpStatus.CONFLICT,
+        'LAST_ADMIN',
+        WORKSPACE_ROLE_CHANGE_MESSAGES.lastAdmin,
+      );
+    }
+
+    // Success
+    await this.events.memberRoleChanged({
+      workspaceId: ws.id,
+      actorId,
+      targetId: targetUserId,
+      fromRole: result.fromRole,
+      toRole: result.toRole,
+      effect: result.effect,
+      appliedProjectCount: result.appliedProjectCount,
+      requestId,
+    });
+
+    const includeEmail = ws.permissions.includes(
+      'workspace.members.email.view',
+    );
+    const actor = {
+      userId: actorId,
+      role: ws.role,
+      permissions: ws.permissions,
+    };
+
+    return {
+      member: toWorkspaceMemberResponse(result.member, {
+        includeEmail,
+        actor,
+      }),
+      effect: result.effect,
+      appliedProjectCount: result.appliedProjectCount,
     };
   }
 }

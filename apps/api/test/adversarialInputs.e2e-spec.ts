@@ -366,6 +366,57 @@ describe('Adversarial inputs (e2e)', () => {
     );
   });
 
+  it('PATCH /workspaces/:slug/members/:userId', async () => {
+    const ws = await seedWorkspace();
+    const targetUser = await newUser();
+    await e2e.dataSource.query(
+      `INSERT INTO workspace_members (workspace_id, member_id, role, is_active, created_at, updated_at, joined_at)
+       VALUES ($1, $2, 'guest', true, now(), now(), now())`,
+      [ws.id, targetUser.id],
+    );
+
+    const cookieFor = rotatingCookie(() => newWorkspaceAdmin(ws.id));
+    const valid = { fromRole: 'guest', role: 'member', projectRole: 'commenter' };
+    await expectNoServerErrors(adversarialBodies(valid), async (body, i) =>
+      http()
+        .patch(`/api/workspaces/${ws.slug}/members/${targetUser.id}`)
+        .set('Cookie', await cookieFor(i))
+        .set('Origin', ORIGIN)
+        .send(body as object),
+    );
+
+    const admin = await newWorkspaceAdmin(ws.id);
+
+    // Malformed userId
+    const resBadUuid = await http()
+      .patch(`/api/workspaces/${ws.slug}/members/not-a-uuid`)
+      .set('Cookie', admin.cookie)
+      .set('Origin', ORIGIN)
+      .send({ fromRole: 'guest', role: 'member' })
+      .expect(400);
+    expect(resBadUuid.body.code).toBe('VALIDATION_ERROR');
+    expect(resBadUuid.body.fields?.userId).toBeDefined();
+
+    // Unknown member
+    const unknownUser = await newUser();
+    const resUnknown = await http()
+      .patch(`/api/workspaces/${ws.slug}/members/${unknownUser.id}`)
+      .set('Cookie', admin.cookie)
+      .set('Origin', ORIGIN)
+      .send({ fromRole: 'guest', role: 'member' })
+      .expect(404);
+    expect(resUnknown.body.code).toBe('NOT_FOUND');
+
+    // Self change forbidden
+    const resSelf = await http()
+      .patch(`/api/workspaces/${ws.slug}/members/${admin.id}`)
+      .set('Cookie', admin.cookie)
+      .set('Origin', ORIGIN)
+      .send({ fromRole: 'admin', role: 'member' })
+      .expect(403);
+    expect(resSelf.body.code).toBe('FORBIDDEN');
+  });
+
   it('POST /auth/sign-in', async () => {
     const user = await newUser();
     const valid = { email: user.email, password: 'Secret123!' };

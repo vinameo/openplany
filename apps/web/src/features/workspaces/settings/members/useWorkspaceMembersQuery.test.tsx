@@ -48,6 +48,7 @@ const sampleResponse: WorkspaceMemberListResponse = {
       accountActive: true,
       avatarUrl: null,
       joinedAt: "2026-10-01T00:00:00.000Z",
+      assignableRoles: [],
     },
   ],
   total: 1,

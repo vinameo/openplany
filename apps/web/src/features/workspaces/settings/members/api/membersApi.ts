@@ -2,8 +2,12 @@ import { request } from "../../../../../lib/apiClient";
 import type {
   AddWorkspaceMembersRequest,
   AddWorkspaceMembersResponse,
+  ChangeWorkspaceRoleRequest,
+  ChangeWorkspaceRoleResponse,
   MemberCandidateListResponse,
   WorkspaceMemberListResponse,
+  WorkspaceRole,
+  WorkspaceRoleChangePreview,
 } from "@repo/contracts";
 
 export const membersApi = {
@@ -29,4 +33,32 @@ export const membersApi = {
         signal,
       },
     ),
+
+  previewRoleChange: (
+    slug: string,
+    userId: string,
+    role: WorkspaceRole,
+    signal?: AbortSignal,
+  ) =>
+    request<WorkspaceRoleChangePreview>(
+      `/api/workspaces/${encodeURIComponent(slug)}/members/${encodeURIComponent(userId)}/role-change-preview?role=${encodeURIComponent(role)}`,
+      { signal },
+    ),
+
+  changeRole: (
+    slug: string,
+    userId: string,
+    body: ChangeWorkspaceRoleRequest,
+    signal?: AbortSignal,
+  ) =>
+    request<ChangeWorkspaceRoleResponse>(
+      `/api/workspaces/${encodeURIComponent(slug)}/members/${encodeURIComponent(userId)}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal,
+      },
+    ),
 };
+

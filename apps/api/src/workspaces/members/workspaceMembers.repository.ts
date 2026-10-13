@@ -2,6 +2,9 @@ import type {
   MemberNotAddableReason,
   WorkspaceRole,
   WorkspacePermission,
+  ProjectRole,
+  WorkspaceRoleChangeEffect,
+  WorkspaceRoleChangePreview,
 } from '@repo/contracts';
 import type {
   MemberCandidateRow,
@@ -17,6 +20,45 @@ export type AddMembersResult =
   /** The database rejected a role of the batch (foreign key on `roles`). */
   | { status: 'role_unknown' }
   | { status: 'workspace_gone' };
+
+export type ChangeRoleResult =
+  | {
+      status: 'success';
+      member: WorkspaceMemberRow;
+      fromRole: WorkspaceRole;
+      toRole: WorkspaceRole;
+      effect: WorkspaceRoleChangeEffect;
+      appliedProjectCount: number;
+    }
+  | { status: 'member_gone' }
+  | { status: 'actor_forbidden' }
+  | { status: 'role_changed' }
+  | { status: 'same_role' }
+  | { status: 'actor_cannot_choose' }
+  | { status: 'project_role_out_of_range' }
+  | { status: 'last_admin' };
+
+export interface ChangeRoleInput {
+  workspaceId: string;
+  actorId: string;
+  targetUserId: string;
+  fromRole: WorkspaceRole;
+  toRole: WorkspaceRole;
+  projectRole?: ProjectRole | null;
+  requestId: string;
+  now: Date;
+}
+
+export interface PreviewRoleChangeInput {
+  workspaceId: string;
+  actor: {
+    userId: string;
+    role: WorkspaceRole;
+    permissions: readonly WorkspacePermission[];
+  };
+  targetUserId: string;
+  targetRole: WorkspaceRole;
+}
 
 export abstract class WorkspaceMembersRepository {
   abstract list(
@@ -45,4 +87,10 @@ export abstract class WorkspaceMembersRepository {
       permissions: readonly WorkspacePermission[];
     }) => boolean;
   }): Promise<AddMembersResult>;
+
+  abstract previewRoleChange(
+    input: PreviewRoleChangeInput,
+  ): Promise<WorkspaceRoleChangePreview>;
+
+  abstract changeRole(input: ChangeRoleInput): Promise<ChangeRoleResult>;
 }

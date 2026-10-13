@@ -153,6 +153,9 @@ import {
 import {
   WorkspaceEvents,
   type MemberCandidatesSearchedEvent,
+  type WorkspaceMemberRoleChangedEvent,
+  type WorkspaceMemberRoleForbiddenEvent,
+  type WorkspaceMemberRoleLastAdminEvent,
   type WorkspaceMembersAddedEvent,
   type WorkspaceUpdatedEvent,
 } from '../../src/workspaces/events/workspaceEvents.js';
@@ -169,6 +172,9 @@ export class FakeWorkspaceEvents extends WorkspaceEvents {
   events: WorkspaceUpdatedEvent[] = [];
   candidateSearchedEvents: MemberCandidatesSearchedEvent[] = [];
   membersAddedEvents: WorkspaceMembersAddedEvent[] = [];
+  memberRoleChangedEvents: WorkspaceMemberRoleChangedEvent[] = [];
+  memberRoleForbiddenEvents: WorkspaceMemberRoleForbiddenEvent[] = [];
+  memberRoleLastAdminEvents: WorkspaceMemberRoleLastAdminEvent[] = [];
   throwError: Error | null = null;
 
   updated(event: WorkspaceUpdatedEvent): Promise<void> {
@@ -194,6 +200,30 @@ export class FakeWorkspaceEvents extends WorkspaceEvents {
       return Promise.reject(this.throwError);
     }
     this.membersAddedEvents.push(event);
+    return Promise.resolve();
+  }
+
+  memberRoleChanged(event: WorkspaceMemberRoleChangedEvent): Promise<void> {
+    if (this.throwError) {
+      return Promise.reject(this.throwError);
+    }
+    this.memberRoleChangedEvents.push(event);
+    return Promise.resolve();
+  }
+
+  memberRoleForbidden(event: WorkspaceMemberRoleForbiddenEvent): Promise<void> {
+    if (this.throwError) {
+      return Promise.reject(this.throwError);
+    }
+    this.memberRoleForbiddenEvents.push(event);
+    return Promise.resolve();
+  }
+
+  memberRoleLastAdmin(event: WorkspaceMemberRoleLastAdminEvent): Promise<void> {
+    if (this.throwError) {
+      return Promise.reject(this.throwError);
+    }
+    this.memberRoleLastAdminEvents.push(event);
     return Promise.resolve();
   }
 }

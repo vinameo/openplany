@@ -7,6 +7,9 @@ import {
 import {
   WorkspaceEvents,
   type MemberCandidatesSearchedEvent,
+  type WorkspaceMemberRoleChangedEvent,
+  type WorkspaceMemberRoleForbiddenEvent,
+  type WorkspaceMemberRoleLastAdminEvent,
   type WorkspaceMembersAddedEvent,
   type WorkspaceUpdatedEvent,
 } from './workspaceEvents.js';
@@ -60,6 +63,30 @@ export class LoggingWorkspaceEvents extends WorkspaceEvents {
       .join(',');
     this.logger.log(
       `workspace.members.added requestId=${event.requestId} userId=${event.actorId} workspaceId=${event.workspaceId} role=${event.actorRole} count=${event.count} reactivated=${event.reactivatedCount} roles=${rolesPart}`,
+    );
+  }
+
+  async memberRoleChanged(
+    event: WorkspaceMemberRoleChangedEvent,
+  ): Promise<void> {
+    this.logger.log(
+      `workspace.member.role.changed requestId=${event.requestId ?? ''} workspaceId=${event.workspaceId} actorId=${event.actorId} targetId=${event.targetId} fromRole=${event.fromRole} toRole=${event.toRole} effect=${event.effect} appliedProjectCount=${event.appliedProjectCount}`,
+    );
+  }
+
+  async memberRoleForbidden(
+    event: WorkspaceMemberRoleForbiddenEvent,
+  ): Promise<void> {
+    this.logger.warn(
+      `workspace.member.role.forbidden requestId=${event.requestId ?? ''} workspaceId=${event.workspaceId} actorId=${event.actorId} targetId=${event.targetId}`,
+    );
+  }
+
+  async memberRoleLastAdmin(
+    event: WorkspaceMemberRoleLastAdminEvent,
+  ): Promise<void> {
+    this.logger.warn(
+      `workspace.member.role.last_admin requestId=${event.requestId ?? ''} workspaceId=${event.workspaceId} actorId=${event.actorId} targetId=${event.targetId}`,
     );
   }
 }

@@ -54,6 +54,7 @@ describe("workspaceMemberQueries", () => {
           joinedAt: "2026-10-01T00:00:00Z",
           accountActive: true,
           avatarUrl: null,
+          assignableRoles: [],
         },
       ],
       total: 1,
@@ -85,6 +86,7 @@ describe("workspaceMemberQueries", () => {
       joinedAt: "2026-10-01T00:00:00Z",
       accountActive: true,
       avatarUrl: null,
+      assignableRoles: [],
     };
     const initial: WorkspaceMemberListResponse = {
       members: [existing],
@@ -104,6 +106,7 @@ describe("workspaceMemberQueries", () => {
       joinedAt: "2026-10-02T00:00:00Z",
       accountActive: true,
       avatarUrl: null,
+      assignableRoles: [],
     };
 
     addWorkspaceMembersToCache(qc, "acme", [existing, newMember]);

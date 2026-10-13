@@ -17,6 +17,7 @@ const sampleMembers: WorkspaceMemberResponse[] = [
     role: 'admin',
     accountActive: true,
     joinedAt: '2026-10-01T00:00:00.000Z',
+    assignableRoles: [],
   },
   {
     userId: 'u-2',
@@ -28,6 +29,7 @@ const sampleMembers: WorkspaceMemberResponse[] = [
     role: 'member',
     accountActive: true,
     joinedAt: '2026-10-02T00:00:00.000Z',
+    assignableRoles: [],
   },
 ];
 

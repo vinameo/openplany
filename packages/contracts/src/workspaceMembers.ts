@@ -26,6 +26,7 @@ export interface WorkspaceMemberResponse {
   role: WorkspaceRole;
   joinedAt: string; // ISO 8601
   accountActive: boolean;
+  assignableRoles: WorkspaceRole[];
 }
 
 export interface WorkspaceMemberListResponse {

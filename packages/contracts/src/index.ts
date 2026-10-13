@@ -3,6 +3,7 @@ export {
   parseWorkspacePermissions,
   enforcedWorkspacePermissions,
   ENFORCED_WORKSPACE_PERMISSIONS,
+  CHANGE_WORKSPACE_ROLE_REQUIREMENT,
   type WorkspacePermission,
   type EnforcedWorkspacePermission,
 } from "./workspacePermissions.js";
@@ -66,3 +67,4 @@ export {
 export * from "./workspaceMembers.js";
 export * from "./projectMembers.js";
 export * from "./memberMessages.js";
+export * from "./workspaceRoleChange.js";

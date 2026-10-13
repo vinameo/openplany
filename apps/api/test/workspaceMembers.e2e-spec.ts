@@ -538,6 +538,7 @@ describe('WorkspaceMembers (e2e)', () => {
       'workspace.members.view',
       'workspace.members.email.view',
       'workspace.members.add',
+      'workspace.members.role.update',
       'workspace.projects.create',
       'workspace.projects.delete',
     ]);
@@ -1005,6 +1006,431 @@ describe('WorkspaceMembers (e2e)', () => {
       [workspace.id],
     );
     expect(rows[0]!.count).toBe(3);
+  });
+
+  describe('change role', () => {
+    async function createProject(
+      workspaceId: string,
+      name: string,
+      identifier: string,
+    ) {
+      const [project] = await e2e.dataSource.query<{ id: string }[]>(
+        `INSERT INTO projects (workspace_id, name, identifier, icon_name, icon_color, cover_key, timezone)
+         VALUES ($1, $2, $3, 'square-check', '#868E96', 'cover-01', 'UTC') RETURNING id`,
+        [workspaceId, name, identifier],
+      );
+      return project!.id;
+    }
+
+    async function addProjectMember(
+      projectId: string,
+      workspaceId: string,
+      userId: string,
+      role: 'admin' | 'contributor' | 'commenter' | 'viewer',
+      isActive = true,
+    ) {
+      await e2e.dataSource.query(
+        `INSERT INTO project_members (project_id, workspace_id, member_id, role, is_active, created_at, updated_at, joined_at)
+         VALUES ($1, $2, $3, $4, $5, now(), now(), now())`,
+        [projectId, workspaceId, userId, role, isActive],
+      );
+    }
+
+    it('15. AC-01: Guest in 3 projects -> Workspace Admin changes to Member, chooses Contributor', async () => {
+      const { workspace, ownerId, cookie: adminCookie } = await seedWorkspace(
+        'admin-ac01@openplany.dev',
+        'wm-ac01',
+      );
+      const p1 = await createProject(workspace.id, 'Project 1', 'PR1');
+      const p2 = await createProject(workspace.id, 'Project 2', 'PR2');
+      const p3 = await createProject(workspace.id, 'Project 3', 'PR3');
+
+      const myId = await createUser('my-ac01@openplany.dev', { is_superuser: false });
+      await e2e.dataSource.query(
+        `INSERT INTO workspace_members (workspace_id, member_id, role, is_active, created_at, updated_at, joined_at)
+         VALUES ($1, $2, 'guest', true, now(), now(), now())`,
+        [workspace.id, myId],
+      );
+
+      await addProjectMember(p1, workspace.id, myId, 'viewer');
+      await addProjectMember(p2, workspace.id, myId, 'viewer');
+      await addProjectMember(p3, workspace.id, myId, 'viewer');
+
+      // GET preview
+      const previewRes = await http()
+        .get(`/api/workspaces/${workspace.slug}/members/${myId}/role-change-preview?role=member`)
+        .set('Cookie', adminCookie)
+        .expect(200);
+
+      expect(previewRes.body.effect).toBe('apply_project_role');
+      expect(previewRes.body.fromRole).toBe('guest');
+      expect(previewRes.body.toRole).toBe('member');
+      expect(previewRes.body.affectedProjects.total).toBe(3);
+      expect(previewRes.body.actorCanChooseProjectRole).toBe(true);
+      expect(previewRes.body.projectRoleChoices).toEqual(['admin', 'contributor', 'commenter']);
+      expect(previewRes.body.defaultProjectRole).toBe('commenter');
+
+      // PATCH
+      const patchRes = await http()
+        .patch(`/api/workspaces/${workspace.slug}/members/${myId}`)
+        .set('Cookie', adminCookie)
+        .set('Origin', ORIGIN)
+        .send({
+          fromRole: 'guest',
+          role: 'member',
+          projectRole: 'contributor',
+        })
+        .expect(200);
+
+      expect(patchRes.body.member.role).toBe('member');
+      expect(patchRes.body.appliedProjectCount).toBe(3);
+
+      // Verify workspace_members row
+      const wmRows = await e2e.dataSource.query<{ role: string }[]>(
+        `SELECT role FROM workspace_members WHERE workspace_id = $1 AND member_id = $2`,
+        [workspace.id, myId],
+      );
+      expect(wmRows[0]!.role).toBe('member');
+
+      // Verify all 3 project_members rows
+      const pmRows = await e2e.dataSource.query<{ role: string }[]>(
+        `SELECT role FROM project_members WHERE workspace_id = $1 AND member_id = $2`,
+        [workspace.id, myId],
+      );
+      expect(pmRows).toHaveLength(3);
+      expect(pmRows.every((r) => r.role === 'contributor')).toBe(true);
+
+      // Verify 1 workspace_member_role_history row
+      const wmHistory = await e2e.dataSource.query<{ change_type: string; from_role: string; to_role: string; actor_id: string }[]>(
+        `SELECT change_type, from_role, to_role, actor_id FROM workspace_member_role_history WHERE workspace_id = $1 AND member_id = $2`,
+        [workspace.id, myId],
+      );
+      expect(wmHistory).toHaveLength(1);
+      expect(wmHistory[0]!.change_type).toBe('role_changed');
+      expect(wmHistory[0]!.from_role).toBe('guest');
+      expect(wmHistory[0]!.to_role).toBe('member');
+      expect(wmHistory[0]!.actor_id).toBe(ownerId);
+
+      // Verify 3 project_member_role_history rows
+      const pmHistory = await e2e.dataSource.query<{ change_type: string; from_role: string; to_role: string; actor_id: string }[]>(
+        `SELECT change_type, from_role, to_role, actor_id FROM project_member_role_history WHERE workspace_id = $1 AND member_id = $2`,
+        [workspace.id, myId],
+      );
+      expect(pmHistory).toHaveLength(3);
+      expect(pmHistory.every((r) => r.change_type === 'workspace_role_applied')).toBe(true);
+      expect(pmHistory.every((r) => r.from_role === 'viewer')).toBe(true);
+      expect(pmHistory.every((r) => r.to_role === 'contributor')).toBe(true);
+      expect(pmHistory.every((r) => r.actor_id === ownerId)).toBe(true);
+    });
+
+    it('16. AC-02: Member in 2 projects -> change to Guest -> both rows become viewer', async () => {
+      const { workspace, cookie: adminCookie } = await seedWorkspace(
+        'admin-ac02@openplany.dev',
+        'wm-ac02',
+      );
+      const p1 = await createProject(workspace.id, 'Alpha', 'ALP');
+      const p2 = await createProject(workspace.id, 'Beta', 'BET');
+
+      const namId = await createUser('nam-ac02@openplany.dev', { is_superuser: false });
+      await e2e.dataSource.query(
+        `INSERT INTO workspace_members (workspace_id, member_id, role, is_active, created_at, updated_at, joined_at)
+         VALUES ($1, $2, 'member', true, now(), now(), now())`,
+        [workspace.id, namId],
+      );
+
+      await addProjectMember(p1, workspace.id, namId, 'admin');
+      await addProjectMember(p2, workspace.id, namId, 'commenter');
+
+      const previewRes = await http()
+        .get(`/api/workspaces/${workspace.slug}/members/${namId}/role-change-preview?role=guest`)
+        .set('Cookie', adminCookie)
+        .expect(200);
+
+      expect(previewRes.body.effect).toBe('apply_project_role');
+      expect(previewRes.body.projectRoleChoices).toEqual(['viewer']);
+      expect(previewRes.body.defaultProjectRole).toBe('viewer');
+
+      const patchRes = await http()
+        .patch(`/api/workspaces/${workspace.slug}/members/${namId}`)
+        .set('Cookie', adminCookie)
+        .set('Origin', ORIGIN)
+        .send({
+          fromRole: 'member',
+          role: 'guest',
+          projectRole: 'viewer',
+        })
+        .expect(200);
+
+      expect(patchRes.body.member.role).toBe('guest');
+      expect(patchRes.body.appliedProjectCount).toBe(2);
+
+      const pmRows = await e2e.dataSource.query<{ role: string }[]>(
+        `SELECT role FROM project_members WHERE workspace_id = $1 AND member_id = $2`,
+        [workspace.id, namId],
+      );
+      expect(pmRows).toHaveLength(2);
+      expect(pmRows.every((r) => r.role === 'viewer')).toBe(true);
+    });
+
+    it('17. AC-05: Target is actor -> 403 roleNotAllowed', async () => {
+      const { workspace, ownerId, cookie: adminCookie } = await seedWorkspace(
+        'admin-ac05@openplany.dev',
+        'wm-ac05',
+      );
+
+      const res = await http()
+        .patch(`/api/workspaces/${workspace.slug}/members/${ownerId}`)
+        .set('Cookie', adminCookie)
+        .set('Origin', ORIGIN)
+        .send({
+          fromRole: 'admin',
+          role: 'member',
+        })
+        .expect(403);
+
+      expect(res.body.code).toBe('FORBIDDEN');
+      expect(res.body.message).toBe(MEMBER_MESSAGES.roleNotAllowed);
+    });
+
+    it('18. AC-06: Member with workspace.members.role.update cannot modify an Admin or assign admin', async () => {
+      const { workspace, ownerId } = await seedWorkspace(
+        'admin-ac06@openplany.dev',
+        'wm-ac06',
+      );
+      const memberId = await createUser('member-ac06@openplany.dev', { is_superuser: false });
+      const memberCookie = await signInCookie('member-ac06@openplany.dev');
+
+      await e2e.dataSource.query(
+        `INSERT INTO workspace_members (workspace_id, member_id, role, is_active, created_at, updated_at, joined_at)
+         VALUES ($1, $2, 'member', true, now(), now(), now())`,
+        [workspace.id, memberId],
+      );
+
+      // Grant workspace.members.role.update to workspace role 'member'
+      await e2e.dataSource.query(
+        `INSERT INTO role_permissions (scope, role_key, permission_key, created_at)
+         VALUES ('workspace', 'member', 'workspace.members.role.update', now())`,
+      );
+
+      // Member tries to modify Admin owner
+      const res1 = await http()
+        .patch(`/api/workspaces/${workspace.slug}/members/${ownerId}`)
+        .set('Cookie', memberCookie)
+        .set('Origin', ORIGIN)
+        .send({
+          fromRole: 'admin',
+          role: 'member',
+        })
+        .expect(403);
+      expect(res1.body.code).toBe('FORBIDDEN');
+
+      // Member tries to promote a guest to admin
+      const guestId = await createUser('guest-ac06@openplany.dev', { is_superuser: false });
+      await e2e.dataSource.query(
+        `INSERT INTO workspace_members (workspace_id, member_id, role, is_active, created_at, updated_at, joined_at)
+         VALUES ($1, $2, 'guest', true, now(), now(), now())`,
+        [workspace.id, guestId],
+      );
+
+      const res2 = await http()
+        .patch(`/api/workspaces/${workspace.slug}/members/${guestId}`)
+        .set('Cookie', memberCookie)
+        .set('Origin', ORIGIN)
+        .send({
+          fromRole: 'guest',
+          role: 'admin',
+        })
+        .expect(403);
+      expect(res2.body.code).toBe('FORBIDDEN');
+    });
+
+    it('19. AC-07: Same role -> 400 ROLE_UNCHANGED; fromRole mismatch -> 409 ROLE_CHANGED', async () => {
+      const { workspace, cookie: adminCookie } = await seedWorkspace(
+        'admin-ac07@openplany.dev',
+        'wm-ac07',
+      );
+      const targetId = await createUser('target-ac07@openplany.dev', { is_superuser: false });
+      await e2e.dataSource.query(
+        `INSERT INTO workspace_members (workspace_id, member_id, role, is_active, created_at, updated_at, joined_at)
+         VALUES ($1, $2, 'guest', true, now(), now(), now())`,
+        [workspace.id, targetId],
+      );
+
+      // Same role
+      const resSame = await http()
+        .patch(`/api/workspaces/${workspace.slug}/members/${targetId}`)
+        .set('Cookie', adminCookie)
+        .set('Origin', ORIGIN)
+        .send({
+          fromRole: 'guest',
+          role: 'guest',
+        })
+        .expect(400);
+      expect(resSame.body.code).toBe('ROLE_UNCHANGED');
+      expect(resSame.body.message).toBe(MEMBER_MESSAGES.sameRole);
+
+      // fromRole mismatch
+      const resMismatch = await http()
+        .patch(`/api/workspaces/${workspace.slug}/members/${targetId}`)
+        .set('Cookie', adminCookie)
+        .set('Origin', ORIGIN)
+        .send({
+          fromRole: 'member',
+          role: 'admin',
+        })
+        .expect(409);
+      expect(resMismatch.body.code).toBe('ROLE_CHANGED');
+      expect(resMismatch.body.message).toBe(MEMBER_MESSAGES.roleChanged);
+    });
+
+    it('20. AC-12: Preview target, then 4th project added, save applies to 4 projects', async () => {
+      const { workspace, cookie: adminCookie } = await seedWorkspace(
+        'admin-ac12@openplany.dev',
+        'wm-ac12',
+      );
+      const p1 = await createProject(workspace.id, 'P1', 'PR1');
+      const p2 = await createProject(workspace.id, 'P2', 'PR2');
+      const p3 = await createProject(workspace.id, 'P3', 'PR3');
+
+      const targetId = await createUser('target-ac12@openplany.dev', { is_superuser: false });
+      await e2e.dataSource.query(
+        `INSERT INTO workspace_members (workspace_id, member_id, role, is_active, created_at, updated_at, joined_at)
+         VALUES ($1, $2, 'guest', true, now(), now(), now())`,
+        [workspace.id, targetId],
+      );
+      await addProjectMember(p1, workspace.id, targetId, 'viewer');
+      await addProjectMember(p2, workspace.id, targetId, 'viewer');
+      await addProjectMember(p3, workspace.id, targetId, 'viewer');
+
+      const previewRes = await http()
+        .get(`/api/workspaces/${workspace.slug}/members/${targetId}/role-change-preview?role=member`)
+        .set('Cookie', adminCookie)
+        .expect(200);
+      expect(previewRes.body.affectedProjects.total).toBe(3);
+
+      // Now add 4th project
+      const p4 = await createProject(workspace.id, 'P4', 'PR4');
+      await addProjectMember(p4, workspace.id, targetId, 'viewer');
+
+      // Save
+      const patchRes = await http()
+        .patch(`/api/workspaces/${workspace.slug}/members/${targetId}`)
+        .set('Cookie', adminCookie)
+        .set('Origin', ORIGIN)
+        .send({
+          fromRole: 'guest',
+          role: 'member',
+          projectRole: 'contributor',
+        })
+        .expect(200);
+
+      expect(patchRes.body.appliedProjectCount).toBe(4);
+      const pmRows = await e2e.dataSource.query<{ role: string }[]>(
+        `SELECT role FROM project_members WHERE workspace_id = $1 AND member_id = $2`,
+        [workspace.id, targetId],
+      );
+      expect(pmRows).toHaveLength(4);
+      expect(pmRows.every((r) => r.role === 'contributor')).toBe(true);
+    });
+
+    it('21. AC-23: Concurrent identical change requests -> one 200, one 409 ROLE_CHANGED', async () => {
+      const { workspace, cookie: adminCookie } = await seedWorkspace(
+        'admin-ac23@openplany.dev',
+        'wm-ac23',
+      );
+      const targetId = await createUser('target-ac23@openplany.dev', { is_superuser: false });
+      await e2e.dataSource.query(
+        `INSERT INTO workspace_members (workspace_id, member_id, role, is_active, created_at, updated_at, joined_at)
+         VALUES ($1, $2, 'guest', true, now(), now(), now())`,
+        [workspace.id, targetId],
+      );
+
+      const changeReq = () =>
+        http()
+          .patch(`/api/workspaces/${workspace.slug}/members/${targetId}`)
+          .set('Cookie', adminCookie)
+          .set('Origin', ORIGIN)
+          .send({
+            fromRole: 'guest',
+            role: 'member',
+          });
+
+      const [resA, resB] = await Promise.all([changeReq(), changeReq()]);
+      const statuses = [resA.status, resB.status].sort((a, b) => a - b);
+      expect(statuses).toEqual([200, 409]);
+      const conflictRes = resA.status === 409 ? resA : resB;
+      expect(conflictRes.body.code).toBe('ROLE_CHANGED');
+    });
+
+    it('22. AC-25: Preview no_projects, added to project, save without projectRole gets bottom role', async () => {
+      const { workspace, cookie: adminCookie } = await seedWorkspace(
+        'admin-ac25@openplany.dev',
+        'wm-ac25',
+      );
+      const targetId = await createUser('target-ac25@openplany.dev', { is_superuser: false });
+      await e2e.dataSource.query(
+        `INSERT INTO workspace_members (workspace_id, member_id, role, is_active, created_at, updated_at, joined_at)
+         VALUES ($1, $2, 'guest', true, now(), now(), now())`,
+        [workspace.id, targetId],
+      );
+
+      const previewRes = await http()
+        .get(`/api/workspaces/${workspace.slug}/members/${targetId}/role-change-preview?role=member`)
+        .set('Cookie', adminCookie)
+        .expect(200);
+      expect(previewRes.body.effect).toBe('no_projects');
+      expect(previewRes.body.affectedProjects.total).toBe(0);
+
+      // Now add to project P
+      const p = await createProject(workspace.id, 'ProjP', 'PRP');
+      await addProjectMember(p, workspace.id, targetId, 'viewer');
+
+      // Save without projectRole
+      const patchRes = await http()
+        .patch(`/api/workspaces/${workspace.slug}/members/${targetId}`)
+        .set('Cookie', adminCookie)
+        .set('Origin', ORIGIN)
+        .send({
+          fromRole: 'guest',
+          role: 'member',
+        })
+        .expect(200);
+
+      expect(patchRes.body.appliedProjectCount).toBe(1);
+      const pmRows = await e2e.dataSource.query<{ role: string }[]>(
+        `SELECT role FROM project_members WHERE workspace_id = $1 AND member_id = $2`,
+        [workspace.id, targetId],
+      );
+      expect(pmRows[0]!.role).toBe('commenter');
+    });
+
+    it('23. AC-28 / D21: Preview rate limit permits 60 calls then returns 429 on 61st', async () => {
+      const { workspace, cookie: adminCookie } = await seedWorkspace(
+        'admin-ac28@openplany.dev',
+        'wm-ac28',
+      );
+      const targetId = await createUser('target-ac28@openplany.dev', { is_superuser: false });
+      await e2e.dataSource.query(
+        `INSERT INTO workspace_members (workspace_id, member_id, role, is_active, created_at, updated_at, joined_at)
+         VALUES ($1, $2, 'guest', true, now(), now(), now())`,
+        [workspace.id, targetId],
+      );
+
+      for (let i = 0; i < 60; i++) {
+        await http()
+          .get(`/api/workspaces/${workspace.slug}/members/${targetId}/role-change-preview?role=member`)
+          .set('Cookie', adminCookie)
+          .expect(200);
+      }
+
+      const res61 = await http()
+        .get(`/api/workspaces/${workspace.slug}/members/${targetId}/role-change-preview?role=member`)
+        .set('Cookie', adminCookie)
+        .expect(429);
+
+      expect(res61.body.code).toBe('TOO_MANY_ATTEMPTS');
+      expect(res61.body.retryAfterSeconds).toBeDefined();
+    });
   });
 });
 
