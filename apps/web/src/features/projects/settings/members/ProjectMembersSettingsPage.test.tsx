@@ -8,19 +8,22 @@ import {
 import userEvent from "@testing-library/user-event";
 import { Notifications, notifications } from "@mantine/notifications";
 import { AppUiProvider } from "@repo/ui";
-import type {
-  ProjectListItem,
-  ProjectMemberListResponse,
-  ProjectMemberResponse,
+import {
+  MEMBER_MESSAGES,
+  PROJECT_ERROR_MESSAGES,
+  type ProjectListItem,
+  type ProjectMemberListResponse,
+  type ProjectMemberResponse,
 } from "@repo/contracts";
 import { createMemoryRouter } from "react-router";
 import { RouterProvider } from "react-router/dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { appRoutes } from "../../../../routes";
 import { makeSession } from "../../../../test/authFixtures";
-import { jsonResponse, mockFetch } from "../../../../test/fetchMock";
+import { apiError, jsonResponse, mockFetch } from "../../../../test/fetchMock";
 import { AuthProvider } from "../../../auth/AuthProvider";
 import { makeWorkspace } from "../../../workspaces/test/workspaceFixtures";
+import { tooManyAttemptsMessage } from "../../../members/membersMessages";
 import {
   NO_MEMBERS_YET,
   ROLE_LIMITED_TOOLTIP,
@@ -1106,6 +1109,234 @@ describe("ProjectMembersSettingsPage", () => {
         "The First Project will have no Project Admin other than Workspace Admins.",
       ),
     ).toBeInTheDocument();
+  });
+
+  it("Feature 15 AC-13 & AC-14: inline change fails with 409 ROLE_CHANGED -> retains original role in cell, displays red alert toast, and re-fetches members list", async () => {
+    const user = userEvent.setup();
+    let membersFetchCount = 0;
+
+    renderMembersApp({
+      membersResponse: {
+        members: [memberAn],
+        total: 1,
+        truncated: false,
+        addableRoles: ["admin", "contributor"],
+        assignedAdminCount: 2,
+      },
+      extraRoutes: {
+        "GET /api/workspaces/the-firsts/projects/TFP11/members": () => {
+          membersFetchCount += 1;
+          return jsonResponse(200, {
+            members: [memberAn],
+            total: 1,
+            truncated: false,
+            addableRoles: ["admin", "contributor"],
+            assignedAdminCount: 2,
+          });
+        },
+        "PATCH /api/workspaces/the-firsts/projects/TFP11/members/u-an": () =>
+          apiError(409, "ROLE_CHANGED", MEMBER_MESSAGES.roleChanged),
+      },
+    });
+
+    const anSelect = await screen.findByRole("combobox", {
+      name: "Role for An Nguyen",
+    });
+    expect(anSelect).toHaveValue("Commenter");
+    expect(membersFetchCount).toBe(1);
+
+    await user.click(anSelect);
+    const contribOption = await screen.findByRole("option", {
+      name: /^contributor/i,
+    });
+    await user.click(contribOption);
+
+    // Toast with roleChanged message and red alert
+    expect(
+      await screen.findByText(MEMBER_MESSAGES.roleChanged),
+    ).toBeInTheDocument();
+
+    // Select retains original value
+    expect(anSelect).toHaveValue("Commenter");
+
+    // Re-fetches members list (invalidates cache)
+    await waitFor(() => {
+      expect(membersFetchCount).toBe(2);
+    });
+  });
+
+  it("Feature 15 AC-20: inline change fails with 429 TOO_MANY_ATTEMPTS -> displays rate limit message with retryAfterSeconds, retains original role in cell, does not reload", async () => {
+    const user = userEvent.setup();
+    let membersFetchCount = 0;
+
+    renderMembersApp({
+      membersResponse: {
+        members: [memberAn],
+        total: 1,
+        truncated: false,
+        addableRoles: ["admin", "contributor"],
+        assignedAdminCount: 2,
+      },
+      extraRoutes: {
+        "GET /api/workspaces/the-firsts/projects/TFP11/members": () => {
+          membersFetchCount += 1;
+          return jsonResponse(200, {
+            members: [memberAn],
+            total: 1,
+            truncated: false,
+            addableRoles: ["admin", "contributor"],
+            assignedAdminCount: 2,
+          });
+        },
+        "PATCH /api/workspaces/the-firsts/projects/TFP11/members/u-an": () =>
+          apiError(429, "TOO_MANY_ATTEMPTS", "Too many attempts", {
+            retryAfterSeconds: 45,
+          }),
+      },
+    });
+
+    const anSelect = await screen.findByRole("combobox", {
+      name: "Role for An Nguyen",
+    });
+    expect(anSelect).toHaveValue("Commenter");
+    expect(membersFetchCount).toBe(1);
+
+    await user.click(anSelect);
+    const contribOption = await screen.findByRole("option", {
+      name: /^contributor/i,
+    });
+    await user.click(contribOption);
+
+    // Toast with tooManyAttemptsMessage(45)
+    expect(
+      await screen.findByText(tooManyAttemptsMessage(45)),
+    ).toBeInTheDocument();
+
+    // Select retains original value
+    expect(anSelect).toHaveValue("Commenter");
+
+    // Does NOT reload
+    expect(membersFetchCount).toBe(1);
+  });
+
+  it("Feature 15 AC-25: inline change fails with 404 PROJECT_NOT_FOUND -> displays project not found toast, triggers members reload", async () => {
+    const user = userEvent.setup();
+    let membersFetchCount = 0;
+
+    renderMembersApp({
+      membersResponse: {
+        members: [memberAn],
+        total: 1,
+        truncated: false,
+        addableRoles: ["admin", "contributor"],
+        assignedAdminCount: 2,
+      },
+      extraRoutes: {
+        "GET /api/workspaces/the-firsts/projects/TFP11/members": () => {
+          membersFetchCount += 1;
+          return jsonResponse(200, {
+            members: [memberAn],
+            total: 1,
+            truncated: false,
+            addableRoles: ["admin", "contributor"],
+            assignedAdminCount: 2,
+          });
+        },
+        "PATCH /api/workspaces/the-firsts/projects/TFP11/members/u-an": () =>
+          apiError(404, "PROJECT_NOT_FOUND", PROJECT_ERROR_MESSAGES.notFound),
+      },
+    });
+
+    const anSelect = await screen.findByRole("combobox", {
+      name: "Role for An Nguyen",
+    });
+    expect(anSelect).toHaveValue("Commenter");
+
+    await user.click(anSelect);
+    const contribOption = await screen.findByRole("option", {
+      name: /^contributor/i,
+    });
+    await user.click(contribOption);
+
+    // Toast with PROJECT_ERROR_MESSAGES.notFound
+    expect(
+      await screen.findByText(PROJECT_ERROR_MESSAGES.notFound),
+    ).toBeInTheDocument();
+
+    // Triggers reload
+    await waitFor(() => {
+      expect(membersFetchCount).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  it("Feature 15 AC-24: when role filter is active and member's role change filters them out of view -> focus falls back to Filter by role button", async () => {
+    const user = userEvent.setup();
+
+    renderMembersApp({
+      membersResponse: {
+        members: [memberAn, memberBinh],
+        total: 2,
+        truncated: false,
+        addableRoles: ["admin", "contributor"],
+        assignedAdminCount: 2,
+      },
+      extraRoutes: {
+        "PATCH /api/workspaces/the-firsts/projects/TFP11/members/u-an": () =>
+          jsonResponse(200, {
+            member: {
+              ...memberAn,
+              role: "contributor",
+              assignedRole: "contributor",
+            },
+            assignedAdminCount: 2,
+          }),
+      },
+    });
+
+    // Wait for table to load
+    expect(await screen.findByText("Binh Le")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Role for An Nguyen" })).toBeInTheDocument();
+
+    // Click Filter by role button to open filter dropdown
+    const filterBtn = screen.getByRole("button", { name: "Filter by role" });
+    await user.click(filterBtn);
+
+    // Select Commenter role in filter
+    const commenterCheckbox = await screen.findByRole("checkbox", {
+      name: "Commenter",
+    });
+    await user.click(commenterCheckbox);
+
+    // Close the popover by pressing Escape
+    await user.keyboard("{Escape}");
+
+    // Now only An (Commenter) is in the table, Binh (Contributor) is filtered out
+    expect(screen.getByRole("combobox", { name: "Role for An Nguyen" })).toBeInTheDocument();
+    expect(screen.queryByText("Binh Le")).not.toBeInTheDocument();
+
+    // Now change An's role to Contributor
+    const anSelect = screen.getByRole("combobox", {
+      name: "Role for An Nguyen",
+    });
+    await user.click(anSelect);
+    const contribOption = await screen.findByRole("option", {
+      name: /^contributor/i,
+    });
+    await user.click(contribOption);
+
+    // Wait for An's row to be filtered out (since filter is Commenter)
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("combobox", { name: "Role for An Nguyen" }),
+      ).not.toBeInTheDocument();
+    });
+
+    // Focus falls back to the Filter by role button
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Filter by role" }),
+      ).toHaveFocus();
+    });
   });
 });
 

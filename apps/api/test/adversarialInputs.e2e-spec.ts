@@ -547,13 +547,43 @@ describe('Adversarial inputs (e2e)', () => {
     );
 
     // Malformed userId
-    await http()
+    const resBadUuid = await http()
       .patch(
         `/api/workspaces/${ws.slug}/projects/${identifier}/members/not-a-uuid`,
       )
       .set('Cookie', admin.cookie)
       .set('Origin', ORIGIN)
       .send(valid)
+      .expect(400);
+    expect(resBadUuid.body.code).toBe('VALIDATION_ERROR');
+    expect(resBadUuid.body.fields?.userId).toBeDefined();
+
+    // Specific B3 inputs
+    await http()
+      .patch(
+        `/api/workspaces/${ws.slug}/projects/${identifier}/members/${targetUser.id}`,
+      )
+      .set('Cookie', admin.cookie)
+      .set('Origin', ORIGIN)
+      .send({ fromRole: 'commenter', role: 'guest' })
+      .expect(400);
+
+    await http()
+      .patch(
+        `/api/workspaces/${ws.slug}/projects/${identifier}/members/${targetUser.id}`,
+      )
+      .set('Cookie', admin.cookie)
+      .set('Origin', ORIGIN)
+      .send({ fromRole: 'commenter', role: 'Admin' })
+      .expect(400);
+
+    await http()
+      .patch(
+        `/api/workspaces/${ws.slug}/projects/${identifier}/members/${targetUser.id}`,
+      )
+      .set('Cookie', admin.cookie)
+      .set('Origin', ORIGIN)
+      .send({ fromRole: 'commenter', role: 'contributor', unexpected: 'value' })
       .expect(400);
   });
 

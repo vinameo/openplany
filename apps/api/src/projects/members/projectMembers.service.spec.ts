@@ -1222,9 +1222,11 @@ describe('ProjectMembersService', () => {
         message: MEMBER_MESSAGES.roleOutOfRange,
         fields: { role: MEMBER_MESSAGES.roleOutOfRange },
       });
+      expect(events.roleChangedEvents).toHaveLength(0);
+      expect(events.roleForbiddenEvents).toHaveLength(0);
     });
 
-    it('throws 403 FORBIDDEN and emits roleForbidden when role is not allowed for actor', async () => {
+    it('throws 403 FORBIDDEN and emits roleForbidden when role is not allowed for actor (AC-08)', async () => {
       repo.changeRoleResult = { status: 'role_not_allowed' };
       await expect(
         service.changeRole(
@@ -1241,6 +1243,7 @@ describe('ProjectMembersService', () => {
         message: MEMBER_MESSAGES.roleNotAllowed,
       });
       expect(events.roleForbiddenEvents).toHaveLength(1);
+      expect(events.roleChangedEvents).toHaveLength(0);
     });
 
     it('succeeds: returns member and assignedAdminCount and emits roleChanged', async () => {

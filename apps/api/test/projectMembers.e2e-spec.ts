@@ -11,7 +11,9 @@ import {
 import { Logger } from '@nestjs/common';
 import {
   MEMBER_MESSAGES,
+  PROJECT_ERROR_MESSAGES,
   PROJECT_MEMBER_NOT_ADDABLE_MESSAGES,
+  PROJECT_ROLE_CHANGE_MESSAGES,
   type ProjectListItem,
   type ProjectMemberResponse,
 } from '@repo/contracts';
@@ -2041,6 +2043,218 @@ describe('ProjectMembers (e2e)', () => {
         to_role: 'contributor',
         actor_id: kaiId,
       });
+    });
+
+    it('AC-03: Project Admin cannot change another Project Admin (returns 403 FORBIDDEN cantChange)', async () => {
+      const { workspace, projId, namCookie, hoaId } = await seedB63Fixture();
+      await e2e.dataSource.query(
+        `UPDATE project_members SET role = 'admin' WHERE member_id = $1 AND project_id = $2`,
+        [hoaId, projId],
+      );
+
+      const res = await http()
+        .patch(
+          `/api/workspaces/${workspace.slug}/projects/PB63/members/${hoaId}`,
+        )
+        .set('Cookie', namCookie)
+        .set('Origin', ORIGIN)
+        .send({ fromRole: 'admin', role: 'contributor' })
+        .expect(403);
+
+      expect(res.body.code).toBe('FORBIDDEN');
+      expect(res.body.message).toBe(PROJECT_ROLE_CHANGE_MESSAGES.cantChange);
+    });
+
+    it('AC-07: Contributor with project.members.manage cannot assign admin (returns 403 FORBIDDEN roleNotAllowed)', async () => {
+      const { workspace, anId, projId } = await seedB63Fixture();
+      await addProjectMember(projId, workspace.id, anId, 'commenter');
+      await e2e.dataSource.query(
+        `INSERT INTO role_permissions (scope, role_key, permission_key, created_at)
+         VALUES ('project', 'contributor', 'project.members.manage', now())`,
+      );
+
+      const hoaCookie = await signInCookie('hoa-b63@openplany.dev');
+      const res = await http()
+        .patch(
+          `/api/workspaces/${workspace.slug}/projects/PB63/members/${anId}`,
+        )
+        .set('Cookie', hoaCookie)
+        .set('Origin', ORIGIN)
+        .send({ fromRole: 'commenter', role: 'admin' })
+        .expect(403);
+
+      expect(res.body.code).toBe('FORBIDDEN');
+      expect(res.body.message).toBe(MEMBER_MESSAGES.roleNotAllowed);
+    });
+
+    it('AC-09: returns 404 NOT_FOUND memberGone when target is not a project member or left workspace', async () => {
+      const { workspace, namCookie, tuId, dungId } = await seedB63Fixture();
+
+      // tuId is outside workspace
+      const resTu = await http()
+        .patch(
+          `/api/workspaces/${workspace.slug}/projects/PB63/members/${tuId}`,
+        )
+        .set('Cookie', namCookie)
+        .set('Origin', ORIGIN)
+        .send({ fromRole: 'commenter', role: 'contributor' })
+        .expect(404);
+      expect(resTu.body.code).toBe('NOT_FOUND');
+      expect(resTu.body.message).toBe(PROJECT_ROLE_CHANGE_MESSAGES.memberGone);
+
+      // dungId is deactivated workspace member
+      const resDung = await http()
+        .patch(
+          `/api/workspaces/${workspace.slug}/projects/PB63/members/${dungId}`,
+        )
+        .set('Cookie', namCookie)
+        .set('Origin', ORIGIN)
+        .send({ fromRole: 'commenter', role: 'contributor' })
+        .expect(404);
+      expect(resDung.body.code).toBe('NOT_FOUND');
+      expect(resDung.body.message).toBe(PROJECT_ROLE_CHANGE_MESSAGES.memberGone);
+    });
+
+    it('AC-13 & AC-18: two identical concurrent requests -> one 200, one 409 ROLE_CHANGED, 1 history row', async () => {
+      const { workspace, projId, namCookie, anId } = await seedB63Fixture();
+      await addProjectMember(projId, workspace.id, anId, 'commenter');
+
+      const sendChange = () =>
+        http()
+          .patch(
+            `/api/workspaces/${workspace.slug}/projects/PB63/members/${anId}`,
+          )
+          .set('Cookie', namCookie)
+          .set('Origin', ORIGIN)
+          .send({ fromRole: 'commenter', role: 'contributor' })
+          .then((r) => r);
+
+      const [res1, res2] = await Promise.all([sendChange(), sendChange()]);
+      const statuses = [res1.status, res2.status].sort((a, b) => a - b);
+      expect(statuses).toEqual([200, 409]);
+
+      const conflictRes = res1.status === 409 ? res1 : res2;
+      expect(conflictRes.body.code).toBe('ROLE_CHANGED');
+
+      const history = await e2e.dataSource.query(
+        `SELECT * FROM project_member_role_history WHERE project_id = $1 AND member_id = $2`,
+        [projId, anId],
+      );
+      expect(history).toHaveLength(1);
+    });
+
+    it('AC-17: soft-deleted project returns 404 PROJECT_NOT_FOUND', async () => {
+      const { workspace, projId, namCookie, anId } = await seedB63Fixture();
+      await addProjectMember(projId, workspace.id, anId, 'commenter');
+
+      await e2e.dataSource.query(
+        `UPDATE projects SET deleted_at = now() WHERE id = $1`,
+        [projId],
+      );
+
+      const res = await http()
+        .patch(
+          `/api/workspaces/${workspace.slug}/projects/PB63/members/${anId}`,
+        )
+        .set('Cookie', namCookie)
+        .set('Origin', ORIGIN)
+        .send({ fromRole: 'commenter', role: 'contributor' })
+        .expect(404);
+
+      expect(res.body.code).toBe('PROJECT_NOT_FOUND');
+      expect(res.body.message).toBe(PROJECT_ERROR_MESSAGES.notFound);
+    });
+
+    it('AC-19: missing or invalid Origin returns 403', async () => {
+      const { workspace, projId, namCookie, anId } = await seedB63Fixture();
+      await addProjectMember(projId, workspace.id, anId, 'commenter');
+
+      await http()
+        .patch(
+          `/api/workspaces/${workspace.slug}/projects/PB63/members/${anId}`,
+        )
+        .set('Cookie', namCookie)
+        .set('Origin', 'https://malicious.com')
+        .send({ fromRole: 'commenter', role: 'contributor' })
+        .expect(403);
+    });
+
+    it('AC-20: 31st write request in 10 minutes returns 429 retryAfterSeconds', async () => {
+      const { workspace, projId, namCookie, anId } = await seedB63Fixture();
+      await addProjectMember(projId, workspace.id, anId, 'commenter');
+
+      for (let i = 0; i < 30; i++) {
+        await http()
+          .patch(
+            `/api/workspaces/${workspace.slug}/projects/PB63/members/${anId}`,
+          )
+          .set('Cookie', namCookie)
+          .set('Origin', ORIGIN)
+          .send({ fromRole: 'invalid', role: 'invalid' })
+          .expect(400);
+      }
+
+      const res31 = await http()
+        .patch(
+          `/api/workspaces/${workspace.slug}/projects/PB63/members/${anId}`,
+        )
+        .set('Cookie', namCookie)
+        .set('Origin', ORIGIN)
+        .send({ fromRole: 'commenter', role: 'contributor' })
+        .expect(429);
+
+      expect(res31.body.retryAfterSeconds).toBeDefined();
+      expect(res31.body.retryAfterSeconds).toBeGreaterThan(0);
+    });
+
+    it('AC-21: concurrent project role change and workspace role change does not return 500', async () => {
+      const { workspace, projId, kaiCookie, anId } = await seedB63Fixture();
+      await addProjectMember(projId, workspace.id, anId, 'commenter');
+
+      const projectChange = () =>
+        http()
+          .patch(
+            `/api/workspaces/${workspace.slug}/projects/PB63/members/${anId}`,
+          )
+          .set('Cookie', kaiCookie)
+          .set('Origin', ORIGIN)
+          .send({ fromRole: 'commenter', role: 'contributor' });
+
+      const wsChange = () =>
+        http()
+          .patch(`/api/workspaces/${workspace.slug}/members/${anId}`)
+          .set('Cookie', kaiCookie)
+          .set('Origin', ORIGIN)
+          .send({ fromRole: 'member', role: 'admin' });
+
+      const calls = [];
+      for (let i = 0; i < 10; i++) {
+        calls.push(projectChange(), wsChange());
+      }
+      const results = await Promise.all(calls);
+      for (const r of results) {
+        expect(r.status).toBeLessThan(500);
+      }
+    });
+
+    it('AC-25 (D16): actor without workspace.members.view gets 404 memberGone when targeting inherited workspace admin', async () => {
+      const { workspace, namCookie, ownerId } = await seedB63Fixture();
+
+      await e2e.dataSource.query(
+        `DELETE FROM role_permissions WHERE scope = 'workspace' AND role_key = 'member' AND permission_key = 'workspace.members.view'`,
+      );
+
+      const res = await http()
+        .patch(
+          `/api/workspaces/${workspace.slug}/projects/PB63/members/${ownerId}`,
+        )
+        .set('Cookie', namCookie)
+        .set('Origin', ORIGIN)
+        .send({ fromRole: 'admin', role: 'contributor' })
+        .expect(404);
+
+      expect(res.body.code).toBe('NOT_FOUND');
+      expect(res.body.message).toBe(PROJECT_ROLE_CHANGE_MESSAGES.memberGone);
     });
   });
 });
