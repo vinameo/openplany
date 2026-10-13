@@ -16,6 +16,7 @@ import { AddProjectMemberJoinedAt1791609000000 } from '../src/database/migration
 import { RenameProjectGuestToViewer1791610000000 } from '../src/database/migrations/1791610000000-RenameProjectGuestToViewer.js';
 import { CreateProjectAccessPolicies1791610100000 } from '../src/database/migrations/1791610100000-CreateProjectAccessPolicies.js';
 import { ApplyProjectAccessPolicies1791610200000 } from '../src/database/migrations/1791610200000-ApplyProjectAccessPolicies.js';
+import { AddProjectRoleChangedHistory1791610300000 } from '../src/database/migrations/1791610300000-AddProjectRoleChangedHistory.js';
 import { e2eEnv } from './e2eEnv.js';
 
 export interface MigrationSeedSnapshot {
@@ -42,6 +43,7 @@ export const MIGRATIONS = [
   RenameProjectGuestToViewer1791610000000,
   CreateProjectAccessPolicies1791610100000,
   ApplyProjectAccessPolicies1791610200000,
+  AddProjectRoleChangedHistory1791610300000,
 ];
 
 /** Creates the e2e database if needed and brings it to the latest migration. */

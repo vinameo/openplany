@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Patch,
   Post,
   Query,
   Req,
@@ -12,6 +13,7 @@ import {
 import {
   ADD_PROJECT_MEMBERS_REQUIREMENT,
   type AddProjectMembersResponse,
+  type ChangeProjectRoleResponse,
   type ProjectMemberCandidateListResponse,
   type ProjectMemberListResponse,
 } from '@repo/contracts';
@@ -19,6 +21,7 @@ import type { Request } from 'express';
 import { CurrentUserId } from '../../auth/currentUser.decorator.js';
 import { SessionGuard } from '../../auth/guards/sessionGuard.js';
 import { MemberCandidateQueryDto } from '../../common/memberCandidateQuery.dto.js';
+import { MemberUserIdParam } from '../../common/memberUserIdParam.js';
 import { CurrentWorkspace } from '../../workspaces/currentWorkspace.decorator.js';
 import type { MemberWorkspace } from '../../workspaces/repositories/workspaces.repository.js';
 import {
@@ -30,6 +33,7 @@ import {
 import { PROJECT_ROUTE_PARAM } from '../access/projectAccessGuard.js';
 import type { AccessibleProject } from '../access/projectAccessResolver.js';
 import { AddProjectMembersDto } from './dto/addProjectMembers.dto.js';
+import { ChangeProjectRoleDto } from './dto/changeProjectRole.dto.js';
 import { ProjectMembersService } from './projectMembers.service.js';
 
 @Controller('workspaces/:slug')
@@ -77,5 +81,25 @@ export class ProjectMembersController {
     @Req() req: Request & { requestId?: string },
   ): Promise<AddProjectMembersResponse> {
     return this.service.add(ws, project, userId, dto, req.requestId);
+  }
+
+  @Patch(`projects/:${PROJECT_ROUTE_PARAM}/members/:userId`)
+  @ProjectWrite('project.members.manage')
+  changeRole(
+    @CurrentWorkspace() ws: MemberWorkspace,
+    @CurrentProject() project: AccessibleProject,
+    @CurrentUserId() actorId: string,
+    @MemberUserIdParam() userId: string,
+    @Body() dto: ChangeProjectRoleDto,
+    @Req() req: Request & { requestId?: string },
+  ): Promise<ChangeProjectRoleResponse> {
+    return this.service.changeRole(
+      ws,
+      project,
+      actorId,
+      userId,
+      dto,
+      req.requestId,
+    );
   }
 }

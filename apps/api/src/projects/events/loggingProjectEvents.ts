@@ -8,6 +8,8 @@ import {
   type ProjectListTruncatedEvent,
   type ProjectLookupRateLimitedEvent,
   type ProjectMemberCandidatesSearchedEvent,
+  type ProjectMemberRoleChangedEvent,
+  type ProjectMemberRoleForbiddenEvent,
   type ProjectMembersAddedEvent,
   type ProjectMembersListTruncatedEvent,
   type ProjectUpdatedEvent,
@@ -80,6 +82,20 @@ export class LoggingProjectEvents extends ProjectEvents {
   ): Promise<void> {
     this.logger.warn(
       `project.members.add.role_forbidden projectId=${event.projectId} actorId=${event.actorId} requestId=${event.requestId ?? ''}`,
+    );
+  }
+
+  async roleChanged(event: ProjectMemberRoleChangedEvent): Promise<void> {
+    this.logger.log(
+      `project.member.role.changed projectId=${event.projectId} actorId=${event.actorId} targetId=${event.targetId} fromRole=${event.fromRole} toRole=${event.toRole} requestId=${event.requestId ?? ''}`,
+    );
+  }
+
+  async roleForbidden(
+    event: ProjectMemberRoleForbiddenEvent,
+  ): Promise<void> {
+    this.logger.warn(
+      `project.member.role.forbidden projectId=${event.projectId} actorId=${event.actorId} targetId=${event.targetId} requestId=${event.requestId ?? ''}`,
     );
   }
 }

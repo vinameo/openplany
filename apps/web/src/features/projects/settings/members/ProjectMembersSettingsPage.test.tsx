@@ -6,7 +6,7 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { Notifications } from "@mantine/notifications";
+import { Notifications, notifications } from "@mantine/notifications";
 import { AppUiProvider } from "@repo/ui";
 import type {
   ProjectListItem,
@@ -69,11 +69,16 @@ function renderMembersApp({
     addableRoles: ["admin", "contributor", "commenter", "viewer"],
     assignedAdminCount: 2,
   },
+  extraRoutes = {},
 }: {
   initialEntries?: string[];
   project?: ProjectListItem;
   workspace?: ReturnType<typeof makeWorkspace>;
   membersResponse?: ProjectMemberListResponse;
+  extraRoutes?: Record<
+    string,
+    (init?: RequestInit) => Response | Promise<Response>
+  >;
 } = {}) {
   mockFetch({
     "GET /api/auth/session": () => jsonResponse(200, makeSession()),
@@ -87,6 +92,7 @@ function renderMembersApp({
       jsonResponse(200, { project }),
     "GET /api/workspaces/the-firsts/projects/TFP11/members": () =>
       jsonResponse(200, membersResponse),
+    ...extraRoutes,
   });
 
   const router = createMemoryRouter(appRoutes, {
@@ -107,6 +113,7 @@ function renderMembersApp({
 
 afterEach(() => {
   cleanup();
+  notifications.clean();
   vi.unstubAllGlobals();
 });
 
@@ -542,4 +549,297 @@ describe("ProjectMembersSettingsPage", () => {
       expect(screen.getByText("Already in this project")).toBeInTheDocument();
     });
   });
+
+  const memberAn: ProjectMemberResponse = {
+    userId: "u-an",
+    firstName: "An",
+    lastName: "Nguyen",
+    displayName: "annguyen",
+    email: "an@openplany.dev",
+    avatarUrl: null,
+    role: "commenter",
+    assignedRole: "commenter",
+    roleLimited: false,
+    joinedAt: "2026-10-12T10:00:00.000Z",
+    accountActive: true,
+    source: "assigned",
+    workspaceRole: "member",
+    assignableRoles: ["admin", "contributor", "commenter"],
+  };
+
+  const memberBinh: ProjectMemberResponse = {
+    userId: "u-binh",
+    firstName: "Binh",
+    lastName: "Le",
+    displayName: "binhle",
+    email: "binh@openplany.dev",
+    avatarUrl: null,
+    role: "contributor",
+    assignedRole: "contributor",
+    roleLimited: false,
+    joinedAt: "2026-10-12T10:00:00.000Z",
+    accountActive: true,
+    source: "assigned",
+    workspaceRole: "member",
+    assignableRoles: ["contributor", "commenter"],
+  };
+
+  it("Feature 15 AC-01: selects Contributor for Commenter row -> sends PATCH, displays toast, cell displays new role", async () => {
+    const user = userEvent.setup();
+    let patchPayload: unknown = null;
+
+    renderMembersApp({
+      membersResponse: {
+        members: [memberKai, memberAn],
+        total: 2,
+        truncated: false,
+        addableRoles: ["admin", "contributor", "commenter", "viewer"],
+        assignedAdminCount: 2,
+      },
+      extraRoutes: {
+        "PATCH /api/workspaces/the-firsts/projects/TFP11/members/u-an": (init) => {
+          patchPayload = JSON.parse(init?.body as string);
+          return jsonResponse(200, {
+            member: {
+              ...memberAn,
+              role: "contributor",
+              assignedRole: "contributor",
+            },
+            assignedAdminCount: 2,
+          });
+        },
+      },
+    });
+
+    const anSelect = await screen.findByRole("combobox", {
+      name: "Role for An Nguyen",
+    });
+    expect(anSelect).toHaveValue("Commenter");
+
+    await user.click(anSelect);
+    const contribOption = await screen.findByRole("option", {
+      name: /^contributor/i,
+    });
+    await user.click(contribOption);
+
+    await waitFor(() => {
+      expect(patchPayload).toEqual({
+        fromRole: "commenter",
+        role: "contributor",
+      });
+    });
+
+    expect(
+      await screen.findByText(
+        "An Nguyen is now Contributor in The First Project.",
+      ),
+    ).toBeInTheDocument();
+    expect(anSelect).toHaveValue("Contributor");
+  });
+
+  it("Feature 15 AC-02: role select cell only renders when there is > 1 option allowed; inherited row displays badge Workspace Admin and text cannot be changed", async () => {
+    const inheritedKai: ProjectMemberResponse = {
+      userId: "u-kai-admin",
+      firstName: "Kai",
+      lastName: "Tran",
+      displayName: "kaitran",
+      email: "kai@openplany.dev",
+      avatarUrl: null,
+      role: "admin",
+      assignedRole: null,
+      roleLimited: false,
+      joinedAt: null,
+      accountActive: true,
+      source: "inherited",
+      workspaceRole: "admin",
+      assignableRoles: [],
+    };
+
+    renderMembersApp({
+      membersResponse: {
+        members: [inheritedKai, memberNam],
+        total: 2,
+        truncated: false,
+        addableRoles: ["admin", "contributor"],
+        assignedAdminCount: 1,
+      },
+    });
+
+    expect(await screen.findByText("Kai Tran")).toBeInTheDocument();
+    expect(screen.getByText("Nam Nguyen")).toBeInTheDocument();
+
+    // Inherited Kai has Workspace Admin badge and no combobox
+    expect(screen.getByText("Workspace Admin")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("combobox", { name: "Role for Kai Tran" }),
+    ).not.toBeInTheDocument();
+
+    // Nam is admin with assignableRoles: [] (length <= 1) -> no combobox
+    expect(
+      screen.queryByRole("combobox", { name: "Role for Nam Nguyen" }),
+    ).not.toBeInTheDocument();
+    // Nam displays text Project Admin in the row
+    const namRow = screen.getByText("Nam Nguyen").closest("tr")!;
+    expect(within(namRow).getByText("Project Admin")).toBeInTheDocument();
+  });
+
+  it("Feature 15 AC-16: successful role change updates row and assignedAdminCount without re-fetching members list", async () => {
+    const user = userEvent.setup();
+    let membersCallCount = 0;
+
+    renderMembersApp({
+      membersResponse: {
+        members: [memberAn],
+        total: 1,
+        truncated: false,
+        addableRoles: ["admin", "contributor"],
+        assignedAdminCount: 2,
+      },
+      extraRoutes: {
+        "GET /api/workspaces/the-firsts/projects/TFP11/members": () => {
+          membersCallCount += 1;
+          return jsonResponse(200, {
+            members: [memberAn],
+            total: 1,
+            truncated: false,
+            addableRoles: ["admin", "contributor"],
+            assignedAdminCount: 2,
+          });
+        },
+        "PATCH /api/workspaces/the-firsts/projects/TFP11/members/u-an": () =>
+          jsonResponse(200, {
+            member: {
+              ...memberAn,
+              role: "contributor",
+              assignedRole: "contributor",
+            },
+            assignedAdminCount: 2,
+          }),
+      },
+    });
+
+    const anSelect = await screen.findByRole("combobox", {
+      name: "Role for An Nguyen",
+    });
+    expect(membersCallCount).toBe(1);
+    await user.click(anSelect);
+    const contribOption = await screen.findByRole("option", {
+      name: /^contributor/i,
+    });
+    await user.click(contribOption);
+
+    await waitFor(() => {
+      expect(anSelect).toHaveValue("Contributor");
+    });
+
+    // Members list was NOT re-fetched
+    expect(membersCallCount).toBe(1);
+  });
+
+  it("Feature 15 AC-23: concurrent role changes on two rows locks each row independently and displays toasts for each", async () => {
+    const user = userEvent.setup();
+
+    let resolveAn: (res: Response) => void;
+    const anPromise = new Promise<Response>((resolve) => {
+      resolveAn = resolve;
+    });
+
+    let resolveBinh: (res: Response) => void;
+    const binhPromise = new Promise<Response>((resolve) => {
+      resolveBinh = resolve;
+    });
+
+    renderMembersApp({
+      membersResponse: {
+        members: [memberAn, memberBinh],
+        total: 2,
+        truncated: false,
+        addableRoles: ["admin", "contributor"],
+        assignedAdminCount: 2,
+      },
+      extraRoutes: {
+        "PATCH /api/workspaces/the-firsts/projects/TFP11/members/u-an": () =>
+          anPromise,
+        "PATCH /api/workspaces/the-firsts/projects/TFP11/members/u-binh": () =>
+          binhPromise,
+      },
+    });
+
+    const anSelect = await screen.findByRole("combobox", {
+      name: "Role for An Nguyen",
+    });
+    const binhSelect = screen.getByRole("combobox", {
+      name: "Role for Binh Le",
+    });
+
+    // Both initially enabled
+    expect(anSelect).not.toBeDisabled();
+    expect(binhSelect).not.toBeDisabled();
+
+    // Trigger An's change
+    await user.click(anSelect);
+    await user.click(
+      await screen.findByRole("option", { name: /^contributor/i }),
+    );
+
+    // An is now disabled while pending, Binh is still enabled
+    await waitFor(() => {
+      expect(anSelect).toBeDisabled();
+    });
+    expect(binhSelect).not.toBeDisabled();
+
+    // Trigger Binh's change
+    await user.click(binhSelect);
+    await user.click(
+      await screen.findByRole("option", { name: /^commenter/i }),
+    );
+
+    // Both are now disabled
+    await waitFor(() => {
+      expect(binhSelect).toBeDisabled();
+    });
+    expect(anSelect).toBeDisabled();
+
+    // Resolve An's request
+    resolveAn!(
+      jsonResponse(200, {
+        member: {
+          ...memberAn,
+          role: "contributor",
+          assignedRole: "contributor",
+        },
+        assignedAdminCount: 2,
+      }),
+    );
+
+    // An becomes enabled and shows toast, Binh is still disabled
+    await waitFor(() => {
+      expect(anSelect).not.toBeDisabled();
+    });
+    expect(binhSelect).toBeDisabled();
+    expect(
+      screen.getByText("An Nguyen is now Contributor in The First Project."),
+    ).toBeInTheDocument();
+
+    // Resolve Binh's request
+    resolveBinh!(
+      jsonResponse(200, {
+        member: {
+          ...memberBinh,
+          role: "commenter",
+          assignedRole: "commenter",
+        },
+        assignedAdminCount: 2,
+      }),
+    );
+
+    // Binh becomes enabled and shows toast
+    await waitFor(() => {
+      expect(binhSelect).not.toBeDisabled();
+    });
+    expect(
+      screen.getByText("Binh Le is now Commenter in The First Project."),
+    ).toBeInTheDocument();
+  });
 });
+

@@ -24,6 +24,8 @@ import {
   type ProjectListTruncatedEvent,
   type ProjectLookupRateLimitedEvent,
   type ProjectMemberCandidatesSearchedEvent,
+  type ProjectMemberRoleChangedEvent,
+  type ProjectMemberRoleForbiddenEvent,
   type ProjectMembersAddedEvent,
   type ProjectAddRoleForbiddenEvent,
   type ProjectMembersListTruncatedEvent,
@@ -170,6 +172,8 @@ export class FakeProjectEvents extends ProjectEvents {
   public candidateSearchedEvents: ProjectMemberCandidatesSearchedEvent[] = [];
   public membersAddedEvents: ProjectMembersAddedEvent[] = [];
   public addRoleForbiddenEvents: ProjectAddRoleForbiddenEvent[] = [];
+  public roleChangedEvents: ProjectMemberRoleChangedEvent[] = [];
+  public roleForbiddenEvents: ProjectMemberRoleForbiddenEvent[] = [];
 
   async created(event: ProjectCreatedEvent): Promise<void> {
     this.createdEvents.push(event);
@@ -213,5 +217,13 @@ export class FakeProjectEvents extends ProjectEvents {
 
   async addRoleForbidden(event: ProjectAddRoleForbiddenEvent): Promise<void> {
     this.addRoleForbiddenEvents.push(event);
+  }
+
+  async roleChanged(event: ProjectMemberRoleChangedEvent): Promise<void> {
+    this.roleChangedEvents.push(event);
+  }
+
+  async roleForbidden(event: ProjectMemberRoleForbiddenEvent): Promise<void> {
+    this.roleForbiddenEvents.push(event);
   }
 }

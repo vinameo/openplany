@@ -11,10 +11,12 @@ import {
   PROJECT_MEMBER_LIST_MAX,
   PROJECT_MEMBER_NOT_ADDABLE_FIELD,
   PROJECT_MEMBER_NOT_ADDABLE_MESSAGES,
+  PROJECT_ROLE_CHANGE_MESSAGES,
   PROJECT_ROLE_RANK,
   PROJECT_ROLES,
   workspaceRolesWithImplicitProjectAccess,
   type AddProjectMembersResponse,
+  type ChangeProjectRoleResponse,
   type ProjectAccessPolicies,
   type ProjectActor,
   type ProjectMemberCandidate,
@@ -37,6 +39,7 @@ import type { AccessibleProject } from '../access/projectAccessResolver.js';
 import { ProjectEvents } from '../events/projectEvents.js';
 import { ProjectsService } from '../projects.service.js';
 import type { AddProjectMembersDto } from './dto/addProjectMembers.dto.js';
+import type { ChangeProjectRoleDto } from './dto/changeProjectRole.dto.js';
 import { buildProjectMemberResponse } from './dto/projectMemberResponse.js';
 import { canSeeMemberEmails, toProjectActor } from './projectMemberActor.js';
 import { ProjectMembersRepository } from './projectMembers.repository.js';
@@ -406,6 +409,127 @@ export class ProjectMembersService {
         buildProjectMemberResponse(m, { actor, includeEmail, policies }),
       ),
       project,
+      assignedAdminCount: result.assignedAdminCount,
+    };
+  }
+
+  async changeRole(
+    workspace: MemberWorkspace,
+    accessible: AccessibleProject,
+    actorId: string,
+    targetUserId: string,
+    dto: ChangeProjectRoleDto,
+    requestId?: string,
+  ): Promise<ChangeProjectRoleResponse> {
+    const policies = this.policyStore.policies();
+    const { actor, includeEmail } = this.viewOf(workspace, accessible, actorId);
+
+    const result = await this.repository.changeRole({
+      workspaceId: workspace.id,
+      projectId: accessible.project.id,
+      actorId,
+      targetUserId,
+      fromRole: dto.fromRole,
+      toRole: dto.role,
+      requestId: requestId ?? '',
+      now: this.clock.now(),
+      includeEmail,
+    });
+
+    if (result.status === 'project_gone') {
+      throw new ApiException(
+        HttpStatus.NOT_FOUND,
+        'PROJECT_NOT_FOUND',
+        PROJECT_ERROR_MESSAGES.notFound,
+      );
+    }
+
+    if (result.status === 'member_gone') {
+      throw new ApiException(
+        HttpStatus.NOT_FOUND,
+        'NOT_FOUND',
+        PROJECT_ROLE_CHANGE_MESSAGES.memberGone,
+      );
+    }
+
+    if (result.status === 'actor_forbidden' || result.status === 'cant_change') {
+      await this.events.roleForbidden({
+        projectId: accessible.project.id,
+        actorId,
+        targetId: targetUserId,
+        requestId,
+      });
+      throw new ApiException(
+        HttpStatus.FORBIDDEN,
+        'FORBIDDEN',
+        PROJECT_ROLE_CHANGE_MESSAGES.cantChange,
+      );
+    }
+
+    if (result.status === 'role_inherited') {
+      throw new ApiException(
+        HttpStatus.CONFLICT,
+        'ROLE_INHERITED',
+        PROJECT_ROLE_CHANGE_MESSAGES.inherited,
+      );
+    }
+
+    if (result.status === 'role_changed') {
+      throw new ApiException(
+        HttpStatus.CONFLICT,
+        'ROLE_CHANGED',
+        MEMBER_MESSAGES.roleChanged,
+      );
+    }
+
+    if (result.status === 'role_unchanged') {
+      throw new ApiException(
+        HttpStatus.BAD_REQUEST,
+        'ROLE_UNCHANGED',
+        MEMBER_MESSAGES.sameRole,
+      );
+    }
+
+    if (result.status === 'role_not_allowed_for_workspace_role') {
+      throw new ApiException(
+        HttpStatus.BAD_REQUEST,
+        'PROJECT_ROLE_NOT_ALLOWED',
+        MEMBER_MESSAGES.roleOutOfRange,
+        { fields: { role: MEMBER_MESSAGES.roleOutOfRange } },
+      );
+    }
+
+    if (result.status === 'role_not_allowed') {
+      await this.events.roleForbidden({
+        projectId: accessible.project.id,
+        actorId,
+        targetId: targetUserId,
+        requestId,
+      });
+      throw new ApiException(
+        HttpStatus.FORBIDDEN,
+        'FORBIDDEN',
+        MEMBER_MESSAGES.roleNotAllowed,
+      );
+    }
+
+    await this.events.roleChanged({
+      projectId: accessible.project.id,
+      actorId,
+      targetId: targetUserId,
+      fromRole: result.fromRole,
+      toRole: result.toRole,
+      requestId,
+    });
+
+    const member = buildProjectMemberResponse(result.member, {
+      actor,
+      includeEmail,
+      policies,
+    });
+
+    return {
+      member,
       assignedAdminCount: result.assignedAdminCount,
     };
   }

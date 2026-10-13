@@ -116,7 +116,7 @@ describe('ProjectMembers (e2e)', () => {
   }
 
   async function seedB63Fixture() {
-    const { workspace } = await seedWorkspace(
+    const { workspace, ownerId } = await seedWorkspace(
       'owner-b63@openplany.dev',
       'ws-b63',
     );
@@ -169,6 +169,7 @@ describe('ProjectMembers (e2e)', () => {
 
     return {
       workspace,
+      ownerId,
       projId,
       kaiId,
       kaiCookie,
@@ -1888,4 +1889,124 @@ describe('ProjectMembers (e2e)', () => {
       }
     });
   });
+
+  describe('PATCH /api/workspaces/:slug/projects/:identifier/members/:userId', () => {
+    it('AC-01: Nam changes An role from commenter to contributor with history and audit log', async () => {
+      const { workspace, projId, namId, namCookie, anId } =
+        await seedB63Fixture();
+      await addProjectMember(projId, workspace.id, anId, 'commenter');
+
+      const loggedMessages: string[] = [];
+      const logSpy = vi
+        .spyOn(Logger.prototype, 'log')
+        .mockImplementation((msg: string) => {
+          loggedMessages.push(String(msg));
+        });
+
+      try {
+        const res = await http()
+          .patch(
+            `/api/workspaces/${workspace.slug}/projects/PB63/members/${anId}`,
+          )
+          .set('Cookie', namCookie)
+          .set('Origin', ORIGIN)
+          .send({ fromRole: 'commenter', role: 'contributor' })
+          .expect(200);
+
+        expect(res.body.assignedAdminCount).toBe(1);
+        expect(res.body.member).toMatchObject({
+          userId: anId,
+          role: 'contributor',
+          assignedRole: 'contributor',
+          source: 'assigned',
+        });
+
+        const history = await e2e.dataSource.query(
+          `SELECT * FROM project_member_role_history WHERE project_id = $1 AND member_id = $2`,
+          [projId, anId],
+        );
+        expect(history).toHaveLength(1);
+        expect(history[0]).toMatchObject({
+          change_type: 'role_changed',
+          from_role: 'commenter',
+          to_role: 'contributor',
+          actor_id: namId,
+        });
+
+        expect(
+          loggedMessages.some((m) =>
+            m.includes('project.member.role.changed'),
+          ),
+        ).toBe(true);
+        for (const msg of loggedMessages) {
+          expect(msg).not.toContain('an-b63@openplany.dev');
+        }
+      } finally {
+        logSpy.mockRestore();
+      }
+    });
+
+    it('AC-05: member cannot change own role (returns 403 FORBIDDEN)', async () => {
+      const { workspace, namId, namCookie } = await seedB63Fixture();
+
+      const res = await http()
+        .patch(
+          `/api/workspaces/${workspace.slug}/projects/PB63/members/${namId}`,
+        )
+        .set('Cookie', namCookie)
+        .set('Origin', ORIGIN)
+        .send({ fromRole: 'admin', role: 'contributor' })
+        .expect(403);
+
+      expect(res.body.code).toBe('FORBIDDEN');
+    });
+
+    it('AC-06: returns 400 PROJECT_ROLE_NOT_ALLOWED when trying to assign viewer to workspace member', async () => {
+      const { workspace, projId, namCookie, anId } = await seedB63Fixture();
+      await addProjectMember(projId, workspace.id, anId, 'commenter');
+
+      const res = await http()
+        .patch(
+          `/api/workspaces/${workspace.slug}/projects/PB63/members/${anId}`,
+        )
+        .set('Cookie', namCookie)
+        .set('Origin', ORIGIN)
+        .send({ fromRole: 'commenter', role: 'viewer' })
+        .expect(400);
+
+      expect(res.body.code).toBe('PROJECT_ROLE_NOT_ALLOWED');
+    });
+
+    it('returns 409 ROLE_CHANGED when fromRole does not match current assigned role', async () => {
+      const { workspace, projId, namCookie, anId } = await seedB63Fixture();
+      await addProjectMember(projId, workspace.id, anId, 'commenter');
+
+      const res = await http()
+        .patch(
+          `/api/workspaces/${workspace.slug}/projects/PB63/members/${anId}`,
+        )
+        .set('Cookie', namCookie)
+        .set('Origin', ORIGIN)
+        .send({ fromRole: 'admin', role: 'contributor' })
+        .expect(409);
+
+      expect(res.body.code).toBe('ROLE_CHANGED');
+    });
+
+    it('returns 409 ROLE_INHERITED when target user is an inherited workspace admin', async () => {
+      const { workspace, kaiCookie, ownerId } = await seedB63Fixture();
+
+      const res = await http()
+        .patch(
+          `/api/workspaces/${workspace.slug}/projects/PB63/members/${ownerId}`,
+        )
+        .set('Cookie', kaiCookie)
+        .set('Origin', ORIGIN)
+        .send({ fromRole: 'admin', role: 'contributor' })
+        .expect(409);
+
+      expect(res.body.code).toBe('ROLE_INHERITED');
+    });
+  });
 });
+
