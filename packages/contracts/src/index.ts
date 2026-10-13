@@ -18,18 +18,13 @@ export {
 } from "./projectPermissions.js";
 export * from "./project.js";
 export {
-  PROJECT_CREATOR_ROLE,
-  projectRoleCeilingOf,
-  selfJoinProjectRoleOf,
-  type WorkspaceRolePolicy,
-} from "./rolePolicy.js";
-export {
   type ProjectAccessPolicy,
   type ProjectAccessPolicies,
   assignableRangeOf,
   hasImplicitProjectAccess,
   workspaceRolesWithImplicitProjectAccess,
   projectCreatorMembershipRole,
+  validateProjectAccessPolicies,
 } from "./projectAccessPolicy.js";
 export * from "./projectAccess.js";
 export * from "./roleAssignment.js";

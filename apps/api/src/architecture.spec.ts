@@ -221,4 +221,11 @@ describe('Architecture', () => {
       expect(wsPermIndex).toBeGreaterThan(projPermIndex);
     }
   });
+
+  it('prohibits write routes matching access-polic (API B9.3)', () => {
+    const policyWriteRoutes = routes.filter(
+      (r) => r.path.includes('access-polic') && !r.key.startsWith('GET '),
+    );
+    expect(policyWriteRoutes).toEqual([]);
+  });
 });

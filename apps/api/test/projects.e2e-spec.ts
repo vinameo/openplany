@@ -24,6 +24,7 @@ import { AddProjectForeignKeyIndexes1791606000000 } from '../src/database/migrat
 import { ReserveProjectIdentifiers1791607000000 } from '../src/database/migrations/1791607000000-ReserveProjectIdentifiers.js';
 import { AddProjectTimezone1791608000000 } from '../src/database/migrations/1791608000000-AddProjectTimezone.js';
 import { AddProjectMemberJoinedAt1791609000000 } from '../src/database/migrations/1791609000000-AddProjectMemberJoinedAt.js';
+import { CreateProjectAccessPolicies1791610100000 } from '../src/database/migrations/1791610100000-CreateProjectAccessPolicies.js';
 import { ProjectMemberRoleHistory } from '../src/projects/entities/projectMemberRoleHistory.entity.js';
 import { ProjectAccessResolver } from '../src/projects/access/projectAccessResolver.js';
 import { ProjectsRepository } from '../src/projects/repositories/projects.repository.js';
@@ -157,9 +158,11 @@ describe('Projects (e2e)', () => {
       const reserve = new ReserveProjectIdentifiers1791607000000();
       const timezone = new AddProjectTimezone1791608000000();
       const joinedAt = new AddProjectMemberJoinedAt1791609000000();
+      const accessPolicies = new CreateProjectAccessPolicies1791610100000();
       const qr = e2e.dataSource.createQueryRunner();
       await qr.connect();
       try {
+        await accessPolicies.down(qr).catch(() => {});
         await joinedAt.down(qr).catch(() => {});
         await timezone.down(qr).catch(() => {});
         await reserve.down(qr);
@@ -189,6 +192,7 @@ describe('Projects (e2e)', () => {
         await reserve.up(qr);
         await timezone.up(qr);
         await joinedAt.up(qr);
+        await accessPolicies.up(qr);
       } finally {
         await qr.release();
       }

@@ -294,7 +294,7 @@ describe('ProjectMembersService', () => {
         email: 'an@openplany.dev',
         avatarUrl: null,
         status: 'addable',
-        addableRoles: ['admin', 'contributor', 'commenter', 'viewer'],
+        addableRoles: ['admin', 'contributor', 'commenter'],
       });
 
       expect(events.candidateSearchedEvents).toHaveLength(1);

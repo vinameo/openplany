@@ -10,6 +10,7 @@ import {
   DEFAULT_E2E_ORIGIN,
   signInCookie,
 } from './helpers/e2eUsers.js';
+import { DEFAULT_PROJECT_ACCESS_POLICIES } from '@repo/contracts/testing';
 
 /**
  * Migrations meet real data (CLAUDE.md §8 design pass): the newest migrations
@@ -18,7 +19,7 @@ import {
  * must equal a fresh database built up to that version, and the final schema
  * must equal the start. A new migration is the newest one, so it is covered.
  */
-const ROUNDTRIP_COUNT = 5;
+const ROUNDTRIP_COUNT = 6;
 
 const MIGRATIONS_DIR = join(import.meta.dirname, '../src/database/migrations');
 
@@ -252,7 +253,8 @@ describe('Migrations (e2e)', () => {
       [wsId, project!.id, ownerId],
     );
 
-    // Revert RenameProjectGuestToViewer so AddProjectMemberJoinedAt is the last applied migration
+    // Revert CreateProjectAccessPolicies and RenameProjectGuestToViewer so AddProjectMemberJoinedAt is the last applied migration
+    await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
     const schemaBefore = await schemaSnapshot(migrationsDs);
     try {
@@ -263,6 +265,94 @@ describe('Migrations (e2e)', () => {
       );
       expect(await schemaSnapshot(migrationsDs)).toEqual(schemaBefore);
     } finally {
+      await migrationsDs.runMigrations({ transaction: 'each' });
+    }
+  });
+
+  it('AC-03: seeds project_access_policies matching DEFAULT_PROJECT_ACCESS_POLICIES', async () => {
+    const rows = await migrationsDs.query<
+      {
+        workspace_role: string;
+        implicit_project_role: string | null;
+        lowest_assignable_role: string;
+        highest_assignable_role: string;
+        overrides_project_rank: boolean;
+      }[]
+    >(
+      `SELECT workspace_role, implicit_project_role, lowest_assignable_role, highest_assignable_role, overrides_project_rank
+       FROM project_access_policies
+       ORDER BY workspace_role`,
+    );
+
+    const fromDb = Object.fromEntries(
+      rows.map((r) => [
+        r.workspace_role,
+        {
+          workspaceRole: r.workspace_role,
+          implicitProjectRole: r.implicit_project_role,
+          lowestAssignableRole: r.lowest_assignable_role,
+          highestAssignableRole: r.highest_assignable_role,
+          overridesProjectRank: r.overrides_project_rank,
+        },
+      ]),
+    );
+
+    expect(fromDb).toEqual(DEFAULT_PROJECT_ACCESS_POLICIES);
+  });
+
+  it('AC-18: pap_implicit_range_check rejects implicit role with mismatched range', async () => {
+    await migrationsDs.query('BEGIN');
+    try {
+      await expect(
+        migrationsDs.query(
+          `UPDATE project_access_policies
+           SET lowest_assignable_role = 'viewer'
+           WHERE workspace_role = 'admin'`,
+        ),
+      ).rejects.toThrow(/pap_implicit_range_check/);
+    } finally {
+      await migrationsDs.query('ROLLBACK');
+    }
+  });
+
+  it('AC-16: refuses to revert CreateProjectAccessPolicies if workspace_role_applied role history rows exist', async () => {
+    const ownerId = await createUser(e2e, 'owner-mig-applied@openplany.dev', {
+      is_superuser: true,
+    });
+    const created = await request(e2e.app.getHttpServer())
+      .post('/api/workspaces')
+      .set('Cookie', await signInCookie(e2e, 'owner-mig-applied@openplany.dev'))
+      .set('Origin', DEFAULT_E2E_ORIGIN)
+      .send({
+        name: 'Mig Applied',
+        slug: 'mig-applied',
+        organizationSize: '2-10',
+      })
+      .expect(201);
+    const wsId = created.body.id as string;
+    const [project] = await e2e.dataSource.query<{ id: string }[]>(
+      `INSERT INTO projects (workspace_id, name, identifier, icon_name, icon_color, cover_key, timezone)
+       VALUES ($1, 'Mig Applied Project', 'MAP2', 'square-check', '#868E96', 'cover-01', 'UTC') RETURNING id`,
+      [wsId],
+    );
+    await e2e.dataSource.query(
+      `INSERT INTO project_member_role_history (workspace_id, project_id, member_id, from_role, to_role, change_type, actor_id, request_id)
+       VALUES ($1, $2, $3, 'viewer', 'commenter', 'workspace_role_applied', $3, 'req-test-applied')`,
+      [wsId, project!.id, ownerId],
+    );
+
+    const schemaBefore = await schemaSnapshot(migrationsDs);
+    try {
+      await expect(
+        migrationsDs.undoLastMigration({ transaction: 'each' }),
+      ).rejects.toThrow(
+        /Cannot revert CreateProjectAccessPolicies: 1 project role history rows use change_type 'workspace_role_applied'/,
+      );
+      expect(await schemaSnapshot(migrationsDs)).toEqual(schemaBefore);
+    } finally {
+      await e2e.dataSource.query(
+        `DELETE FROM project_member_role_history WHERE change_type = 'workspace_role_applied'`,
+      );
       await migrationsDs.runMigrations({ transaction: 'each' });
     }
   });

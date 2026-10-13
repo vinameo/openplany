@@ -530,7 +530,6 @@ describe('ProjectMembers (e2e)', () => {
         'admin',
         'contributor',
         'commenter',
-        'viewer',
       ]);
 
       // Workspace admin candidate

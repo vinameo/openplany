@@ -1,11 +1,14 @@
 import type { WorkspaceRole } from "./workspace.js";
-import type { ProjectRole } from "./projectRoles.js";
-import { PROJECT_ROLE_RANK } from "./projectRoles.js";
+import {
+  type ProjectRole,
+  PROJECT_ROLE_RANK,
+  higherProjectRole,
+  lowerProjectRole,
+} from "./projectRoles.js";
 import type {
   ProjectPermission,
   ProjectRolePermissions,
 } from "./projectPermissions.js";
-import { higherProjectRole, lowerProjectRole } from "./rolePolicy.js";
 import type { ProjectAccessPolicies } from "./projectAccessPolicy.js";
 
 export interface ProjectAccessInput {

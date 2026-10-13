@@ -1,16 +1,13 @@
 import type { ProjectAccessPolicies } from '@repo/contracts';
-import {
-  ProjectAccessPolicyStore,
-  TempProjectAccessPolicyStore,
-} from '../../src/roles/projectAccessPolicyStore.js';
+import { DEFAULT_PROJECT_ACCESS_POLICIES } from '@repo/contracts/testing';
+import { ProjectAccessPolicyStore } from '../../src/roles/projectAccessPolicyStore.js';
 
 export class FakeProjectAccessPolicyStore extends ProjectAccessPolicyStore {
   private currentPolicies: ProjectAccessPolicies;
 
   constructor(policies?: ProjectAccessPolicies) {
     super();
-    this.currentPolicies =
-      policies ?? new TempProjectAccessPolicyStore().policies();
+    this.currentPolicies = policies ?? DEFAULT_PROJECT_ACCESS_POLICIES;
   }
 
   policies(): ProjectAccessPolicies {

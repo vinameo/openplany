@@ -1,14 +1,17 @@
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { ProjectAccessPolicyEntity } from './entities/projectAccessPolicy.entity.js';
 import {
   ProjectAccessPolicyStore,
-  TempProjectAccessPolicyStore,
+  TypeOrmProjectAccessPolicyStore,
 } from './projectAccessPolicyStore.js';
 
 @Module({
+  imports: [TypeOrmModule.forFeature([ProjectAccessPolicyEntity])],
   providers: [
     {
       provide: ProjectAccessPolicyStore,
-      useClass: TempProjectAccessPolicyStore,
+      useClass: TypeOrmProjectAccessPolicyStore,
     },
   ],
   exports: [ProjectAccessPolicyStore],

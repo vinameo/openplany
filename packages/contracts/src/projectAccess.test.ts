@@ -9,7 +9,7 @@ import {
   isProjectRoleOutOfRange,
   resolveProjectAccess,
 } from "./projectAccess.js";
-import { LEGACY_PROJECT_ACCESS_POLICIES } from "./projectAccessPolicy.js";
+import { DEFAULT_PROJECT_ACCESS_POLICIES } from "./testing.js";
 
 describe("projectAccess", () => {
   const allWorkspaceRoles: (WorkspaceRole | null)[] = [
@@ -60,7 +60,7 @@ describe("projectAccess", () => {
             workspaceRole: wsRole,
             assignedRole: prRole,
           },
-          LEGACY_PROJECT_ACCESS_POLICIES,
+          DEFAULT_PROJECT_ACCESS_POLICIES,
         );
         expect(actual, `Failed for ${key}`).toBe(expected);
       }
@@ -75,14 +75,14 @@ describe("projectAccess", () => {
             workspaceRole: wsRole,
             assignedRole: prRole,
           },
-          LEGACY_PROJECT_ACCESS_POLICIES,
+          DEFAULT_PROJECT_ACCESS_POLICIES,
         );
         const limited = isProjectRoleLimited(
           {
             workspaceRole: wsRole,
             assignedRole: prRole,
           },
-          LEGACY_PROJECT_ACCESS_POLICIES,
+          DEFAULT_PROJECT_ACCESS_POLICIES,
         );
         const isExpectedClamped =
           wsRole === "guest" &&
@@ -104,28 +104,35 @@ describe("projectAccess", () => {
     expect(
       isProjectRoleOutOfRange(
         { workspaceRole: "admin", assignedRole: "admin" },
-        LEGACY_PROJECT_ACCESS_POLICIES,
+        DEFAULT_PROJECT_ACCESS_POLICIES,
       ),
     ).toBe(true);
 
     expect(
       isProjectRoleOutOfRange(
         { workspaceRole: "member", assignedRole: "contributor" },
-        LEGACY_PROJECT_ACCESS_POLICIES,
+        DEFAULT_PROJECT_ACCESS_POLICIES,
       ),
     ).toBe(false);
 
     expect(
       isProjectRoleOutOfRange(
         { workspaceRole: "guest", assignedRole: "admin" },
-        LEGACY_PROJECT_ACCESS_POLICIES,
+        DEFAULT_PROJECT_ACCESS_POLICIES,
+      ),
+    ).toBe(true);
+
+    expect(
+      isProjectRoleOutOfRange(
+        { workspaceRole: "member", assignedRole: "viewer" },
+        DEFAULT_PROJECT_ACCESS_POLICIES,
       ),
     ).toBe(true);
 
     expect(
       isProjectRoleOutOfRange(
         { workspaceRole: "guest", assignedRole: "viewer" },
-        LEGACY_PROJECT_ACCESS_POLICIES,
+        DEFAULT_PROJECT_ACCESS_POLICIES,
       ),
     ).toBe(false);
   });
@@ -143,7 +150,7 @@ describe("projectAccess", () => {
         workspaceRole: "member",
         assignedRole: "contributor",
       },
-      LEGACY_PROJECT_ACCESS_POLICIES,
+      DEFAULT_PROJECT_ACCESS_POLICIES,
       samplePermissions,
     );
     expect(accessMember).toEqual({
@@ -156,7 +163,7 @@ describe("projectAccess", () => {
         workspaceRole: "guest",
         assignedRole: "admin",
       },
-      LEGACY_PROJECT_ACCESS_POLICIES,
+      DEFAULT_PROJECT_ACCESS_POLICIES,
       samplePermissions,
     );
     expect(accessGuestClamped).toEqual({
@@ -169,7 +176,7 @@ describe("projectAccess", () => {
         workspaceRole: null,
         assignedRole: "admin",
       },
-      LEGACY_PROJECT_ACCESS_POLICIES,
+      DEFAULT_PROJECT_ACCESS_POLICIES,
       samplePermissions,
     );
     expect(accessNoWs).toBeNull();
@@ -179,7 +186,7 @@ describe("projectAccess", () => {
         workspaceRole: "member",
         assignedRole: null,
       },
-      LEGACY_PROJECT_ACCESS_POLICIES,
+      DEFAULT_PROJECT_ACCESS_POLICIES,
       samplePermissions,
     );
     expect(accessMemberUnassigned).toBeNull();

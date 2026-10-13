@@ -188,13 +188,3 @@ export function canRemoveProjectMember(
   }
   return true;
 }
-
-export function projectRolesAboveCeiling(
-  newRole: WorkspaceRole,
-  policies: ProjectAccessPolicies,
-): ProjectRole[] {
-  const ceiling = policies[newRole].highestAssignableRole;
-  return PROJECT_ROLES.filter(
-    (role) => PROJECT_ROLE_RANK[role] > PROJECT_ROLE_RANK[ceiling],
-  );
-}

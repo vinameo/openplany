@@ -1,8 +1,11 @@
 import type { WorkspaceRole } from "./workspace.js";
 import { WORKSPACE_ROLES } from "./workspace.js";
 import type { ProjectRole } from "./projectRoles.js";
-import { PROJECT_ROLES, PROJECT_ROLE_RANK } from "./projectRoles.js";
-import { PROJECT_CREATOR_ROLE } from "./rolePolicy.js";
+import {
+  PROJECT_ROLES,
+  PROJECT_ROLE_RANK,
+  PROJECT_CREATOR_ROLE,
+} from "./projectRoles.js";
 
 export interface ProjectAccessPolicy {
   readonly workspaceRole: WorkspaceRole;
@@ -18,35 +21,6 @@ export interface ProjectAccessPolicy {
 export type ProjectAccessPolicies = Readonly<
   Record<WorkspaceRole, ProjectAccessPolicy>
 >;
-
-/**
- * TEMP until CreateProjectAccessPolicies (ticket 03).
- * Dựng từ WORKSPACE_ROLE_POLICY hiện có, chưa có sàn (lowest = vai trò thấp nhất hiện tại).
- * Không export từ index.ts; chỉ store tạm và test dùng.
- */
-export const LEGACY_PROJECT_ACCESS_POLICIES: ProjectAccessPolicies = {
-  admin: {
-    workspaceRole: "admin",
-    implicitProjectRole: "admin",
-    lowestAssignableRole: "admin",
-    highestAssignableRole: "admin",
-    overridesProjectRank: true,
-  },
-  member: {
-    workspaceRole: "member",
-    implicitProjectRole: null,
-    lowestAssignableRole: "viewer",
-    highestAssignableRole: "admin",
-    overridesProjectRank: false,
-  },
-  guest: {
-    workspaceRole: "guest",
-    implicitProjectRole: null,
-    lowestAssignableRole: "viewer",
-    highestAssignableRole: "viewer",
-    overridesProjectRank: false,
-  },
-};
 
 /** [] khi implicitProjectRole ≠ null; ngược lại PROJECT_ROLES trong khoảng, rank giảm dần */
 export function assignableRangeOf(policy: ProjectAccessPolicy): ProjectRole[] {
@@ -90,4 +64,88 @@ export function projectCreatorMembershipRole(
     return PROJECT_CREATOR_ROLE;
   }
   return policy.highestAssignableRole;
+}
+
+function isProjectRole(val: unknown): val is ProjectRole {
+  return (
+    typeof val === "string" &&
+    (PROJECT_ROLES as readonly string[]).includes(val)
+  );
+}
+
+function isWorkspaceRole(val: unknown): val is WorkspaceRole {
+  return (
+    typeof val === "string" &&
+    (WORKSPACE_ROLES as readonly string[]).includes(val)
+  );
+}
+
+/**
+ * Lỗi đầu tiên tìm thấy, null khi hợp lệ (INV-03).
+ */
+export function validateProjectAccessPolicies(
+  rows: readonly ProjectAccessPolicy[],
+): string | null {
+  if (!Array.isArray(rows)) {
+    return "Expected an array of project access policies";
+  }
+
+  const seenRoles = new Set<WorkspaceRole>();
+
+  for (const row of rows) {
+    if (!row || typeof row !== "object") {
+      return "Policy row must be an object";
+    }
+
+    const {
+      workspaceRole,
+      implicitProjectRole,
+      lowestAssignableRole,
+      highestAssignableRole,
+    } = row;
+
+    if (!isWorkspaceRole(workspaceRole)) {
+      return `Unknown workspace role: ${String(workspaceRole)}`;
+    }
+
+    if (seenRoles.has(workspaceRole)) {
+      return `Duplicate policy for workspace role: ${workspaceRole}`;
+    }
+    seenRoles.add(workspaceRole);
+
+    if (implicitProjectRole !== null && !isProjectRole(implicitProjectRole)) {
+      return `Unknown implicit project role: ${String(implicitProjectRole)}`;
+    }
+
+    if (!isProjectRole(lowestAssignableRole)) {
+      return `Unknown lowest assignable role: ${String(lowestAssignableRole)}`;
+    }
+
+    if (!isProjectRole(highestAssignableRole)) {
+      return `Unknown highest assignable role: ${String(highestAssignableRole)}`;
+    }
+
+    const lowestRank = PROJECT_ROLE_RANK[lowestAssignableRole];
+    const highestRank = PROJECT_ROLE_RANK[highestAssignableRole];
+    if (lowestRank > highestRank) {
+      return `Lowest assignable role (${lowestAssignableRole}) cannot have higher rank than highest (${highestAssignableRole}) for ${workspaceRole}`;
+    }
+
+    if (implicitProjectRole !== null) {
+      if (
+        lowestAssignableRole !== implicitProjectRole ||
+        highestAssignableRole !== implicitProjectRole
+      ) {
+        return `Workspace role with implicit role (${implicitProjectRole}) must have lowest and highest role equal to implicit role`;
+      }
+    }
+  }
+
+  for (const role of WORKSPACE_ROLES) {
+    if (!seenRoles.has(role)) {
+      return `Missing policy for workspace role: ${role}`;
+    }
+  }
+
+  return null;
 }

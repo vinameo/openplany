@@ -9,9 +9,8 @@ import {
   DEFAULT_ADDED_PROJECT_ROLE,
   canRemoveProjectMember,
   canRemoveWorkspaceMember,
-  projectRolesAboveCeiling,
 } from "./roleAssignment.js";
-import { LEGACY_PROJECT_ACCESS_POLICIES } from "./projectAccessPolicy.js";
+import { DEFAULT_PROJECT_ACCESS_POLICIES } from "./testing.js";
 import type { WorkspaceRole } from "./workspace.js";
 import type { ProjectRole } from "./projectRoles.js";
 
@@ -147,13 +146,6 @@ describe("roleAssignment", () => {
   });
 
   describe("AC-06: assignableProjectRoles and canRemoveProjectMember", () => {
-    const allProjectRoles: ProjectRole[] = [
-      "admin",
-      "contributor",
-      "commenter",
-      "viewer",
-    ];
-
     it("matches RQ B8.2 rules for project role assignment and removal", () => {
       const adminWsActor = {
         userId: "actor-admin",
@@ -185,9 +177,9 @@ describe("roleAssignment", () => {
             workspaceRole: "member",
             assignedRole: null,
           },
-          LEGACY_PROJECT_ACCESS_POLICIES,
+          DEFAULT_PROJECT_ACCESS_POLICIES,
         ),
-      ).toEqual(allProjectRoles);
+      ).toEqual(["admin", "contributor", "commenter"]);
       expect(
         canRemoveProjectMember(
           adminWsActor,
@@ -196,7 +188,7 @@ describe("roleAssignment", () => {
             workspaceRole: "member",
             assignedRole: null,
           },
-          LEGACY_PROJECT_ACCESS_POLICIES,
+          DEFAULT_PROJECT_ACCESS_POLICIES,
         ),
       ).toBe(false);
 
@@ -209,9 +201,9 @@ describe("roleAssignment", () => {
             workspaceRole: "member",
             assignedRole: "admin",
           },
-          LEGACY_PROJECT_ACCESS_POLICIES,
+          DEFAULT_PROJECT_ACCESS_POLICIES,
         ),
-      ).toEqual(allProjectRoles);
+      ).toEqual(["admin", "contributor", "commenter"]);
       expect(
         canRemoveProjectMember(
           adminWsActor,
@@ -220,7 +212,7 @@ describe("roleAssignment", () => {
             workspaceRole: "member",
             assignedRole: "admin",
           },
-          LEGACY_PROJECT_ACCESS_POLICIES,
+          DEFAULT_PROJECT_ACCESS_POLICIES,
         ),
       ).toBe(true);
 
@@ -233,7 +225,7 @@ describe("roleAssignment", () => {
             workspaceRole: "member",
             assignedRole: "admin",
           },
-          LEGACY_PROJECT_ACCESS_POLICIES,
+          DEFAULT_PROJECT_ACCESS_POLICIES,
         ),
       ).toEqual([]);
       expect(
@@ -244,7 +236,7 @@ describe("roleAssignment", () => {
             workspaceRole: "member",
             assignedRole: "admin",
           },
-          LEGACY_PROJECT_ACCESS_POLICIES,
+          DEFAULT_PROJECT_ACCESS_POLICIES,
         ),
       ).toBe(false);
 
@@ -257,9 +249,9 @@ describe("roleAssignment", () => {
             workspaceRole: "member",
             assignedRole: "contributor",
           },
-          LEGACY_PROJECT_ACCESS_POLICIES,
+          DEFAULT_PROJECT_ACCESS_POLICIES,
         ),
-      ).toEqual(allProjectRoles);
+      ).toEqual(["admin", "contributor", "commenter"]);
       expect(
         canRemoveProjectMember(
           memberAdminActor,
@@ -268,7 +260,7 @@ describe("roleAssignment", () => {
             workspaceRole: "member",
             assignedRole: "contributor",
           },
-          LEGACY_PROJECT_ACCESS_POLICIES,
+          DEFAULT_PROJECT_ACCESS_POLICIES,
         ),
       ).toBe(true);
 
@@ -281,7 +273,7 @@ describe("roleAssignment", () => {
             workspaceRole: "guest",
             assignedRole: "viewer",
           },
-          LEGACY_PROJECT_ACCESS_POLICIES,
+          DEFAULT_PROJECT_ACCESS_POLICIES,
         ),
       ).toEqual(["viewer"]);
       expect(
@@ -292,7 +284,7 @@ describe("roleAssignment", () => {
             workspaceRole: "guest",
             assignedRole: null,
           },
-          LEGACY_PROJECT_ACCESS_POLICIES,
+          DEFAULT_PROJECT_ACCESS_POLICIES,
         ),
       ).toEqual(["viewer"]);
       expect(
@@ -303,7 +295,7 @@ describe("roleAssignment", () => {
             workspaceRole: "guest",
             assignedRole: "viewer",
           },
-          LEGACY_PROJECT_ACCESS_POLICIES,
+          DEFAULT_PROJECT_ACCESS_POLICIES,
         ),
       ).toBe(true);
 
@@ -316,7 +308,7 @@ describe("roleAssignment", () => {
             workspaceRole: "admin",
             assignedRole: "admin",
           },
-          LEGACY_PROJECT_ACCESS_POLICIES,
+          DEFAULT_PROJECT_ACCESS_POLICIES,
         ),
       ).toEqual([]);
       expect(
@@ -327,7 +319,7 @@ describe("roleAssignment", () => {
             workspaceRole: "admin",
             assignedRole: "admin",
           },
-          LEGACY_PROJECT_ACCESS_POLICIES,
+          DEFAULT_PROJECT_ACCESS_POLICIES,
         ),
       ).toBe(false);
 
@@ -340,7 +332,7 @@ describe("roleAssignment", () => {
             workspaceRole: "admin",
             assignedRole: "admin",
           },
-          LEGACY_PROJECT_ACCESS_POLICIES,
+          DEFAULT_PROJECT_ACCESS_POLICIES,
         ),
       ).toEqual([]);
       expect(
@@ -351,7 +343,7 @@ describe("roleAssignment", () => {
             workspaceRole: "admin",
             assignedRole: "admin",
           },
-          LEGACY_PROJECT_ACCESS_POLICIES,
+          DEFAULT_PROJECT_ACCESS_POLICIES,
         ),
       ).toBe(false);
 
@@ -364,7 +356,7 @@ describe("roleAssignment", () => {
             workspaceRole: "member",
             assignedRole: null,
           },
-          LEGACY_PROJECT_ACCESS_POLICIES,
+          DEFAULT_PROJECT_ACCESS_POLICIES,
         ),
       ).toEqual([]);
       expect(
@@ -375,7 +367,7 @@ describe("roleAssignment", () => {
             workspaceRole: "member",
             assignedRole: "contributor",
           },
-          LEGACY_PROJECT_ACCESS_POLICIES,
+          DEFAULT_PROJECT_ACCESS_POLICIES,
         ),
       ).toBe(false);
     });
@@ -426,20 +418,6 @@ describe("roleAssignment", () => {
     });
   });
 
-  describe("AC-20: projectRolesAboveCeiling", () => {
-    it("returns roles above ceiling for given workspace role", () => {
-      expect(
-        projectRolesAboveCeiling("guest", LEGACY_PROJECT_ACCESS_POLICIES),
-      ).toEqual(["admin", "contributor", "commenter"]);
-      expect(
-        projectRolesAboveCeiling("admin", LEGACY_PROJECT_ACCESS_POLICIES),
-      ).toEqual([]);
-      expect(
-        projectRolesAboveCeiling("member", LEGACY_PROJECT_ACCESS_POLICIES),
-      ).toEqual([]);
-    });
-  });
-
   describe("RQ B5.3: addableProjectRoleRange and addableProjectRoles", () => {
     it("defines DEFAULT_ADDED_PROJECT_ROLE as contributor", () => {
       expect(DEFAULT_ADDED_PROJECT_ROLE).toBe("contributor");
@@ -454,7 +432,7 @@ describe("roleAssignment", () => {
         permissions: ["project.members.manage" as const],
       };
       expect(
-        addableProjectRoleRange(wsAdminActor, LEGACY_PROJECT_ACCESS_POLICIES),
+        addableProjectRoleRange(wsAdminActor, DEFAULT_PROJECT_ACCESS_POLICIES),
       ).toEqual(["admin", "contributor", "commenter", "viewer"]);
 
       // Project Admin actor (workspace member, effective role admin)
@@ -465,7 +443,10 @@ describe("roleAssignment", () => {
         permissions: ["project.members.manage" as const],
       };
       expect(
-        addableProjectRoleRange(projAdminActor, LEGACY_PROJECT_ACCESS_POLICIES),
+        addableProjectRoleRange(
+          projAdminActor,
+          DEFAULT_PROJECT_ACCESS_POLICIES,
+        ),
       ).toEqual(["admin", "contributor", "commenter", "viewer"]);
 
       // Contributor with hand-crafted project.members.manage
@@ -478,7 +459,7 @@ describe("roleAssignment", () => {
       expect(
         addableProjectRoleRange(
           contributorWithPerm,
-          LEGACY_PROJECT_ACCESS_POLICIES,
+          DEFAULT_PROJECT_ACCESS_POLICIES,
         ),
       ).toEqual(["contributor", "commenter", "viewer"]);
 
@@ -492,7 +473,7 @@ describe("roleAssignment", () => {
       expect(
         addableProjectRoleRange(
           contributorNoPerm,
-          LEGACY_PROJECT_ACCESS_POLICIES,
+          DEFAULT_PROJECT_ACCESS_POLICIES,
         ),
       ).toEqual([]);
 
@@ -504,7 +485,7 @@ describe("roleAssignment", () => {
         permissions: ["project.members.manage" as const],
       };
       expect(
-        addableProjectRoleRange(nullRoleActor, LEGACY_PROJECT_ACCESS_POLICIES),
+        addableProjectRoleRange(nullRoleActor, DEFAULT_PROJECT_ACCESS_POLICIES),
       ).toEqual([]);
     });
 
@@ -516,21 +497,21 @@ describe("roleAssignment", () => {
         permissions: ["project.members.manage" as const],
       };
 
-      // Target in workspace as member
+      // Target in workspace as member (floor is commenter)
       expect(
         addableProjectRoles(
           actor,
           { userId: "target-1", workspaceRole: "member" },
-          LEGACY_PROJECT_ACCESS_POLICIES,
+          DEFAULT_PROJECT_ACCESS_POLICIES,
         ),
-      ).toEqual(["admin", "contributor", "commenter", "viewer"]);
+      ).toEqual(["admin", "contributor", "commenter"]);
 
       // Target in workspace as guest (clamped by guest ceiling)
       expect(
         addableProjectRoles(
           actor,
           { userId: "target-guest", workspaceRole: "guest" },
-          LEGACY_PROJECT_ACCESS_POLICIES,
+          DEFAULT_PROJECT_ACCESS_POLICIES,
         ),
       ).toEqual(["viewer"]);
 
@@ -539,7 +520,7 @@ describe("roleAssignment", () => {
         addableProjectRoles(
           actor,
           { userId: "target-ws-admin", workspaceRole: "admin" },
-          LEGACY_PROJECT_ACCESS_POLICIES,
+          DEFAULT_PROJECT_ACCESS_POLICIES,
         ),
       ).toEqual([]);
 
@@ -548,7 +529,7 @@ describe("roleAssignment", () => {
         addableProjectRoles(
           actor,
           { userId: "actor-1", workspaceRole: "member" },
-          LEGACY_PROJECT_ACCESS_POLICIES,
+          DEFAULT_PROJECT_ACCESS_POLICIES,
         ),
       ).toEqual([]);
     });
