@@ -1,3 +1,5 @@
+import type { ProjectRole } from '@repo/contracts';
+
 export interface ProjectCreatedEvent {
   projectId: string;
   workspaceId: string;
@@ -40,6 +42,38 @@ export interface ProjectDeletedEvent {
   requestId?: string;
 }
 
+export interface ProjectMembersListTruncatedEvent {
+  projectId: string;
+  total: number;
+  requestId?: string;
+}
+
+export interface ProjectMemberCandidatesSearchedEvent {
+  projectId: string;
+  workspaceId: string;
+  actorId: string;
+  mode: 'contains' | 'exact';
+  resultCount: number;
+  requestId?: string;
+}
+
+export interface ProjectMembersAddedEvent {
+  projectId: string;
+  workspaceId: string;
+  actorId: string;
+  actorRole: ProjectRole | null;
+  count: number;
+  reactivatedCount: number;
+  roles: readonly ProjectRole[];
+  requestId?: string;
+}
+
+export interface ProjectAddRoleForbiddenEvent {
+  projectId: string;
+  actorId: string;
+  requestId?: string;
+}
+
 export abstract class ProjectEvents {
   abstract created(event: ProjectCreatedEvent): Promise<void>;
   abstract updated(event: ProjectUpdatedEvent): Promise<void>;
@@ -49,4 +83,15 @@ export abstract class ProjectEvents {
   abstract lookupRateLimited(
     event: ProjectLookupRateLimitedEvent,
   ): Promise<void>;
+  abstract membersListTruncated(
+    event: ProjectMembersListTruncatedEvent,
+  ): Promise<void>;
+  abstract memberCandidatesSearched(
+    event: ProjectMemberCandidatesSearchedEvent,
+  ): Promise<void>;
+  abstract membersAdded(event: ProjectMembersAddedEvent): Promise<void>;
+  abstract addRoleForbidden(
+    event: ProjectAddRoleForbiddenEvent,
+  ): Promise<void>;
 }
+

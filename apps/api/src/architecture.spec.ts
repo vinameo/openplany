@@ -8,10 +8,15 @@ import {
 } from '@nestjs/common/constants.js';
 import { SessionGuard } from './auth/guards/sessionGuard.js';
 import { ProjectAccessGuard } from './projects/access/projectAccessGuard.js';
-import { ProjectPermissionGuard } from './projects/access/projectPermissionGuard.js';
+import {
+  PROJECT_PERMISSION_KEY,
+  ProjectPermissionGuard,
+} from './projects/access/projectPermissionGuard.js';
+import { WORKSPACE_PERMISSION_KEY } from './workspaces/workspaceAccess.decorator.js';
 import { WorkspaceMemberGuard } from './workspaces/workspaceMemberGuard.js';
 import { WorkspacePermissionGuard } from './workspaces/workspacePermissionGuard.js';
 import { WorkspaceWriteRateLimitGuard } from './workspaces/workspaceWriteRateLimitGuard.js';
+import { MemberCandidateRateLimitGuard } from './workspaces/members/memberCandidateRateLimitGuard.js';
 
 /**
  * Fitness functions: rules that every endpoint, present and future, must keep.
@@ -33,6 +38,8 @@ interface Route {
   key: string;
   path: string;
   guards: unknown[];
+  projectPermission?: unknown;
+  workspacePermission?: unknown;
 }
 
 function sourceFiles(dir: string, suffix: string): string[] {
@@ -78,6 +85,14 @@ async function collectRoutes(): Promise<Route[]> {
             ...((Reflect.getMetadata(GUARDS_METADATA, handler) as
               unknown[] | undefined) ?? []),
           ],
+          projectPermission: Reflect.getMetadata(
+            PROJECT_PERMISSION_KEY,
+            handler,
+          ),
+          workspacePermission: Reflect.getMetadata(
+            WORKSPACE_PERMISSION_KEY,
+            handler,
+          ),
         });
       }
     }
@@ -171,5 +186,39 @@ describe('Architecture', () => {
       )
       .map((f) => relative(SRC, f));
     expect(callers.filter((f) => !allowed.has(f))).toEqual([]);
+  });
+
+  it('places MemberCandidateRateLimitGuard before WorkspaceMemberGuard on candidate search routes (INV-15)', () => {
+    const candidateRoutes = routes.filter((r) =>
+      r.guards.includes(MemberCandidateRateLimitGuard),
+    );
+    expect(candidateRoutes.length).toBeGreaterThan(0);
+    for (const route of candidateRoutes) {
+      expect(route.guards).toContain(WorkspaceMemberGuard);
+      const rateLimitIndex = route.guards.indexOf(
+        MemberCandidateRateLimitGuard,
+      );
+      const memberIndex = route.guards.indexOf(WorkspaceMemberGuard);
+      expect(rateLimitIndex).toBeLessThan(memberIndex);
+    }
+  });
+
+  it('enforces both permission guards in order after ProjectAccessGuard on routes with dual permission metadata (API B3)', () => {
+    const dualRoutes = routes.filter(
+      (r) => r.projectPermission && r.workspacePermission,
+    );
+    for (const route of dualRoutes) {
+      expect(route.guards).toContain(ProjectAccessGuard);
+      expect(route.guards).toContain(ProjectPermissionGuard);
+      expect(route.guards).toContain(WorkspacePermissionGuard);
+
+      const accessIndex = route.guards.indexOf(ProjectAccessGuard);
+      const projPermIndex = route.guards.indexOf(ProjectPermissionGuard);
+      const wsPermIndex = route.guards.indexOf(WorkspacePermissionGuard);
+
+      expect(projPermIndex).toBeGreaterThan(accessIndex);
+      expect(wsPermIndex).toBeGreaterThan(accessIndex);
+      expect(wsPermIndex).toBeGreaterThan(projPermIndex);
+    }
   });
 });

@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppUiProvider } from "@repo/ui";
 import type { MemberCandidate } from "@repo/contracts";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -27,12 +28,22 @@ function renderSelect(
     expireSession: vi.fn(),
   };
 
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+
   return render(
-    <AppUiProvider>
-      <AuthContext.Provider value={authValue}>
-        <MemberCandidateSelect {...props} />
-      </AuthContext.Provider>
-    </AppUiProvider>,
+    <QueryClientProvider client={queryClient}>
+      <AppUiProvider>
+        <AuthContext.Provider value={authValue}>
+          <MemberCandidateSelect {...props} />
+        </AuthContext.Provider>
+      </AppUiProvider>
+    </QueryClientProvider>,
   );
 }
 

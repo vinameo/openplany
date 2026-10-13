@@ -2,10 +2,14 @@ import { Injectable, Logger } from '@nestjs/common';
 import {
   ProjectEvents,
   type ProjectAccessDeniedEvent,
+  type ProjectAddRoleForbiddenEvent,
   type ProjectCreatedEvent,
   type ProjectDeletedEvent,
   type ProjectListTruncatedEvent,
   type ProjectLookupRateLimitedEvent,
+  type ProjectMemberCandidatesSearchedEvent,
+  type ProjectMembersAddedEvent,
+  type ProjectMembersListTruncatedEvent,
   type ProjectUpdatedEvent,
 } from './projectEvents.js';
 
@@ -48,4 +52,35 @@ export class LoggingProjectEvents extends ProjectEvents {
       `project.lookup.rate_limited workspaceId=${event.workspaceId} userId=${event.userId} requestId=${event.requestId ?? ''}`,
     );
   }
+
+  async membersListTruncated(
+    event: ProjectMembersListTruncatedEvent,
+  ): Promise<void> {
+    this.logger.warn(
+      `project.members.list.truncated projectId=${event.projectId} total=${event.total} requestId=${event.requestId ?? ''}`,
+    );
+  }
+
+  async memberCandidatesSearched(
+    event: ProjectMemberCandidatesSearchedEvent,
+  ): Promise<void> {
+    this.logger.debug(
+      `project.members.candidates projectId=${event.projectId} workspaceId=${event.workspaceId} actorId=${event.actorId} mode=${event.mode} resultCount=${event.resultCount} requestId=${event.requestId ?? ''}`,
+    );
+  }
+
+  async membersAdded(event: ProjectMembersAddedEvent): Promise<void> {
+    this.logger.log(
+      `project.members.added projectId=${event.projectId} workspaceId=${event.workspaceId} actorId=${event.actorId} actorRole=${event.actorRole ?? 'none'} count=${event.count} reactivatedCount=${event.reactivatedCount} roles=${event.roles.join(',')} requestId=${event.requestId ?? ''}`,
+    );
+  }
+
+  async addRoleForbidden(
+    event: ProjectAddRoleForbiddenEvent,
+  ): Promise<void> {
+    this.logger.warn(
+      `project.members.add.role_forbidden projectId=${event.projectId} actorId=${event.actorId} requestId=${event.requestId ?? ''}`,
+    );
+  }
 }
+

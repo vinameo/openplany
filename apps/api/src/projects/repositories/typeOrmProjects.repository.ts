@@ -2,12 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { PROJECT_CREATOR_ROLE } from '@repo/contracts';
 import { DataSource, In } from 'typeorm';
-import { User } from '../../auth/entities/user.entity.js';
-import {
-  isTransactionConflict,
-  isUniqueViolation,
-} from '../../common/databaseErrors.js';
-import { WorkspaceMember } from '../../workspaces/entities/workspaceMember.entity.js';
+import { isUniqueViolation } from '../../common/databaseErrors.js';
+import { runTransactionWithRetry } from '../../database/transactionRetry.js';
 import {
   toProjectRow,
   type ProjectMemberRow,
@@ -21,7 +17,7 @@ import {
   ProjectIdentifierTakenError,
   ProjectNameTakenError,
 } from '../projectErrors.js';
-import { ACTIVE_PROJECT, ACTIVE_PROJECT_MEMBER } from '../projectFilters.js';
+import { ACTIVE_PROJECT, projectMembersQuery } from '../projectFilters.js';
 import {
   ProjectsRepository,
   type CreateProjectInput,
@@ -49,40 +45,34 @@ export class TypeOrmProjectsRepository extends ProjectsRepository {
 
     // Rank members inside each project and keep only the first N, so the
     // payload is bounded by projects × limit, not projects × members.
+    const subQuery = projectMembersQuery(this.dataSource.manager, {
+      projectId: In(projectIds),
+    })
+      .select('pm.projectId', 'projectId')
+      .addSelect('pm.memberId', 'userId')
+      .addSelect('pm.joinedAt', 'addedAt')
+      .addSelect('u.firstName', 'firstName')
+      .addSelect('u.lastName', 'lastName')
+      .addSelect('u.displayName', 'displayName')
+      .addSelect('u.isActive', 'accountActive')
+      .addSelect(
+        'ROW_NUMBER() OVER (PARTITION BY pm.projectId ORDER BY pm.joinedAt ASC, pm.memberId ASC)',
+        'member_rank',
+      )
+      .addSelect(
+        'COUNT(*) OVER (PARTITION BY pm.projectId)',
+        'member_total',
+      );
+
+    if (opts.includeEmail) {
+      subQuery.addSelect('u.email', 'email');
+    }
+
     const rows = await this.dataSource.manager
       .createQueryBuilder()
       .select('ranked.*')
-      .from((sub) => {
-        const members = sub
-          .from(ProjectMember, 'pm')
-          .innerJoin(
-            WorkspaceMember,
-            'wm',
-            'wm.workspaceId = pm.workspaceId AND wm.memberId = pm.memberId',
-          )
-          .innerJoin(User, 'u', 'u.id = pm.memberId')
-          .select('pm.projectId', 'projectId')
-          .addSelect('pm.memberId', 'userId')
-          .addSelect('pm.createdAt', 'addedAt')
-          .addSelect('u.firstName', 'firstName')
-          .addSelect('u.lastName', 'lastName')
-          .addSelect('u.displayName', 'displayName')
-          .addSelect('u.isActive', 'accountActive')
-          .addSelect(
-            'ROW_NUMBER() OVER (PARTITION BY pm.projectId ORDER BY pm.createdAt ASC, pm.memberId ASC)',
-            'member_rank',
-          )
-          .addSelect(
-            'COUNT(*) OVER (PARTITION BY pm.projectId)',
-            'member_total',
-          )
-          .where({ projectId: In(projectIds), ...ACTIVE_PROJECT_MEMBER })
-          .andWhere('wm.isActive = :wmActive', { wmActive: true });
-        // Email is only selected when the viewer may see it (DB B5.2).
-        return opts.includeEmail
-          ? members.addSelect('u.email', 'email')
-          : members;
-      }, 'ranked')
+      .from(`(${subQuery.getQuery()})`, 'ranked')
+      .setParameters(subQuery.getParameters())
       .where('ranked.member_rank <= :limit', { limit: opts.limitPerProject })
       .orderBy('ranked.member_rank', 'ASC')
       .getRawMany<{
@@ -137,9 +127,10 @@ export class TypeOrmProjectsRepository extends ProjectsRepository {
 
     const projectId = randomUUID();
 
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      try {
-        await this.dataSource.transaction(async (manager) => {
+    try {
+      return await runTransactionWithRetry(
+        this.dataSource,
+        async (manager) => {
           // 1. insert Project
           await manager.insert(Project, {
             id: projectId,
@@ -166,6 +157,7 @@ export class TypeOrmProjectsRepository extends ProjectsRepository {
             role: PROJECT_CREATOR_ROLE,
             isActive: true,
             createdById: actorId,
+            joinedAt: now,
             createdAt: now,
             updatedAt: now,
           });
@@ -183,35 +175,36 @@ export class TypeOrmProjectsRepository extends ProjectsRepository {
             requestId: requestId ?? null,
             createdAt: now,
           });
-        });
 
-        return { projectId };
-      } catch (err: unknown) {
-        if (isTransactionConflict(err) && attempt < 2) {
-          this.logger.warn(
-            `project.create.retry conflict attempt=${attempt} requestId=${requestId ?? ''}`,
-          );
-          continue;
-        }
-        if (isUniqueViolation(err, PROJECT_NAME_UNIQUE)) {
-          throw new ProjectNameTakenError();
-        }
-        if (isUniqueViolation(err, PROJECT_IDENTIFIER_UNIQUE)) {
-          throw new ProjectIdentifierTakenError();
-        }
-        throw err;
+          return { projectId };
+        },
+        {
+          maxAttempts: 2,
+          onRetry: (attempt) => {
+            this.logger.warn(
+              `project.create.retry conflict attempt=${attempt} requestId=${requestId ?? ''}`,
+            );
+          },
+        },
+      );
+    } catch (err: unknown) {
+      if (isUniqueViolation(err, PROJECT_NAME_UNIQUE)) {
+        throw new ProjectNameTakenError();
       }
+      if (isUniqueViolation(err, PROJECT_IDENTIFIER_UNIQUE)) {
+        throw new ProjectIdentifierTakenError();
+      }
+      throw err;
     }
-
-    throw new Error('Project creation failed after retries');
   }
 
   async update(input: UpdateProjectInput): Promise<ProjectRow | null> {
     const { projectId, workspaceId, actorId, now, changes } = input;
 
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      try {
-        return await this.dataSource.transaction(async (manager) => {
+    try {
+      return await runTransactionWithRetry(
+        this.dataSource,
+        async (manager) => {
           const updateResult = await manager.update(
             Project,
             { id: projectId, workspaceId, ...ACTIVE_PROJECT },
@@ -227,22 +220,22 @@ export class TypeOrmProjectsRepository extends ProjectsRepository {
           });
 
           return updatedProject ? toProjectRow(updatedProject) : null;
-        });
-      } catch (err: unknown) {
-        if (isTransactionConflict(err) && attempt < 2) {
-          this.logger.warn(
-            `project.update.retry conflict attempt=${attempt} projectId=${projectId}`,
-          );
-          continue;
-        }
-        if (isUniqueViolation(err, PROJECT_NAME_UNIQUE)) {
-          throw new ProjectNameTakenError();
-        }
-        throw err;
+        },
+        {
+          maxAttempts: 2,
+          onRetry: (attempt) => {
+            this.logger.warn(
+              `project.update.retry conflict attempt=${attempt} projectId=${projectId}`,
+            );
+          },
+        },
+      );
+    } catch (err: unknown) {
+      if (isUniqueViolation(err, PROJECT_NAME_UNIQUE)) {
+        throw new ProjectNameTakenError();
       }
+      throw err;
     }
-
-    throw new Error('Project update failed after retries');
   }
 
   async softDelete(input: SoftDeleteProjectInput): Promise<boolean> {

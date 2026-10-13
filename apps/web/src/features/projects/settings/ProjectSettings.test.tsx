@@ -40,7 +40,12 @@ const sampleProject: ProjectListItem = {
   members: [],
   memberCount: 0,
   role: "admin",
-  permissions: ["project.settings.view", "project.settings.update"],
+  permissions: [
+    "project.settings.view",
+    "project.settings.update",
+    "project.members.view",
+    "project.members.manage",
+  ],
 };
 
 function makeProject(overrides: Partial<ProjectListItem> = {}): ProjectListItem {
@@ -158,7 +163,7 @@ describe("ProjectSettings", () => {
     );
   });
 
-  it("AC-03: renders General active tab and Members as Coming soon without href", async () => {
+  it("AC-03: renders General active tab and Members link", async () => {
     renderProjectSettingsApp({
       initialEntries: ["/the-firsts/projects/TFP11/settings/general"],
     });
@@ -166,10 +171,12 @@ describe("ProjectSettings", () => {
     const generalLink = await screen.findByRole("link", { name: /General/i });
     expect(generalLink).toHaveAttribute("aria-current", "page");
 
-    const membersBtn = screen.getByRole("button", { name: /Members/i });
-    expect(membersBtn).toBeInTheDocument();
-    expect(membersBtn).toHaveAttribute("aria-disabled", "true");
-    expect(membersBtn).not.toHaveAttribute("href");
+    const membersLink = screen.getByRole("link", { name: /Members/i });
+    expect(membersLink).toBeInTheDocument();
+    expect(membersLink).toHaveAttribute(
+      "href",
+      "/the-firsts/projects/TFP11/settings/members",
+    );
   });
 
   it("AC-04: ProjectSettingsCard displays project name, role label, and icon", async () => {
@@ -970,7 +977,7 @@ describe("ProjectSettings", () => {
     const projectWithoutSettings = makeProject({
       identifier: "TFP11",
       name: "The First Project",
-      permissions: ["project.members.view"],
+      permissions: [],
     });
 
     renderProjectSettingsApp({
@@ -1001,7 +1008,7 @@ describe("ProjectSettings", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Access Denied");
   });
 
-  it("AC-36: mobile navigation frame renders Back to project link, heading, section select with disabled Members item", async () => {
+  it("AC-36: mobile navigation frame renders Back to project link, heading, section select with Members item", async () => {
     renderProjectSettingsApp({
       initialEntries: ["/the-firsts/projects/TFP11/settings/general"],
     });
@@ -1017,11 +1024,11 @@ describe("ProjectSettings", () => {
 
     fireEvent.click(select);
     const membersOption = screen.getByRole("option", {
-      name: "Members (Coming soon)",
+      name: "Members",
       hidden: true,
     });
     expect(membersOption).toBeInTheDocument();
-    expect(membersOption).toHaveAttribute("data-combobox-disabled", "true");
+    expect(membersOption).not.toHaveAttribute("data-combobox-disabled", "true");
   });
 
   it("AC-38: direct navigation renders loading skeleton immediately while fetching project", async () => {
@@ -1148,8 +1155,8 @@ describe("ProjectSettings", () => {
     });
     await user.type(descInput, " and more details");
 
-    // Click Members (Coming soon) item
-    const membersItem = screen.getByText("Members");
+    // Click Members link
+    const membersItem = screen.getByRole("link", { name: /Members/i });
     await user.click(membersItem);
 
     // No modal dialog asking to confirm discarding changes

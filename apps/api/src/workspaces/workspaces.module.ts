@@ -17,6 +17,7 @@ import { WorkspaceEvents } from './events/workspaceEvents.js';
 import { TypeOrmWorkspacesRepository } from './repositories/typeOrmWorkspaces.repository.js';
 import { WorkspacesRepository } from './repositories/workspaces.repository.js';
 import {
+  MEMBER_CANDIDATE_ALERT_LIMITER,
   MEMBER_CANDIDATE_LIMITER,
   SLUG_CHECK_LIMITER,
   WORKSPACE_WRITE_LIMITER,
@@ -78,6 +79,11 @@ import { TypeOrmWorkspaceMembersRepository } from './members/typeOrmWorkspaceMem
       useFactory: () =>
         new InMemorySlidingWindowLimiter({ limit: 60, windowMs: 60_000 }),
     },
+    {
+      provide: MEMBER_CANDIDATE_ALERT_LIMITER,
+      useFactory: () =>
+        new InMemorySlidingWindowLimiter({ limit: 1, windowMs: 600_000 }),
+    },
   ],
   exports: [
     WorkspacesService,
@@ -88,6 +94,8 @@ import { TypeOrmWorkspaceMembersRepository } from './members/typeOrmWorkspaceMem
     WorkspacePermissionGuard,
     WorkspaceWriteRateLimitGuard,
     WORKSPACE_WRITE_LIMITER,
+    MEMBER_CANDIDATE_LIMITER,
+    MEMBER_CANDIDATE_ALERT_LIMITER,
     MemberCandidateRateLimitGuard,
   ],
 })

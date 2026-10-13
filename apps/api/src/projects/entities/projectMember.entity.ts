@@ -27,6 +27,9 @@ export class ProjectMember {
   @Column({ name: 'created_by_id', type: 'uuid', nullable: true })
   createdById!: string | null;
 
+  @Column({ name: 'joined_at', type: 'timestamptz' })
+  joinedAt!: Date;
+
   @Column({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 

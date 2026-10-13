@@ -34,6 +34,6 @@ export const PROJECT_SETTINGS_SECTIONS: readonly ProjectSettingsSection[] = [
     group: "general",
     label: "Members",
     icon: UsersIcon,
-    comingSoon: true,
+    viewPermission: "project.members.view",
   },
 ];

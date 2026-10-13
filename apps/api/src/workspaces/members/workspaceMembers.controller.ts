@@ -21,8 +21,8 @@ import { CurrentWorkspace } from '../currentWorkspace.decorator.js';
 import type { MemberWorkspace } from '../repositories/workspaces.repository.js';
 import { WorkspaceRead, WorkspaceWrite } from '../workspaceAccess.decorator.js';
 import { WorkspaceMembersService } from './workspaceMembers.service.js';
-import { MemberCandidateQueryDto } from './dto/memberCandidateQuery.dto.js';
-import { MemberCandidateRateLimitGuard } from './memberCandidateRateLimitGuard.js';
+import { MemberCandidateQueryDto } from '../../common/memberCandidateQuery.dto.js';
+import { WorkspaceMemberCandidateSearch } from './memberCandidateSearch.decorator.js';
 import { AddWorkspaceMembersDto } from './dto/addWorkspaceMembers.dto.js';
 
 @Controller('workspaces/:slug')
@@ -53,8 +53,7 @@ export class WorkspaceMembersController {
   }
 
   @Get('member-candidates')
-  @WorkspaceRead('workspace.members.add')
-  @UseGuards(MemberCandidateRateLimitGuard)
+  @WorkspaceMemberCandidateSearch()
   candidates(
     @CurrentWorkspace() ws: MemberWorkspace,
     @CurrentUserId() userId: string,

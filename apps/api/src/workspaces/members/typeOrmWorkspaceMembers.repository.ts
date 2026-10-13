@@ -3,9 +3,7 @@ import {
   DataSource,
   In,
   IsNull,
-  Not,
   type EntityManager,
-  type FindOptionsWhere,
 } from 'typeorm';
 import {
   escapeLikePattern,
@@ -15,12 +13,10 @@ import {
   type WorkspaceRole,
 } from '@repo/contracts';
 import { User } from '../../auth/entities/user.entity.js';
+import { ADDABLE_USER } from '../../auth/addableUser.js';
 import { ApiException } from '../../common/apiException.js';
-import {
-  isForeignKeyViolation,
-  isTransactionConflict,
-  isUniqueViolation,
-} from '../../common/databaseErrors.js';
+import { isForeignKeyViolation } from '../../common/databaseErrors.js';
+import { runTransactionWithRetry } from '../../database/transactionRetry.js';
 import {
   loadRolePermissions,
   rolePermissionsKey,
@@ -38,14 +34,6 @@ import type { WorkspaceMemberRow } from './dto/workspaceMemberResponse.dto.js';
 /** A concurrent add of the same person surfaces as this unique violation; a retry then reports it as already_member. */
 const WORKSPACE_MEMBER_UNIQUE = 'workspace_members_workspace_member_key';
 const MAX_ADD_ATTEMPTS = 3;
-
-/** Who can be added to a workspace (and so who shows up as a candidate). */
-const ADDABLE_USER: FindOptionsWhere<User> = {
-  isActive: true,
-  isBot: false,
-  maskedAt: IsNull(),
-  email: Not(IsNull()),
-};
 
 interface RawMemberRow {
   userId: string;
@@ -161,31 +149,30 @@ export class TypeOrmWorkspaceMembersRepository extends WorkspaceMembersRepositor
   }
 
   async addMembers(input: AddMembersInput): Promise<AddMembersResult> {
-    for (let attempt = 1; ; attempt += 1) {
-      try {
-        return await this.dataSource.transaction((manager) =>
-          addMembersOnce(manager, input),
+    try {
+      return await runTransactionWithRetry(
+        this.dataSource,
+        (manager) => addMembersOnce(manager, input),
+        {
+          maxAttempts: MAX_ADD_ATTEMPTS,
+          retryOnUnique: WORKSPACE_MEMBER_UNIQUE,
+          onRetry: (attempt) => {
+            this.logger.warn(
+              `workspace.members.add.retry workspaceId=${input.workspaceId} attempt=${attempt} requestId=${input.requestId}`,
+            );
+          },
+        },
+      );
+    } catch (err: unknown) {
+      if (isForeignKeyViolation(err)) {
+        throw new ApiException(
+          HttpStatus.BAD_REQUEST,
+          'VALIDATION_ERROR',
+          'Check the highlighted fields',
+          { fields: { members: 'Invalid role' } },
         );
-      } catch (err: unknown) {
-        const retryable =
-          isTransactionConflict(err) ||
-          isUniqueViolation(err, WORKSPACE_MEMBER_UNIQUE);
-        if (retryable && attempt < MAX_ADD_ATTEMPTS) {
-          this.logger.warn(
-            `workspace.members.add.retry workspaceId=${input.workspaceId} attempt=${attempt} requestId=${input.requestId}`,
-          );
-          continue;
-        }
-        if (isForeignKeyViolation(err)) {
-          throw new ApiException(
-            HttpStatus.BAD_REQUEST,
-            'VALIDATION_ERROR',
-            'Check the highlighted fields',
-            { fields: { members: 'Invalid role' } },
-          );
-        }
-        throw err;
       }
+      throw err;
     }
   }
 }

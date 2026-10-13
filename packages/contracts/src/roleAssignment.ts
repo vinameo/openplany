@@ -90,6 +90,29 @@ export function assignableProjectRoles(
   return PROJECT_ROLES.filter((r) => PROJECT_ROLE_RANK[r] <= maxRank);
 }
 
+/** Vai trò actor gán được khi THÊM target (chưa có vai trò project). */
+export function addableProjectRoles(
+  actor: ProjectActor,
+  target: { userId: string; workspaceRole: WorkspaceRole },
+): ProjectRole[] {
+  return assignableProjectRoles(actor, { ...target, assignedRole: null });
+}
+
+/** Mọi vai trò actor có thể gán cho ai đó (dùng cho dropdown trước khi chọn người và cho nút Add member). */
+export function addableProjectRoleRange(actor: ProjectActor): ProjectRole[] {
+  if (
+    actor.effectiveRole === null ||
+    !actor.permissions.includes('project.members.manage')
+  ) {
+    return [];
+  }
+  const maxRank = PROJECT_ROLE_RANK[actor.effectiveRole];
+  return PROJECT_ROLES.filter((r) => PROJECT_ROLE_RANK[r] <= maxRank);
+}
+
+export const DEFAULT_ADDED_PROJECT_ROLE =
+  'contributor' as const satisfies ProjectRole;
+
 export function canRemoveProjectMember(
   actor: ProjectActor,
   target: ProjectTarget,

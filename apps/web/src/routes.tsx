@@ -182,6 +182,18 @@ export const appRoutes: RouteObject[] = [
                               })),
                           },
                           {
+                            path: "members",
+                            handle: {
+                              settingsSection: "members",
+                            } satisfies SettingsSectionHandle,
+                            lazy: () =>
+                              import(
+                                "./features/projects/settings/settingsRoutes"
+                              ).then((m) => ({
+                                Component: m.ProjectMembersSettingsRoute,
+                              })),
+                          },
+                          {
                             path: "*",
                             lazy: () =>
                               import(
