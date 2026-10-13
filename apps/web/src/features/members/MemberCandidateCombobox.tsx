@@ -9,6 +9,7 @@ import {
   Text,
   useCombobox,
 } from '@mantine/core';
+import { MEMBER_MESSAGES } from '@repo/contracts';
 import { MemberAvatar } from './MemberAvatar';
 import { memberDisplayName } from './memberListView';
 import { tooManySearchesMessage } from './membersMessages';
@@ -147,7 +148,7 @@ export function MemberCandidateCombobox<C extends CandidateBase>({
     if (state.status === 'too_short') {
       return (
         <Combobox.Empty>
-          {hint ?? state.hint ?? 'Type at least 3 characters'}
+          {hint ?? state.hint ?? MEMBER_MESSAGES.candidateQueryTooShort}
         </Combobox.Empty>
       );
     }
