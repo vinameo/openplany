@@ -841,5 +841,271 @@ describe("ProjectMembersSettingsPage", () => {
       screen.getByText("Binh Le is now Commenter in The First Project."),
     ).toBeInTheDocument();
   });
+
+  it("Feature 15 AC-10: selecting Project Admin opens confirmation modal with D17 body; Cancel cancels, confirm PATCHes and updates role", async () => {
+    const user = userEvent.setup();
+    const memberKai: ProjectMemberResponse = {
+      userId: "u-kai",
+      firstName: "Kai",
+      lastName: "Tran",
+      displayName: "kaitran",
+      email: "kai@example.com",
+      avatarUrl: null,
+      role: "admin",
+      assignedRole: "admin",
+      roleLimited: false,
+      joinedAt: "2026-10-12T10:00:00.000Z",
+      accountActive: true,
+      source: "assigned",
+      workspaceRole: "member",
+      assignableRoles: [],
+    };
+    const memberAn: ProjectMemberResponse = {
+      userId: "u-an",
+      firstName: "An",
+      lastName: "Nguyen",
+      displayName: "annguyen",
+      email: "an@example.com",
+      avatarUrl: null,
+      role: "commenter",
+      assignedRole: "commenter",
+      roleLimited: false,
+      joinedAt: "2026-10-12T10:00:00.000Z",
+      accountActive: true,
+      source: "assigned",
+      workspaceRole: "member",
+      assignableRoles: ["admin", "contributor", "commenter"],
+    };
+
+    let patchCalled = false;
+    let patchPayload: unknown = null;
+
+    renderMembersApp({
+      membersResponse: {
+        members: [memberKai, memberAn],
+        total: 2,
+        truncated: false,
+        addableRoles: ["admin", "contributor", "commenter", "viewer"],
+        assignedAdminCount: 1,
+      },
+      extraRoutes: {
+        "PATCH /api/workspaces/the-firsts/projects/TFP11/members/u-an": (init) => {
+          patchCalled = true;
+          patchPayload = JSON.parse(init?.body as string);
+          return jsonResponse(200, {
+            member: {
+              ...memberAn,
+              role: "admin",
+              assignedRole: "admin",
+            },
+            assignedAdminCount: 2,
+          });
+        },
+      },
+    });
+
+    const anSelect = await screen.findByRole("combobox", {
+      name: "Role for An Nguyen",
+    });
+    expect(anSelect).toHaveValue("Commenter");
+
+    // Click on Project Admin option
+    await user.click(anSelect);
+    const adminOption = await screen.findByRole("option", {
+      name: /^project admin/i,
+    });
+    await user.click(adminOption);
+
+    // Modal opens
+    const dialog = await screen.findByRole("dialog", {
+      name: "Make An Nguyen a Project Admin?",
+    });
+    expect(dialog).toBeInTheDocument();
+    expect(
+      within(dialog).getByText(
+        "Project Admins can manage this project's settings and members. After this, only Workspace Admins can change An Nguyen's role.",
+      ),
+    ).toBeInTheDocument();
+
+    // Click Cancel
+    const cancelBtn = within(dialog).getByRole("button", { name: "Cancel" });
+    await user.click(cancelBtn);
+
+    // Modal closed, PATCH not called, select still Commenter
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+    expect(patchCalled).toBe(false);
+    expect(anSelect).toHaveValue("Commenter");
+
+    // Open modal again and confirm
+    await user.click(anSelect);
+    const adminOption2 = await screen.findByRole("option", {
+      name: /^project admin/i,
+    });
+    await user.click(adminOption2);
+
+    const dialog2 = await screen.findByRole("dialog", {
+      name: "Make An Nguyen a Project Admin?",
+    });
+    const confirmBtn = within(dialog2).getByRole("button", {
+      name: "Make Project Admin",
+    });
+    await user.click(confirmBtn);
+
+    // Modal closes, PATCH was called, toast shown, select updated
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+    expect(patchCalled).toBe(true);
+    expect(patchPayload).toEqual({
+      fromRole: "commenter",
+      role: "admin",
+    });
+    expect(
+      await screen.findByText(
+        "An Nguyen is now Project Admin in The First Project.",
+      ),
+    ).toBeInTheDocument();
+    expect(anSelect).toHaveValue("Project Admin");
+  });
+
+  it("Feature 15 AC-11 & AC-12: demoting Project Admin opens modal with red button; warns when assignedAdminCount = 1, does not warn when assignedAdminCount = 2, warns when other admin is deactivated", async () => {
+    const user = userEvent.setup();
+    const memberNam: ProjectMemberResponse = {
+      userId: "u-nam",
+      firstName: "Nam",
+      lastName: "Tran",
+      displayName: "namtran",
+      email: "nam@example.com",
+      avatarUrl: null,
+      role: "admin",
+      assignedRole: "admin",
+      roleLimited: false,
+      joinedAt: "2026-10-12T10:00:00.000Z",
+      accountActive: true,
+      source: "assigned",
+      workspaceRole: "member",
+      assignableRoles: ["admin", "contributor", "commenter"],
+    };
+
+    // Case 1: assignedAdminCount = 1 -> shows last admin warning
+    const { unmount } = renderMembersApp({
+      membersResponse: {
+        members: [memberNam],
+        total: 1,
+        truncated: false,
+        addableRoles: ["admin", "contributor", "commenter", "viewer"],
+        assignedAdminCount: 1,
+      },
+    });
+
+    const namSelect = await screen.findByRole("combobox", {
+      name: "Role for Nam Tran",
+    });
+    await user.click(namSelect);
+    await user.click(
+      await screen.findByRole("option", { name: /^contributor/i }),
+    );
+
+    const dialog1 = await screen.findByRole("dialog", {
+      name: "Change Nam Tran's role to Contributor?",
+    });
+    expect(dialog1).toBeInTheDocument();
+    expect(
+      within(dialog1).getByText(
+        "Nam Tran will no longer be able to manage this project's settings and members.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog1).getByText(
+        "The First Project will have no Project Admin other than Workspace Admins.",
+      ),
+    ).toBeInTheDocument();
+    const confirmBtn1 = within(dialog1).getByRole("button", {
+      name: "Change to Contributor",
+    });
+    expect(confirmBtn1).toBeInTheDocument();
+    // Cancel dialog 1
+    await user.click(within(dialog1).getByRole("button", { name: "Cancel" }));
+    unmount();
+
+    // Case 2: assignedAdminCount = 2 -> NO warning
+    const memberNam2 = { ...memberNam };
+    const { unmount: unmount2 } = renderMembersApp({
+      membersResponse: {
+        members: [memberNam2],
+        total: 2,
+        truncated: false,
+        addableRoles: ["admin", "contributor", "commenter", "viewer"],
+        assignedAdminCount: 2,
+      },
+    });
+
+    const namSelect2 = await screen.findByRole("combobox", {
+      name: "Role for Nam Tran",
+    });
+    await user.click(namSelect2);
+    await user.click(
+      await screen.findByRole("option", { name: /^contributor/i }),
+    );
+
+    const dialog2 = await screen.findByRole("dialog", {
+      name: "Change Nam Tran's role to Contributor?",
+    });
+    expect(dialog2).toBeInTheDocument();
+    expect(
+      within(dialog2).queryByText(
+        "The First Project will have no Project Admin other than Workspace Admins.",
+      ),
+    ).not.toBeInTheDocument();
+    await user.click(within(dialog2).getByRole("button", { name: "Cancel" }));
+    unmount2();
+
+    // Case 3: 2 project admins in list but one is deactivated -> assignedAdminCount = 1 -> STILL warns
+    const memberOtherDeactivated: ProjectMemberResponse = {
+      userId: "u-deact",
+      firstName: "Deact",
+      lastName: "User",
+      displayName: "deactuser",
+      email: "deact@example.com",
+      avatarUrl: null,
+      role: "admin",
+      assignedRole: "admin",
+      roleLimited: false,
+      joinedAt: "2026-10-12T10:00:00.000Z",
+      accountActive: false,
+      source: "assigned",
+      workspaceRole: "member",
+      assignableRoles: [],
+    };
+    renderMembersApp({
+      membersResponse: {
+        members: [memberNam, memberOtherDeactivated],
+        total: 2,
+        truncated: false,
+        addableRoles: ["admin", "contributor", "commenter", "viewer"],
+        assignedAdminCount: 1, // Only Nam is active
+      },
+    });
+
+    const namSelect3 = await screen.findByRole("combobox", {
+      name: "Role for Nam Tran",
+    });
+    await user.click(namSelect3);
+    await user.click(
+      await screen.findByRole("option", { name: /^contributor/i }),
+    );
+
+    const dialog3 = await screen.findByRole("dialog", {
+      name: "Change Nam Tran's role to Contributor?",
+    });
+    expect(dialog3).toBeInTheDocument();
+    expect(
+      within(dialog3).getByText(
+        "The First Project will have no Project Admin other than Workspace Admins.",
+      ),
+    ).toBeInTheDocument();
+  });
 });
 

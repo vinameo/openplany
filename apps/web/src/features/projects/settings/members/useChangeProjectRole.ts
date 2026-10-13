@@ -27,6 +27,7 @@ export interface ChangeProjectRoleVariables {
   userId: string;
   body: ChangeProjectRoleRequest;
   memberName: string;
+  inModal?: boolean;
 }
 
 export interface UseChangeProjectRoleOptions {
@@ -147,11 +148,14 @@ export function useChangeProjectRole({
           const { message, shouldReload } =
             getProjectRoleChangeErrorMessage(err);
 
-          notifications.show({
-            color: "red",
-            role: "alert",
-            message,
-          });
+          if (!vars.inModal) {
+            notifications.show({
+              color: "red",
+              role: "alert",
+              message,
+            });
+            onSettledFocus?.(vars.userId);
+          }
 
           if (shouldReload) {
             void qc.invalidateQueries({
@@ -169,8 +173,6 @@ export function useChangeProjectRole({
               });
             }
           }
-
-          onSettledFocus?.(vars.userId);
         },
       });
 

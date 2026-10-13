@@ -26,13 +26,24 @@ import {
   NO_MEMBERS_YET,
   ROLE_LIMITED_TOOLTIP,
 } from "./projectMembersMessages";
-import { useChangeProjectRole } from "./useChangeProjectRole";
+import {
+  ChangeProjectRoleConfirm,
+  type ChangeProjectRoleConfirmState,
+} from "./ChangeProjectRoleConfirm";
+import {
+  getProjectRoleChangeErrorMessage,
+  useChangeProjectRole,
+} from "./useChangeProjectRole";
 import { useProjectMembers } from "./useProjectMembers";
 
 export function ProjectMembersSettingsPage() {
   const { project } = useCurrentProject();
   const { workspace } = useCurrentWorkspace();
   const [modalOpened, setModalOpened] = useState(false);
+  const [confirmState, setConfirmState] =
+    useState<ChangeProjectRoleConfirmState | null>(null);
+  const [confirmPending, setConfirmPending] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
   const selectRefs = useRef<Map<string, HTMLInputElement>>(new Map());
 
   const handleFocusRestore = useCallback((userId: string) => {
@@ -55,6 +66,39 @@ export function ProjectMembersSettingsPage() {
     projectName: project?.name ?? "",
     onSettledFocus: handleFocusRestore,
   });
+
+  const handleConfirmRoleChange = useCallback(async () => {
+    if (!confirmState) return;
+    setConfirmPending(true);
+    setConfirmError(null);
+    try {
+      await changeRoleMutation.mutateAsync({
+        userId: confirmState.member.userId,
+        body: {
+          fromRole: confirmState.member.role,
+          role: confirmState.nextRole,
+        },
+        memberName: memberDisplayName(confirmState.member),
+        inModal: true,
+      });
+      setConfirmState(null);
+    } catch (err: unknown) {
+      const { message } = getProjectRoleChangeErrorMessage(err);
+      setConfirmError(message);
+    } finally {
+      setConfirmPending(false);
+    }
+  }, [changeRoleMutation, confirmState]);
+
+  const handleCancelConfirm = useCallback(() => {
+    if (confirmPending) return;
+    const userId = confirmState?.member.userId;
+    setConfirmState(null);
+    setConfirmError(null);
+    if (userId) {
+      handleFocusRestore(userId);
+    }
+  }, [confirmPending, confirmState, handleFocusRestore]);
 
   const pendingUserIds = useMutationState({
     filters: {
@@ -133,13 +177,6 @@ export function ProjectMembersSettingsPage() {
           ) {
             return null;
           }
-          // Ticket 02: Only "other" role change kinds. Filter out options that would be gain_admin or lose_admin.
-          const allowedOptions = m.assignableRoles.filter(
-            (r) => projectRoleChangeKind(m.role, r) === "other",
-          );
-          if (allowedOptions.length <= 1) {
-            return null;
-          }
           return (
             <RoleSelectCell
               ref={(el) => {
@@ -147,18 +184,31 @@ export function ProjectMembersSettingsPage() {
                 else selectRefs.current.delete(m.userId);
               }}
               value={m.role}
-              options={allowedOptions}
+              options={m.assignableRoles}
               labels={PROJECT_ROLE_SCHEME.labels}
               descriptions={PROJECT_ROLE_SUMMARIES}
               description={roleHint}
               memberName={memberDisplayName(m)}
               disabled={savingUserIds.has(m.userId)}
               onRequestChange={(next) => {
-                changeRoleMutation.mutate({
-                  userId: m.userId,
-                  body: { fromRole: m.role, role: next },
-                  memberName: memberDisplayName(m),
-                });
+                const kind = projectRoleChangeKind(m.role, next);
+                if (kind === "other") {
+                  changeRoleMutation.mutate({
+                    userId: m.userId,
+                    body: { fromRole: m.role, role: next },
+                    memberName: memberDisplayName(m),
+                  });
+                } else {
+                  setConfirmState({
+                    member: m,
+                    nextRole: next,
+                    kind,
+                    lastAssignedAdmin:
+                      kind === "lose_admin" &&
+                      (query.data?.assignedAdminCount ?? 0) === 1,
+                  });
+                  setConfirmError(null);
+                }
               }}
             />
           );
@@ -187,6 +237,15 @@ export function ProjectMembersSettingsPage() {
           )}
         />
       )}
+      <ChangeProjectRoleConfirm
+        opened={confirmState !== null}
+        state={confirmState}
+        projectName={project.name}
+        pending={confirmPending}
+        error={confirmError}
+        onConfirm={handleConfirmRoleChange}
+        onCancel={handleCancelConfirm}
+      />
     </>
   );
 }

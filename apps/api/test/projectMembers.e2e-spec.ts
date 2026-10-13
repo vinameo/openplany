@@ -1910,8 +1910,9 @@ describe('ProjectMembers (e2e)', () => {
           )
           .set('Cookie', namCookie)
           .set('Origin', ORIGIN)
-          .send({ fromRole: 'commenter', role: 'contributor' })
-          .expect(200);
+          .send({ fromRole: 'commenter', role: 'contributor' });
+
+        expect(res.status).toBe(200);
 
         expect(res.body.assignedAdminCount).toBe(1);
         expect(res.body.member).toMatchObject({
@@ -2006,6 +2007,40 @@ describe('ProjectMembers (e2e)', () => {
         .expect(409);
 
       expect(res.body.code).toBe('ROLE_INHERITED');
+    });
+
+    it('AC-04 & AC-12: Workspace Admin demotes Project Admin to Contributor, returns updated assignedAdminCount = 0', async () => {
+      const { workspace, projId, kaiCookie, namId, kaiId } =
+        await seedB63Fixture();
+
+      const res = await http()
+        .patch(
+          `/api/workspaces/${workspace.slug}/projects/PB63/members/${namId}`,
+        )
+        .set('Cookie', kaiCookie)
+        .set('Origin', ORIGIN)
+        .send({ fromRole: 'admin', role: 'contributor' })
+        .expect(200);
+
+      expect(res.body.assignedAdminCount).toBe(0);
+      expect(res.body.member).toMatchObject({
+        userId: namId,
+        role: 'contributor',
+        assignedRole: 'contributor',
+        source: 'assigned',
+      });
+
+      const history = await e2e.dataSource.query(
+        `SELECT * FROM project_member_role_history WHERE project_id = $1 AND member_id = $2`,
+        [projId, namId],
+      );
+      expect(history).toHaveLength(1);
+      expect(history[0]).toMatchObject({
+        change_type: 'role_changed',
+        from_role: 'admin',
+        to_role: 'contributor',
+        actor_id: kaiId,
+      });
     });
   });
 });
