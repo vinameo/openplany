@@ -1136,4 +1136,38 @@ describe("ProjectSettings", () => {
       "/the-firsts/projects/TFP11/settings/general",
     );
   });
+
+  it("AC-46: editing description and clicking Members or Back does not prompt confirmation dialog (D25)", async () => {
+    const user = userEvent.setup();
+    const { router } = renderProjectSettingsApp({
+      initialEntries: ["/the-firsts/projects/TFP11/settings/general"],
+    });
+
+    const descInput = await screen.findByRole("textbox", {
+      name: /description/i,
+    });
+    await user.type(descInput, " and more details");
+
+    // Click Members (Coming soon) item
+    const membersItem = screen.getByText("Members");
+    await user.click(membersItem);
+
+    // No modal dialog asking to confirm discarding changes
+    expect(
+      screen.queryByRole("dialog", { name: /discard|unsaved|confirm/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/discard changes/i)).not.toBeInTheDocument();
+
+    // Click Back to project link
+    const backButtons = screen.getAllByRole("link", {
+      name: "Back to project",
+    });
+    await user.click(backButtons[0]);
+
+    // Navigates directly back to project without confirmation prompt
+    expect(
+      screen.queryByRole("dialog", { name: /discard|unsaved|confirm/i }),
+    ).not.toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/the-firsts/projects/TFP11");
+  });
 });

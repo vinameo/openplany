@@ -2023,7 +2023,7 @@ describe('Projects (e2e)', () => {
       expect(res.body.code).toBe('FORBIDDEN');
     });
 
-    it('B6 row 26: user lacking project.settings.update returns 403 FORBIDDEN', async () => {
+    it('AC-07 & B6 row 26: user lacking project.settings.update returns 403 FORBIDDEN', async () => {
       const { workspace } = await seedWorkspace(
         'patch-noperm@openplany.dev',
         'noperm-ws',
