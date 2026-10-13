@@ -7,7 +7,8 @@ import {
   useMemberCandidateSearch,
   type MemberCandidateState,
 } from "../../../members/useMemberCandidateSearch";
-import { membersApi, workspaceMemberKeys } from "./api/membersApi";
+import { membersApi } from "./api/membersApi";
+import { workspaceMemberKeys } from "./api/workspaceMemberQueries";
 
 export type { MemberCandidateState };
 

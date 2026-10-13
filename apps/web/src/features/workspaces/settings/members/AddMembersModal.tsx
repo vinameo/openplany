@@ -15,10 +15,11 @@ import type { AddMemberRow } from "../../../members/addMembersRows";
 import { WORKSPACE_ROLE_SCHEME } from "../../../members/roleScheme";
 import { submitAddMembers } from "../../../members/submitAddMembers";
 import { useCurrentWorkspace } from "../../currentWorkspace/useCurrentWorkspace";
+import { membersApi } from "./api/membersApi";
 import {
+  addWorkspaceMembersToCache,
   clearWorkspaceMemberCandidates,
-  membersApi,
-} from "./api/membersApi";
+} from "./api/workspaceMemberQueries";
 import { MemberCandidateSelect } from "./MemberCandidateSelect";
 
 interface AddMembersModalProps {
@@ -61,7 +62,8 @@ export function AddMembersModal({
     submitAddMembers({
       send: () => membersApi.add(slug, body),
       rowIdByIndex,
-      afterAdded: async () => {
+      afterAdded: async (res) => {
+        addWorkspaceMembersToCache(queryClient, slug, res.members);
         clearWorkspaceMemberCandidates(queryClient, slug);
         onSuccess();
         await reloadWorkspace();

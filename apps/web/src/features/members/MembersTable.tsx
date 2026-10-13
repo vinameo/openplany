@@ -1,17 +1,24 @@
-import { type ReactNode } from 'react';
-import { Badge, Group, Table, Text, Tooltip, VisuallyHidden } from '@mantine/core';
-import type { WorkspaceRole } from '@repo/contracts';
-import { MemberAvatar } from './MemberAvatar';
+import { type ReactNode } from "react";
+import {
+  Badge,
+  Group,
+  Table,
+  Text,
+  Tooltip,
+  VisuallyHidden,
+} from "@mantine/core";
+import type { WorkspaceRole } from "@repo/contracts";
+import { MemberAvatar } from "./MemberAvatar";
 import {
   formatJoiningDate,
   memberDisplayName,
   type MemberRowView,
   type MemberSort,
-} from './memberListView';
-import { WORKSPACE_ROLE_SCHEME, type RoleScheme } from './roleScheme';
-import { SortableHeader } from '../workspaces/table/SortableHeader';
-import dataTableClasses from '../workspaces/table/dataTable.module.css';
-import classes from './MembersTable.module.css';
+} from "./memberListView";
+import { WORKSPACE_ROLE_SCHEME, type RoleScheme } from "./roleScheme";
+import { SortableHeader } from "../workspaces/table/SortableHeader";
+import dataTableClasses from "../workspaces/table/dataTable.module.css";
+import classes from "./MembersTable.module.css";
 
 export interface MembersTableProps<
   R extends string = WorkspaceRole,
@@ -25,6 +32,7 @@ export interface MembersTableProps<
   caption?: string;
   roleHint?: (m: M) => string | null;
   roleBadge?: (m: M) => ReactNode;
+  roleControl?: (m: M, roleHint?: string | null) => ReactNode | null;
   isReadOnly?: (m: M) => boolean;
 }
 
@@ -37,9 +45,10 @@ export function MembersTable<
   canSeeEmail,
   currentSort,
   onSortChange,
-  caption = 'Workspace members',
+  caption = "Workspace members",
   roleHint,
   roleBadge,
+  roleControl,
   isReadOnly,
 }: MembersTableProps<R, M>) {
   return (
@@ -109,10 +118,7 @@ export function MembersTable<
               >
                 <Table.Td className={dataTableClasses.stickyColumn}>
                   <Group gap="sm" wrap="nowrap">
-                    <MemberAvatar
-                      avatarUrl={member.avatarUrl}
-                      name={name}
-                    />
+                    <MemberAvatar avatarUrl={member.avatarUrl} name={name} />
                     <Text size="sm" fw={500}>
                       {name}
                     </Text>
@@ -128,31 +134,46 @@ export function MembersTable<
                 </Table.Td>
                 {canSeeEmail && (
                   <Table.Td>
-                    <Text size="sm">{member.email ?? ''}</Text>
+                    <Text size="sm">{member.email ?? ""}</Text>
                   </Table.Td>
                 )}
                 <Table.Td className={classes.roleCell}>
-                  <Group gap="xs" wrap="nowrap">
-                    {hint ? (
-                      <Tooltip
-                        label={hint}
-                        withArrow
-                        multiline
-                        events={{ hover: true, focus: true, touch: true }}
-                      >
-                        <span
-                          tabIndex={0}
-                          aria-label={hint}
-                          className={classes.roleHintWrapper}
-                        >
+                  {(() => {
+                    const control = roleControl?.(member, hint ?? null);
+                    if (control) {
+                      return (
+                        <Group gap="xs" wrap="nowrap">
+                          {control}
+                          {roleBadge?.(member)}
+                        </Group>
+                      );
+                    }
+                    return (
+                      <Group gap="xs" wrap="nowrap">
+                        {hint ? (
+                          <Tooltip
+                            label={hint}
+                            withArrow
+                            multiline
+                            events={{ hover: true, focus: true, touch: true }}
+                          >
+                            <span
+                              tabIndex={0}
+                              aria-label={hint}
+                              className={classes.roleHintWrapper}
+                            >
+                              <Text size="sm">
+                                {scheme.labels[member.role]}
+                              </Text>
+                            </span>
+                          </Tooltip>
+                        ) : (
                           <Text size="sm">{scheme.labels[member.role]}</Text>
-                        </span>
-                      </Tooltip>
-                    ) : (
-                      <Text size="sm">{scheme.labels[member.role]}</Text>
-                    )}
-                    {roleBadge?.(member)}
-                  </Group>
+                        )}
+                        {roleBadge?.(member)}
+                      </Group>
+                    );
+                  })()}
                 </Table.Td>
                 <Table.Td className={classes.dateCell}>
                   {member.joinedAt === null ? (
