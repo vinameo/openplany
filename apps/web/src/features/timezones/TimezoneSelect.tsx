@@ -15,11 +15,13 @@ export interface TimezoneSelectProps {
   disabled?: boolean;
   error?: ReactNode;
   followOption?: { value: string; label: string };
+  inputWrapperOrder?: ("label" | "input" | "description" | "error")[];
 }
 
 export function TimezoneSelect({
   label = "Workspace Timezone",
   description = "Set the timezone used for dates, times, and notifications in this workspace.",
+  inputWrapperOrder,
   value,
   onChange,
   readOnly = false,
@@ -78,6 +80,7 @@ export function TimezoneSelect({
     <Select
       label={label}
       description={description}
+      inputWrapperOrder={inputWrapperOrder}
       data={selectData}
       value={value}
       onChange={(val) => {
