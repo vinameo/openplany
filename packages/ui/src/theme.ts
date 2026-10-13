@@ -128,6 +128,18 @@ export const theme = createTheme({
       defaultProps: {
         radius: 'md'
       }
+    },
+    Modal: {
+      defaultProps: {
+        centered: false,
+        yOffset: '5dvh'
+      }
+    },
+    ModalRoot: {
+      defaultProps: {
+        centered: false,
+        yOffset: '5dvh'
+      }
     }
   }
 });

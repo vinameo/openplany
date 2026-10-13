@@ -121,7 +121,6 @@ export function DeleteProjectModal({
       opened={opened}
       onClose={handleClose}
       title="Delete project"
-      centered
       size="md"
       fullScreen={!isDesktop}
     >

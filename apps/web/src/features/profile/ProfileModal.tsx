@@ -82,7 +82,6 @@ export function ProfileModal({ opened, onClose, user }: ProfileModalProps) {
       size={840}
       radius="lg"
       padding="xl"
-      centered
       fullScreen={isNarrow}
       closeOnEscape={!isSaving}
       closeOnClickOutside={!isSaving}
