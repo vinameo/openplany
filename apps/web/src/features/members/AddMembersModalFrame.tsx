@@ -71,7 +71,9 @@ export function AddMembersModalFrame<
   notice,
   onSubmit,
 }: AddMembersModalFrameProps<R, C>) {
-  const isMobile = useMediaQuery('(max-width: 48em)');
+  const isMobile = useMediaQuery('(max-width: 48em)', false, {
+    getInitialValueInEffect: false,
+  });
 
   const ctx: RowsContext<R, C> = rowsContext ?? { defaultRole };
 
@@ -173,68 +175,62 @@ export function AddMembersModalFrame<
               const noticeId = roleNoticeId || rowNoticeId;
 
               return (
-                <div key={row.id}>
-                  <Group
-                    gap="xs"
-                    align="flex-start"
-                    wrap={isMobile ? 'wrap' : 'nowrap'}
-                  >
-                    <div className={classes.candidateField}>
-                      {renderCandidate(row, otherSelectedIds, (candidate) =>
-                        dispatch({
-                          type: 'select',
-                          id: row.id,
-                          candidate,
-                        }),
-                      )}
-                    </div>
+                <div key={row.id} className={classes.memberRow}>
+                  <div className={classes.candidateField}>
+                    {renderCandidate(row, otherSelectedIds, (candidate) =>
+                      dispatch({
+                        type: 'select',
+                        id: row.id,
+                        candidate,
+                      }),
+                    )}
+                  </div>
 
-                    <Group gap="xs" wrap="nowrap" className={classes.roleGroup}>
-                      <Select
-                        aria-label="Role"
-                        data={roleOptions}
-                        value={row.role}
-                        error={row.roleError}
-                        errorProps={
-                          roleErrorId ? { id: roleErrorId } : undefined
+                  <div className={classes.roleGroup}>
+                    <Select
+                      aria-label="Role"
+                      data={roleOptions}
+                      value={row.role}
+                      error={row.roleError}
+                      errorProps={
+                        roleErrorId ? { id: roleErrorId } : undefined
+                      }
+                      description={noticeText}
+                      descriptionProps={
+                        noticeId ? { id: noticeId } : undefined
+                      }
+                      inputWrapperOrder={[
+                        'label',
+                        'input',
+                        'description',
+                        'error',
+                      ]}
+                      onChange={(val) => {
+                        if (val) {
+                          dispatch({
+                            type: 'role',
+                            id: row.id,
+                            role: val as R,
+                          });
                         }
-                        description={noticeText}
-                        descriptionProps={
-                          noticeId ? { id: noticeId } : undefined
+                      }}
+                      disabled={isSubmitting}
+                      comboboxProps={{ withinPortal: false }}
+                      allowDeselect={false}
+                      className={classes.roleSelect}
+                    />
+
+                    {rows.length > 1 && (
+                      <CloseButton
+                        aria-label="Remove row"
+                        onClick={() =>
+                          dispatch({ type: 'remove', id: row.id })
                         }
-                        inputWrapperOrder={[
-                          'label',
-                          'input',
-                          'description',
-                          'error',
-                        ]}
-                        onChange={(val) => {
-                          if (val) {
-                            dispatch({
-                              type: 'role',
-                              id: row.id,
-                              role: val as R,
-                            });
-                          }
-                        }}
                         disabled={isSubmitting}
-                        comboboxProps={{ withinPortal: false }}
-                        allowDeselect={false}
-                        className={classes.roleSelect}
+                        size="lg"
                       />
-
-                      {rows.length > 1 && (
-                        <CloseButton
-                          aria-label="Remove row"
-                          onClick={() =>
-                            dispatch({ type: 'remove', id: row.id })
-                          }
-                          disabled={isSubmitting}
-                          size="lg"
-                        />
-                      )}
-                    </Group>
-                  </Group>
+                    )}
+                  </div>
                 </div>
               );
             })}
