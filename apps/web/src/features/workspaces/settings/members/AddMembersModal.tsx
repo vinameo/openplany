@@ -169,7 +169,6 @@ export function AddMembersModal({
         title="Add member"
         size="lg"
         fullScreen={isMobile}
-        withinPortal={false}
       >
         <Stack gap="md">
           <Text size="sm" c="dimmed">

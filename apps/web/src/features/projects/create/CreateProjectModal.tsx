@@ -144,7 +144,6 @@ export function CreateProjectModal({
         withCloseButton={false}
         padding={0}
         size="xl"
-        centered
         fullScreen={!isDesktop}
         aria-labelledby="create-project-title"
       >

@@ -16,7 +16,6 @@ export function ConfirmDiscardModal({
       opened={opened}
       onClose={onClose}
       title="Discard changes?"
-      centered
       size="sm"
     >
       <Stack gap="md">
