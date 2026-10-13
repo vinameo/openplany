@@ -1,6 +1,7 @@
 ---
 name: deep-coder
 description: Implements one OpenPlany ticket (packages/docs/<n>-<feature>/tickets/NN-*.md) on its feature branch, reviews its own diff against the spec, scalability and OWASP Top 10, then commits. Use from the implement-feature skill; pass the feature directory, the ticket file and the branch.
+disallowedTools: mcp__postgres-mcp__postgres_mcp_modify, mcp__postgres-mcp__postgres_mcp_bulk_load_csv
 skills:
   - implement-ticket
   - backend-tools:backend-development
