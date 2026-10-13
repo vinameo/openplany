@@ -7,15 +7,17 @@ import {
   type Type,
   UseGuards,
 } from '@nestjs/common';
-import type {
-  EnforcedProjectPermission,
-  EnforcedWorkspacePermission,
+import {
+  ADD_PROJECT_MEMBERS_REQUIREMENT,
+  type EnforcedProjectPermission,
+  type EnforcedWorkspacePermission,
 } from '@repo/contracts';
 import type { Request } from 'express';
 import { WORKSPACE_PERMISSION_KEY } from '../../workspaces/workspaceAccess.decorator.js';
 import { WorkspaceMemberGuard } from '../../workspaces/workspaceMemberGuard.js';
 import { WorkspacePermissionGuard } from '../../workspaces/workspacePermissionGuard.js';
 import { WorkspaceWriteRateLimitGuard } from '../../workspaces/workspaceWriteRateLimitGuard.js';
+import { withCandidateRateLimit } from '../../workspaces/members/memberCandidateSearch.decorator.js';
 import { ProjectAccessGuard } from './projectAccessGuard.js';
 import type { AccessibleProject } from './projectAccessResolver.js';
 import {
@@ -107,6 +109,20 @@ export function ProjectWrite(
     ...toDecorators(projectReadGuards(requirement), [
       WorkspaceWriteRateLimitGuard,
     ]),
+  );
+}
+
+/**
+ * Route decorator for searching project member candidates.
+ * Rate limit runs FIRST before workspace and project membership/permission checks.
+ */
+export function ProjectMemberCandidateSearch(): MethodDecorator {
+  const def = projectReadGuards(ADD_PROJECT_MEMBERS_REQUIREMENT);
+  return applyDecorators(
+    ...toDecorators({
+      ...def,
+      guards: withCandidateRateLimit(def.guards),
+    }),
   );
 }
 

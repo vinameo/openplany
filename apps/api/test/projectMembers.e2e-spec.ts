@@ -1,5 +1,6 @@
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { MEMBER_MESSAGES } from '@repo/contracts';
 import { createE2eApp, type E2eApp } from './createE2eApp.js';
 import {
   createUser as createE2eUser,
@@ -336,4 +337,251 @@ describe('ProjectMembers (e2e)', () => {
       expect(res.body.members).toEqual([]);
     });
   });
+
+  describe('GET /api/workspaces/:slug/projects/:identifier/member-candidates', () => {
+    it('Row 1: rejects missing, empty, or short email (< 3 chars) with 400', async () => {
+      const { workspace, cookie } = await seedWorkspace(
+        'owner-cand1@openplany.dev',
+        'ws-cand1',
+      );
+      await createProject(workspace.id, 'Project C1', 'PC1');
+
+      for (const query of ['', '?email=']) {
+        await http()
+          .get(`/api/workspaces/${workspace.slug}/projects/PC1/member-candidates${query}`)
+          .set('Cookie', cookie)
+          .expect(400);
+      }
+
+      const resAb = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/PC1/member-candidates?email=ab`)
+        .set('Cookie', cookie)
+        .expect(400);
+
+      expect(JSON.stringify(resAb.body)).toContain(MEMBER_MESSAGES.candidateQueryTooShort);
+    });
+
+    it('Row 2 & 3: rejects array query and email longer than 254 chars with 400', async () => {
+      const { workspace, cookie } = await seedWorkspace(
+        'owner-cand2@openplany.dev',
+        'ws-cand2',
+      );
+      await createProject(workspace.id, 'Project C2', 'PC2');
+
+      // array query
+      await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/PC2/member-candidates?email[]=a&email[]=b`)
+        .set('Cookie', cookie)
+        .expect(400);
+
+      // 255 chars (EMAIL_MAX is 254)
+      const longEmail = 'a'.repeat(246) + '@test.com'; // length 246 + 9 = 255
+      await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/PC2/member-candidates?email=${longEmail}`)
+        .set('Cookie', cookie)
+        .expect(400);
+    });
+
+    it('Row 4: rejects null bytes and control chars with 400', async () => {
+      const { workspace, cookie } = await seedWorkspace(
+        'owner-cand3@openplany.dev',
+        'ws-cand3',
+      );
+      await createProject(workspace.id, 'Project C3', 'PC3');
+
+      for (const q of ['an%00b', 'an%07b']) {
+        const res = await http()
+          .get(`/api/workspaces/${workspace.slug}/projects/PC3/member-candidates?email=${q}`)
+          .set('Cookie', cookie)
+          .expect(400);
+
+        expect(JSON.stringify(res.body)).toContain(MEMBER_MESSAGES.candidateQueryInvalid);
+      }
+    });
+
+    it('Row 13: rejects unknown query parameters with 400', async () => {
+      const { workspace, cookie } = await seedWorkspace(
+        'owner-cand4@openplany.dev',
+        'ws-cand4',
+      );
+      await createProject(workspace.id, 'Project C4', 'PC4');
+
+      await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/PC4/member-candidates?email=an@openplany.dev&foo=1`)
+        .set('Cookie', cookie)
+        .expect(400);
+    });
+
+    it('Row 5, 10 & AC-10: contains mode escapes special chars and limits to 10 candidates', async () => {
+      const { workspace, cookie } = await seedWorkspace(
+        'kai-owner@openplany.dev',
+        'ws-kai',
+      );
+      const projId = await createProject(workspace.id, 'Project Kai', 'PKAI');
+
+      // Create 12 users with similar emails
+      for (let i = 1; i <= 12; i++) {
+        const uid = await createUser(`testuser${i}@openplany.dev`, { is_superuser: false });
+        await addWorkspaceMember(workspace.id, uid, 'member');
+        if (i === 1) {
+          // make user 1 an existing project member
+          await addProjectMember(projId, workspace.id, uid, 'contributor');
+        }
+      }
+
+      // Escape test: % and _ should not match every user
+      const escapeRes = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/PKAI/member-candidates?email=%25@%25`)
+        .set('Cookie', cookie)
+        .expect(200);
+      expect(escapeRes.body.candidates).toHaveLength(0);
+
+      // Search 'testuser' matches 12 users, but limit is 10
+      const limitRes = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/PKAI/member-candidates?email=testuser`)
+        .set('Cookie', cookie)
+        .expect(200);
+
+      expect(limitRes.body.candidates).toHaveLength(10);
+
+      // Verify statuses
+      const candidate1 = limitRes.body.candidates.find(
+        (c: { email: string }) => c.email === 'testuser1@openplany.dev',
+      );
+      expect(candidate1).toBeDefined();
+      expect(candidate1.status).toBe('already_member');
+      expect(candidate1.addableRoles).toEqual([]);
+
+      const candidate2 = limitRes.body.candidates.find(
+        (c: { email: string }) => c.email === 'testuser2@openplany.dev',
+      );
+      expect(candidate2).toBeDefined();
+      expect(candidate2.status).toBe('addable');
+      expect(candidate2.addableRoles).toEqual(['admin', 'contributor', 'commenter', 'guest']);
+
+      // Workspace admin candidate
+      const wsAdminRes = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/PKAI/member-candidates?email=kai-owner`)
+        .set('Cookie', cookie)
+        .expect(200);
+      expect(wsAdminRes.body.candidates[0].status).toBe('workspace_admin');
+      expect(wsAdminRes.body.candidates[0].addableRoles).toEqual([]);
+    });
+
+    it('Row 6, 7, 8, 9 & AC-42: exact mode requires full email match and does not reveal other emails', async () => {
+      const { workspace } = await seedWorkspace(
+        'owner-nam@openplany.dev',
+        'ws-nam',
+      );
+      const projId = await createProject(workspace.id, 'Project Nam', 'PNAM');
+
+      // Create Nam as Project Admin (Workspace Member, lacks email.view)
+      const namId = await createUser('nam@openplany.dev', { is_superuser: false });
+      await addWorkspaceMember(workspace.id, namId, 'member');
+      await addProjectMember(projId, workspace.id, namId, 'admin');
+      const namCookie = await signInCookie('nam@openplany.dev');
+
+      // Create An
+      const anId = await createUser('an@openplany.dev', { is_superuser: false });
+      await addWorkspaceMember(workspace.id, anId, 'member');
+
+      // Create CLI member admin@localhost
+      const cliId = await createUser('admin@localhost', { is_superuser: false });
+      await addWorkspaceMember(workspace.id, cliId, 'member');
+
+      // Create Tu (user not in workspace)
+      await createUser('tu@outside.dev', { is_superuser: false });
+
+      // Row 6: partial email 'an@' returns [] in exact mode
+      const resPartial = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/PNAM/member-candidates?email=an@`)
+        .set('Cookie', namCookie)
+        .expect(200);
+      expect(resPartial.body.candidates).toEqual([]);
+
+      // Row 7: uppercase email returns An with lowercase email
+      const resUpper = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/PNAM/member-candidates?email=AN@OPENPLANY.DEV`)
+        .set('Cookie', namCookie)
+        .expect(200);
+      expect(resUpper.body.candidates).toHaveLength(1);
+      expect(resUpper.body.candidates[0]).toMatchObject({
+        userId: anId,
+        email: 'an@openplany.dev',
+        status: 'addable',
+      });
+
+      // Row 8: user outside workspace returns []
+      const resTu = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/PNAM/member-candidates?email=tu@outside.dev`)
+        .set('Cookie', namCookie)
+        .expect(200);
+      expect(resTu.body.candidates).toEqual([]);
+
+      // Row 9 & AC-42: CLI member admin@localhost is found
+      const resCli = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/PNAM/member-candidates?email=admin@localhost`)
+        .set('Cookie', namCookie)
+        .expect(200);
+      expect(resCli.body.candidates).toHaveLength(1);
+      expect(resCli.body.candidates[0]).toMatchObject({
+        userId: cliId,
+        email: 'admin@localhost',
+      });
+    });
+
+    it('Row 11: returns 429 when rate limit of 60 searches per minute is exceeded', async () => {
+      const { workspace, cookie } = await seedWorkspace(
+        'owner-ratelimit@openplany.dev',
+        'ws-rl',
+      );
+      await createProject(workspace.id, 'Project RL', 'PRL');
+
+      for (let i = 0; i < 60; i++) {
+        await http()
+          .get(`/api/workspaces/${workspace.slug}/projects/PRL/member-candidates?email=test${i % 5}@test.com`)
+          .set('Cookie', cookie)
+          .expect(200);
+      }
+
+      // 61st search should return 429
+      const res429 = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/PRL/member-candidates?email=test0@test.com`)
+        .set('Cookie', cookie)
+        .expect(429);
+
+      expect(res429.body.message).toContain(MEMBER_MESSAGES.tooManySearches);
+    });
+
+    it('Row 12 & AC-40: unauthorized caller gets 403 and attempts still count towards rate limit', async () => {
+      const { workspace } = await seedWorkspace(
+        'owner-unauth@openplany.dev',
+        'ws-unauth',
+      );
+      const projId = await createProject(workspace.id, 'Project Unauth', 'PUNAU');
+
+      const contribId = await createUser('contrib-caller@openplany.dev', { is_superuser: false });
+      await addWorkspaceMember(workspace.id, contribId, 'member');
+      // Contributor lacks project.members.manage
+      await addProjectMember(projId, workspace.id, contribId, 'contributor');
+      const contribCookie = await signInCookie('contrib-caller@openplany.dev');
+
+      // First 60 calls get 403
+      for (let i = 0; i < 60; i++) {
+        await http()
+          .get(`/api/workspaces/${workspace.slug}/projects/PUNAU/member-candidates?email=an@test.com`)
+          .set('Cookie', contribCookie)
+          .expect(403);
+      }
+
+      // 61st call returns 429 because rate limiter runs before permission guard! (AC-40)
+      const res61 = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/PUNAU/member-candidates?email=an@test.com`)
+        .set('Cookie', contribCookie)
+        .expect(429);
+
+      expect(res61.body.message).toContain(MEMBER_MESSAGES.tooManySearches);
+    });
+  });
 });
+

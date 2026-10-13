@@ -6,6 +6,7 @@ import {
   type ProjectDeletedEvent,
   type ProjectListTruncatedEvent,
   type ProjectLookupRateLimitedEvent,
+  type ProjectMemberCandidatesSearchedEvent,
   type ProjectMembersListTruncatedEvent,
   type ProjectUpdatedEvent,
 } from './projectEvents.js';
@@ -55,6 +56,14 @@ export class LoggingProjectEvents extends ProjectEvents {
   ): Promise<void> {
     this.logger.warn(
       `project.members.list.truncated projectId=${event.projectId} total=${event.total} requestId=${event.requestId ?? ''}`,
+    );
+  }
+
+  async memberCandidatesSearched(
+    event: ProjectMemberCandidatesSearchedEvent,
+  ): Promise<void> {
+    this.logger.debug(
+      `project.members.candidates projectId=${event.projectId} workspaceId=${event.workspaceId} actorId=${event.actorId} mode=${event.mode} resultCount=${event.resultCount} requestId=${event.requestId ?? ''}`,
     );
   }
 }

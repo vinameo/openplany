@@ -5,8 +5,10 @@ import { WORKSPACE_PERMISSION_KEY } from '../../workspaces/workspaceAccess.decor
 import { WorkspaceMemberGuard } from '../../workspaces/workspaceMemberGuard.js';
 import { WorkspacePermissionGuard } from '../../workspaces/workspacePermissionGuard.js';
 import { WorkspaceWriteRateLimitGuard } from '../../workspaces/workspaceWriteRateLimitGuard.js';
+import { MemberCandidateRateLimitGuard } from '../../workspaces/members/memberCandidateRateLimitGuard.js';
 import {
   projectReadGuards,
+  ProjectMemberCandidateSearch,
   ProjectRead,
   ProjectWrite,
 } from './projectAccess.decorator.js';
@@ -294,5 +296,41 @@ describe('ProjectAccess decorators (BA ADR-04, ADR-07, API B3, B7, INV-02)', () 
       }
     }
   });
+
+  describe('ProjectMemberCandidateSearch (API B2.5, B11.1)', () => {
+    it('prepends MemberCandidateRateLimitGuard and attaches ADD_PROJECT_MEMBERS_REQUIREMENT guards and metadata in order', () => {
+      class TestController {
+        @ProjectMemberCandidateSearch()
+        search() {}
+      }
+
+      const descriptor = Object.getOwnPropertyDescriptor(
+        TestController.prototype,
+        'search',
+      )!;
+
+      const projectPerm = Reflect.getMetadata(
+        PROJECT_PERMISSION_KEY,
+        descriptor.value,
+      );
+      const wsPerm = Reflect.getMetadata(
+        WORKSPACE_PERMISSION_KEY,
+        descriptor.value,
+      );
+      expect(projectPerm).toBe('project.members.manage');
+      expect(wsPerm).toBe('workspace.members.view');
+
+      const guards = Reflect.getMetadata(GUARDS_METADATA, descriptor.value);
+      expect(guards).toEqual([
+        MemberCandidateRateLimitGuard,
+        WorkspaceMemberGuard,
+        ProjectAccessGuard,
+        ProjectPermissionGuard,
+        WorkspacePermissionGuard,
+      ]);
+      expect(guards[0]).toBe(MemberCandidateRateLimitGuard);
+    });
+  });
 });
+
 

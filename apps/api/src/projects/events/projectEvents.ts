@@ -46,6 +46,15 @@ export interface ProjectMembersListTruncatedEvent {
   requestId?: string;
 }
 
+export interface ProjectMemberCandidatesSearchedEvent {
+  projectId: string;
+  workspaceId: string;
+  actorId: string;
+  mode: 'contains' | 'exact';
+  resultCount: number;
+  requestId?: string;
+}
+
 export abstract class ProjectEvents {
   abstract created(event: ProjectCreatedEvent): Promise<void>;
   abstract updated(event: ProjectUpdatedEvent): Promise<void>;
@@ -57,5 +66,8 @@ export abstract class ProjectEvents {
   ): Promise<void>;
   abstract membersListTruncated(
     event: ProjectMembersListTruncatedEvent,
+  ): Promise<void>;
+  abstract memberCandidatesSearched(
+    event: ProjectMemberCandidatesSearchedEvent,
   ): Promise<void>;
 }

@@ -4,15 +4,19 @@ import type { AccessibleProject } from '../access/projectAccessResolver.js';
 import { FakeProjectEvents } from '../../../test/fakes/projectsFakes.js';
 import type {
   ListProjectMembersOpts,
+  ProjectMemberCandidateDbRow,
   ProjectMembersRepository,
+  SearchProjectMemberCandidatesInput,
 } from './projectMembers.repository.js';
 import type { ProjectMemberDbRow } from './dto/projectMemberResponse.js';
 import { ProjectMembersService } from './projectMembers.service.js';
 
 class FakeProjectMembersRepository implements ProjectMembersRepository {
   public rows: ProjectMemberDbRow[] = [];
+  public candidateRows: ProjectMemberCandidateDbRow[] = [];
   public total = 0;
   public lastOpts?: ListProjectMembersOpts;
+  public lastSearchInput?: SearchProjectMemberCandidatesInput;
 
   async list(
     _projectId: string,
@@ -23,6 +27,13 @@ class FakeProjectMembersRepository implements ProjectMembersRepository {
       members: this.rows.slice(0, opts.limit),
       total: this.total || this.rows.length,
     };
+  }
+
+  async searchCandidates(
+    input: SearchProjectMemberCandidatesInput,
+  ): Promise<ProjectMemberCandidateDbRow[]> {
+    this.lastSearchInput = input;
+    return this.candidateRows;
   }
 }
 
@@ -176,4 +187,166 @@ describe('ProjectMembersService', () => {
       requestId: 'req-123',
     });
   });
+
+  describe('searchCandidates (API B4.2)', () => {
+    it('uses contains mode and includes email when workspace viewer has email.view permission', async () => {
+      repo.candidateRows = [
+        {
+          userId: 'u-1',
+          firstName: 'An',
+          lastName: 'Nguyen',
+          displayName: 'An Nguyen',
+          avatarUrl: null,
+          email: 'an@openplany.dev',
+          workspaceRole: 'member',
+          alreadyMember: false,
+        },
+      ];
+
+      const res = await service.searchCandidates(
+        workspace,
+        project,
+        'actor-admin',
+        'an',
+        'req-search-1',
+      );
+
+      expect(repo.lastSearchInput).toEqual({
+        workspaceId: 'ws-1',
+        projectId: 'proj-1',
+        query: 'an',
+        mode: 'contains',
+        limit: 10,
+      });
+
+      expect(res.candidates).toHaveLength(1);
+      expect(res.candidates[0]).toEqual({
+        userId: 'u-1',
+        firstName: 'An',
+        lastName: 'Nguyen',
+        displayName: 'An Nguyen',
+        email: 'an@openplany.dev',
+        avatarUrl: null,
+        status: 'addable',
+        addableRoles: ['admin', 'contributor', 'commenter', 'guest'],
+      });
+
+      expect(events.candidateSearchedEvents).toHaveLength(1);
+      expect(events.candidateSearchedEvents[0]).toEqual({
+        projectId: 'proj-1',
+        workspaceId: 'ws-1',
+        actorId: 'actor-admin',
+        mode: 'contains',
+        resultCount: 1,
+        requestId: 'req-search-1',
+      });
+    });
+
+    it('uses exact mode and sets email to query (including admin@localhost) when lacking email.view', async () => {
+      const wsNoEmail: MemberWorkspace = {
+        ...workspace,
+        permissions: ['workspace.members.view'],
+      };
+
+      repo.candidateRows = [
+        {
+          userId: 'u-admin-cli',
+          firstName: 'Admin',
+          lastName: 'Local',
+          displayName: 'Admin Local',
+          avatarUrl: null,
+          email: null, // exact mode does not select email
+          workspaceRole: 'member',
+          alreadyMember: false,
+        },
+      ];
+
+      const res = await service.searchCandidates(
+        wsNoEmail,
+        project,
+        'actor-admin',
+        'admin@localhost',
+      );
+
+      expect(repo.lastSearchInput?.mode).toBe('exact');
+      expect(res.candidates[0]!.email).toBe('admin@localhost');
+      expect(events.candidateSearchedEvents[0]!.mode).toBe('exact');
+    });
+
+    it('prioritizes workspace_admin status when candidate has implicit project access', async () => {
+      repo.candidateRows = [
+        {
+          userId: 'u-ws-admin',
+          firstName: 'Kai',
+          lastName: 'Tran',
+          displayName: 'Kai Tran',
+          avatarUrl: null,
+          email: 'kai@openplany.dev',
+          workspaceRole: 'admin', // implicit project access
+          alreadyMember: true, // even if alreadyMember is true!
+        },
+      ];
+
+      const res = await service.searchCandidates(
+        workspace,
+        project,
+        'actor-admin',
+        'kai',
+      );
+
+      expect(res.candidates[0]!.status).toBe('workspace_admin');
+      expect(res.candidates[0]!.addableRoles).toEqual([]);
+    });
+
+    it('sets already_member status and empty addableRoles when candidate is already in project', async () => {
+      repo.candidateRows = [
+        {
+          userId: 'u-already',
+          firstName: 'Hoa',
+          lastName: 'Le',
+          displayName: 'Hoa Le',
+          avatarUrl: null,
+          email: 'hoa@openplany.dev',
+          workspaceRole: 'member',
+          alreadyMember: true,
+        },
+      ];
+
+      const res = await service.searchCandidates(
+        workspace,
+        project,
+        'actor-admin',
+        'hoa',
+      );
+
+      expect(res.candidates[0]!.status).toBe('already_member');
+      expect(res.candidates[0]!.addableRoles).toEqual([]);
+    });
+
+    it('clamps addableRoles for guest workspace member and does not hardcode role names', async () => {
+      repo.candidateRows = [
+        {
+          userId: 'u-guest',
+          firstName: 'Binh',
+          lastName: 'Pham',
+          displayName: 'Binh Pham',
+          avatarUrl: null,
+          email: 'binh@openplany.dev',
+          workspaceRole: 'guest',
+          alreadyMember: false,
+        },
+      ];
+
+      const res = await service.searchCandidates(
+        workspace,
+        project,
+        'actor-admin',
+        'binh',
+      );
+
+      expect(res.candidates[0]!.status).toBe('addable');
+      expect(res.candidates[0]!.addableRoles).toEqual(['guest']);
+    });
+  });
 });
+
