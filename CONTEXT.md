@@ -90,7 +90,7 @@ For each workspace role: the project role it gives in every project, if any, and
 _Avoid_: Floor, ceiling (in user-facing text)
 
 **Project role**:
-The level of trust a person has inside one project: Project Admin, Contributor, Commenter or Viewer. Workspace Admins act as Project Admin in every project. The same person can hold different project roles in different projects of one workspace. A project's lead, in everyday speech, is a Project Admin; a project may have several.
+The level of trust a person has inside one project: Project Admin, Contributor, Commenter or Viewer. Workspace Admins act as Project Admin in every project. The same person can hold different project roles in different projects of one workspace. A project's lead, in everyday speech, is a Project Admin; a project may have several. A project may be left with no Project Admin other than Workspace Admins; this is allowed, unlike the workspace's Last Admin.
 _Avoid_: Project member role, Lead (as a role name), Guest (that word means an outsider at the workspace level)
 
 **Effective project role**:
@@ -116,7 +116,7 @@ A role whose permission set can never be changed: Workspace Admin and Project Ad
 A rule that limits which permissions a role may be given: only same-level permissions, deleting a workspace for Admins only, and view-only permissions for workspace Guests and Viewers.
 
 **Change role**:
-Giving a workspace member or a project member a different role. A workspace role change also changes the person's role in every project they are in, following the project access policy; whoever makes the change sees that effect before confirming. Nobody can change their own role.
+Giving a workspace member or a project member a different role. A workspace role change also changes the person's role in every project they are in, following the project access policy; whoever makes the change sees that effect before confirming. In a project, making someone a Project Admin, or taking that away, asks for confirmation; other project role changes apply at once. Nobody can change their own role.
 _Avoid_: Promote/demote (fine in prose, not as a term)
 
 **Last Admin**:
