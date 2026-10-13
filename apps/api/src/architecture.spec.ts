@@ -8,7 +8,10 @@ import {
 } from '@nestjs/common/constants.js';
 import { SessionGuard } from './auth/guards/sessionGuard.js';
 import { ProjectAccessGuard } from './projects/access/projectAccessGuard.js';
+import { ProjectPermissionGuard } from './projects/access/projectPermissionGuard.js';
 import { WorkspaceMemberGuard } from './workspaces/workspaceMemberGuard.js';
+import { WorkspacePermissionGuard } from './workspaces/workspacePermissionGuard.js';
+import { WorkspaceWriteRateLimitGuard } from './workspaces/workspaceWriteRateLimitGuard.js';
 
 /**
  * Fitness functions: rules that every endpoint, present and future, must keep.
@@ -94,6 +97,9 @@ describe('Architecture', () => {
     expect(routes.map((r) => r.key)).toContain(
       'GET /workspaces/:slug/projects/:identifier',
     );
+    expect(routes.map((r) => r.key)).toContain(
+      'PATCH /workspaces/:slug/projects/:identifier',
+    );
   });
 
   it('authenticates every route outside the public allowlist (OWASP A01)', () => {
@@ -125,6 +131,29 @@ describe('Architecture', () => {
       )
       .map((r) => r.key);
     expect(missing).toEqual([]);
+  });
+
+  it('enforces rate limit and permission guard after ProjectAccessGuard on non-GET project routes (INV-02, AC-45)', () => {
+    const nonGetProjectRoutes = routes.filter(
+      (r) => !r.key.startsWith('GET ') && r.path.includes('/projects/:'),
+    );
+    expect(nonGetProjectRoutes.length).toBeGreaterThan(0);
+
+    for (const route of nonGetProjectRoutes) {
+      expect(route.guards).toContain(WorkspaceWriteRateLimitGuard);
+      expect(route.guards).toContain(ProjectAccessGuard);
+
+      const hasPermGuard =
+        route.guards.includes(ProjectPermissionGuard) ||
+        route.guards.includes(WorkspacePermissionGuard);
+      expect(hasPermGuard).toBe(true);
+
+      const accessIndex = route.guards.indexOf(ProjectAccessGuard);
+      const permIndex = route.guards.findIndex(
+        (g) => g === ProjectPermissionGuard || g === WorkspacePermissionGuard,
+      );
+      expect(permIndex).toBeGreaterThan(accessIndex);
+    }
   });
 
   it('decides project access only in the resolver, its guard and the list/create flow', () => {

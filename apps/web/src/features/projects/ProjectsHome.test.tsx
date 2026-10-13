@@ -28,6 +28,9 @@ const sampleProject: ProjectListItem = {
   icon: { name: "square-check", color: "#1A2B3C" },
   coverKey: "cover-01",
   createdAt: "2026-10-11T10:00:00.000Z",
+  updatedAt: "2026-10-11T10:00:00.000Z",
+  timezone: null,
+  effectiveTimezone: "Asia/Ho_Chi_Minh",
   members: [
     {
       userId: "u-1",
@@ -184,6 +187,33 @@ describe("ProjectsHome", () => {
     expect(screen.getByText("Oct 11, 2026")).toBeInTheDocument();
   });
 
+  it("AC-44: Created Date column of project table shows date formatted using project.effectiveTimezone (Q-PS1)", async () => {
+    const tokyoProject: ProjectListItem = {
+      ...sampleProject,
+      id: "p-12",
+      name: "Tokyo Project",
+      identifier: "TFP12",
+      createdAt: "2026-10-10T23:30:00.000Z",
+      timezone: "Asia/Tokyo",
+      effectiveTimezone: "Asia/Tokyo",
+    };
+
+    renderHomeApp({
+      "GET /api/workspaces/acme/projects": () =>
+        jsonResponse(200, {
+          projects: [tokyoProject],
+          total: 1,
+          truncated: false,
+        } satisfies ProjectListResponse),
+    });
+
+    expect(
+      await screen.findByRole("heading", { name: "Projects" }),
+    ).toBeInTheDocument();
+    // 2026-10-10T23:30:00Z in Asia/Tokyo (+09:00) is 2026-10-11T08:30:00 -> Oct 11, 2026
+    expect(screen.getByText("Oct 11, 2026")).toBeInTheDocument();
+  });
+
   it("renders empty state with Add project button when user has workspace.projects.create", async () => {
     const wsWithCreate = {
       ...testWorkspace,
@@ -243,6 +273,9 @@ describe("ProjectsHome", () => {
       icon: { name: "rocket", color: "#15AABF" },
       coverKey: "cover-01",
       createdAt: "2026-10-11T15:00:00.000Z",
+      updatedAt: "2026-10-11T15:00:00.000Z",
+      timezone: null,
+      effectiveTimezone: "Asia/Ho_Chi_Minh",
       members: [],
       memberCount: 0,
       role: "admin",

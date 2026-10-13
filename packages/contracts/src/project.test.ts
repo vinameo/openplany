@@ -13,6 +13,10 @@ import {
   PROJECT_ICON_PRESET_COLORS,
   PROJECT_IDENTIFIER_PATTERN,
   PROJECT_ERROR_MESSAGES,
+  PROJECT_FIELD_MESSAGES,
+  projectNameProblem,
+  projectDescriptionProblem,
+  effectiveProjectTimezone,
   suggestProjectIdentifier,
 } from "./project.js";
 
@@ -116,6 +120,72 @@ describe("project contracts", () => {
       expect(PROJECT_ERROR_MESSAGES.forbidden).toBe(
         "You don't have access to this project.",
       );
+    });
+  });
+
+  describe("PROJECT_FIELD_MESSAGES and problem helpers", () => {
+    it("has all required field message constants", () => {
+      expect(PROJECT_FIELD_MESSAGES.nameRequired).toBe("Enter a project name");
+      expect(PROJECT_FIELD_MESSAGES.nameTooLong).toBe(
+        "Enter a project name (up to 80 characters)",
+      );
+      expect(PROJECT_FIELD_MESSAGES.hiddenChars).toBe(
+        "Contains characters that aren't allowed",
+      );
+      expect(PROJECT_FIELD_MESSAGES.descriptionTooLong).toBe(
+        "Keep the description under 2000 characters",
+      );
+      expect(PROJECT_FIELD_MESSAGES.iconRequired).toBe("Choose an icon");
+      expect(PROJECT_FIELD_MESSAGES.iconColorInvalid).toBe(
+        "Use a color like #1A2B3C",
+      );
+      expect(PROJECT_FIELD_MESSAGES.coverRequired).toBe("Choose a cover");
+    });
+
+    it("projectNameProblem returns expected problem or null", () => {
+      expect(projectNameProblem("")).toBe(PROJECT_FIELD_MESSAGES.nameRequired);
+      expect(projectNameProblem("   ")).toBe(
+        PROJECT_FIELD_MESSAGES.nameRequired,
+      );
+      expect(projectNameProblem("a".repeat(80))).toBeNull();
+      expect(projectNameProblem("a".repeat(81))).toBe(
+        PROJECT_FIELD_MESSAGES.nameTooLong,
+      );
+      expect(projectNameProblem("Project \u0000")).toBe(
+        PROJECT_FIELD_MESSAGES.hiddenChars,
+      );
+      expect(projectNameProblem("Project \u200B")).toBe(
+        PROJECT_FIELD_MESSAGES.hiddenChars,
+      );
+      expect(projectNameProblem("Valid Project Name")).toBeNull();
+    });
+
+    it("projectDescriptionProblem returns expected problem or null", () => {
+      expect(projectDescriptionProblem("")).toBeNull();
+      expect(projectDescriptionProblem("a".repeat(2000))).toBeNull();
+      expect(projectDescriptionProblem("a".repeat(2001))).toBe(
+        PROJECT_FIELD_MESSAGES.descriptionTooLong,
+      );
+      expect(projectDescriptionProblem("Desc \u0000")).toBe(
+        PROJECT_FIELD_MESSAGES.hiddenChars,
+      );
+      expect(projectDescriptionProblem("Desc \u0007")).toBe(
+        PROJECT_FIELD_MESSAGES.hiddenChars,
+      );
+      expect(
+        projectDescriptionProblem("Valid multi-line\ndescription\r\n\ttext"),
+      ).toBeNull();
+    });
+  });
+
+  describe("effectiveProjectTimezone (RQ D8, INV-05)", () => {
+    it("returns projectTimezone when set, otherwise falls back to workspaceTimezone", () => {
+      expect(effectiveProjectTimezone("Asia/Tokyo", "UTC")).toBe("Asia/Tokyo");
+      expect(effectiveProjectTimezone("America/New_York", "Europe/Paris")).toBe(
+        "America/New_York",
+      );
+      expect(effectiveProjectTimezone(null, "Europe/Paris")).toBe("Europe/Paris");
+      expect(effectiveProjectTimezone(null, "UTC")).toBe("UTC");
     });
   });
 });

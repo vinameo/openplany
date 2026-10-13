@@ -1,15 +1,20 @@
 import type { ComponentType, SVGProps } from "react";
 import type { EnforcedWorkspacePermission } from "@repo/contracts";
 import { BuildingIcon, UsersIcon } from "../icons";
+import type {
+  SettingsGroup,
+  SettingsSection,
+} from "../../settings/settingsNavigation";
 
 export const WORKSPACE_SETTINGS_GROUPS = [
   { key: "administration", label: "Administration" },
-] as const;
+] as const satisfies readonly SettingsGroup[];
 
 export type WorkspaceSettingsGroup =
   (typeof WORKSPACE_SETTINGS_GROUPS)[number]["key"];
 
-export interface WorkspaceSettingsSection {
+export interface WorkspaceSettingsSection
+  extends SettingsSection<EnforcedWorkspacePermission> {
   key: string;
   group: WorkspaceSettingsGroup;
   label: string;
@@ -42,4 +47,3 @@ export function visibleSettingsSections(
     (s) => !s.viewPermission || permissions.includes(s.viewPermission),
   );
 }
-

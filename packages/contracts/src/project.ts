@@ -1,4 +1,4 @@
-import { removeDiacritics } from "./workspace.js";
+import { NO_HIDDEN_CHARS, removeDiacritics } from "./workspace.js";
 import type { ProjectRole } from "./projectRoles.js";
 import type { EnforcedProjectPermission } from "./projectPermissions.js";
 
@@ -192,12 +192,26 @@ export interface ProjectListItem {
   icon: { name: string; color: string };
   coverKey: string;
   createdAt: string;
+  updatedAt: string;
+  timezone: string | null;
+  effectiveTimezone: string;
   /** Oldest first, at most PROJECT_MEMBER_PREVIEW_MAX. null when the viewer lacks project.members.view. */
   members: ProjectMemberSummary[] | null;
   /** Real number of members; null exactly when `members` is null. */
   memberCount: number | null;
   role: ProjectRole;
   permissions: EnforcedProjectPermission[];
+}
+
+/**
+ * Resolves the effective timezone of a project against its workspace.
+ * RQ D8, INV-05.
+ */
+export function effectiveProjectTimezone(
+  projectTimezone: string | null,
+  workspaceTimezone: string,
+): string {
+  return projectTimezone ?? workspaceTimezone;
 }
 
 export interface ProjectListResponse {
@@ -216,10 +230,59 @@ export interface ProjectResponse {
   project: ProjectListItem;
 }
 
+export type UpdateProjectRequest = Partial<{
+  name: string;
+  description: string;
+  icon: ProjectIcon;
+  coverKey: ProjectCoverKey;
+  timezone: string | null;
+}>;
+
+export type UpdateProjectResponse = ProjectResponse;
+
+export const PROJECT_FIELD_MESSAGES = {
+  nameRequired: "Enter a project name",
+  nameTooLong: `Enter a project name (up to ${PROJECT_NAME_MAX} characters)`,
+  /** Tên và mô tả; thay PROJECT_ERROR_MESSAGES.descriptionChars. */
+  hiddenChars: "Contains characters that aren't allowed",
+  descriptionTooLong: `Keep the description under ${PROJECT_DESCRIPTION_MAX} characters`,
+  iconRequired: "Choose an icon",
+  iconColorInvalid: "Use a color like #1A2B3C",
+  coverRequired: "Choose a cover",
+} as const;
+
+/** Lỗi đầu tiên của tên (sau normalizeProjectName), hoặc null. Web dùng; API dùng decorator + cùng câu. */
+export function projectNameProblem(name: string): string | null {
+  const normalized = normalizeProjectName(name);
+  if (!normalized) {
+    return PROJECT_FIELD_MESSAGES.nameRequired;
+  }
+  if (normalized.length > PROJECT_NAME_MAX) {
+    return PROJECT_FIELD_MESSAGES.nameTooLong;
+  }
+  if (!NO_HIDDEN_CHARS.test(normalized)) {
+    return PROJECT_FIELD_MESSAGES.hiddenChars;
+  }
+  return null;
+}
+
+/** Lỗi đầu tiên của mô tả, hoặc null. */
+export function projectDescriptionProblem(description: string): string | null {
+  if (!description) {
+    return null;
+  }
+  if (description.length > PROJECT_DESCRIPTION_MAX) {
+    return PROJECT_FIELD_MESSAGES.descriptionTooLong;
+  }
+  if (!PROJECT_DESCRIPTION_ALLOWED_CHARS.test(description)) {
+    return PROJECT_FIELD_MESSAGES.hiddenChars;
+  }
+  return null;
+}
+
 export const PROJECT_ERROR_MESSAGES = {
   nameTaken: "A project with this name already exists",
   identifierTaken: "This project ID is already used",
-  descriptionChars: "Contains characters that aren't allowed",
   notFound: "This project doesn't exist.",
   forbidden: "You don't have access to this project.",
 } as const;

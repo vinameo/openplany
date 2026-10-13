@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   canonicalProjectIdentifier,
   projectPath,
+  projectSettingsPath,
 } from "./projectPaths";
 
 describe("projectPaths", () => {
@@ -9,6 +10,23 @@ describe("projectPaths", () => {
     it("builds the correct project route path", () => {
       expect(projectPath("the-firsts", "TFP11")).toBe(
         "/the-firsts/projects/TFP11",
+      );
+    });
+  });
+
+  describe("projectSettingsPath", () => {
+    it("builds the correct project settings route path", () => {
+      expect(projectSettingsPath("the-firsts", "TFP11")).toBe(
+        "/the-firsts/projects/TFP11/settings",
+      );
+      expect(projectSettingsPath("the-firsts", "TFP11", "general")).toBe(
+        "/the-firsts/projects/TFP11/settings/general",
+      );
+    });
+
+    it("encodes slug and identifier properly", () => {
+      expect(projectSettingsPath("team slug", "TFP 11", "general")).toBe(
+        "/team%20slug/projects/TFP%2011/settings/general",
       );
     });
   });

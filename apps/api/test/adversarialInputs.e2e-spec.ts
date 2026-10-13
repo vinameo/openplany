@@ -103,6 +103,51 @@ describe('Adversarial inputs (e2e)', () => {
     );
   });
 
+  it('PATCH /workspaces/:slug/projects/:identifier', async () => {
+    const ws = await seedWorkspace();
+    const admin = await newWorkspaceAdmin(ws.id);
+    const created = await http()
+      .post(`/api/workspaces/${ws.slug}/projects`)
+      .set('Cookie', admin.cookie)
+      .set('Origin', ORIGIN)
+      .send({
+        name: 'Project Target',
+        identifier: 'TGT',
+        description: 'Initial',
+        icon: { name: DEFAULT_PROJECT_ICON, color: DEFAULT_PROJECT_ICON_COLOR },
+        coverKey: DEFAULT_PROJECT_COVER,
+      })
+      .expect(201);
+    const identifier = created.body.project.identifier as string;
+    const projectId = created.body.project.id as string;
+
+    const cookieFor = rotatingCookie(async () => {
+      const u = await newWorkspaceAdmin(ws.id);
+      await e2e.dataSource.query(
+        `INSERT INTO project_members (project_id, workspace_id, member_id, role, role_scope, is_active, created_at, updated_at)
+         VALUES ($1, $2, $3, 'admin', 'project', true, now(), now())`,
+        [projectId, ws.id, u.id],
+      );
+      return u;
+    });
+
+    const valid = {
+      name: 'Updated Project',
+      description: 'Updated description',
+      icon: { name: DEFAULT_PROJECT_ICON, color: DEFAULT_PROJECT_ICON_COLOR },
+      coverKey: DEFAULT_PROJECT_COVER,
+      timezone: 'UTC',
+    };
+
+    await expectNoServerErrors(adversarialBodies(valid), async (body, i) =>
+      http()
+        .patch(`/api/workspaces/${ws.slug}/projects/${identifier}`)
+        .set('Cookie', await cookieFor(i))
+        .set('Origin', ORIGIN)
+        .send(body as object),
+    );
+  });
+
   it('PATCH /workspaces/:slug', async () => {
     const ws = await seedWorkspace();
     const cookieFor = rotatingCookie(() => newWorkspaceAdmin(ws.id));

@@ -526,6 +526,7 @@ describe('WorkspaceMembers (e2e)', () => {
       'workspace.members.email.view',
       'workspace.members.add',
       'workspace.projects.create',
+      'workspace.projects.delete',
     ]);
 
     // Member has 1 permission

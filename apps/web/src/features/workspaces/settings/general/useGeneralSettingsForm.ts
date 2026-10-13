@@ -7,10 +7,16 @@ import {
   type OrganizationSize,
   type WorkspaceResponse,
 } from "@repo/contracts";
+import { useQueryClient } from "@tanstack/react-query";
 import type { ApiRequestError } from "../../../../lib/apiClient";
+import { projectKeys } from "../../../projects/api/projectQueries";
 import { workspaceApi } from "../../api/workspaceApi";
 import { useCurrentWorkspace } from "../../currentWorkspace/useCurrentWorkspace";
 import { useWorkspaces } from "../../useWorkspaces";
+import {
+  SETTINGS_MESSAGES,
+  tooManyChangesMessage,
+} from "../../../settings/settingsMessages";
 import { useSettingsForm } from "../useSettingsForm";
 
 export interface GeneralSettingsFormValues extends Record<string, unknown> {
@@ -21,6 +27,7 @@ export interface GeneralSettingsFormValues extends Record<string, unknown> {
 
 export function useGeneralSettingsForm(workspace: WorkspaceResponse) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { applyWorkspaceUpdate, reload } = useCurrentWorkspace();
   const { refresh } = useWorkspaces();
 
@@ -46,6 +53,11 @@ export function useGeneralSettingsForm(workspace: WorkspaceResponse) {
     submit: async (changes) => {
       const response = await workspaceApi.update(workspace.slug, changes);
       applyWorkspaceUpdate(response);
+      if (changes.timezone !== undefined) {
+        await queryClient.invalidateQueries({
+          queryKey: projectKeys.list(workspace.slug),
+        });
+      }
       notifications.show({
         message: "Workspace updated",
         color: "green",
@@ -59,7 +71,7 @@ export function useGeneralSettingsForm(workspace: WorkspaceResponse) {
     onApiError: (error: ApiRequestError) => {
       if (error.status === 403) {
         void reload();
-        return "You no longer have permission to change these settings.";
+        return SETTINGS_MESSAGES.permissionLost;
       }
 
       if (error.status === 404) {
@@ -73,9 +85,7 @@ export function useGeneralSettingsForm(workspace: WorkspaceResponse) {
       }
 
       if (error.status === 429) {
-        const retryAfter = error.retryAfterSeconds ?? 60;
-        const minutes = Math.max(1, Math.ceil(retryAfter / 60));
-        return `Too many changes. Try again in ${minutes} minutes.`;
+        return tooManyChangesMessage(error.retryAfterSeconds);
       }
 
       return error.message;

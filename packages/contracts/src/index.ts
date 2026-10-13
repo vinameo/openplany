@@ -29,6 +29,7 @@ export * from './roleAssignment.js';
 export * from './resourcePermissions.js';
 export * from './workspaceSettings.js';
 export * from './timezones.js';
+export * from './timezoneMessages.js';
 export * from './user.js';
 export {
   type RolePermissionMatrix,

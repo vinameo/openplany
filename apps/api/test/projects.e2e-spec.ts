@@ -1,18 +1,23 @@
 import request from 'supertest';
-import { describe, beforeAll, beforeEach, afterAll, it, expect } from 'vitest';
+import { describe, beforeAll, beforeEach, afterAll, it, expect, vi } from 'vitest';
+import { ProjectEvents } from '../src/projects/events/projectEvents.js';
 import {
   DEFAULT_PROJECT_COVER,
   DEFAULT_PROJECT_ICON,
   DEFAULT_PROJECT_ICON_COLOR,
+  PROJECT_FIELD_MESSAGES,
   PROJECT_LIST_MAX,
   PROJECT_MEMBER_PREVIEW_MAX,
 } from '@repo/contracts';
+
 import { AppendOnlyViolationError } from '../src/database/appendOnly.js';
 import { CreateProjectTables1791605000000 } from '../src/database/migrations/1791605000000-CreateProjectTables.js';
 import { AddProjectForeignKeyIndexes1791606000000 } from '../src/database/migrations/1791606000000-AddProjectForeignKeyIndexes.js';
 import { ReserveProjectIdentifiers1791607000000 } from '../src/database/migrations/1791607000000-ReserveProjectIdentifiers.js';
+import { AddProjectTimezone1791608000000 } from '../src/database/migrations/1791608000000-AddProjectTimezone.js';
 import { ProjectMemberRoleHistory } from '../src/projects/entities/projectMemberRoleHistory.entity.js';
 import { ProjectAccessResolver } from '../src/projects/access/projectAccessResolver.js';
+import { ProjectsRepository } from '../src/projects/repositories/projects.repository.js';
 import { createE2eApp, type E2eApp } from './createE2eApp.js';
 import {
   createUser as createE2eUser,
@@ -29,6 +34,18 @@ describe('Projects (e2e)', () => {
 
   beforeAll(async () => {
     e2e = await createE2eApp();
+    const qr = e2e.dataSource.createQueryRunner();
+    await qr.connect();
+    try {
+      const cols = (await qr.query(
+        "SELECT 1 FROM information_schema.columns WHERE table_name = 'projects' AND column_name = 'timezone'",
+      )) as unknown[];
+      if (cols.length === 0) {
+        await new AddProjectTimezone1791608000000().up(qr);
+      }
+    } finally {
+      await qr.release();
+    }
   });
 
   beforeEach(async () => {
@@ -83,10 +100,11 @@ describe('Projects (e2e)', () => {
     name: string,
     identifier: string,
     deletedAt: Date | null = null,
+    timezone: string | null = null,
   ): Promise<string> {
     const res = await e2e.dataSource.query<{ id: string }[]>(
-      `INSERT INTO projects (workspace_id, name, identifier, description, icon_name, icon_color, cover_key, deleted_at)
-       VALUES ($1, $2, $3, '', $4, $5, $6, $7)
+      `INSERT INTO projects (workspace_id, name, identifier, description, icon_name, icon_color, cover_key, deleted_at, timezone)
+       VALUES ($1, $2, $3, '', $4, $5, $6, $7, $8)
        RETURNING id`,
       [
         workspaceId,
@@ -96,6 +114,7 @@ describe('Projects (e2e)', () => {
         DEFAULT_PROJECT_ICON_COLOR,
         DEFAULT_PROJECT_COVER,
         deletedAt,
+        timezone,
       ],
     );
     return res[0]!.id;
@@ -121,9 +140,11 @@ describe('Projects (e2e)', () => {
       // so the e2e database ends in the same state for the following tests.
       const indexes = new AddProjectForeignKeyIndexes1791606000000();
       const reserve = new ReserveProjectIdentifiers1791607000000();
+      const timezone = new AddProjectTimezone1791608000000();
       const qr = e2e.dataSource.createQueryRunner();
       await qr.connect();
       try {
+        await timezone.down(qr).catch(() => {});
         await reserve.down(qr);
         await indexes.down(qr);
         await migration.down(qr);
@@ -149,6 +170,7 @@ describe('Projects (e2e)', () => {
         expect(tablesAfterUp).toHaveLength(3);
         await indexes.up(qr);
         await reserve.up(qr);
+        await timezone.up(qr);
       } finally {
         await qr.release();
       }
@@ -839,6 +861,9 @@ describe('Projects (e2e)', () => {
       expect(proj.permissions).toContain('project.members.view');
       expect(proj.members).toHaveLength(1);
       expect(proj.members[0].userId).toBe(ownerId);
+      expect(proj.timezone).toBeNull();
+      expect(proj.effectiveTimezone).toBe('UTC');
+      expect(typeof proj.updatedAt).toBe('string');
 
       // Verify DB tables
       const projectsInDb = await e2e.dataSource.query<
@@ -1473,5 +1498,798 @@ describe('Projects (e2e)', () => {
         .expect(200);
     });
   });
+
+  describe('Project timezone data (Ticket 04: AC-18, AC-20, AC-21, T-DB-01)', () => {
+    it('T-DB-01: timezone column allows null, defaults to null, and rejects empty string due to CHECK constraint', async () => {
+      const { workspace } = await seedWorkspace(
+        'owner-tz-db@openplany.dev',
+        'ws-tz-db',
+      );
+
+      // Inserting with null succeeds
+      const p1 = await insertProject(
+        workspace.id,
+        'Project Null',
+        'PNULL',
+        null,
+        null,
+      );
+      const rows = await e2e.dataSource.query<
+        { timezone: string | null }[]
+      >(`SELECT timezone FROM projects WHERE id = $1`, [p1]);
+      expect(rows[0]!.timezone).toBeNull();
+
+      // Inserting with valid timezone string succeeds
+      const p2 = await insertProject(
+        workspace.id,
+        'Project Tokyo',
+        'PTOK',
+        null,
+        'Asia/Tokyo',
+      );
+      const rows2 = await e2e.dataSource.query<
+        { timezone: string | null }[]
+      >(`SELECT timezone FROM projects WHERE id = $1`, [p2]);
+      expect(rows2[0]!.timezone).toBe('Asia/Tokyo');
+
+      // Inserting empty string fails with CHECK constraint violation
+      await expect(
+        e2e.dataSource.query(
+          `INSERT INTO projects (workspace_id, name, identifier, description, icon_name, icon_color, cover_key, timezone)
+           VALUES ($1, 'Bad', 'BAD', '', 'square-check', '#868E96', 'cover-01', '')`,
+          [workspace.id],
+        ),
+      ).rejects.toThrow(/projects_timezone_not_blank/);
+    });
+
+    it('AC-20: Create project returns timezone: null, effectiveTimezone = workspace.timezone, and updatedAt', async () => {
+      const { workspace, cookie } = await seedWorkspace(
+        'owner-create-tz@openplany.dev',
+        'ws-create-tz',
+      );
+
+      const res = await http()
+        .post(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({
+          name: 'New Project',
+          identifier: 'NEWP',
+          icon: { name: 'rocket', color: '#15AABF' },
+          coverKey: 'cover-01',
+        })
+        .expect(201);
+
+      expect(res.body.project.timezone).toBeNull();
+      expect(res.body.project.effectiveTimezone).toBe('UTC');
+      expect(typeof res.body.project.updatedAt).toBe('string');
+    });
+
+    it('AC-18: given project with timezone=null and project with timezone="Asia/Tokyo", changing workspace timezone to Europe/Paris updates effectiveTimezone of null-timezone project while custom timezone is preserved, in both get and list (INV-01, INV-05)', async () => {
+      const { workspace, ownerId, cookie } = await seedWorkspace(
+        'owner-tz-ws@openplany.dev',
+        'ws-tz-ws',
+      );
+
+      const p1Id = await insertProject(
+        workspace.id,
+        'Project Null',
+        'TFP11',
+        null,
+        null,
+      );
+      await insertProjectMember(p1Id, workspace.id, ownerId, 'admin');
+
+      const p2Id = await insertProject(
+        workspace.id,
+        'Project Tokyo',
+        'TFP12',
+        null,
+        'Asia/Tokyo',
+      );
+      await insertProjectMember(p2Id, workspace.id, ownerId, 'admin');
+
+      // Update workspace timezone to Europe/Paris
+      await e2e.dataSource.query(
+        `UPDATE workspaces SET timezone = 'Europe/Paris' WHERE id = $1`,
+        [workspace.id],
+      );
+
+      // GET TFP11 -> effectiveTimezone: "Europe/Paris", timezone: null
+      const res1 = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/TFP11`)
+        .set('Cookie', cookie)
+        .expect(200);
+      expect(res1.body.project.timezone).toBeNull();
+      expect(res1.body.project.effectiveTimezone).toBe('Europe/Paris');
+      expect(typeof res1.body.project.updatedAt).toBe('string');
+
+      // GET TFP12 -> effectiveTimezone: "Asia/Tokyo", timezone: "Asia/Tokyo"
+      const res2 = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/TFP12`)
+        .set('Cookie', cookie)
+        .expect(200);
+      expect(res2.body.project.timezone).toBe('Asia/Tokyo');
+      expect(res2.body.project.effectiveTimezone).toBe('Asia/Tokyo');
+      expect(typeof res2.body.project.updatedAt).toBe('string');
+
+      // GET list -> both projects match get responses (INV-01)
+      const listRes = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', cookie)
+        .expect(200);
+
+      const listP1 = listRes.body.projects.find(
+        (p: { identifier: string }) => p.identifier === 'TFP11',
+      );
+      const listP2 = listRes.body.projects.find(
+        (p: { identifier: string }) => p.identifier === 'TFP12',
+      );
+
+      expect(listP1).toBeDefined();
+      expect(listP1.timezone).toBeNull();
+      expect(listP1.effectiveTimezone).toBe('Europe/Paris');
+      expect(listP1.updatedAt).toBe(res1.body.project.updatedAt);
+
+      expect(listP2).toBeDefined();
+      expect(listP2.timezone).toBe('Asia/Tokyo');
+      expect(listP2.effectiveTimezone).toBe('Asia/Tokyo');
+      expect(listP2.updatedAt).toBe(res2.body.project.updatedAt);
+    });
+  });
+
+  describe('PATCH /api/workspaces/:slug/projects/:identifier (AC-07, AC-10, AC-13, AC-14, AC-16, AC-22, AC-23; B6)', () => {
+    it('AC-07, AC-10 & B6 row 7: admin updates name (with trim) and description; response matches GET', async () => {
+      const { workspace, ownerId, cookie } = await seedWorkspace(
+        'patch-admin@openplany.dev',
+        'patch-ws',
+      );
+      const projectId = await insertProject(
+        workspace.id,
+        'Old Name',
+        'PTCH1',
+      );
+      await insertProjectMember(projectId, workspace.id, ownerId, 'admin');
+
+      const res = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/PTCH1`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .set('X-Request-Id', 'req-patch-1')
+        .send({
+          name: '  Mobile App  ',
+          description: 'Updated description',
+        })
+        .expect(200);
+
+      expect(res.body.project).toBeDefined();
+      const proj = res.body.project;
+      expect(proj.name).toBe('Mobile App');
+      expect(proj.description).toBe('Updated description');
+      expect(proj.identifier).toBe('PTCH1');
+      expect(typeof proj.updatedAt).toBe('string');
+
+      // GET confirms updated values
+      const getRes = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/PTCH1`)
+        .set('Cookie', cookie)
+        .expect(200);
+      expect(getRes.body.project).toEqual(proj);
+    });
+
+    it('AC-13 & B6 row 8: updating name to match another project in workspace (case-insensitive) returns 409 PROJECT_NAME_TAKEN', async () => {
+      const { workspace, ownerId, cookie } = await seedWorkspace(
+        'patch-conflict@openplany.dev',
+        'conflict-ws',
+      );
+      const p1 = await insertProject(workspace.id, 'Alpha Project', 'ALPH');
+      await insertProjectMember(p1, workspace.id, ownerId, 'admin');
+
+      const p2 = await insertProject(workspace.id, 'Beta Project', 'BETA');
+      await insertProjectMember(p2, workspace.id, ownerId, 'admin');
+
+      const res = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/BETA`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ name: 'alpha project' })
+        .expect(409);
+
+      expect(res.body.code).toBe('PROJECT_NAME_TAKEN');
+      expect(res.body.fields?.name).toBe('A project with this name already exists');
+    });
+
+    it('AC-14 & B6 row 9: updating name to match a soft-deleted project succeeds with 200', async () => {
+      const { workspace, ownerId, cookie } = await seedWorkspace(
+        'patch-deleted@openplany.dev',
+        'deleted-ws',
+      );
+      // Soft-deleted project with name "Old Deleted"
+      await insertProject(workspace.id, 'Old Deleted', 'DEL1', new Date());
+
+      const activeId = await insertProject(workspace.id, 'Active One', 'ACT1');
+      await insertProjectMember(activeId, workspace.id, ownerId, 'admin');
+
+      const res = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/ACT1`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ name: 'Old Deleted' })
+        .expect(200);
+
+      expect(res.body.project.name).toBe('Old Deleted');
+    });
+
+    it('AC-16: updating icon, coverKey, and timezone works as expected', async () => {
+      const { workspace, ownerId, cookie } = await seedWorkspace(
+        'patch-fields@openplany.dev',
+        'fields-ws',
+      );
+      const pId = await insertProject(workspace.id, 'Fields Test', 'FLDS');
+      await insertProjectMember(pId, workspace.id, ownerId, 'admin');
+
+      // Update icon and cover
+      const res1 = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/FLDS`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({
+          icon: { name: 'heart', color: '#abcdef' },
+          coverKey: 'cover-03',
+        })
+        .expect(200);
+
+      expect(res1.body.project.icon).toEqual({ name: 'heart', color: '#ABCDEF' });
+      expect(res1.body.project.coverKey).toBe('cover-03');
+
+      // Update timezone to Asia/Tokyo
+      const res2 = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/FLDS`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ timezone: 'Asia/Tokyo' })
+        .expect(200);
+      expect(res2.body.project.timezone).toBe('Asia/Tokyo');
+      expect(res2.body.project.effectiveTimezone).toBe('Asia/Tokyo');
+
+      // Reset timezone to null (follow workspace)
+      const res3 = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/FLDS`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ timezone: null })
+        .expect(200);
+      expect(res3.body.project.timezone).toBeNull();
+      expect(res3.body.project.effectiveTimezone).toBe('UTC');
+    });
+
+    it('AC-22: calling PATCH with unchanged fields returns project without updating DB updatedAt', async () => {
+      const { workspace, ownerId, cookie } = await seedWorkspace(
+        'patch-nochange@openplany.dev',
+        'nochange-ws',
+      );
+      const pId = await insertProject(workspace.id, 'Stable Project', 'STBL');
+      await insertProjectMember(pId, workspace.id, ownerId, 'admin');
+
+      const initialGet = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/STBL`)
+        .set('Cookie', cookie)
+        .expect(200);
+
+      const initialUpdatedAt = initialGet.body.project.updatedAt;
+
+      const res = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/STBL`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ name: 'Stable Project' })
+        .expect(200);
+
+      expect(res.body.project.updatedAt).toBe(initialUpdatedAt);
+    });
+
+    it('B6 rows 14-18: validates icon and coverKey inputs on PATCH', async () => {
+      const { workspace, ownerId, cookie } = await seedWorkspace(
+        'patch-iconcover@openplany.dev',
+        'iconcover-ws',
+      );
+      const pId = await insertProject(
+        workspace.id,
+        'Icon Cover Project',
+        'ICCV',
+      );
+      await insertProjectMember(pId, workspace.id, ownerId, 'admin');
+
+      // Row 14: icon: null
+      const res14 = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/ICCV`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ icon: null })
+        .expect(400);
+      expect(res14.body.fields?.icon).toBe(PROJECT_FIELD_MESSAGES.iconRequired);
+
+      // Row 15: icon: { name: "nope", color: "#FFFFFF" }
+      const res15 = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/ICCV`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ icon: { name: 'nope', color: '#FFFFFF' } })
+        .expect(400);
+      expect(res15.body.fields?.['icon.name']).toBe(
+        PROJECT_FIELD_MESSAGES.iconRequired,
+      );
+
+      // Row 16: icon: { name: "star", color: "red" }
+      const res16 = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/ICCV`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ icon: { name: 'star', color: 'red' } })
+        .expect(400);
+      expect(res16.body.fields?.['icon.color']).toBe(
+        PROJECT_FIELD_MESSAGES.iconColorInvalid,
+      );
+
+      // Row 17: icon: { name: "star", color: "#abcdef" } saves uppercase #ABCDEF
+      const res17 = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/ICCV`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ icon: { name: 'star', color: '#abcdef' } })
+        .expect(200);
+      expect(res17.body.project.icon).toEqual({
+        name: 'star',
+        color: '#ABCDEF',
+      });
+      const updatedAt17 = res17.body.project.updatedAt;
+
+      // Unchanged icon with different case (#ABCDEF vs #abcdef) does not write
+      const res17NoChange = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/ICCV`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ icon: { name: 'star', color: '#abcdef' } })
+        .expect(200);
+      expect(res17NoChange.body.project.updatedAt).toBe(updatedAt17);
+
+      // Row 18: coverKey: "cover-99" and null
+      const res18Invalid = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/ICCV`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ coverKey: 'cover-99' })
+        .expect(400);
+      expect(res18Invalid.body.fields?.coverKey).toBe(
+        PROJECT_FIELD_MESSAGES.coverRequired,
+      );
+
+      const res18Null = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/ICCV`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ coverKey: null })
+        .expect(400);
+      expect(res18Null.body.fields?.coverKey).toBe(
+        PROJECT_FIELD_MESSAGES.coverRequired,
+      );
+    });
+
+
+    it('AC-23 & B6 row 27: two identical concurrent PATCH requests both succeed with 200 and identical result', async () => {
+      const { workspace, ownerId, cookie } = await seedWorkspace(
+        'patch-concurrent@openplany.dev',
+        'conc-ws',
+      );
+      const pId = await insertProject(workspace.id, 'Concurrent Test', 'CONC');
+      await insertProjectMember(pId, workspace.id, ownerId, 'admin');
+
+      const [res1, res2] = await Promise.all([
+        http()
+          .patch(`/api/workspaces/${workspace.slug}/projects/CONC`)
+          .set('Cookie', cookie)
+          .set('Origin', ORIGIN)
+          .send({ name: 'New Concurrent Name' }),
+        http()
+          .patch(`/api/workspaces/${workspace.slug}/projects/CONC`)
+          .set('Cookie', cookie)
+          .set('Origin', ORIGIN)
+          .send({ name: 'New Concurrent Name' }),
+      ]);
+
+      expect(res1.status).toBe(200);
+      expect(res2.status).toBe(200);
+      expect(res1.body.project.name).toBe('New Concurrent Name');
+      expect(res2.body.project.name).toBe('New Concurrent Name');
+    });
+
+    it('B6 row 21: rejects non-whitelisted keys with 400', async () => {
+      const { workspace, ownerId, cookie } = await seedWorkspace(
+        'patch-whitelist@openplany.dev',
+        'white-ws',
+      );
+      const pId = await insertProject(workspace.id, 'Whitelist Test', 'WHTE');
+      await insertProjectMember(pId, workspace.id, ownerId, 'admin');
+
+      await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/WHTE`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ identifier: 'NEWID' })
+        .expect(400);
+
+      await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/WHTE`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ workspaceId: workspace.id })
+        .expect(400);
+    });
+
+    it('B6 row 22: lowercase project ID on URL returns 404 PROJECT_NOT_FOUND', async () => {
+      const { workspace, ownerId, cookie } = await seedWorkspace(
+        'patch-lower@openplany.dev',
+        'lower-ws',
+      );
+      const pId = await insertProject(workspace.id, 'Lower Test', 'LOWR');
+      await insertProjectMember(pId, workspace.id, ownerId, 'admin');
+
+      const res = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/lowr`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ name: 'Should Not Work' })
+        .expect(404);
+
+      expect(res.body.code).toBe('PROJECT_NOT_FOUND');
+    });
+
+    it('B6 row 23: project ID from another workspace returns 404 PROJECT_NOT_FOUND', async () => {
+      const { workspace: ws1, cookie: cookie1 } = await seedWorkspace(
+        'patch-ws1@openplany.dev',
+        'ws1-target',
+      );
+      const { workspace: ws2 } = await seedWorkspace(
+        'patch-ws2@openplany.dev',
+        'ws2-target',
+      );
+      await insertProject(ws2.id, 'Other Project', 'OTHR');
+
+      const res = await http()
+        .patch(`/api/workspaces/${ws1.slug}/projects/OTHR`)
+        .set('Cookie', cookie1)
+        .set('Origin', ORIGIN)
+        .send({ name: 'Hijack Name' })
+        .expect(404);
+
+      expect(res.body.code).toBe('PROJECT_NOT_FOUND');
+    });
+
+    it('AC-34 & T-DB-04 & B6 row 24: soft-deleted project returns 404 PROJECT_NOT_FOUND and repository update returns null', async () => {
+      const { workspace, ownerId, cookie } = await seedWorkspace(
+        'patch-softdel@openplany.dev',
+        'softdel-ws',
+      );
+      const pId = await insertProject(
+        workspace.id,
+        'Deleted Target',
+        'DELT',
+        new Date(),
+      );
+      await insertProjectMember(pId, workspace.id, ownerId, 'admin');
+
+      // Direct repository update returns null (T-DB-04)
+      const repo = e2e.app.get<ProjectsRepository>(ProjectsRepository);
+      const updateResult = await repo.update({
+        projectId: pId,
+        workspaceId: workspace.id,
+        actorId: ownerId,
+        now: new Date(),
+        changes: { name: 'Direct Update' },
+      });
+      expect(updateResult).toBeNull();
+
+      // API returns 404 PROJECT_NOT_FOUND (AC-34)
+      const res = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/DELT`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ name: 'Try Update' })
+        .expect(404);
+
+      expect(res.body.code).toBe('PROJECT_NOT_FOUND');
+    });
+
+    it('B6 row 25: user without project access returns 403 FORBIDDEN', async () => {
+      const { workspace } = await seedWorkspace(
+        'patch-noaccess@openplany.dev',
+        'noacc-ws',
+      );
+
+      const otherUser = await createUser('patch-outsider@openplany.dev');
+      const otherCookie = await signInCookie('patch-outsider@openplany.dev');
+      await addWorkspaceMember(workspace.id, otherUser, 'member');
+
+      // Project without otherUser as member
+      await insertProject(workspace.id, 'Private Proj', 'PRIV');
+
+      const res = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/PRIV`)
+        .set('Cookie', otherCookie)
+        .set('Origin', ORIGIN)
+        .send({ name: 'Infiltrate' })
+        .expect(403);
+
+      expect(res.body.code).toBe('FORBIDDEN');
+    });
+
+    it('AC-07 & B6 row 26: user lacking project.settings.update returns 403 FORBIDDEN', async () => {
+      const { workspace } = await seedWorkspace(
+        'patch-noperm@openplany.dev',
+        'noperm-ws',
+      );
+      const memberId = await createUser('patch-contrib@openplany.dev');
+      const memberCookie = await signInCookie('patch-contrib@openplany.dev');
+      await addWorkspaceMember(workspace.id, memberId, 'member');
+
+      const pId = await insertProject(workspace.id, 'Contrib Project', 'CTRB');
+      // Contributor has project.settings.view but lacks project.settings.update
+      await insertProjectMember(pId, workspace.id, memberId, 'contributor');
+
+      const res = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/CTRB`)
+        .set('Cookie', memberCookie)
+        .set('Origin', ORIGIN)
+        .send({ name: 'Unauthorized Rename' })
+        .expect(403);
+
+      expect(res.body.code).toBe('FORBIDDEN');
+    });
+  });
+
+  describe('DELETE /api/workspaces/:slug/projects/:identifier', () => {
+    const validCreatePayload = (name: string, identifier: string) => ({
+      name,
+      identifier,
+      description: 'A test project',
+      icon: { name: 'star', color: '#15AABF' },
+      coverKey: 'cover-01',
+    });
+
+    it('AC-30 & T-DB-05: soft deletes project, sets deleted_at, updated_at, updated_by_id, preserves project_members and role history', async () => {
+      const { workspace, ownerId, cookie } = await seedWorkspace(
+        'delete-success@openplany.dev',
+        'del-success-ws',
+      );
+      const member1 = await createUser('del-mem1@openplany.dev');
+      const member2 = await createUser('del-mem2@openplany.dev');
+      await addWorkspaceMember(workspace.id, member1, 'member');
+      await addWorkspaceMember(workspace.id, member2, 'member');
+
+      const pId = await insertProject(workspace.id, 'The First Project', 'TFP11');
+      await insertProjectMember(pId, workspace.id, ownerId, 'admin');
+      await insertProjectMember(pId, workspace.id, member1, 'contributor');
+      await insertProjectMember(pId, workspace.id, member2, 'guest');
+      await e2e.dataSource.query(
+        `INSERT INTO project_member_role_history (workspace_id, project_id, member_id, to_role, change_type)
+         VALUES ($1, $2, $3, 'admin', 'project_created'), ($1, $2, $4, 'contributor', 'project_created'), ($1, $2, $5, 'guest', 'project_created')`,
+        [workspace.id, pId, ownerId, member1, member2],
+      );
+
+      const events = e2e.app.get(ProjectEvents);
+      const deletedSpy = vi.spyOn(events, 'deleted');
+      deletedSpy.mockClear();
+
+      await http()
+        .delete(`/api/workspaces/${workspace.slug}/projects/TFP11`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .expect(204);
+
+      // Verify in DB
+      const [proj] = (await e2e.dataSource.query(
+        `SELECT id, name, identifier, deleted_at, updated_at, updated_by_id FROM projects WHERE id = $1`,
+        [pId],
+      )) as Array<{
+        id: string;
+        name: string;
+        identifier: string;
+        deleted_at: string | null;
+        updated_at: string;
+        updated_by_id: string;
+      }>;
+      expect(proj.deleted_at).not.toBeNull();
+      expect(proj.updated_by_id).toBe(ownerId);
+
+      // Verify project_members remain unchanged (AC-30, T-DB-05)
+      const members = (await e2e.dataSource.query(
+        `SELECT id, member_id, role, is_active FROM project_members WHERE project_id = $1`,
+        [pId],
+      )) as Array<{ id: string; member_id: string; role: string; is_active: boolean }>;
+      expect(members.length).toBe(3);
+      expect(members.every((m) => m.is_active)).toBe(true);
+
+      // Verify role history untouched (3 entries)
+      const history = (await e2e.dataSource.query(
+        `SELECT id FROM project_member_role_history WHERE project_id = $1`,
+        [pId],
+      )) as Array<{ id: string }>;
+      expect(history.length).toBe(3);
+
+      // AC-40: Event log
+      expect(deletedSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectId: pId,
+          workspaceId: workspace.id,
+          actorId: ownerId,
+        }),
+      );
+      // Ensure no name or description in event payload
+      const eventArg = deletedSpy.mock.calls[0]?.[0] as unknown as Record<string, unknown>;
+      expect(eventArg).not.toHaveProperty('name');
+      expect(eventArg).not.toHaveProperty('description');
+    });
+
+    it('AC-31 & T-DB-07: identifier remains reserved after deletion (409), but project name can be reused (201)', async () => {
+      const { workspace, cookie } = await seedWorkspace(
+        'delete-reuse@openplany.dev',
+        'del-reuse-ws',
+      );
+      await http()
+        .post(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send(validCreatePayload('The First Project', 'TFP11'))
+        .expect(201);
+
+      await http()
+        .delete(`/api/workspaces/${workspace.slug}/projects/TFP11`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .expect(204);
+
+      // Recreating with same identifier TFP11 -> 409 PROJECT_IDENTIFIER_TAKEN
+      const conflictRes = await http()
+        .post(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send(validCreatePayload('Different Name', 'TFP11'))
+        .expect(409);
+      expect(conflictRes.body.code).toBe('PROJECT_IDENTIFIER_TAKEN');
+
+      // Recreating with same name 'The First Project' but different identifier TFP12 -> 201
+      await http()
+        .post(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send(validCreatePayload('The First Project', 'TFP12'))
+        .expect(201);
+    });
+
+    it('AC-32: user lacking workspace.projects.delete receives 403 FORBIDDEN and project remains active', async () => {
+      const { workspace } = await seedWorkspace(
+        'del-owner@openplany.dev',
+        'del-perm-ws',
+      );
+      const memberId = await createUser('del-projadmin@openplany.dev');
+      const memberCookie = await signInCookie('del-projadmin@openplany.dev');
+      // Role 'member' in workspace does not have workspace.projects.delete
+      await addWorkspaceMember(workspace.id, memberId, 'member');
+
+      const pId = await insertProject(workspace.id, 'Secure Proj', 'SECR');
+      // Make them project admin inside the project
+      await insertProjectMember(pId, workspace.id, memberId, 'admin');
+
+      const res = await http()
+        .delete(`/api/workspaces/${workspace.slug}/projects/SECR`)
+        .set('Cookie', memberCookie)
+        .set('Origin', ORIGIN)
+        .expect(403);
+
+      expect(res.body.code).toBe('FORBIDDEN');
+
+      // Project is still active
+      const [proj] = (await e2e.dataSource.query(
+        `SELECT deleted_at FROM projects WHERE id = $1`,
+        [pId],
+      )) as Array<{ deleted_at: string | null }>;
+      expect(proj.deleted_at).toBeNull();
+    });
+
+    it('AC-33: user without project access receives 403 FORBIDDEN (consistent with GET)', async () => {
+      const { workspace } = await seedWorkspace(
+        'del-outsider-owner@openplany.dev',
+        'del-outsider-ws',
+      );
+      const otherUser = await createUser('del-outsider@openplany.dev');
+      const otherCookie = await signInCookie('del-outsider@openplany.dev');
+      await addWorkspaceMember(workspace.id, otherUser, 'member');
+
+      await insertProject(workspace.id, 'Private Proj', 'PRV2');
+
+      const res = await http()
+        .delete(`/api/workspaces/${workspace.slug}/projects/PRV2`)
+        .set('Cookie', otherCookie)
+        .set('Origin', ORIGIN)
+        .expect(403);
+
+      expect(res.body.code).toBe('FORBIDDEN');
+    });
+
+    it('AC-34: after deletion, GET and PATCH return 404 PROJECT_NOT_FOUND', async () => {
+      const { workspace, cookie } = await seedWorkspace(
+        'del-after@openplany.dev',
+        'del-after-ws',
+      );
+      await http()
+        .post(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send(validCreatePayload('Gone Proj', 'GONE'))
+        .expect(201);
+
+      await http()
+        .delete(`/api/workspaces/${workspace.slug}/projects/GONE`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .expect(204);
+
+      // GET returns 404
+      const getRes = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/GONE`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .expect(404);
+      expect(getRes.body.code).toBe('PROJECT_NOT_FOUND');
+
+      // PATCH returns 404
+      const patchRes = await http()
+        .patch(`/api/workspaces/${workspace.slug}/projects/GONE`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ name: 'Revive' })
+        .expect(404);
+      expect(patchRes.body.code).toBe('PROJECT_NOT_FOUND');
+    });
+
+    it('AC-35 & T-DB-06: concurrent DELETE calls: first returns 204, second returns 404', async () => {
+      const { workspace, cookie } = await seedWorkspace(
+        'del-concurrent@openplany.dev',
+        'del-conc-ws',
+      );
+      await http()
+        .post(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send(validCreatePayload('Race Proj', 'RACE'))
+        .expect(201);
+
+      const events = e2e.app.get(ProjectEvents);
+      const deletedSpy = vi.spyOn(events, 'deleted');
+      deletedSpy.mockClear();
+
+      const [res1, res2] = await Promise.all([
+        http()
+          .delete(`/api/workspaces/${workspace.slug}/projects/RACE`)
+          .set('Cookie', cookie)
+          .set('Origin', ORIGIN),
+        http()
+          .delete(`/api/workspaces/${workspace.slug}/projects/RACE`)
+          .set('Cookie', cookie)
+          .set('Origin', ORIGIN),
+      ]);
+
+      const statuses = [res1.status, res2.status].sort((a, b) => a - b);
+      expect(statuses).toEqual([204, 404]);
+
+      const notFoundRes = res1.status === 404 ? res1 : res2;
+      expect(notFoundRes.body.code).toBe('PROJECT_NOT_FOUND');
+
+      // Only one project.deleted log event
+      expect(deletedSpy).toHaveBeenCalledTimes(1);
+    });
+  });
 });
+
+
 

@@ -23,14 +23,21 @@ describe('projectPermissions', () => {
   it('enforcedProjectPermissions filters to ENFORCED_PROJECT_PERMISSIONS', () => {
     expect(enforcedProjectPermissions([])).toEqual([]);
     expect(
-      enforcedProjectPermissions(['project.settings.view', 'project.archive']),
+      enforcedProjectPermissions(['project.archive', 'unknown.perm']),
     ).toEqual([]);
     expect(
       enforcedProjectPermissions([
         'project.settings.view',
+        'project.settings.update',
         'project.members.view',
         'project.archive',
       ]),
-    ).toEqual(['project.members.view']);
+    ).toEqual([
+      'project.members.view',
+      'project.settings.view',
+      'project.settings.update',
+    ]);
   });
+
+
 });

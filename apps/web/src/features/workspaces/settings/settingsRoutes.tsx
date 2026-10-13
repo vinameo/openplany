@@ -8,7 +8,7 @@ import { MembersSettingsPage } from "./members/MembersSettingsPage";
 
 export function GeneralSettingsRoute() {
   return (
-    <SettingsSectionRoute sectionKey="general">
+    <SettingsSectionRoute>
       <GeneralSettingsPage />
     </SettingsSectionRoute>
   );
@@ -16,7 +16,7 @@ export function GeneralSettingsRoute() {
 
 export function MembersSettingsRoute() {
   return (
-    <SettingsSectionRoute sectionKey="members">
+    <SettingsSectionRoute>
       <MembersSettingsPage />
     </SettingsSectionRoute>
   );

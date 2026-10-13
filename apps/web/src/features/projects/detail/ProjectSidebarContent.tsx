@@ -14,7 +14,8 @@ import { NewWorkItemButton } from "../../workspaces/shell/NewWorkItemButton";
 import { SidebarCollapseButton } from "../../workspaces/shell/SidebarCollapseButton";
 import { SidebarNavItem } from "../../workspaces/shell/SidebarNavItem";
 import classes from "../../workspaces/shell/sidebarContent.module.css";
-import { projectPath } from "../projectPaths";
+import { projectPath, projectSettingsPath } from "../projectPaths";
+import { useCurrentProject } from "./currentProjectContext";
 
 interface ProjectNavItem {
   label: string;
@@ -34,10 +35,19 @@ const PROJECT_NAV_ITEMS: readonly ProjectNavItem[] = [
 export function ProjectSidebarContent() {
   const { workspace } = useCurrentWorkspace();
   const { projectIdentifier = "" } = useParams();
+  const { project } = useCurrentProject();
   const { pathname } = useLocation();
 
   const homePath = projectPath(workspace.slug, projectIdentifier);
+  const settingsPath = projectSettingsPath(workspace.slug, projectIdentifier);
   const currentPath = pathname.replace(/\/+$/, "");
+
+  const showSettings =
+    project === null || project.permissions.includes("project.settings.view");
+
+  const visibleItems = PROJECT_NAV_ITEMS.filter(
+    (item) => item.label !== "Settings" || showSettings,
+  );
 
   return (
     <>
@@ -73,18 +83,25 @@ export function ProjectSidebarContent() {
           <NewWorkItemButton />
 
           <ul role="list" className={classes.navList}>
-            {PROJECT_NAV_ITEMS.map((item) => {
+            {visibleItems.map((item) => {
               const to =
-                item.subPath === undefined
-                  ? undefined
-                  : `${homePath}${item.subPath}`;
+                item.label === "Settings"
+                  ? settingsPath
+                  : item.subPath === undefined
+                    ? undefined
+                    : `${homePath}${item.subPath}`;
+              const active =
+                to !== undefined &&
+                (currentPath === to ||
+                  (item.label === "Settings" &&
+                    currentPath.startsWith(`${settingsPath}/`)));
               return (
                 <li key={item.label}>
                   <SidebarNavItem
                     label={item.label}
                     icon={item.icon}
                     to={to}
-                    active={to !== undefined && currentPath === to}
+                    active={active}
                   />
                 </li>
               );
@@ -95,3 +112,4 @@ export function ProjectSidebarContent() {
     </>
   );
 }
+

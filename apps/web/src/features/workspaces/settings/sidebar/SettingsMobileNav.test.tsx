@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { AppUiProvider } from "@repo/ui";
-import { MemoryRouter, Route, Routes } from "react-router";
+import { createMemoryRouter, Outlet, RouterProvider } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 import { BuildingIcon } from "../../icons";
 import {
@@ -9,6 +9,7 @@ import {
 } from "../../currentWorkspace/currentWorkspaceContext";
 import { makeWorkspace } from "../../test/workspaceFixtures";
 import type { WorkspaceSettingsSection } from "../settingsSections";
+import type { SettingsSectionHandle } from "../../../settings/settingsSectionHandle";
 import { SettingsMobileNav } from "./SettingsMobileNav";
 
 describe("SettingsMobileNav", () => {
@@ -35,22 +36,35 @@ describe("SettingsMobileNav", () => {
       },
     ];
 
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/:workspaceSlug/settings",
+          element: (
+            <CurrentWorkspaceContext value={contextVal}>
+              <Outlet />
+            </CurrentWorkspaceContext>
+          ),
+          children: [
+            {
+              path: "general",
+              handle: { settingsSection: "general" } satisfies SettingsSectionHandle,
+              element: <SettingsMobileNav sections={mockSections} />,
+            },
+            {
+              path: "members",
+              handle: { settingsSection: "members" } satisfies SettingsSectionHandle,
+              element: <div>Members Page</div>,
+            },
+          ],
+        },
+      ],
+      { initialEntries: ["/openstudy/settings/general"] },
+    );
+
     render(
       <AppUiProvider>
-        <CurrentWorkspaceContext value={contextVal}>
-          <MemoryRouter initialEntries={["/openstudy/settings/general"]}>
-            <Routes>
-              <Route
-                path="/:workspaceSlug/settings/:section"
-                element={<SettingsMobileNav sections={mockSections} />}
-              />
-              <Route
-                path="/:workspaceSlug/settings/members"
-                element={<div>Members Page</div>}
-              />
-            </Routes>
-          </MemoryRouter>
-        </CurrentWorkspaceContext>
+        <RouterProvider router={router} />
       </AppUiProvider>,
     );
 

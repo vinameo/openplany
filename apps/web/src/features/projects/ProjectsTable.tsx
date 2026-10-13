@@ -16,7 +16,6 @@ import classes from "./ProjectsTable.module.css";
 interface ProjectsTableProps {
   projects: readonly ProjectListItem[];
   workspaceSlug: string;
-  timeZone?: string;
   sort: SortState<ProjectSortKey>;
   onSortChange: (sort: SortState<ProjectSortKey>) => void;
 }
@@ -24,7 +23,6 @@ interface ProjectsTableProps {
 export function ProjectsTable({
   projects,
   workspaceSlug,
-  timeZone,
   sort,
   onSortChange,
 }: ProjectsTableProps) {
@@ -95,7 +93,7 @@ export function ProjectsTable({
               </Table.Td>
               <Table.Td className={classes.dateCell}>
                 <Text size="sm">
-                  {formatCalendarDate(project.createdAt, timeZone)}
+                  {formatCalendarDate(project.createdAt, project.effectiveTimezone)}
                 </Text>
               </Table.Td>
             </Table.Tr>

@@ -29,6 +29,9 @@ const sampleProject: ProjectListItem = {
   icon: { name: "rocket", color: "#15AABF" },
   coverKey: "cover-01",
   createdAt: "2026-10-12T10:00:00.000Z",
+  updatedAt: "2026-10-12T10:00:00.000Z",
+  timezone: null,
+  effectiveTimezone: "Asia/Ho_Chi_Minh",
   members: [],
   memberCount: 0,
   role: "admin",
@@ -463,12 +466,18 @@ describe("ProjectLayout (Ticket 04 tracer bullet)", () => {
       "Settings",
     ]);
 
-    // Only Home has href
+    // Home and Settings have href
     const homeLink = screen.getByRole("link", { name: "Home" });
     expect(homeLink).toHaveAttribute("href", "/the-firsts/projects/TFP11");
 
+    const settingsLink = screen.getByRole("link", { name: "Settings" });
+    expect(settingsLink).toHaveAttribute(
+      "href",
+      "/the-firsts/projects/TFP11/settings",
+    );
+
     // Other items are buttons with aria-disabled="true" and no href
-    for (const name of ["Work items", "Milestones", "Pages", "Settings"]) {
+    for (const name of ["Work items", "Milestones", "Pages"]) {
       const btn = screen.getByRole("button", { name });
       expect(btn).toHaveAttribute("aria-disabled", "true");
       expect(btn).not.toHaveAttribute("href");
@@ -487,7 +496,6 @@ describe("ProjectLayout (Ticket 04 tracer bullet)", () => {
       screen.getByRole("button", { name: "Work items" }),
       screen.getByRole("button", { name: "Milestones" }),
       screen.getByRole("button", { name: "Pages" }),
-      screen.getByRole("button", { name: "Settings" }),
     ];
 
     for (const btn of comingSoonButtons) {
@@ -495,6 +503,7 @@ describe("ProjectLayout (Ticket 04 tracer bullet)", () => {
       expect(router.state.location.pathname).toBe("/the-firsts/projects/TFP11");
     }
   });
+
 
   it("AC-07: breadcrumb current page 'Home' has aria-current='page' and is not a link", async () => {
     renderProjectApp();

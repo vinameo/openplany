@@ -1,11 +1,13 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import {
+  pickChangedFields,
   PROJECT_ERROR_MESSAGES,
   PROJECT_MEMBER_PREVIEW_MAX,
   type CreateProjectResponse,
   type ProjectListItem,
   type ProjectListResponse,
   type ProjectResponse,
+  type UpdateProjectResponse,
 } from '@repo/contracts';
 import { Clock } from '../auth/clock.js';
 import { ApiException } from '../common/apiException.js';
@@ -18,7 +20,9 @@ import type { CreateProjectDto } from './dto/createProject.dto.js';
 import {
   toProjectListItem,
   type ProjectMembersPreview,
+  type ProjectRow,
 } from './dto/projectResponse.js';
+import type { UpdateProjectDto } from './dto/updateProject.dto.js';
 import { ProjectEvents } from './events/projectEvents.js';
 import {
   ProjectIdentifierTakenError,
@@ -28,6 +32,8 @@ import { ProjectsRepository } from './repositories/projects.repository.js';
 
 @Injectable()
 export class ProjectsService {
+  private readonly logger = new Logger(ProjectsService.name);
+
   constructor(
     private readonly repository: ProjectsRepository,
     private readonly resolver: ProjectAccessResolver,
@@ -145,6 +151,179 @@ export class ProjectsService {
     return { project };
   }
 
+  async update(
+    workspace: MemberWorkspace,
+    accessible: AccessibleProject,
+    actorId: string,
+    dto: UpdateProjectDto,
+    requestId?: string,
+  ): Promise<UpdateProjectResponse> {
+    const requested: Partial<{
+      name: string;
+      description: string;
+      iconName: string;
+      iconColor: string;
+      coverKey: string;
+      timezone: string | null;
+    }> = {};
+
+    let hasAny = false;
+    if (dto.name !== undefined) {
+      requested.name = dto.name;
+      hasAny = true;
+    }
+    if (dto.description !== undefined) {
+      requested.description = dto.description;
+      hasAny = true;
+    }
+    if (dto.icon !== undefined) {
+      requested.iconName = dto.icon.name;
+      requested.iconColor = dto.icon.color;
+      hasAny = true;
+    }
+    if (dto.coverKey !== undefined) {
+      requested.coverKey = dto.coverKey;
+      hasAny = true;
+    }
+    if (dto.timezone !== undefined) {
+      requested.timezone = dto.timezone;
+      hasAny = true;
+    }
+
+    if (!hasAny) {
+      throw new ApiException(
+        HttpStatus.BAD_REQUEST,
+        'VALIDATION_ERROR',
+        'Nothing to update',
+      );
+    }
+
+    const EDITABLE_PROJECT_FIELDS = [
+      'name',
+      'description',
+      'iconName',
+      'iconColor',
+      'coverKey',
+      'timezone',
+    ] as const;
+
+    const changes = pickChangedFields(
+      accessible.project,
+      requested,
+      EDITABLE_PROJECT_FIELDS,
+    );
+
+    // If icon changed (either name or color), send both iconName and iconColor
+    if (changes.iconName !== undefined || changes.iconColor !== undefined) {
+      changes.iconName = requested.iconName;
+      changes.iconColor = requested.iconColor;
+    }
+
+    if (Object.keys(changes).length === 0) {
+      return this.get(workspace, accessible);
+    }
+
+    let saved: ProjectRow | null;
+    try {
+      saved = await this.repository.update({
+        projectId: accessible.project.id,
+        workspaceId: workspace.id,
+        actorId,
+        now: this.clock.now(),
+        changes,
+      });
+    } catch (err: unknown) {
+      if (err instanceof ProjectNameTakenError) {
+        throw new ApiException(
+          HttpStatus.CONFLICT,
+          'PROJECT_NAME_TAKEN',
+          PROJECT_ERROR_MESSAGES.nameTaken,
+          { fields: { name: PROJECT_ERROR_MESSAGES.nameTaken } },
+        );
+      }
+      throw err;
+    }
+
+    if (saved === null) {
+      throw new ApiException(
+        HttpStatus.NOT_FOUND,
+        'PROJECT_NOT_FOUND',
+        PROJECT_ERROR_MESSAGES.notFound,
+      );
+    }
+
+    const [project] = await this.withMembers(
+      [{ project: saved, access: accessible.access }],
+      workspace,
+    );
+
+    if (project === undefined) {
+      throw new Error(
+        `Updated project ${accessible.project.id} produced no list item`,
+      );
+    }
+
+    const fields: string[] = [];
+    if (changes.name !== undefined) fields.push('name');
+    if (changes.description !== undefined) fields.push('description');
+    if (changes.iconName !== undefined || changes.iconColor !== undefined) {
+      fields.push('icon');
+    }
+    if (changes.coverKey !== undefined) fields.push('coverKey');
+    if (changes.timezone !== undefined) fields.push('timezone');
+
+    try {
+      await this.events.updated({
+        projectId: saved.id,
+        workspaceId: workspace.id,
+        actorId,
+        requestId,
+        fields,
+      });
+    } catch (err: unknown) {
+      this.logger.error(
+        `project.updated_event_failed projectId=${saved.id} workspaceId=${workspace.id} actorId=${actorId} error=${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+
+    return { project };
+  }
+
+  async delete(
+    workspace: MemberWorkspace,
+    accessible: AccessibleProject,
+    actorId: string,
+    requestId?: string,
+  ): Promise<void> {
+    const deleted = await this.repository.softDelete({
+      projectId: accessible.project.id,
+      workspaceId: workspace.id,
+      actorId,
+      now: this.clock.now(),
+    });
+
+    if (!deleted) {
+      throw new ApiException(
+        HttpStatus.NOT_FOUND,
+        'PROJECT_NOT_FOUND',
+        PROJECT_ERROR_MESSAGES.notFound,
+      );
+    }
+
+    try {
+      await this.events.deleted({
+        projectId: accessible.project.id,
+        workspaceId: workspace.id,
+        actorId,
+        requestId,
+      });
+    } catch (err: unknown) {
+      this.logger.error(
+        `project.deleted_event_failed projectId=${accessible.project.id} workspaceId=${workspace.id} actorId=${actorId} error=${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
   /**
    * The one place that decides which member data a viewer gets: only for
    * projects where they hold project.members.view, emails only with
@@ -175,6 +354,7 @@ export class ProjectsService {
         canSee.has(project.id)
           ? (previews.get(project.id) ?? { members: [], total: 0 })
           : null,
+        workspace.timezone,
       ),
     );
   }

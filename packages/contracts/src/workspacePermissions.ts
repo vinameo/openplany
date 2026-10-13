@@ -6,6 +6,7 @@ export const ENFORCED_WORKSPACE_PERMISSIONS = [
   'workspace.members.email.view',
   'workspace.members.add',
   'workspace.projects.create',
+  'workspace.projects.delete',
 ] as const satisfies readonly WorkspacePermission[];
 
 export type EnforcedWorkspacePermission =

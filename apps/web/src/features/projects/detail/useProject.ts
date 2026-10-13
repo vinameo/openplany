@@ -4,7 +4,7 @@ import type { ProjectListItem, ProjectListResponse } from "@repo/contracts";
 import { ApiRequestError } from "../../../lib/apiClient";
 import { useAuth } from "../../auth/useAuth";
 import { projectsApi } from "../api/projectsApi";
-import { projectKeys } from "../api/projectQueries";
+import { projectKeys, replaceProjectInCache } from "../api/projectQueries";
 
 export type ProjectState =
   | { status: "idle" }
@@ -81,20 +81,7 @@ export function useProject(
 
   const replace = useCallback(
     (project: ProjectListItem) => {
-      queryClient.setQueryData(
-        projectKeys.detail(slug, project.identifier),
-        project,
-      );
-      queryClient.setQueryData<ProjectListResponse>(
-        projectKeys.list(slug),
-        (curr) =>
-          curr && {
-            ...curr,
-            projects: curr.projects.map((p) =>
-              p.id === project.id ? project : p,
-            ),
-          },
-      );
+      replaceProjectInCache(queryClient, slug, project);
     },
     [queryClient, slug],
   );
