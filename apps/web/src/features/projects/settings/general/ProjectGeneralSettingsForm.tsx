@@ -134,6 +134,7 @@ export function ProjectGeneralSettingsForm({
             <TimezoneSelect
               label="Project Timezone"
               description="Dates in this project, such as due dates, are read in this time zone."
+              inputWrapperOrder={["label", "input", "description", "error"]}
               value={form.values.timezone}
               onChange={(val) => form.setFieldValue("timezone", val)}
               readOnly={!canEdit}
