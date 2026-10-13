@@ -616,7 +616,90 @@ describe('ProjectMembersService', () => {
         },
       });
     });
+
+    it('maps role_unknown to 400 VALIDATION_ERROR on every row role', async () => {
+      repo.addResult = { status: 'role_unknown' };
+
+      await expect(
+        service.add(
+          workspace,
+          project,
+          'actor-admin',
+          {
+            members: [
+              { userId: 'u-1', role: 'contributor' },
+              { userId: 'u-2', role: 'commenter' },
+            ],
+          },
+          'req-role-unknown',
+        ),
+      ).rejects.toMatchObject({
+        status: 400,
+        code: 'VALIDATION_ERROR',
+        message: MEMBER_MESSAGES.checkFields,
+        fields: {
+          'members.0.role': MEMBER_MESSAGES.chooseRole,
+          'members.1.role': MEMBER_MESSAGES.chooseRole,
+        },
+      });
+    });
+  });
+
+  describe('add row rule (rowRejection given to the repository)', () => {
+    async function rowRejectionOf() {
+      await service.add(
+        workspace,
+        project,
+        'actor-admin',
+        { members: [{ userId: 'u-1', role: 'contributor' }] },
+        'req-row-rule',
+      );
+      const input = repo.lastAddInput!;
+      const context = {
+        actor: {
+          userId: 'actor-admin',
+          workspaceRole: workspace.role,
+          effectiveRole: project.access.role,
+          permissions: project.access.permissions,
+        },
+        projectPermissions: project.access.permissions,
+        workspacePermissions: workspace.permissions,
+      };
+      return (
+        target: {
+          workspaceRole: MemberWorkspace['role'];
+          alreadyMember: boolean;
+        },
+        role: Parameters<AddProjectMembersInput['rowRejection']>[2],
+      ) => input.rowRejection(context, { userId: 'u-9', ...target }, role);
+    }
+
+    it('rejects a workspace role with implicit project access before checking membership', async () => {
+      const reject = await rowRejectionOf();
+      expect(
+        reject({ workspaceRole: 'admin', alreadyMember: true }, 'contributor'),
+      ).toBe('workspace_admin');
+    });
+
+    it('rejects someone who is already an active member', async () => {
+      const reject = await rowRejectionOf();
+      expect(
+        reject({ workspaceRole: 'member', alreadyMember: true }, 'contributor'),
+      ).toBe('already_member');
+    });
+
+    it('rejects a role above what the target workspace role allows', async () => {
+      const reject = await rowRejectionOf();
+      expect(
+        reject({ workspaceRole: 'guest', alreadyMember: false }, 'admin'),
+      ).toBe('role_not_allowed');
+    });
+
+    it('accepts an addable workspace member with an allowed role', async () => {
+      const reject = await rowRejectionOf();
+      expect(
+        reject({ workspaceRole: 'member', alreadyMember: false }, 'contributor'),
+      ).toBeNull();
+    });
   });
 });
-
-

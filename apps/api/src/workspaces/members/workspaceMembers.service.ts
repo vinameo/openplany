@@ -13,7 +13,10 @@ import {
   type WorkspaceRole,
 } from '@repo/contracts';
 import { ApiException } from '../../common/apiException.js';
-import { duplicateMemberRowFields } from '../../common/memberRows.js';
+import {
+  duplicateMemberRowFields,
+  unknownRoleFields,
+} from '../../common/memberRows.js';
 import { Clock } from '../../auth/clock.js';
 import type { MemberWorkspace } from '../repositories/workspaces.repository.js';
 import { WorkspaceMembersRepository } from './workspaceMembers.repository.js';
@@ -163,6 +166,15 @@ export class WorkspaceMembersService {
         HttpStatus.NOT_FOUND,
         'NOT_FOUND',
         'Workspace not found',
+      );
+    }
+
+    if (result.status === 'role_unknown') {
+      throw new ApiException(
+        HttpStatus.BAD_REQUEST,
+        'VALIDATION_ERROR',
+        MEMBER_MESSAGES.checkFields,
+        { fields: unknownRoleFields(dto.members) },
       );
     }
 

@@ -31,3 +31,18 @@ export function duplicateMemberRowFields(
 
   return duplicateFields;
 }
+
+/**
+ * `members.<i>.role` mapped to MEMBER_MESSAGES.chooseRole for every row. Used
+ * when the database rejects the batch's roles (foreign key on `roles`), which
+ * cannot be pinned to one row.
+ */
+export function unknownRoleFields(
+  members: readonly unknown[],
+): Record<string, string> {
+  const fields: Record<string, string> = {};
+  members.forEach((_, index) => {
+    fields[`members.${index}.role`] = MEMBER_MESSAGES.chooseRole;
+  });
+  return fields;
+}

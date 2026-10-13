@@ -1,4 +1,9 @@
-import { PROJECT_LIST_MAX } from '@repo/contracts';
+import {
+  PROJECT_LIST_MAX,
+  type ProjectAccess,
+  type ProjectAccessInput,
+} from '@repo/contracts';
+import type { EntityManager } from 'typeorm';
 import {
   ProjectAccessResolver,
   type AccessibleProject,
@@ -64,6 +69,18 @@ export class FakeProjectAccessResolver extends ProjectAccessResolver {
   ): Promise<ProjectLookup> {
     this.lastLookupInput = viewer;
     return this.lookup;
+  }
+
+  /** What forMembership returns. */
+  public membershipAccess: ProjectAccess | null = null;
+  public lastMembership?: ProjectAccessInput;
+
+  async forMembership(
+    _manager: EntityManager,
+    membership: ProjectAccessInput,
+  ): Promise<ProjectAccess | null> {
+    this.lastMembership = membership;
+    return this.membershipAccess;
   }
 }
 

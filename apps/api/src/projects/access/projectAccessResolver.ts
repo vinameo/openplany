@@ -5,6 +5,7 @@ import {
   resolveProjectAccess,
   workspaceRolesWithImplicitProjectAccess,
   type ProjectAccess,
+  type ProjectAccessInput,
   type ProjectRole,
   type ProjectRolePermissions,
   type WorkspaceRole,
@@ -72,6 +73,17 @@ export abstract class ProjectAccessResolver {
   abstract forIdentifier(
     viewer: ProjectViewer & { identifier: string },
   ): Promise<ProjectLookup>;
+
+  /**
+   * Access from membership rows the caller already read, and locked, with
+   * `manager` inside its own transaction. A write that re-checks access after
+   * taking its locks calls this instead of deciding access itself, so it can
+   * never disagree with the guard that let the request in.
+   */
+  abstract forMembership(
+    manager: EntityManager,
+    membership: ProjectAccessInput,
+  ): Promise<ProjectAccess | null>;
 }
 
 interface AccessScope {
@@ -147,6 +159,16 @@ export class TypeOrmProjectAccessResolver extends ProjectAccessResolver {
     return accessible === undefined
       ? { kind: 'forbidden', projectId: project.id }
       : { kind: 'accessible', project: accessible };
+  }
+
+  async forMembership(
+    manager: EntityManager,
+    membership: ProjectAccessInput,
+  ): Promise<ProjectAccess | null> {
+    return resolveProjectAccess(
+      membership,
+      await loadProjectRoleMatrix(manager),
+    );
   }
 }
 

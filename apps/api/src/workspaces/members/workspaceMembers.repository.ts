@@ -14,6 +14,8 @@ export type AddMembersResult =
   | { status: 'added'; members: WorkspaceMemberRow[]; reactivatedCount: number }
   | { status: 'rejected'; rows: { index: number; reason: MemberNotAddableReason }[] }
   | { status: 'actor_forbidden' }
+  /** The database rejected a role of the batch (foreign key on `roles`). */
+  | { status: 'role_unknown' }
   | { status: 'workspace_gone' };
 
 export abstract class WorkspaceMembersRepository {

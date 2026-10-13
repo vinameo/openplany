@@ -4,6 +4,7 @@ import { MEMBER_MESSAGES } from '@repo/contracts';
 import {
   duplicateMemberRowFields,
   toCanonicalUserId,
+  unknownRoleFields,
 } from './memberRows.js';
 
 describe('duplicateMemberRowFields', () => {
@@ -43,5 +44,14 @@ describe('toCanonicalUserId', () => {
   it('leaves non-string values for the validator to reject', () => {
     expect(toCanonicalUserId({ value: 42 } as TransformFnParams)).toBe(42);
     expect(toCanonicalUserId({ value: null } as TransformFnParams)).toBeNull();
+  });
+});
+
+describe('unknownRoleFields', () => {
+  it('marks the role of every row', () => {
+    expect(unknownRoleFields([{}, {}])).toEqual({
+      'members.0.role': MEMBER_MESSAGES.chooseRole,
+      'members.1.role': MEMBER_MESSAGES.chooseRole,
+    });
   });
 });

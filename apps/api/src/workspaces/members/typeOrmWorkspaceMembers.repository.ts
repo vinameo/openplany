@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import {
   DataSource,
   In,
@@ -14,7 +14,6 @@ import {
 } from '@repo/contracts';
 import { User } from '../../auth/entities/user.entity.js';
 import { ADDABLE_USER } from '../../auth/addableUser.js';
-import { ApiException } from '../../common/apiException.js';
 import { isForeignKeyViolation } from '../../common/databaseErrors.js';
 import { runTransactionWithRetry } from '../../database/transactionRetry.js';
 import {
@@ -164,13 +163,13 @@ export class TypeOrmWorkspaceMembersRepository extends WorkspaceMembersRepositor
         },
       );
     } catch (err: unknown) {
+      // Every other reference is locked before the write, so only a role the
+      // `roles` table no longer holds can break a foreign key here.
       if (isForeignKeyViolation(err)) {
-        throw new ApiException(
-          HttpStatus.BAD_REQUEST,
-          'VALIDATION_ERROR',
-          'Check the highlighted fields',
-          { fields: { members: 'Invalid role' } },
+        this.logger.warn(
+          `workspace.members.add.role_unknown workspaceId=${input.workspaceId} requestId=${input.requestId}`,
         );
+        return { status: 'role_unknown' };
       }
       throw err;
     }
