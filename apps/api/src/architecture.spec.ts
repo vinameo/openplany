@@ -8,7 +8,11 @@ import {
 } from '@nestjs/common/constants.js';
 import { SessionGuard } from './auth/guards/sessionGuard.js';
 import { ProjectAccessGuard } from './projects/access/projectAccessGuard.js';
-import { ProjectPermissionGuard } from './projects/access/projectPermissionGuard.js';
+import {
+  PROJECT_PERMISSION_KEY,
+  ProjectPermissionGuard,
+} from './projects/access/projectPermissionGuard.js';
+import { WORKSPACE_PERMISSION_KEY } from './workspaces/workspaceAccess.decorator.js';
 import { WorkspaceMemberGuard } from './workspaces/workspaceMemberGuard.js';
 import { WorkspacePermissionGuard } from './workspaces/workspacePermissionGuard.js';
 import { WorkspaceWriteRateLimitGuard } from './workspaces/workspaceWriteRateLimitGuard.js';
@@ -34,6 +38,8 @@ interface Route {
   key: string;
   path: string;
   guards: unknown[];
+  projectPermission?: unknown;
+  workspacePermission?: unknown;
 }
 
 function sourceFiles(dir: string, suffix: string): string[] {
@@ -79,6 +85,14 @@ async function collectRoutes(): Promise<Route[]> {
             ...((Reflect.getMetadata(GUARDS_METADATA, handler) as
               unknown[] | undefined) ?? []),
           ],
+          projectPermission: Reflect.getMetadata(
+            PROJECT_PERMISSION_KEY,
+            handler,
+          ),
+          workspacePermission: Reflect.getMetadata(
+            WORKSPACE_PERMISSION_KEY,
+            handler,
+          ),
         });
       }
     }
@@ -186,6 +200,25 @@ describe('Architecture', () => {
       );
       const memberIndex = route.guards.indexOf(WorkspaceMemberGuard);
       expect(rateLimitIndex).toBeLessThan(memberIndex);
+    }
+  });
+
+  it('enforces both permission guards in order after ProjectAccessGuard on routes with dual permission metadata (API B3)', () => {
+    const dualRoutes = routes.filter(
+      (r) => r.projectPermission && r.workspacePermission,
+    );
+    for (const route of dualRoutes) {
+      expect(route.guards).toContain(ProjectAccessGuard);
+      expect(route.guards).toContain(ProjectPermissionGuard);
+      expect(route.guards).toContain(WorkspacePermissionGuard);
+
+      const accessIndex = route.guards.indexOf(ProjectAccessGuard);
+      const projPermIndex = route.guards.indexOf(ProjectPermissionGuard);
+      const wsPermIndex = route.guards.indexOf(WorkspacePermissionGuard);
+
+      expect(projPermIndex).toBeGreaterThan(accessIndex);
+      expect(wsPermIndex).toBeGreaterThan(accessIndex);
+      expect(wsPermIndex).toBeGreaterThan(projPermIndex);
     }
   });
 });

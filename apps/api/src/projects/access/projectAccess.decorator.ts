@@ -1,8 +1,10 @@
 import {
   applyDecorators,
+  type CanActivate,
   createParamDecorator,
   type ExecutionContext,
   SetMetadata,
+  type Type,
   UseGuards,
 } from '@nestjs/common';
 import type {
@@ -21,9 +23,70 @@ import {
   ProjectPermissionGuard,
 } from './projectPermissionGuard.js';
 
-export type ProjectWriteRequirement =
+export type ProjectRequirement =
   | EnforcedProjectPermission
-  | { workspace: EnforcedWorkspacePermission };
+  | { workspace: EnforcedWorkspacePermission }
+  | {
+      project: EnforcedProjectPermission;
+      workspace: EnforcedWorkspacePermission;
+    };
+
+export type ProjectWriteRequirement = ProjectRequirement;
+
+export interface ProjectGuardsDefinition {
+  guards: Type<CanActivate>[];
+  projectPermission?: EnforcedProjectPermission;
+  workspacePermission?: EnforcedWorkspacePermission;
+}
+
+/**
+ * Returns guards and permission metadata for reading a project route.
+ * Reused by ProjectRead, ProjectWrite and ProjectMemberCandidateSearch.
+ */
+export function projectReadGuards(
+  requirement?: ProjectRequirement,
+): ProjectGuardsDefinition {
+  const guards: Type<CanActivate>[] = [
+    WorkspaceMemberGuard,
+    ProjectAccessGuard,
+  ];
+  let projectPermission: EnforcedProjectPermission | undefined;
+  let workspacePermission: EnforcedWorkspacePermission | undefined;
+
+  if (requirement !== undefined) {
+    if (typeof requirement === 'string') {
+      projectPermission = requirement;
+      guards.push(ProjectPermissionGuard);
+    } else if ('project' in requirement && 'workspace' in requirement) {
+      projectPermission = requirement.project;
+      workspacePermission = requirement.workspace;
+      guards.push(ProjectPermissionGuard, WorkspacePermissionGuard);
+    } else if ('workspace' in requirement) {
+      workspacePermission = requirement.workspace;
+      guards.push(WorkspacePermissionGuard);
+    }
+  }
+
+  return { guards, projectPermission, workspacePermission };
+}
+
+function toDecorators(
+  def: ProjectGuardsDefinition,
+  leadingGuards: Type<CanActivate>[] = [],
+): (ClassDecorator | MethodDecorator | PropertyDecorator)[] {
+  const decorators: (ClassDecorator | MethodDecorator | PropertyDecorator)[] =
+    [];
+  if (def.projectPermission !== undefined) {
+    decorators.push(SetMetadata(PROJECT_PERMISSION_KEY, def.projectPermission));
+  }
+  if (def.workspacePermission !== undefined) {
+    decorators.push(
+      SetMetadata(WORKSPACE_PERMISSION_KEY, def.workspacePermission),
+    );
+  }
+  decorators.push(UseGuards(...leadingGuards, ...def.guards));
+  return decorators;
+}
 
 /**
  * Every read under /api/workspaces/:slug/projects/:identifier uses this, so
@@ -31,43 +94,19 @@ export type ProjectWriteRequirement =
  * Without a permission, any viewer who can access the project passes.
  */
 export function ProjectRead(
-  permission?: EnforcedProjectPermission,
+  requirement?: ProjectRequirement,
 ): MethodDecorator {
-  return permission === undefined
-    ? applyDecorators(UseGuards(WorkspaceMemberGuard, ProjectAccessGuard))
-    : applyDecorators(
-        SetMetadata(PROJECT_PERMISSION_KEY, permission),
-        UseGuards(
-          WorkspaceMemberGuard,
-          ProjectAccessGuard,
-          ProjectPermissionGuard,
-        ),
-      );
+  return applyDecorators(...toDecorators(projectReadGuards(requirement)));
 }
 
 /** Every write under /api/workspaces/:slug/projects/:identifier uses this. */
 export function ProjectWrite(
-  requirement: ProjectWriteRequirement,
+  requirement: ProjectRequirement,
 ): MethodDecorator {
-  if (typeof requirement === 'string') {
-    return applyDecorators(
-      SetMetadata(PROJECT_PERMISSION_KEY, requirement),
-      UseGuards(
-        WorkspaceWriteRateLimitGuard,
-        WorkspaceMemberGuard,
-        ProjectAccessGuard,
-        ProjectPermissionGuard,
-      ),
-    );
-  }
   return applyDecorators(
-    SetMetadata(WORKSPACE_PERMISSION_KEY, requirement.workspace),
-    UseGuards(
+    ...toDecorators(projectReadGuards(requirement), [
       WorkspaceWriteRateLimitGuard,
-      WorkspaceMemberGuard,
-      ProjectAccessGuard,
-      WorkspacePermissionGuard,
-    ),
+    ]),
   );
 }
 

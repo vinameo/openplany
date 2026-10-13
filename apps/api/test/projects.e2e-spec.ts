@@ -772,6 +772,59 @@ describe('Projects (e2e)', () => {
       expect(project.members[0].userId).toBe(ownerId);
     });
 
+    it('excludes former workspace members from both members preview and memberCount (RQ AC-02, DB-04)', async () => {
+      const {
+        workspace,
+        ownerId,
+        cookie: adminCookie,
+      } = await seedWorkspace('owner-former-mem@openplany.dev', 'former-mem-ws');
+      const projectId = await insertProject(
+        workspace.id,
+        'Former Member Project',
+        'FMP',
+      );
+      await insertProjectMember(projectId, workspace.id, ownerId, 'admin');
+
+      const leaverId = await createUser('former-user@openplany.dev');
+      await addWorkspaceMember(workspace.id, leaverId, 'member', true);
+      await insertProjectMember(
+        projectId,
+        workspace.id,
+        leaverId,
+        'contributor',
+      );
+
+      // Before leaving: memberCount = 2, leaver is in members
+      const beforeRes = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', adminCookie)
+        .expect(200);
+      expect(beforeRes.body.projects[0].memberCount).toBe(2);
+      expect(
+        beforeRes.body.projects[0].members.some(
+          (m: { userId: string }) => m.userId === leaverId,
+        ),
+      ).toBe(true);
+
+      // Now member leaves the workspace (wm.isActive = false)
+      await e2e.dataSource.query(
+        `UPDATE workspace_members SET is_active = false WHERE workspace_id = $1 AND member_id = $2`,
+        [workspace.id, leaverId],
+      );
+
+      // After leaving: former workspace member is excluded from both members and memberCount
+      const afterRes = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', adminCookie)
+        .expect(200);
+      expect(afterRes.body.projects[0].memberCount).toBe(1);
+      expect(
+        afterRes.body.projects[0].members.some(
+          (m: { userId: string }) => m.userId === leaverId,
+        ),
+      ).toBe(false);
+    });
+
     it('reports the real total when the list is cut at PROJECT_LIST_MAX', async () => {
       const { workspace, cookie: adminCookie } = await seedWorkspace(
         'owner-total@openplany.dev',
