@@ -129,6 +129,16 @@ export const theme = createTheme({
         radius: 'md'
       }
     },
+    // Absolutely positioned content in a table (VisuallyHidden captions and cell
+    // hints) must be clipped by the scroll container; otherwise a wide table
+    // widens the page and mobile browsers widen the layout viewport with it.
+    TableScrollContainer: {
+      styles: {
+        scrollContainer: {
+          position: 'relative'
+        }
+      }
+    },
     Modal: {
       defaultProps: {
         centered: false,
