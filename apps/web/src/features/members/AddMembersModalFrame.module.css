@@ -1,16 +1,50 @@
+.memberRow {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: var(--mantine-spacing-xs);
+  width: 100%;
+  min-width: 0;
+}
+
 .candidateField {
   flex: 1;
-  min-width: rem(280px);
-
-  @media (max-width: $mantine-breakpoint-sm) {
-    min-width: 100%;
-  }
+  min-width: rem(240px);
+  max-width: 100%;
 }
 
 .roleGroup {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--mantine-spacing-xs);
   min-width: rem(160px);
 }
 
 .roleSelect {
   width: rem(140px);
+}
+
+@media (max-width: $mantine-breakpoint-sm) {
+  .memberRow {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--mantine-spacing-xs);
+  }
+
+  .candidateField {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    flex: none;
+  }
+
+  .roleGroup {
+    width: 100%;
+    min-width: 0;
+    justify-content: flex-start;
+  }
+
+  .roleSelect {
+    width: rem(160px);
+  }
 }

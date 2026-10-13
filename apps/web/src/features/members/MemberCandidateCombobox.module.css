@@ -1,7 +1,11 @@
 .input {
   flex: 1;
+  width: 100%;
+  min-width: 0;
 }
 
 .selectedValue {
   height: 100%;
+  min-width: 0;
+  overflow: hidden;
 }
