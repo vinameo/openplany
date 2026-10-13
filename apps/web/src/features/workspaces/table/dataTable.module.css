@@ -1,9 +1,12 @@
 .scrollContainer {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .scrollContainer > div {
   width: 100%;
+  max-width: 100%;
 }
 
 .table {

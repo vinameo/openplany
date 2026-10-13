@@ -17,6 +17,8 @@
 .sectionBody {
   padding: 24px;
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   box-sizing: border-box;
 }
 
@@ -27,5 +29,7 @@
 
   .sectionBody {
     padding: 16px;
+    min-width: 0;
+    max-width: 100%;
   }
 }
