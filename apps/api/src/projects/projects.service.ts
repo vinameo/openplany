@@ -1,6 +1,7 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import {
   pickChangedFields,
+  projectCreatorMembershipRole,
   PROJECT_ERROR_MESSAGES,
   PROJECT_MEMBER_PREVIEW_MAX,
   type CreateProjectResponse,
@@ -11,6 +12,7 @@ import {
 } from '@repo/contracts';
 import { Clock } from '../auth/clock.js';
 import { ApiException } from '../common/apiException.js';
+import { ProjectAccessPolicyStore } from '../roles/projectAccessPolicyStore.js';
 import type { MemberWorkspace } from '../workspaces/repositories/workspaces.repository.js';
 import {
   ProjectAccessResolver,
@@ -39,6 +41,7 @@ export class ProjectsService {
     private readonly resolver: ProjectAccessResolver,
     private readonly clock: Clock,
     private readonly events: ProjectEvents,
+    private readonly policyStore: ProjectAccessPolicyStore,
   ) {}
 
   async list(
@@ -90,6 +93,8 @@ export class ProjectsService {
     requestId?: string,
   ): Promise<CreateProjectResponse> {
     const now = this.clock.now();
+    const policy = this.policyStore.policies()[workspace.role];
+    const creatorRole = projectCreatorMembershipRole(policy);
 
     let createdId: string;
     try {
@@ -104,6 +109,7 @@ export class ProjectsService {
         iconName: dto.icon.name,
         iconColor: dto.icon.color,
         coverKey: dto.coverKey,
+        creatorRole,
       });
       createdId = res.projectId;
     } catch (err: unknown) {

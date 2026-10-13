@@ -59,10 +59,7 @@ export class TypeOrmProjectsRepository extends ProjectsRepository {
         'ROW_NUMBER() OVER (PARTITION BY pm.projectId ORDER BY pm.joinedAt ASC, pm.memberId ASC)',
         'member_rank',
       )
-      .addSelect(
-        'COUNT(*) OVER (PARTITION BY pm.projectId)',
-        'member_total',
-      );
+      .addSelect('COUNT(*) OVER (PARTITION BY pm.projectId)', 'member_total');
 
     if (opts.includeEmail) {
       subQuery.addSelect('u.email', 'email');
@@ -148,33 +145,39 @@ export class TypeOrmProjectsRepository extends ProjectsRepository {
             deletedAt: null,
           });
 
-          // 2. insert ProjectMember (creator is Project Admin)
-          await manager.insert(ProjectMember, {
-            workspaceId,
-            projectId,
-            memberId: actorId,
-            roleScope: 'project',
-            role: PROJECT_CREATOR_ROLE,
-            isActive: true,
-            createdById: actorId,
-            joinedAt: now,
-            createdAt: now,
-            updatedAt: now,
-          });
+          // 2. insert ProjectMember (only if creatorRole is not null; Workspace Admins have implicit access and no project_members row)
+          const creatorRole =
+            input.creatorRole !== undefined
+              ? input.creatorRole
+              : PROJECT_CREATOR_ROLE;
+          if (creatorRole !== null) {
+            await manager.insert(ProjectMember, {
+              workspaceId,
+              projectId,
+              memberId: actorId,
+              roleScope: 'project',
+              role: creatorRole,
+              isActive: true,
+              createdById: actorId,
+              joinedAt: now,
+              createdAt: now,
+              updatedAt: now,
+            });
 
-          // 3. insert ProjectMemberRoleHistory
-          await manager.insert(ProjectMemberRoleHistory, {
-            workspaceId,
-            projectId,
-            memberId: actorId,
-            roleScope: 'project',
-            fromRole: null,
-            toRole: PROJECT_CREATOR_ROLE,
-            changeType: 'project_created',
-            actorId,
-            requestId: requestId ?? null,
-            createdAt: now,
-          });
+            // 3. insert ProjectMemberRoleHistory
+            await manager.insert(ProjectMemberRoleHistory, {
+              workspaceId,
+              projectId,
+              memberId: actorId,
+              roleScope: 'project',
+              fromRole: null,
+              toRole: creatorRole,
+              changeType: 'project_created',
+              actorId,
+              requestId: requestId ?? null,
+              createdAt: now,
+            });
+          }
 
           return { projectId };
         },

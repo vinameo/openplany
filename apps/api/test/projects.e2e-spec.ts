@@ -1035,11 +1035,10 @@ describe('Projects (e2e)', () => {
 
   describe('POST /api/workspaces/:slug/projects', () => {
     it('AC-01 & AC-23: admin creates project -> 201; 1 member (creator, admin); 1 history row; response matches GET', async () => {
-      const {
-        workspace,
-        ownerId,
-        cookie: adminCookie,
-      } = await seedWorkspace('admin-create@openplany.dev', 'create-ws');
+      const { workspace, cookie: adminCookie } = await seedWorkspace(
+        'admin-create@openplany.dev',
+        'create-ws',
+      );
 
       const res = await http()
         .post(`/api/workspaces/${workspace.slug}/projects`)
@@ -1064,13 +1063,12 @@ describe('Projects (e2e)', () => {
       expect(proj.coverKey).toBe('cover-02');
       expect(proj.role).toBe('admin');
       expect(proj.permissions).toContain('project.members.view');
-      expect(proj.members).toHaveLength(1);
-      expect(proj.members[0].userId).toBe(ownerId);
+      expect(proj.members).toHaveLength(0);
       expect(proj.timezone).toBeNull();
       expect(proj.effectiveTimezone).toBe('UTC');
       expect(typeof proj.updatedAt).toBe('string');
 
-      // Verify DB tables
+      // Verify DB tables (AC-08): Workspace Admin has NO project_members or history rows
       const projectsInDb = await e2e.dataSource.query<
         { id: string; name: string }[]
       >(`SELECT id, name FROM projects WHERE id = $1`, [proj.id]);
@@ -1082,10 +1080,7 @@ describe('Projects (e2e)', () => {
         `SELECT member_id, role, joined_at, created_at FROM project_members WHERE project_id = $1`,
         [proj.id],
       );
-      expect(membersInDb).toHaveLength(1);
-      expect(membersInDb[0]!.member_id).toBe(ownerId);
-      expect(membersInDb[0]!.role).toBe('admin');
-      expect(membersInDb[0]!.joined_at).toEqual(membersInDb[0]!.created_at);
+      expect(membersInDb).toHaveLength(0);
 
       const historyInDb = await e2e.dataSource.query<
         { change_type: string; request_id: string; to_role: string }[]
@@ -1093,10 +1088,14 @@ describe('Projects (e2e)', () => {
         `SELECT change_type, request_id, to_role FROM project_member_role_history WHERE project_id = $1`,
         [proj.id],
       );
-      expect(historyInDb).toHaveLength(1);
-      expect(historyInDb[0]!.change_type).toBe('project_created');
-      expect(historyInDb[0]!.request_id).toBe('req-create-1');
-      expect(historyInDb[0]!.to_role).toBe('admin');
+      expect(historyInDb).toHaveLength(0);
+
+      // Verify AC-08: Creator opens project with 200 and implicit admin role
+      const openRes = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/MAPP`)
+        .set('Cookie', adminCookie)
+        .expect(200);
+      expect(openRes.body.project.role).toBe('admin');
 
       // Verify AC-23: GET response row matches POST response
       const getRes = await http()
@@ -1172,6 +1171,26 @@ describe('Projects (e2e)', () => {
 
       expect(res.body.project.role).toBe('admin');
       expect(res.body.project.members[0].userId).toBe(memberId);
+
+      // Verify DB tables (AC-09): Member has project_members and role history row
+      const memberRows = await e2e.dataSource.query<
+        { member_id: string; role: string }[]
+      >(`SELECT member_id, role FROM project_members WHERE project_id = $1`, [
+        res.body.project.id,
+      ]);
+      expect(memberRows).toHaveLength(1);
+      expect(memberRows[0]!.member_id).toBe(memberId);
+      expect(memberRows[0]!.role).toBe('admin');
+
+      const historyRows = await e2e.dataSource.query<
+        { change_type: string; to_role: string }[]
+      >(
+        `SELECT change_type, to_role FROM project_member_role_history WHERE project_id = $1`,
+        [res.body.project.id],
+      );
+      expect(historyRows).toHaveLength(1);
+      expect(historyRows[0]!.change_type).toBe('project_created');
+      expect(historyRows[0]!.to_role).toBe('admin');
     });
 
     it('AC-05: duplicate name or identifier returns 409; concurrent creations result in one 201 and one 409', async () => {

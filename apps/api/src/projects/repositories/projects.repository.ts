@@ -1,3 +1,4 @@
+import type { ProjectRole } from '@repo/contracts';
 import type {
   ProjectMembersPreview,
   ProjectRow,
@@ -14,6 +15,7 @@ export interface CreateProjectInput {
   iconName: string;
   iconColor: string;
   coverKey: string;
+  creatorRole?: ProjectRole | null;
 }
 
 export interface UpdateProjectInput {

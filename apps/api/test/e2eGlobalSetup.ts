@@ -15,6 +15,7 @@ import { AddProjectTimezone1791608000000 } from '../src/database/migrations/1791
 import { AddProjectMemberJoinedAt1791609000000 } from '../src/database/migrations/1791609000000-AddProjectMemberJoinedAt.js';
 import { RenameProjectGuestToViewer1791610000000 } from '../src/database/migrations/1791610000000-RenameProjectGuestToViewer.js';
 import { CreateProjectAccessPolicies1791610100000 } from '../src/database/migrations/1791610100000-CreateProjectAccessPolicies.js';
+import { ApplyProjectAccessPolicies1791610200000 } from '../src/database/migrations/1791610200000-ApplyProjectAccessPolicies.js';
 import { e2eEnv } from './e2eEnv.js';
 
 export interface MigrationSeedSnapshot {
@@ -40,6 +41,7 @@ export const MIGRATIONS = [
   AddProjectMemberJoinedAt1791609000000,
   RenameProjectGuestToViewer1791610000000,
   CreateProjectAccessPolicies1791610100000,
+  ApplyProjectAccessPolicies1791610200000,
 ];
 
 /** Creates the e2e database if needed and brings it to the latest migration. */

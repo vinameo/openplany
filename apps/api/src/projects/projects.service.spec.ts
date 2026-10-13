@@ -15,6 +15,7 @@ import {
   FakeProjectEvents,
   FakeProjectsRepository,
 } from '../../test/fakes/projectsFakes.js';
+import { FakeProjectAccessPolicyStore } from '../../test/fakes/rolesFakes.js';
 import { makeMemberWorkspace } from '../../test/fakes/workspacesFakes.js';
 import { ApiException } from '../common/apiException.js';
 import type { AccessibleProject } from './access/projectAccessResolver.js';
@@ -47,8 +48,15 @@ describe('ProjectsService', () => {
     const resolver = new FakeProjectAccessResolver();
     const clock = new FakeClock();
     const events = new FakeProjectEvents();
-    const service = new ProjectsService(repository, resolver, clock, events);
-    return { service, repository, resolver, clock, events };
+    const policyStore = new FakeProjectAccessPolicyStore();
+    const service = new ProjectsService(
+      repository,
+      resolver,
+      clock,
+      events,
+      policyStore,
+    );
+    return { service, repository, resolver, clock, events, policyStore };
   }
 
   describe('list', () => {
@@ -319,8 +327,28 @@ describe('ProjectsService', () => {
         projectId: 'project-new-id',
       });
       expect(repository.createdProjects).toHaveLength(1);
+      expect(repository.createdProjects[0]!.creatorRole).toBeNull();
       expect(events.createdEvents).toHaveLength(1);
       expect(events.createdEvents[0]!.projectId).toBe('project-new-id');
+    });
+
+    it('passes creatorRole null when creator is Workspace Admin and admin when creator is Member (AC-08, AC-09)', async () => {
+      const { service, repository, resolver } = makeSetup();
+
+      resolver.project = {
+        project: makeProjectRow({ id: 'p-m', name: 'Member Project' }),
+        access: { role: 'admin', permissions: ['project.members.view'] },
+      };
+
+      const memberWs = makeMemberWorkspace({ role: 'member' });
+      await service.create(memberWs, 'u-member', {
+        name: 'Member Project',
+        identifier: 'MP',
+        icon: { name: DEFAULT_PROJECT_ICON, color: DEFAULT_PROJECT_ICON_COLOR },
+        coverKey: DEFAULT_PROJECT_COVER,
+      });
+
+      expect(repository.createdProjects[0]!.creatorRole).toBe('admin');
     });
 
     it('defaults description to empty string when omitted', async () => {
