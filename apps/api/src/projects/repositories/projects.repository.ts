@@ -7,7 +7,7 @@ import type {
 export interface MembersOfOpts {
   workspaceId?: string;
   showInherited?: boolean;
-  implicitRoles?: readonly WorkspaceRole[];
+  implicitRoles: readonly WorkspaceRole[];
   includeEmail: boolean;
   limitPerProject: number;
 }

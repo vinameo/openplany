@@ -116,7 +116,9 @@ export class ProjectMembersService {
     );
 
     const implicitRoles = workspaceRolesWithImplicitProjectAccess(policies);
-    const showInherited = workspace.permissions.includes('workspace.members.view');
+    const showInherited = workspace.permissions.includes(
+      'workspace.members.view',
+    );
 
     const [assigned, inherited, assignedAdminCount] = await Promise.all([
       this.repository.list(accessible.project.id, {
@@ -191,6 +193,7 @@ export class ProjectMembersService {
       await this.events.membersListTruncated({
         projectId: accessible.project.id,
         total,
+        source: 'assigned',
         requestId,
       });
     }
@@ -322,6 +325,7 @@ export class ProjectMembersService {
       );
     }
 
+    const implicitRoles = workspaceRolesWithImplicitProjectAccess(policies);
     const result = await this.repository.addMembers({
       workspaceId: workspace.id,
       projectId: accessible.project.id,
@@ -330,6 +334,7 @@ export class ProjectMembersService {
       now: this.clock.now(),
       includeEmail,
       members: dto.members,
+      implicitRoles,
       canAdd: (a) =>
         canAddProjectMembers(a.projectPermissions, a.workspacePermissions),
       roleRange: (a) => addableProjectRoleRange(a.actor, policies),
@@ -452,7 +457,10 @@ export class ProjectMembersService {
       );
     }
 
-    if (result.status === 'actor_forbidden' || result.status === 'cant_change') {
+    if (
+      result.status === 'actor_forbidden' ||
+      result.status === 'cant_change'
+    ) {
       await this.events.roleForbidden({
         projectId: accessible.project.id,
         actorId,

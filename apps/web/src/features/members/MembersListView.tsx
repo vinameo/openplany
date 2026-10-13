@@ -54,6 +54,9 @@ export interface MembersListViewProps<
   roleControl?: (m: M, roleHint?: string | null) => ReactNode | null;
   isReadOnly?: (m: M) => boolean;
   emptyState?: ReactNode;
+  inheritedRow?: (m: M) => boolean;
+  noneAddedNote?: ReactNode;
+  truncatedMessage?: (shown: number, total: number) => string;
 }
 
 export function MembersListView<R extends string, M extends MemberRowView<R>>({
@@ -70,6 +73,9 @@ export function MembersListView<R extends string, M extends MemberRowView<R>>({
   roleControl,
   isReadOnly,
   emptyState,
+  inheritedRow,
+  noneAddedNote,
+  truncatedMessage,
 }: MembersListViewProps<R, M>) {
   const [search, setSearch] = useState("");
   const [roles, setRoles] = useState<R[]>([]);
@@ -86,9 +92,9 @@ export function MembersListView<R extends string, M extends MemberRowView<R>>({
       applyMemberListQuery(
         rawMembers ?? [],
         { search, roles, sort },
-        { canSeeEmail, scheme },
+        { canSeeEmail, scheme, pinned: inheritedRow },
       ),
-    [rawMembers, search, roles, sort, canSeeEmail, scheme],
+    [rawMembers, search, roles, sort, canSeeEmail, scheme, inheritedRow],
   );
 
   if (state.status === "loading") {
@@ -143,13 +149,16 @@ export function MembersListView<R extends string, M extends MemberRowView<R>>({
 
       {state.truncated && (
         <Alert color="yellow" role="alert">
-          {truncatedMembersMessage(state.listMax, state.total)}
+          {(truncatedMessage ?? truncatedMembersMessage)(
+            state.listMax,
+            state.total,
+          )}
         </Alert>
       )}
 
       {alerts}
 
-      {state.total === 0 && emptyState ? (
+      {state.members.length === 0 && emptyState ? (
         emptyState
       ) : (
         <>
@@ -177,17 +186,29 @@ export function MembersListView<R extends string, M extends MemberRowView<R>>({
               </Button>
             </Stack>
           ) : (
-            <MembersTable
-              members={filteredMembers}
-              scheme={scheme}
-              canSeeEmail={canSeeEmail}
-              currentSort={sort}
-              onSortChange={setSort}
-              roleHint={roleHint}
-              roleBadge={roleBadge}
-              roleControl={roleControl}
-              isReadOnly={isReadOnly}
-            />
+            <>
+              <MembersTable
+                members={filteredMembers}
+                scheme={scheme}
+                canSeeEmail={canSeeEmail}
+                currentSort={sort}
+                onSortChange={setSort}
+                roleHint={roleHint}
+                roleBadge={roleBadge}
+                roleControl={roleControl}
+                isReadOnly={isReadOnly}
+                inheritedRow={inheritedRow}
+              />
+              {state.total === 0 && noneAddedNote ? (
+                typeof noneAddedNote === "string" ? (
+                  <Text size="sm" c="dimmed">
+                    {noneAddedNote}
+                  </Text>
+                ) : (
+                  noneAddedNote
+                )
+              ) : null}
+            </>
           )}
         </>
       )}

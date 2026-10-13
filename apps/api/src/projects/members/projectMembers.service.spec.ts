@@ -69,7 +69,7 @@ class FakeProjectMembersRepository implements ProjectMembersRepository {
 
   async countAssignedAdmins(
     _projectId: string,
-    _implicitRoles?: readonly WorkspaceRole[],
+    _implicitRoles: readonly WorkspaceRole[],
   ): Promise<number> {
     return this.assignedAdminCount;
   }
@@ -309,6 +309,7 @@ describe('ProjectMembersService', () => {
     expect(events.membersListTruncatedEvents[0]).toEqual({
       projectId: 'proj-1',
       total: 1500,
+      source: 'assigned',
       requestId: 'req-123',
     });
   });
@@ -477,7 +478,9 @@ describe('ProjectMembersService', () => {
     await service.list(workspace, project, 'actor-1');
 
     expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining('project.members.out_of_range projectId=proj-1 count=1'),
+      expect.stringContaining(
+        'project.members.out_of_range projectId=proj-1 count=1',
+      ),
     );
   });
 
@@ -603,7 +606,11 @@ describe('ProjectMembersService', () => {
       // Actor is not overridesProjectRank, so peer admin has rank >= actor -> []
       expect(peer?.assignableRoles).toEqual([]);
       // Subordinate member: up to actor role ('admin') within member allowable roles -> ['admin', 'contributor', 'commenter']
-      expect(sub?.assignableRoles).toEqual(['admin', 'contributor', 'commenter']);
+      expect(sub?.assignableRoles).toEqual([
+        'admin',
+        'contributor',
+        'commenter',
+      ]);
       // Guest: bounded by guest policy -> ['viewer']
       expect(guest?.assignableRoles).toEqual(['viewer']);
 
@@ -613,8 +620,14 @@ describe('ProjectMembersService', () => {
         role: 'admin',
       };
       const resWsAdmin = await service.list(wsAdmin, project, 'actor-ws-admin');
-      const peerAsWsAdmin = resWsAdmin.members.find((m) => m.userId === 'u-admin-peer');
-      expect(peerAsWsAdmin?.assignableRoles).toEqual(['admin', 'contributor', 'commenter']);
+      const peerAsWsAdmin = resWsAdmin.members.find(
+        (m) => m.userId === 'u-admin-peer',
+      );
+      expect(peerAsWsAdmin?.assignableRoles).toEqual([
+        'admin',
+        'contributor',
+        'commenter',
+      ]);
     });
   });
 
@@ -1078,13 +1091,10 @@ describe('ProjectMembersService', () => {
     it('throws 404 PROJECT_NOT_FOUND when project is gone', async () => {
       repo.changeRoleResult = { status: 'project_gone' };
       await expect(
-        service.changeRole(
-          workspace,
-          project,
-          'actor-1',
-          'target-1',
-          { fromRole: 'commenter', role: 'contributor' },
-        ),
+        service.changeRole(workspace, project, 'actor-1', 'target-1', {
+          fromRole: 'commenter',
+          role: 'contributor',
+        }),
       ).rejects.toMatchObject({
         status: 404,
         code: 'PROJECT_NOT_FOUND',
@@ -1095,13 +1105,10 @@ describe('ProjectMembersService', () => {
     it('throws 404 NOT_FOUND when target member is gone', async () => {
       repo.changeRoleResult = { status: 'member_gone' };
       await expect(
-        service.changeRole(
-          workspace,
-          project,
-          'actor-1',
-          'target-1',
-          { fromRole: 'commenter', role: 'contributor' },
-        ),
+        service.changeRole(workspace, project, 'actor-1', 'target-1', {
+          fromRole: 'commenter',
+          role: 'contributor',
+        }),
       ).rejects.toMatchObject({
         status: 404,
         code: 'NOT_FOUND',
@@ -1156,13 +1163,10 @@ describe('ProjectMembersService', () => {
     it('throws 409 ROLE_INHERITED when target has implicit access', async () => {
       repo.changeRoleResult = { status: 'role_inherited' };
       await expect(
-        service.changeRole(
-          workspace,
-          project,
-          'actor-1',
-          'target-1',
-          { fromRole: 'commenter', role: 'contributor' },
-        ),
+        service.changeRole(workspace, project, 'actor-1', 'target-1', {
+          fromRole: 'commenter',
+          role: 'contributor',
+        }),
       ).rejects.toMatchObject({
         status: 409,
         code: 'ROLE_INHERITED',
@@ -1173,13 +1177,10 @@ describe('ProjectMembersService', () => {
     it('throws 409 ROLE_CHANGED when fromRole does not match', async () => {
       repo.changeRoleResult = { status: 'role_changed' };
       await expect(
-        service.changeRole(
-          workspace,
-          project,
-          'actor-1',
-          'target-1',
-          { fromRole: 'commenter', role: 'contributor' },
-        ),
+        service.changeRole(workspace, project, 'actor-1', 'target-1', {
+          fromRole: 'commenter',
+          role: 'contributor',
+        }),
       ).rejects.toMatchObject({
         status: 409,
         code: 'ROLE_CHANGED',
@@ -1190,13 +1191,10 @@ describe('ProjectMembersService', () => {
     it('throws 400 ROLE_UNCHANGED when role is unchanged', async () => {
       repo.changeRoleResult = { status: 'role_unchanged' };
       await expect(
-        service.changeRole(
-          workspace,
-          project,
-          'actor-1',
-          'target-1',
-          { fromRole: 'commenter', role: 'commenter' },
-        ),
+        service.changeRole(workspace, project, 'actor-1', 'target-1', {
+          fromRole: 'commenter',
+          role: 'commenter',
+        }),
       ).rejects.toMatchObject({
         status: 400,
         code: 'ROLE_UNCHANGED',
@@ -1209,13 +1207,10 @@ describe('ProjectMembersService', () => {
         status: 'role_not_allowed_for_workspace_role',
       };
       await expect(
-        service.changeRole(
-          workspace,
-          project,
-          'actor-1',
-          'target-1',
-          { fromRole: 'commenter', role: 'viewer' },
-        ),
+        service.changeRole(workspace, project, 'actor-1', 'target-1', {
+          fromRole: 'commenter',
+          role: 'viewer',
+        }),
       ).rejects.toMatchObject({
         status: 400,
         code: 'PROJECT_ROLE_NOT_ALLOWED',

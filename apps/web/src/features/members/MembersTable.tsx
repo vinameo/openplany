@@ -34,6 +34,7 @@ export interface MembersTableProps<
   roleBadge?: (m: M) => ReactNode;
   roleControl?: (m: M, roleHint?: string | null) => ReactNode | null;
   isReadOnly?: (m: M) => boolean;
+  inheritedRow?: (m: M) => boolean;
 }
 
 export function MembersTable<
@@ -50,6 +51,7 @@ export function MembersTable<
   roleBadge,
   roleControl,
   isReadOnly,
+  inheritedRow,
 }: MembersTableProps<R, M>) {
   return (
     <Table.ScrollContainer
@@ -111,10 +113,12 @@ export function MembersTable<
           {members.map((member) => {
             const name = memberDisplayName(member);
             const hint = roleHint?.(member);
+            const isInherited = inheritedRow?.(member) === true;
             return (
               <Table.Tr
                 key={member.userId}
-                data-readonly={isReadOnly?.(member) || undefined}
+                className={isInherited ? classes.inheritedRow : undefined}
+                data-readonly={isInherited || isReadOnly?.(member) || undefined}
               >
                 <Table.Td className={dataTableClasses.stickyColumn}>
                   <Group gap="sm" wrap="nowrap">
@@ -123,7 +127,11 @@ export function MembersTable<
                       {name}
                     </Text>
                     {!member.accountActive && (
-                      <Badge color="gray" variant="light" size="xs">
+                      <Badge
+                        color="gray"
+                        variant={isInherited ? "default" : "light"}
+                        size="xs"
+                      >
                         Deactivated
                       </Badge>
                     )}
@@ -139,7 +147,9 @@ export function MembersTable<
                 )}
                 <Table.Td className={classes.roleCell}>
                   {(() => {
-                    const control = roleControl?.(member, hint ?? null);
+                    const control = isInherited
+                      ? null
+                      : roleControl?.(member, hint ?? null);
                     if (control) {
                       return (
                         <Group gap="xs" wrap="nowrap">

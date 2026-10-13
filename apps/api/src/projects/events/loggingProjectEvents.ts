@@ -59,7 +59,7 @@ export class LoggingProjectEvents extends ProjectEvents {
     event: ProjectMembersListTruncatedEvent,
   ): Promise<void> {
     this.logger.warn(
-      `project.members.list.truncated projectId=${event.projectId} total=${event.total} requestId=${event.requestId ?? ''}`,
+      `project.members.list.truncated projectId=${event.projectId} source=${event.source} total=${event.total} requestId=${event.requestId ?? ''}`,
     );
   }
 
@@ -77,9 +77,7 @@ export class LoggingProjectEvents extends ProjectEvents {
     );
   }
 
-  async addRoleForbidden(
-    event: ProjectAddRoleForbiddenEvent,
-  ): Promise<void> {
+  async addRoleForbidden(event: ProjectAddRoleForbiddenEvent): Promise<void> {
     this.logger.warn(
       `project.members.add.role_forbidden projectId=${event.projectId} actorId=${event.actorId} requestId=${event.requestId ?? ''}`,
     );
@@ -91,12 +89,9 @@ export class LoggingProjectEvents extends ProjectEvents {
     );
   }
 
-  async roleForbidden(
-    event: ProjectMemberRoleForbiddenEvent,
-  ): Promise<void> {
+  async roleForbidden(event: ProjectMemberRoleForbiddenEvent): Promise<void> {
     this.logger.warn(
       `project.member.role.forbidden projectId=${event.projectId} actorId=${event.actorId} targetId=${event.targetId} requestId=${event.requestId ?? ''}`,
     );
   }
 }
-

@@ -15,7 +15,7 @@ export interface ListProjectMembersOpts {
   includeEmail: boolean;
   roleOrder: readonly ProjectRole[];
   limit: number;
-  implicitRoles?: readonly WorkspaceRole[];
+  implicitRoles: readonly WorkspaceRole[];
 }
 
 export interface ListInheritedProjectMembersOpts {
@@ -57,6 +57,7 @@ export interface AddProjectMembersInput {
   now: Date;
   includeEmail: boolean;
   members: readonly { userId: string; role: ProjectRole }[];
+  implicitRoles: readonly WorkspaceRole[];
   canAdd: (context: AddProjectMembersActorContext) => boolean;
   roleRange: (context: AddProjectMembersActorContext) => readonly ProjectRole[];
   /**
@@ -135,7 +136,7 @@ export abstract class ProjectMembersRepository {
 
   abstract countAssignedAdmins(
     projectId: string,
-    implicitRoles?: readonly WorkspaceRole[],
+    implicitRoles: readonly WorkspaceRole[],
   ): Promise<number>;
 
   abstract searchCandidates(
@@ -150,4 +151,3 @@ export abstract class ProjectMembersRepository {
     input: ChangeProjectRoleInput,
   ): Promise<ChangeProjectRoleResult>;
 }
-

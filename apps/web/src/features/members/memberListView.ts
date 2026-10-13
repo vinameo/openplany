@@ -1,20 +1,16 @@
-import type { RoleScheme } from './roleScheme';
-import { normalizeForSearch, WORKSPACE_ROLE_RANK } from '@repo/contracts';
-import type { SortState } from '../workspaces/table/SortableHeader';
-import { formatCalendarDate } from '../workspaces/table/formatCalendarDate';
+import type { RoleScheme } from "./roleScheme";
+import { normalizeForSearch, WORKSPACE_ROLE_RANK } from "@repo/contracts";
+import type { SortState } from "../workspaces/table/SortableHeader";
+import { formatCalendarDate } from "../workspaces/table/formatCalendarDate";
 
 export type MemberSortKey =
-  | 'fullName'
-  | 'displayName'
-  | 'email'
-  | 'role'
-  | 'joinedAt';
+  "fullName" | "displayName" | "email" | "role" | "joinedAt";
 
 export type MemberSort = SortState<MemberSortKey>;
 
 export const DEFAULT_MEMBER_SORT = {
-  key: 'role',
-  direction: 'desc',
+  key: "role",
+  direction: "desc",
 } as const satisfies MemberSort;
 
 export interface MemberRowView<R extends string> {
@@ -44,7 +40,7 @@ export function memberDisplayName(member: {
   const full = [member.firstName, member.lastName]
     .map((s) => s.trim())
     .filter((s) => s.length > 0)
-    .join(' ');
+    .join(" ");
   return full.length > 0 ? full : member.displayName;
 }
 
@@ -52,7 +48,7 @@ export { formatCalendarDate };
 /** "Oct 08, 2026", browser timezone (RQ Q-M1, WEB-26). */
 export const formatJoiningDate = formatCalendarDate;
 
-const collator = new Intl.Collator('vi', { sensitivity: 'base' });
+const collator = new Intl.Collator("vi", { sensitivity: "base" });
 
 export function applyMemberListQuery<
   R extends string,
@@ -60,12 +56,18 @@ export function applyMemberListQuery<
 >(
   members: readonly M[],
   query: MemberListQuery<string>,
-  opts: { canSeeEmail: boolean; scheme?: RoleScheme<R> },
+  opts: {
+    canSeeEmail: boolean;
+    scheme?: RoleScheme<R>;
+    pinned?: (m: M) => boolean;
+  },
 ): M[] {
   // 1. Role filter (WEB-25)
   let result =
     query.roles.length > 0
-      ? members.filter((m) => (query.roles as readonly string[]).includes(m.role))
+      ? members.filter((m) =>
+          (query.roles as readonly string[]).includes(m.role),
+        )
       : [...members];
 
   // 2. Search filter (WEB-08)
@@ -88,19 +90,21 @@ export function applyMemberListQuery<
 
   // 3. Sort (WEB-06)
   const { key, direction } = query.sort;
-  const factor = direction === 'desc' ? -1 : 1;
+  const factor = direction === "desc" ? -1 : 1;
 
-  return result.toSorted((a, b) => {
+  const sorted = result.toSorted((a, b) => {
     let diff = 0;
-    if (key === 'role') {
+    if (key === "role") {
       const rankA = opts.scheme
         ? opts.scheme.rank[a.role]
-        : (WORKSPACE_ROLE_RANK[a.role as keyof typeof WORKSPACE_ROLE_RANK] ?? 0);
+        : (WORKSPACE_ROLE_RANK[a.role as keyof typeof WORKSPACE_ROLE_RANK] ??
+          0);
       const rankB = opts.scheme
         ? opts.scheme.rank[b.role]
-        : (WORKSPACE_ROLE_RANK[b.role as keyof typeof WORKSPACE_ROLE_RANK] ?? 0);
+        : (WORKSPACE_ROLE_RANK[b.role as keyof typeof WORKSPACE_ROLE_RANK] ??
+          0);
       diff = factor * (rankA - rankB);
-    } else if (key === 'joinedAt') {
+    } else if (key === "joinedAt") {
       if (a.joinedAt === null && b.joinedAt === null) {
         diff = 0;
       } else if (a.joinedAt === null) {
@@ -112,13 +116,13 @@ export function applyMemberListQuery<
           factor *
           (new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime());
       }
-    } else if (key === 'fullName') {
+    } else if (key === "fullName") {
       diff =
         factor * collator.compare(memberDisplayName(a), memberDisplayName(b));
-    } else if (key === 'displayName') {
+    } else if (key === "displayName") {
       diff = factor * collator.compare(a.displayName, b.displayName);
-    } else if (key === 'email') {
-      diff = factor * collator.compare(a.email ?? '', b.email ?? '');
+    } else if (key === "email") {
+      diff = factor * collator.compare(a.email ?? "", b.email ?? "");
     }
 
     if (diff !== 0) return diff;
@@ -131,4 +135,10 @@ export function applyMemberListQuery<
     if (nameDiff !== 0) return nameDiff;
     return a.userId.localeCompare(b.userId);
   });
+
+  if (!opts.pinned) return sorted;
+  return [
+    ...sorted.filter(opts.pinned),
+    ...sorted.filter((m) => !opts.pinned!(m)),
+  ];
 }

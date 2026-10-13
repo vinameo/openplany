@@ -12,6 +12,7 @@ import {
   escapeLikePattern,
   hasImplicitProjectAccess,
   parseWorkspacePermissions,
+  workspaceRolesWithImplicitProjectAccess,
   type ProjectMemberNotAddableReason,
   type ProjectRole,
   type ProjectTarget,
@@ -22,7 +23,10 @@ import { ADDABLE_USER } from '../../auth/addableUser.js';
 import { isForeignKeyViolation } from '../../common/databaseErrors.js';
 import { equalsLowercase } from '../../database/findOperators.js';
 import { runTransactionWithRetry } from '../../database/transactionRetry.js';
-import { loadRolePermissions, rolePermissionsKey } from '../../roles/rolePermissionsQuery.js';
+import {
+  loadRolePermissions,
+  rolePermissionsKey,
+} from '../../roles/rolePermissionsQuery.js';
 import { ProjectAccessPolicyStore } from '../../roles/projectAccessPolicyStore.js';
 import { WorkspaceMember } from '../../workspaces/entities/workspaceMember.entity.js';
 import { ProjectAccessResolver } from '../access/projectAccessResolver.js';
@@ -147,7 +151,8 @@ export class TypeOrmProjectMembersRepository implements ProjectMembersRepository
       lastName: row.lastName ?? '',
       displayName: row.displayName ?? '',
       avatarUrl: row.avatarUrl ?? null,
-      email: opts.includeEmail && typeof row.email === 'string' ? row.email : null,
+      email:
+        opts.includeEmail && typeof row.email === 'string' ? row.email : null,
       workspaceRole: row.workspaceRole,
       accountActive: Boolean(row.accountActive),
     }));
@@ -157,7 +162,7 @@ export class TypeOrmProjectMembersRepository implements ProjectMembersRepository
 
   async countAssignedAdmins(
     projectId: string,
-    implicitRoles?: readonly WorkspaceRole[],
+    implicitRoles: readonly WorkspaceRole[],
   ): Promise<number> {
     const adminCounts = await assignedProjectAdmins(
       this.dataSource.manager,
@@ -166,7 +171,6 @@ export class TypeOrmProjectMembersRepository implements ProjectMembersRepository
     );
     return adminCounts.get(projectId) ?? 0;
   }
-
 
   async searchCandidates(
     input: SearchProjectMemberCandidatesInput,
@@ -218,9 +222,7 @@ export class TypeOrmProjectMembersRepository implements ProjectMembersRepository
         .setParameter('projectId', input.projectId);
     }
 
-    const rows = await qb
-      .limit(input.limit)
-      .getRawMany<RawCandidateRow>();
+    const rows = await qb.limit(input.limit).getRawMany<RawCandidateRow>();
 
     return rows.map((r) => ({
       userId: r.userId,
@@ -234,7 +236,9 @@ export class TypeOrmProjectMembersRepository implements ProjectMembersRepository
     }));
   }
 
-  async addMembers(input: AddProjectMembersInput): Promise<AddProjectMembersResult> {
+  async addMembers(
+    input: AddProjectMembersInput,
+  ): Promise<AddProjectMembersResult> {
     try {
       return await runTransactionWithRetry(
         this.dataSource,
@@ -262,7 +266,9 @@ export class TypeOrmProjectMembersRepository implements ProjectMembersRepository
     }
   }
 
-  async changeRole(input: ChangeProjectRoleInput): Promise<ChangeProjectRoleResult> {
+  async changeRole(
+    input: ChangeProjectRoleInput,
+  ): Promise<ChangeProjectRoleResult> {
     return await runTransactionWithRetry(
       this.dataSource,
       (manager) =>
@@ -319,7 +325,13 @@ async function addMembersOnce(
   // 3. Lock active workspace memberships of actor and targets in memberId order
   const allMemberIds = [actorId, ...targetIds];
   const wmList = await manager.find(WorkspaceMember, {
-    select: { id: true, memberId: true, role: true, roleScope: true, isActive: true },
+    select: {
+      id: true,
+      memberId: true,
+      role: true,
+      roleScope: true,
+      isActive: true,
+    },
     where: { workspaceId, memberId: In(allMemberIds), isActive: true },
     order: { memberId: 'ASC' },
     lock: { mode: 'pessimistic_read' },
@@ -329,7 +341,13 @@ async function addMembersOnce(
 
   // 4. Lock project memberships of actor and targets in memberId order (both active and inactive)
   const pmList = await manager.find(ProjectMember, {
-    select: { id: true, memberId: true, role: true, roleScope: true, isActive: true },
+    select: {
+      id: true,
+      memberId: true,
+      role: true,
+      roleScope: true,
+      isActive: true,
+    },
     where: { projectId, memberId: In(allMemberIds) },
     order: { memberId: 'ASC' },
     lock: { mode: 'pessimistic_write' },
@@ -368,7 +386,8 @@ async function addMembersOnce(
   const wmByMember = new Map(wmList.map((w) => [w.memberId, w]));
   const pmByMember = new Map(pmList.map((p) => [p.memberId, p]));
 
-  const rejected: { index: number; reason: ProjectMemberNotAddableReason }[] = [];
+  const rejected: { index: number; reason: ProjectMemberNotAddableReason }[] =
+    [];
   input.members.forEach((m, index) => {
     const wm = wmByMember.get(m.userId);
     if (wm === undefined) {
@@ -396,7 +415,9 @@ async function addMembersOnce(
   }
 
   // 7. Write in memberId order
-  const ordered = [...input.members].sort((a, b) => compareIds(a.userId, b.userId));
+  const ordered = [...input.members].sort((a, b) =>
+    compareIds(a.userId, b.userId),
+  );
   const toInsert = ordered.filter((m) => !pmByMember.has(m.userId));
   if (toInsert.length > 0) {
     await manager.insert(
@@ -449,14 +470,22 @@ async function addMembersOnce(
 
   // 9. Read back, in the same shape as `list`
   const readRows = await selectProjectMemberColumns(
-    projectMembersQuery(manager, { projectId, memberId: In(targetIds) }),
+    projectMembersQuery(
+      manager,
+      { projectId, memberId: In(targetIds) },
+      input.implicitRoles,
+    ),
     input.includeEmail,
   ).getRawMany<ProjectMemberDbRow>();
   const byUserId = new Map(
     readRows.map((row) => [row.userId, toMemberDbRow(row, input.includeEmail)]),
   );
 
-  const adminCounts = await assignedProjectAdmins(manager, [projectId]);
+  const adminCounts = await assignedProjectAdmins(
+    manager,
+    [projectId],
+    input.implicitRoles,
+  );
   const assignedAdminCount = adminCounts.get(projectId) ?? 0;
 
   return {
@@ -540,7 +569,13 @@ async function changeProjectRoleOnce(
   // 2. Lock workspace memberships of actor and target in memberId order
   const userIds = [actorId, targetUserId].sort(compareIds);
   const wmList = await manager.find(WorkspaceMember, {
-    select: { id: true, memberId: true, role: true, roleScope: true, isActive: true },
+    select: {
+      id: true,
+      memberId: true,
+      role: true,
+      roleScope: true,
+      isActive: true,
+    },
     where: { workspaceId, memberId: In(userIds) },
     order: { memberId: 'ASC' },
     lock: { mode: 'pessimistic_read' },
@@ -548,7 +583,13 @@ async function changeProjectRoleOnce(
 
   // 3. Lock project memberships of actor and target in memberId order
   const pmList = await manager.find(ProjectMember, {
-    select: { id: true, memberId: true, role: true, roleScope: true, isActive: true },
+    select: {
+      id: true,
+      memberId: true,
+      role: true,
+      roleScope: true,
+      isActive: true,
+    },
     where: { projectId, memberId: In(userIds) },
     order: { memberId: 'ASC' },
     lock: { mode: 'pessimistic_write' },
@@ -556,7 +597,9 @@ async function changeProjectRoleOnce(
 
   // Decisions in exact priority order (RQ INV-07):
   // 1. Target workspace member not found or inactive -> 404 memberGone
-  const targetWm = wmList.find((w) => w.memberId === targetUserId && w.isActive);
+  const targetWm = wmList.find(
+    (w) => w.memberId === targetUserId && w.isActive,
+  );
   if (targetWm === undefined) {
     return { status: 'member_gone' };
   }
@@ -573,6 +616,7 @@ async function changeProjectRoleOnce(
   }
 
   const policies = policyStore.policies();
+  const implicitRoles = workspaceRolesWithImplicitProjectAccess(policies);
 
   // 4. hasImplicitProjectAccess(policies[target.wm.role]) -> actor has workspace.members.view ? 409 ROLE_INHERITED : 404 memberGone (D16)
   if (hasImplicitProjectAccess(policies[targetWm.role])) {
@@ -589,7 +633,9 @@ async function changeProjectRoleOnce(
   }
 
   // 5. Target does not have an active project_members row -> 404 memberGone
-  const targetPm = pmList.find((p) => p.memberId === targetUserId && p.isActive);
+  const targetPm = pmList.find(
+    (p) => p.memberId === targetUserId && p.isActive,
+  );
   if (targetPm === undefined) {
     return { status: 'member_gone' };
   }
@@ -674,7 +720,11 @@ async function changeProjectRoleOnce(
 
   // 3. Read back
   const readRow = await selectProjectMemberColumns(
-    projectMembersQuery(manager, { projectId, memberId: targetUserId }),
+    projectMembersQuery(
+      manager,
+      { projectId, memberId: targetUserId },
+      implicitRoles,
+    ),
     input.includeEmail,
   ).getRawOne<ProjectMemberDbRow>();
 
@@ -682,7 +732,11 @@ async function changeProjectRoleOnce(
     return { status: 'member_gone' };
   }
 
-  const adminCounts = await assignedProjectAdmins(manager, [projectId]);
+  const adminCounts = await assignedProjectAdmins(
+    manager,
+    [projectId],
+    implicitRoles,
+  );
   const assignedAdminCount = adminCounts.get(projectId) ?? 0;
 
   return {
