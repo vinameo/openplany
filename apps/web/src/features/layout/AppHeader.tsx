@@ -3,6 +3,7 @@ import { Button, Container, Group, Image } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import type { WorkspaceResponse } from "@repo/contracts";
 import { ColorSchemeToggle } from "@repo/ui";
+import { LanguageMenu } from "../../i18n/LanguageMenu";
 import markUrl from "../../assets/openplany-mark.png";
 import { useAuth } from "../auth/useAuth";
 import { UserButton } from "../profile/UserButton";
@@ -71,6 +72,7 @@ export function AppHeader({
 
         <Group gap="xs" wrap="nowrap" className={classes.rightGroup}>
           {!isDesktop && currentWorkspace && <CommandSearchPlaceholder />}
+          <LanguageMenu size="input-xs" />
           <ColorSchemeToggle
             size="input-xs"
             labelLight={t("common:theme.switchToLight")}

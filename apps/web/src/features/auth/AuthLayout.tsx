@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Image, Text, Title } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { ColorSchemeToggle } from "@repo/ui";
+import { LanguageMenu } from "../../i18n/LanguageMenu";
 import logoUrl from "../../assets/openplany-logo-transparent.png";
 import logoDarkUrl from "../../assets/openplany-logo-transparent-dark.png";
 import classes from "./AuthLayout.module.css";
@@ -27,11 +28,13 @@ export function AuthLayout({
     <main className={classes.page}>
       {showCard && (
         <>
-          <ColorSchemeToggle
-            className={classes.schemeToggle}
-            labelLight={t("common:theme.switchToLight")}
-            labelDark={t("common:theme.switchToDark")}
-          />
+          <div className={classes.headerControls}>
+            <LanguageMenu />
+            <ColorSchemeToggle
+              labelLight={t("common:theme.switchToLight")}
+              labelDark={t("common:theme.switchToDark")}
+            />
+          </div>
           <div className={classes.card}>
             {/* Same canvas in both files, so one crop fits; the dark one has a light wordmark. */}
             <div className={classes.logo}>

@@ -1,5 +1,6 @@
 import { Anchor, Text } from "@mantine/core";
 import { Link } from "react-router";
+import { useTranslation } from "react-i18next";
 import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
 import { AuthLayout } from "../AuthLayout";
 import { SIGN_IN_PATH } from "../sessionDestination";
@@ -7,17 +8,15 @@ import classes from "./AuthRoutes.module.css";
 
 /** Placeholder until the forgot-password flow ships (api-spec 3.4). */
 export function ForgotPasswordRoute() {
-  useDocumentTitle("Forgot password · OpenPlany");
+  const { t } = useTranslation();
+  useDocumentTitle(t("auth:forgotPassword.documentTitle"));
 
   return (
-    <AuthLayout title="Forgot your password?">
-      <Text className={classes.text}>
-        Password reset by email isn&apos;t available yet. Ask your admin to
-        reset your password.
-      </Text>
+    <AuthLayout title={t("auth:forgotPassword.title")}>
+      <Text className={classes.text}>{t("auth:forgotPassword.body")}</Text>
       <Text className={classes.text} mt="lg">
         <Anchor component={Link} to={SIGN_IN_PATH}>
-          Back to sign in
+          {t("auth:forgotPassword.backToSignIn")}
         </Anchor>
       </Text>
     </AuthLayout>

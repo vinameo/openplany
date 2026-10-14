@@ -11,8 +11,8 @@ export interface ApiErrorBody {
   retryAfterSeconds?: number;
 }
 
-export const GENERIC_ERROR = "Something went wrong. Please try again.";
 export const GENERIC_ERROR_KEY: MessageKey = "errors:genericError";
+export const GENERIC_ERROR = translate(GENERIC_ERROR_KEY);
 
 function resolveFallbackMessage(fallback: MessageKey | string): string {
   if (typeof fallback === "string" && fallback.includes(":")) {

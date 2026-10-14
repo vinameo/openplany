@@ -1,71 +1,81 @@
-import js from '@eslint/js';
-import globals from 'globals';
-import reactHooks from 'eslint-plugin-react-hooks';
-import reactRefresh from 'eslint-plugin-react-refresh';
-import tseslint from 'typescript-eslint';
-import { defineConfig, globalIgnores } from 'eslint/config';
+import js from "@eslint/js";
+import globals from "globals";
+import reactHooks from "eslint-plugin-react-hooks";
+import reactRefresh from "eslint-plugin-react-refresh";
+import tseslint from "typescript-eslint";
+import { defineConfig, globalIgnores } from "eslint/config";
 
 export const URL_SELECTORS = [
   {
     selector: "TemplateLiteral[quasis.0.value.raw='/']",
     message:
-      'Build app URLs with the path helpers (workspacePath, workspaceSettingsPath, projectPath) instead of a template string.',
+      "Build app URLs with the path helpers (workspacePath, workspaceSettingsPath, projectPath) instead of a template string.",
   },
 ];
 
 export const I18N_RESTRICTED_SELECTORS = [
   {
     selector: "JSXText[value=/[a-zA-Z]/]",
-    message: 'Use t() from react-i18next instead of hardcoded text in JSX.',
+    message: "Use t() from react-i18next instead of hardcoded text in JSX.",
   },
   {
-    selector: "JSXExpressionContainer > TemplateLiteral[quasis.0.value.raw=/[a-zA-Z]/]",
-    message: 'Use t() from react-i18next instead of template literal with text in JSX.',
+    selector:
+      "JSXExpressionContainer > TemplateLiteral[quasis.0.value.raw=/[a-zA-Z]/]",
+    message:
+      "Use t() from react-i18next instead of template literal with text in JSX.",
   },
   {
     selector:
       "JSXAttribute[name.name=/^(aria-label|label|placeholder|title|description|alt|error|message)$/] > Literal[value=/[a-zA-Z]/]:not([value='OpenPlany'])",
-    message: 'Use t() from react-i18next instead of hardcoded text in JSX prop.',
+    message:
+      "Use t() from react-i18next instead of hardcoded text in JSX prop.",
   },
   {
     selector:
       "JSXAttribute[name.name=/^(aria-label|label|placeholder|title|description|alt|error|message)$/] > JSXExpressionContainer > Literal[value=/[a-zA-Z]/]:not([value='OpenPlany'])",
-    message: 'Use t() from react-i18next instead of hardcoded text in JSX prop.',
+    message:
+      "Use t() from react-i18next instead of hardcoded text in JSX prop.",
   },
   {
     selector:
       "Property[key.name=/^(message|title|label|description|placeholder)$/][value.type='Literal'][value.value=/[a-zA-Z]/]:not([value.value='OpenPlany'])",
-    message: 'Use t() from react-i18next instead of hardcoded text in object property.',
+    message:
+      "Use t() from react-i18next instead of hardcoded text in object property.",
   },
   {
     selector:
       "CallExpression[callee.name='useDocumentTitle'] > Literal.arguments:first-child[value=/[a-zA-Z]/]:not([value='OpenPlany'])",
-    message: 'Use t() from react-i18next instead of hardcoded document title.',
+    message: "Use t() from react-i18next instead of hardcoded document title.",
   },
   {
     selector:
       "CallExpression[callee.name=/^set.*(Error|Message|Alert)$/] > Literal.arguments:first-child[value=/[a-zA-Z]/]",
-    message: 'Use t() from react-i18next instead of hardcoded string in error/message/alert setter.',
+    message:
+      "Use t() from react-i18next instead of hardcoded string in error/message/alert setter.",
   },
   {
     selector:
       "CallExpression[callee.property.name='setFieldError'] > Literal.arguments:nth-child(2)[value=/[a-zA-Z]/]",
-    message: 'Use t() from react-i18next instead of hardcoded second argument to setFieldError.',
+    message:
+      "Use t() from react-i18next instead of hardcoded second argument to setFieldError.",
   },
   {
     selector:
       "CallExpression[callee.name='setFieldError'] > Literal.arguments:nth-child(2)[value=/[a-zA-Z]/]",
-    message: 'Use t() from react-i18next instead of hardcoded second argument to setFieldError.',
+    message:
+      "Use t() from react-i18next instead of hardcoded second argument to setFieldError.",
   },
   {
     selector:
       "VariableDeclarator > Literal[value=/^[^(].*(\\s.*[a-zA-Z]|[a-zA-Z].*\\s)/]:not([value=/OpenPlany/])",
-    message: 'Use t() from react-i18next instead of hardcoded constant with spaces.',
+    message:
+      "Use t() from react-i18next instead of hardcoded constant with spaces.",
   },
   {
     selector:
       "LogicalExpression[operator=/^(\\|\\||\\?\\?)$/] > Literal.right[value=/^[^(].*(\\s.*[a-zA-Z]|[a-zA-Z].*\\s)/]:not([value=/OpenPlany/])",
-    message: 'Use t() from react-i18next instead of hardcoded fallback with spaces.',
+    message:
+      "Use t() from react-i18next instead of hardcoded fallback with spaces.",
   },
 ];
 
@@ -80,29 +90,24 @@ export const ALL_RESTRICTED_SELECTORS = [
  * Note: URL template rules ALWAYS apply to exempt areas as well.
  */
 export const EXEMPT_AREAS = [
-  'src/features/auth/**',
-  'src/i18n/**',
-  'src/lib/apiClient.ts',
-  'src/main.tsx',
-  'src/App.tsx',
-  'src/routes.tsx',
-  'src/features/layout/**',
-  'src/features/home/**',
-  'src/features/workspaces/**',
-  'src/features/projects/**',
-  'src/features/settings/**',
-  'src/features/members/**',
-  'src/features/timezones/**',
-  'src/features/admin/**',
-  'src/features/profile/**',
-  'src/hooks/**',
-  'src/lib/**',
+  "src/routes.tsx",
+  "src/features/layout/**",
+  "src/features/home/**",
+  "src/features/workspaces/**",
+  "src/features/projects/**",
+  "src/features/settings/**",
+  "src/features/members/**",
+  "src/features/timezones/**",
+  "src/features/admin/**",
+  "src/features/profile/**",
+  "src/hooks/**",
+  "src/lib/**",
 ];
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  globalIgnores(["dist"]),
   {
-    files: ['**/*.{ts,tsx}'],
+    files: ["**/*.{ts,tsx}"],
     extends: [
       js.configs.recommended,
       tseslint.configs.recommended,
@@ -115,23 +120,23 @@ export default defineConfig([
   },
   {
     // Applies to non-exempt files: enforces URL helpers and no hardcoded text
-    files: ['src/**/*.{ts,tsx}'],
+    files: ["src/**/*.{ts,tsx}"],
     ignores: [
-      'src/**/*Paths.ts',
-      'src/**/*.test.{ts,tsx}',
-      'src/test/**',
+      "src/**/*Paths.ts",
+      "src/**/*.test.{ts,tsx}",
+      "src/test/**",
       ...EXEMPT_AREAS,
     ],
     rules: {
-      'no-restricted-syntax': ['error', ...ALL_RESTRICTED_SELECTORS],
+      "no-restricted-syntax": ["error", ...ALL_RESTRICTED_SELECTORS],
     },
   },
   {
     // Exempt areas: only enforces URL helpers (never loses URL rule, BA ADR-07)
     files: EXEMPT_AREAS,
-    ignores: ['src/**/*Paths.ts', 'src/**/*.test.{ts,tsx}', 'src/test/**'],
+    ignores: ["src/**/*Paths.ts", "src/**/*.test.{ts,tsx}", "src/test/**"],
     rules: {
-      'no-restricted-syntax': ['error', ...URL_SELECTORS],
+      "no-restricted-syntax": ["error", ...URL_SELECTORS],
     },
   },
 ]);
