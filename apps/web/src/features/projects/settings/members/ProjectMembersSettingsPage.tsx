@@ -25,6 +25,7 @@ import { AddProjectMembersModal } from "./AddProjectMembersModal";
 import {
   inheritedRoleTooltip,
   NO_MEMBERS_YET,
+  NONE_ADDED_TO_PROJECT,
   ROLE_LIMITED_TOOLTIP,
 } from "./projectMembersMessages";
 import {
@@ -164,6 +165,7 @@ export function ProjectMembersSettingsPage() {
         scheme={PROJECT_ROLE_SCHEME}
         state={listViewState}
         inheritedRow={(m) => m.source === "inherited"}
+        noneAddedNote={NONE_ADDED_TO_PROJECT}
         truncatedMessage={truncatedProjectMembersMessage}
         canSeeEmail={canSeeEmail}
         canAddMember={canAddMember}

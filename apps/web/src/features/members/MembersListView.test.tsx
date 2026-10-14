@@ -152,7 +152,7 @@ describe("MembersListView", () => {
     expect(screen.getByText("No active Admin alert")).toBeInTheDocument();
   });
 
-  it("renders emptyState when total is 0 and emptyState is passed", () => {
+  it("AC-10 / INV-07: renders emptyState when members is empty and emptyState is passed", () => {
     render(
       <AppUiProvider>
         <MembersListView
@@ -241,7 +241,7 @@ describe("MembersListView", () => {
     expect(hintElement).toBeInTheDocument();
   });
 
-  it("uses custom truncatedMessage when provided", () => {
+  it("AC-04: uses custom truncatedMessage when provided", () => {
     render(
       <AppUiProvider>
         <MembersListView
@@ -268,7 +268,7 @@ describe("MembersListView", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders noneAddedNote when total is 0 and members has rows, without showing emptyState", () => {
+  it("AC-09: renders noneAddedNote when total is 0 and members has rows, without showing emptyState", () => {
     render(
       <AppUiProvider>
         <MembersListView
@@ -296,7 +296,7 @@ describe("MembersListView", () => {
     ).toBeInTheDocument();
   });
 
-  it("does not render noneAddedNote when search filters out all members", async () => {
+  it("AC-10: does not render noneAddedNote when search filters out all members", async () => {
     const user = userEvent.setup();
 
     render(
@@ -321,6 +321,45 @@ describe("MembersListView", () => {
 
     const searchInput = screen.getByPlaceholderText("Search…");
     await user.type(searchInput, "nonexistent");
+
+    expect(
+      screen.getByText("No members match your search"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("No one has been added to this project yet."),
+    ).not.toBeInTheDocument();
+  });
+
+  it("AC-10: does not render noneAddedNote when role filter matches no members", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <AppUiProvider>
+        <MembersListView
+          scheme={WORKSPACE_ROLE_SCHEME}
+          state={{
+            status: "ready",
+            members: [sampleMembers[0]], // only admin
+            total: 0,
+            truncated: false,
+            listMax: 1000,
+          }}
+          canSeeEmail={true}
+          canAddMember={false}
+          onAddMember={vi.fn()}
+          emptyState={<div>No members yet</div>}
+          noneAddedNote="No one has been added to this project yet."
+        />
+      </AppUiProvider>,
+    );
+
+    const filterBtn = screen.getByRole("button", { name: "Filter by role" });
+    await user.click(filterBtn);
+    const memberCheckbox = await screen.findByRole("checkbox", {
+      name: "Member",
+    });
+    await user.click(memberCheckbox);
+    await user.keyboard("{Escape}");
 
     expect(
       screen.getByText("No members match your search"),

@@ -77,19 +77,18 @@ export function addProjectMembersToCache(
       const newMembers = res.members.filter(
         (m) => !existingUserIds.has(m.userId),
       );
-      // Same bound as the server's list: at most PROJECT_MEMBER_LIST_MAX rows,
-      // and `truncated` whenever the total is larger than what is held.
-      const nextMembers = [...curr.members, ...newMembers].slice(
-        0,
-        PROJECT_MEMBER_LIST_MAX,
-      );
+      const inherited = curr.members.filter((m) => m.source === "inherited");
+      const assigned = [
+        ...curr.members.filter((m) => m.source === "assigned"),
+        ...newMembers,
+      ].slice(0, PROJECT_MEMBER_LIST_MAX);
       const nextTotal =
         res.project.memberCount ?? curr.total + newMembers.length;
       return {
         ...curr,
-        members: nextMembers,
+        members: [...inherited, ...assigned],
         total: nextTotal,
-        truncated: nextTotal > nextMembers.length,
+        truncated: nextTotal > assigned.length,
         assignedAdminCount: res.assignedAdminCount,
       };
     },

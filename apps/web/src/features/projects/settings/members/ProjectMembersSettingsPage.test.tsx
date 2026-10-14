@@ -26,6 +26,7 @@ import { makeWorkspace } from "../../../workspaces/test/workspaceFixtures";
 import { tooManyAttemptsMessage } from "../../../members/membersMessages";
 import {
   NO_MEMBERS_YET,
+  NONE_ADDED_TO_PROJECT,
   ROLE_LIMITED_TOOLTIP,
   WORKSPACE_ADMINS_NOTE,
 } from "./projectMembersMessages";
@@ -1672,5 +1673,253 @@ describe("ProjectMembersSettingsPage", () => {
     // Focus on badge
     (badgeRoot as HTMLElement).focus();
     expect(badgeRoot).toHaveFocus();
+  });
+
+  it("AC-09: project created by Workspace Admin with 0 project members displays Members 0, toolbar, inherited rows, and none-added note", async () => {
+    const inheritedKai: ProjectMemberResponse = {
+      userId: "u-kai-admin",
+      firstName: "Kai",
+      lastName: "Tran",
+      displayName: "kaitran",
+      email: "kai@openplany.dev",
+      avatarUrl: null,
+      role: "admin",
+      assignedRole: null,
+      roleLimited: false,
+      joinedAt: null,
+      accountActive: true,
+      source: "inherited",
+      workspaceRole: "admin",
+      assignableRoles: [],
+    };
+
+    renderMembersApp({
+      membersResponse: {
+        members: [inheritedKai],
+        total: 0,
+        truncated: false,
+        addableRoles: ["admin", "contributor", "commenter", "viewer"],
+        assignedAdminCount: 0,
+      },
+    });
+
+    // Heading "Members" with total badge "0"
+    const heading = await screen.findByRole("heading", { name: /^members/i });
+    expect(within(heading.parentElement!).getByText("0")).toBeInTheDocument();
+
+    // Toolbar is present
+    expect(screen.getByPlaceholderText("Search…")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Filter by role" }),
+    ).toBeInTheDocument();
+
+    // Inherited member is present
+    expect(screen.getByText("Kai Tran")).toBeInTheDocument();
+
+    // D7 note is present under table
+    expect(screen.getByText(NONE_ADDED_TO_PROJECT)).toBeInTheDocument();
+
+    // "No members yet" empty state is NOT rendered
+    expect(screen.queryByText(NO_MEMBERS_YET)).not.toBeInTheDocument();
+  });
+
+  it("AC-10: displays No members yet when viewer has no workspace.members.view; and filtering role out hides none-added note", async () => {
+    const user = userEvent.setup();
+    // Part 1: Viewer has no workspace.members.view -> API returns members: [], total: 0
+    renderMembersApp({
+      membersResponse: {
+        members: [],
+        total: 0,
+        truncated: false,
+        addableRoles: ["admin", "contributor", "commenter", "viewer"],
+        assignedAdminCount: 0,
+      },
+    });
+
+    expect(await screen.findByText(NO_MEMBERS_YET)).toBeInTheDocument();
+    expect(screen.queryByText(NONE_ADDED_TO_PROJECT)).not.toBeInTheDocument();
+    cleanup();
+    vi.unstubAllGlobals();
+
+    // Part 2: Viewer has workspace.members.view, filters by Role Viewer -> No members match, no none-added note
+    const inheritedKai: ProjectMemberResponse = {
+      userId: "u-kai-admin",
+      firstName: "Kai",
+      lastName: "Tran",
+      displayName: "kaitran",
+      email: "kai@openplany.dev",
+      avatarUrl: null,
+      role: "admin",
+      assignedRole: null,
+      roleLimited: false,
+      joinedAt: null,
+      accountActive: true,
+      source: "inherited",
+      workspaceRole: "admin",
+      assignableRoles: [],
+    };
+
+    renderMembersApp({
+      membersResponse: {
+        members: [inheritedKai],
+        total: 0,
+        truncated: false,
+        addableRoles: ["admin", "contributor", "commenter", "viewer"],
+        assignedAdminCount: 0,
+      },
+    });
+
+    expect(await screen.findByText("Kai Tran")).toBeInTheDocument();
+    expect(screen.getByText(NONE_ADDED_TO_PROJECT)).toBeInTheDocument();
+
+    const filterBtn = screen.getByRole("button", { name: "Filter by role" });
+    await user.click(filterBtn);
+    const viewerCheckbox = await screen.findByRole("checkbox", {
+      name: "Viewer",
+    });
+    await user.click(viewerCheckbox);
+    await user.keyboard("{Escape}");
+
+    expect(
+      screen.getByText("No members match your search"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(NONE_ADDED_TO_PROJECT)).not.toBeInTheDocument();
+  });
+
+  it("AC-11: adding 1 member to project with 0 members updates count to Members 1, keeps inherited row at top, removes none-added note, and makes no second GET to /members", async () => {
+    const user = userEvent.setup();
+    const inheritedKai: ProjectMemberResponse = {
+      userId: "u-kai-admin",
+      firstName: "Kai",
+      lastName: "Tran",
+      displayName: "kaitran",
+      email: "kai@openplany.dev",
+      avatarUrl: null,
+      role: "admin",
+      assignedRole: null,
+      roleLimited: false,
+      joinedAt: null,
+      accountActive: true,
+      source: "inherited",
+      workspaceRole: "admin",
+      assignableRoles: [],
+    };
+    const candidateAn = {
+      userId: "u-an",
+      firstName: "An",
+      lastName: "Nguyen",
+      displayName: "An Nguyen",
+      email: "an@openplany.dev",
+      avatarUrl: null,
+      status: "addable" as const,
+      addableRoles: [
+        "contributor" as const,
+        "commenter" as const,
+        "viewer" as const,
+      ],
+    };
+
+    let membersGetCount = 0;
+
+    renderMembersApp({
+      membersResponse: {
+        members: [inheritedKai],
+        total: 0,
+        truncated: false,
+        addableRoles: ["admin", "contributor", "commenter", "viewer"],
+        assignedAdminCount: 0,
+      },
+      extraRoutes: {
+        "GET /api/workspaces/the-firsts/projects/TFP11/members": () => {
+          membersGetCount += 1;
+          return jsonResponse(200, {
+            members: [inheritedKai],
+            total: 0,
+            truncated: false,
+            addableRoles: ["admin", "contributor", "commenter", "viewer"],
+            assignedAdminCount: 0,
+          });
+        },
+        "GET /api/workspaces/the-firsts/projects/TFP11/member-candidates": () =>
+          jsonResponse(200, { candidates: [candidateAn] }),
+        "POST /api/workspaces/the-firsts/projects/TFP11/members": () =>
+          jsonResponse(201, {
+            members: [
+              {
+                userId: "u-an",
+                firstName: "An",
+                lastName: "Nguyen",
+                displayName: "An Nguyen",
+                email: "an@openplany.dev",
+                avatarUrl: null,
+                role: "contributor",
+                assignedRole: "contributor",
+                accountActive: true,
+                roleLimited: false,
+                joinedAt: "2026-10-14T00:00:00.000Z",
+                source: "assigned",
+                workspaceRole: "member",
+                assignableRoles: ["contributor", "commenter", "viewer"],
+              },
+            ],
+            project: {
+              ...sampleProject,
+              memberCount: 1,
+            },
+            assignedAdminCount: 0,
+          }),
+      },
+    });
+
+    expect(await screen.findByText("Kai Tran")).toBeInTheDocument();
+    expect(screen.getByText(NONE_ADDED_TO_PROJECT)).toBeInTheDocument();
+    const heading = screen.getByRole("heading", { name: /^members/i });
+    expect(within(heading.parentElement!).getByText("0")).toBeInTheDocument();
+    expect(membersGetCount).toBe(1);
+
+    // Click "Add member"
+    const addBtn = screen.getByRole("button", { name: /^add member$/i });
+    await user.click(addBtn);
+
+    const modal = await screen.findByRole("dialog", { name: "Add member" });
+    const emailInput = screen.getByRole("textbox", { name: "Email" });
+    await user.type(emailInput, "an@");
+
+    await waitFor(() => {
+      expect(screen.getByText("an@openplany.dev")).toBeInTheDocument();
+    });
+
+    await user.click(
+      screen.getByRole("option", { name: /an@openplany\.dev/i }),
+    );
+
+    const submitBtn = within(modal).getByRole("button", { name: "Add member" });
+    await user.click(submitBtn);
+
+    // Modal closes
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("dialog", { name: "Add member" }),
+      ).not.toBeInTheDocument();
+    });
+
+    // Kai Tran is still at the top
+    const rows = document.querySelectorAll("tbody tr");
+    expect(rows).toHaveLength(2);
+    expect(
+      within(rows[0] as HTMLElement).getByText("Kai Tran"),
+    ).toBeInTheDocument();
+    expect(
+      within(rows[1] as HTMLElement).getAllByText("An Nguyen").length,
+    ).toBeGreaterThan(0);
+
+    // Total badge is now 1
+    expect(within(heading.parentElement!).getByText("1")).toBeInTheDocument();
+
+    // D7 note is gone
+    expect(screen.queryByText(NONE_ADDED_TO_PROJECT)).not.toBeInTheDocument();
+
+    // No second GET request to /members
+    expect(membersGetCount).toBe(1);
   });
 });
