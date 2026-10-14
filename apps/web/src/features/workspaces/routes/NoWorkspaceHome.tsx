@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Group, Text, Title } from "@mantine/core";
 import { Link } from "react-router";
+import { useTranslation } from "react-i18next";
 import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
 import { useAuth } from "../../auth/useAuth";
 import { AppHeader } from "../../layout/AppHeader";
@@ -8,7 +9,8 @@ import { useWorkspaces } from "../useWorkspaces";
 import classes from "./NoWorkspaceHome.module.css";
 
 export function NoWorkspaceHome() {
-  useDocumentTitle("OpenPlany");
+  const { t } = useTranslation();
+  useDocumentTitle(t("workspace:noWorkspace.documentTitle"));
   const { state: authState } = useAuth();
   const { refresh } = useWorkspaces();
 
@@ -59,12 +61,12 @@ export function NoWorkspaceHome() {
       <AppHeader />
       <main className={classes.content}>
         <Title order={1} className={classes.title}>
-          You're not in a workspace yet
+          {t("workspace:noWorkspace.title")}
         </Title>
         <p className={classes.description}>
           {isInstanceAdmin
-            ? "Create one to start planning, or ask a workspace Admin to add you."
-            : "Ask a workspace Admin to add you to a workspace to get started."}
+            ? t("workspace:noWorkspace.adminDesc")
+            : t("workspace:noWorkspace.memberDesc")}
         </p>
         <Group gap="sm">
           {isInstanceAdmin && (
@@ -74,7 +76,7 @@ export function NoWorkspaceHome() {
               size="md"
               variant="filled"
             >
-              Create workspace
+              {t("workspace:noWorkspace.createButton")}
             </Button>
           )}
           <Button
@@ -83,12 +85,12 @@ export function NoWorkspaceHome() {
             loading={loading}
             onClick={() => void checkWorkspaces()}
           >
-            Check again
+            {t("workspace:noWorkspace.checkAgain")}
           </Button>
         </Group>
         {error && (
           <Text c="red" size="sm" mt="xs">
-            Couldn't check. Try again.
+            {t("workspace:noWorkspace.checkError")}
           </Text>
         )}
       </main>

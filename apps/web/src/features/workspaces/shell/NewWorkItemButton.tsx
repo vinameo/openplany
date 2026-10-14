@@ -1,4 +1,5 @@
 import { Button } from "@mantine/core";
+import { t } from "i18next";
 import { ComingSoonHint } from "../../layout/ComingSoonHint";
 import { SquarePenIcon } from "../icons";
 import classes from "./sidebarContent.module.css";
@@ -21,7 +22,7 @@ export function NewWorkItemButton() {
           }}
           className={classes.newWorkItemBtn}
         >
-          New work item
+          {t("workspace:shell.newWorkItem")}
         </Button>
       )}
     </ComingSoonHint>

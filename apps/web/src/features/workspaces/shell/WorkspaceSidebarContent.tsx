@@ -1,5 +1,6 @@
 import { ScrollArea, Text } from "@mantine/core";
 import { useLocation } from "react-router";
+import { t } from "i18next";
 import { useCurrentWorkspace } from "../currentWorkspace/useCurrentWorkspace";
 import { HomeIcon, SettingsIcon } from "../icons";
 import { workspacePath, workspaceSettingsPath } from "../workspacePaths";
@@ -18,7 +19,7 @@ export function WorkspaceSidebarContent() {
   return (
     <>
       <div className={classes.headerRow}>
-        <Text className={classes.heading}>Workspace</Text>
+        <Text className={classes.heading}>{t("workspace:shell.workspaceHeading")}</Text>
         <SidebarCollapseButton />
       </div>
 
@@ -33,7 +34,7 @@ export function WorkspaceSidebarContent() {
           <ul role="list" className={classes.navList}>
             <li>
               <SidebarNavItem
-                label="Home"
+                label={t("workspace:shell.home")}
                 icon={<HomeIcon width={16} height={16} />}
                 to={homePath}
                 active={isHome}
@@ -41,7 +42,7 @@ export function WorkspaceSidebarContent() {
             </li>
             <li>
               <SidebarNavItem
-                label="Settings"
+                label={t("workspace:shell.settings")}
                 icon={<SettingsIcon width={16} height={16} />}
                 to={workspaceSettingsPath(workspace.slug)}
               />

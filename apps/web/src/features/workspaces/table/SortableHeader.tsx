@@ -1,4 +1,5 @@
 import { ActionIcon, Group, Menu, Table, Text } from "@mantine/core";
+import { t } from "i18next";
 import {
   ArrowDownIcon,
   ArrowUpDownIcon,
@@ -51,7 +52,7 @@ export function SortableHeader<K extends string>({
               variant="subtle"
               size="xs"
               color="gray"
-              aria-label={`Sort by ${title}`}
+              aria-label={t("common:table.sortBy", { title })}
             >
               <SortIcon width={14} height={14} />
             </ActionIcon>
@@ -65,7 +66,7 @@ export function SortableHeader<K extends string>({
                 ) : null
               }
             >
-              Ascending
+              {t("common:table.ascending")}
             </Menu.Item>
             <Menu.Item
               onClick={() => onSortChange({ key: sortKey, direction: "desc" })}
@@ -75,7 +76,7 @@ export function SortableHeader<K extends string>({
                 ) : null
               }
             >
-              Descending
+              {t("common:table.descending")}
             </Menu.Item>
           </Menu.Dropdown>
         </Menu>

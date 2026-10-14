@@ -1,5 +1,6 @@
 import { Anchor, Breadcrumbs, Skeleton, Text } from "@mantine/core";
 import { Link } from "react-router";
+import { t } from "i18next";
 import { useCurrentWorkspace } from "../../workspaces/currentWorkspace/useCurrentWorkspace";
 import { useWorkspaceSidebar } from "../../workspaces/shell/useWorkspaceSidebar";
 import { SidebarExpandButton } from "../../workspaces/shell/SidebarExpandButton";
@@ -16,6 +17,9 @@ export function ProjectPageHeader() {
   const { project } = useCurrentProject();
   const { mode } = useWorkspaceSidebar();
   const pageMeta = useProjectPageMeta();
+  const pageTitle = pageMeta?.titleKey
+    ? t(pageMeta.titleKey)
+    : pageMeta?.title;
 
   return (
     <header className={headerClasses.pageHeader}>
@@ -65,10 +69,10 @@ export function ProjectPageHeader() {
             <Text
               aria-current="page"
               className={classes.breadcrumbItem}
-              title={pageMeta?.title}
+              title={pageTitle}
               fw={500}
             >
-              {pageMeta?.title}
+              {pageTitle}
             </Text>
           </Breadcrumbs>
         </nav>

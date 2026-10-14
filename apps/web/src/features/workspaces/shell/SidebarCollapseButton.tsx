@@ -1,11 +1,15 @@
 import { ActionIcon, Tooltip } from "@mantine/core";
+import { t } from "i18next";
 import { PanelLeftIcon } from "../icons";
 import { useWorkspaceSidebar } from "./useWorkspaceSidebar";
 
 export function SidebarCollapseButton() {
   const { mode, isOpen, close, sidebarId, collapseButtonRef } =
     useWorkspaceSidebar();
-  const label = mode === "mobile" ? "Close sidebar" : "Collapse sidebar";
+  const label =
+    mode === "mobile"
+      ? t("workspace:shell.closeSidebar")
+      : t("workspace:shell.collapseSidebar");
 
   return (
     <Tooltip label={label} withArrow position="right">

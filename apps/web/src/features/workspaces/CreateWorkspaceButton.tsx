@@ -1,8 +1,11 @@
 import { ActionIcon, Button } from "@mantine/core";
 import { Link } from "react-router";
+import { t } from "i18next";
 import { PlusIcon } from "./icons";
 
 export function CreateWorkspaceButton() {
+  const label = t("workspace:createButton.label");
+
   return (
     <>
       <Button
@@ -18,7 +21,7 @@ export function CreateWorkspaceButton() {
           },
         }}
       >
-        Create workspace
+        {label}
       </Button>
 
       <ActionIcon
@@ -26,8 +29,8 @@ export function CreateWorkspaceButton() {
         to="/create-workspace"
         size="md"
         variant="filled"
-        aria-label="Create workspace"
-        title="Create workspace"
+        aria-label={label}
+        title={label}
         hiddenFrom="xs"
       >
         <PlusIcon />

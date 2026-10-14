@@ -90,14 +90,27 @@ export const ALL_RESTRICTED_SELECTORS = [
  * Note: URL template rules ALWAYS apply to exempt areas as well.
  */
 export const EXEMPT_AREAS = [
-  "src/routes.tsx",
-  "src/features/layout/**",
-  "src/features/home/**",
-  "src/features/workspaces/**",
-  "src/features/projects/**",
+  // Cài đặt workspace, thành viên (Ticket 07)
   "src/features/settings/**",
+  "src/features/workspaces/settings/**",
   "src/features/members/**",
   "src/features/timezones/**",
+  "src/features/workspaces/currentWorkspace/**",
+  // Dự án còn lại (Ticket 08)
+  "src/features/projects/api/**",
+  "src/features/projects/covers/**",
+  "src/features/projects/create/**",
+  "src/features/projects/detail/**",
+  "src/features/projects/settings/**",
+  "src/features/projects/ProjectCoverHeader.tsx",
+  "src/features/projects/ProjectCoverPicker.tsx",
+  "src/features/projects/ProjectIcon.tsx",
+  "src/features/projects/ProjectIconPicker.tsx",
+  "src/features/projects/useProjects.ts",
+  "src/features/projects/projectCovers.ts",
+  "src/features/projects/projectIcons.ts",
+  "src/features/projects/iconColor.ts",
+  // Quản trị, hồ sơ, phần chung (Ticket 09)
   "src/features/admin/**",
   "src/features/profile/**",
   "src/hooks/**",

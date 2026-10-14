@@ -1,5 +1,6 @@
 import { Menu, ScrollArea, Text, UnstyledButton } from "@mantine/core";
 import { Link, useNavigate } from "react-router";
+import { t } from "i18next";
 import { WORKSPACE_ROLE_LABELS, type WorkspaceResponse } from "@repo/contracts";
 import { useAuth } from "../../auth/useAuth";
 import { ROLES_AND_PERMISSIONS_PATH } from "../../admin/roles/rolesOverview";
@@ -69,7 +70,9 @@ export function WorkspaceSwitcher({
       <Menu.Target>
         <UnstyledButton
           className={classes.trigger}
-          aria-label={`Switch workspace – ${activeWs.name}`}
+          aria-label={t("workspace:switcher.switchWorkspace", {
+            name: activeWs.name,
+          })}
         >
           <WorkspaceAvatar
             name={activeWs.name}
@@ -89,8 +92,9 @@ export function WorkspaceSwitcher({
         <ScrollArea.Autosize mah={320} className={classes.scrollArea}>
           {workspaces.map((ws) => {
             const isCurrent = ws.slug === activeWs.slug;
-            const memberText =
-              ws.memberCount === 1 ? "1 member" : `${ws.memberCount} members`;
+            const memberText = t("workspace:switcher.memberCount", {
+              count: ws.memberCount,
+            });
             const roleText = WORKSPACE_ROLE_LABELS[ws.role];
 
             const workspaceItem = (
@@ -135,7 +139,7 @@ export function WorkspaceSwitcher({
                     leftSection={<SettingsIcon width={14} height={14} />}
                     className={classes.settingsChip}
                   >
-                    Settings
+                    {t("workspace:shell.settings")}
                   </Menu.Item>
                 </div>
               );
@@ -152,7 +156,7 @@ export function WorkspaceSwitcher({
             leftSection={<PlusIcon />}
             onClick={() => navigate("/create-workspace")}
           >
-            <Text size="sm">Create workspace</Text>
+            <Text size="sm">{t("workspace:switcher.createWorkspace")}</Text>
           </Menu.Item>
         )}
 
@@ -162,13 +166,13 @@ export function WorkspaceSwitcher({
               leftSection={<UserPlusIcon />}
               onClick={() => navigate("/create-user")}
             >
-              <Text size="sm">Create user</Text>
+              <Text size="sm">{t("workspace:switcher.createUser")}</Text>
             </Menu.Item>
             <Menu.Item
               leftSection={<ShieldIcon />}
               onClick={() => navigate(ROLES_AND_PERMISSIONS_PATH)}
             >
-              <Text size="sm">Roles & Permissions</Text>
+              <Text size="sm">{t("workspace:switcher.rolesAndPermissions")}</Text>
             </Menu.Item>
           </>
         )}
@@ -178,7 +182,7 @@ export function WorkspaceSwitcher({
           leftSection={<SignOutIcon />}
           onClick={() => void handleSignOut()}
         >
-          <Text size="sm">Sign out</Text>
+          <Text size="sm">{t("common:actions.signOut")}</Text>
         </Menu.Item>
       </Menu.Dropdown>
     </Menu>

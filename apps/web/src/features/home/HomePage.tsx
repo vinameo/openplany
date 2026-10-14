@@ -1,4 +1,5 @@
 import { Alert, Container } from "@mantine/core";
+import { useTranslation } from "react-i18next";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { useAuth } from "../auth/useAuth";
 import { ProjectsHome } from "../projects/ProjectsHome";
@@ -7,6 +8,7 @@ import classes from "./HomePage.module.css";
 
 /** Landing page after sign-in; displays Projects list. */
 export function HomePage() {
+  const { t } = useTranslation();
   const { state } = useAuth();
   const { workspace } = useCurrentWorkspace();
 
@@ -19,8 +21,12 @@ export function HomePage() {
   return (
     <Container size="lg" className={classes.main}>
       {!user.isEmailVerified && (
-        <Alert color="yellow" mb="lg" title="Verify your email">
-          Check your inbox for a verification link from OpenPlany.
+        <Alert
+          color="yellow"
+          mb="lg"
+          title={t("workspace:home.verifyEmailTitle")}
+        >
+          {t("workspace:home.verifyEmailBody")}
         </Alert>
       )}
       <ProjectsHome />

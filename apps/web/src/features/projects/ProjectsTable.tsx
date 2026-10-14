@@ -1,5 +1,6 @@
 import { Anchor, Group, Table, Text, VisuallyHidden } from "@mantine/core";
 import { Link } from "react-router";
+import { t } from "i18next";
 import type { ProjectListItem } from "@repo/contracts";
 import { formatCalendarDate } from "../workspaces/table/formatCalendarDate";
 import {
@@ -26,6 +27,8 @@ export function ProjectsTable({
   sort,
   onSortChange,
 }: ProjectsTableProps) {
+  const tableAriaLabel = t("project:list.tableAriaLabel");
+
   return (
     <Table.ScrollContainer
       minWidth={600}
@@ -35,10 +38,10 @@ export function ProjectsTable({
       <Table
         verticalSpacing="sm"
         className={dataTableClasses.table}
-        aria-label="Projects"
+        aria-label={tableAriaLabel}
       >
         <Table.Caption>
-          <VisuallyHidden>Projects</VisuallyHidden>
+          <VisuallyHidden>{tableAriaLabel}</VisuallyHidden>
         </Table.Caption>
         <colgroup>
           <col className={classes.colProjectName} />
@@ -48,15 +51,15 @@ export function ProjectsTable({
         <Table.Thead>
           <Table.Tr>
             <SortableHeader<ProjectSortKey>
-              title="Project Name"
+              title={t("project:list.colProjectName")}
               sortKey="name"
               currentSort={sort}
               onSortChange={onSortChange}
               className={dataTableClasses.stickyHeader}
             />
-            <Table.Th>Members</Table.Th>
+            <Table.Th>{t("project:list.colMembers")}</Table.Th>
             <SortableHeader<ProjectSortKey>
-              title="Created Date"
+              title={t("project:list.colCreatedDate")}
               sortKey="createdAt"
               currentSort={sort}
               onSortChange={onSortChange}

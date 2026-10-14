@@ -1,11 +1,13 @@
 import { Button, Container, Stack, Text, Title } from "@mantine/core";
 import { Navigate } from "react-router";
+import { useTranslation } from "react-i18next";
 import { AuthLayout } from "../../auth/AuthLayout";
 import { useWorkspaces } from "../useWorkspaces";
 import { NoWorkspaceHome } from "./NoWorkspaceHome";
 import { workspacePath } from "../workspacePaths";
 
 export function HomeRedirect() {
+  const { t } = useTranslation();
   const { state, refresh } = useWorkspaces();
 
   if (state.status === "loading") {
@@ -16,12 +18,12 @@ export function HomeRedirect() {
     return (
       <Container size="sm" py={80}>
         <Stack align="center" gap="md">
-          <Title order={2}>Couldn't load your workspaces.</Title>
+          <Title order={2}>{t("workspace:homeRedirect.loadErrorTitle")}</Title>
           <Text c="dimmed">
-            An error occurred while fetching your workspaces.
+            {t("workspace:homeRedirect.loadErrorDesc")}
           </Text>
           <Button variant="default" onClick={() => void refresh()}>
-            Try again
+            {t("workspace:homeRedirect.tryAgain")}
           </Button>
         </Stack>
       </Container>

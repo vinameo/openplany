@@ -86,7 +86,7 @@ export function AppHeader({
               loading={isSigningOut}
               onClick={() => void handleSignOut()}
             >
-              Sign out
+              {t("common:actions.signOut")}
             </Button>
           )}
         </Group>

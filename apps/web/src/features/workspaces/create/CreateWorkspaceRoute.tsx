@@ -1,6 +1,7 @@
 import { Navigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { ColorSchemeToggle } from "@repo/ui";
+import { LanguageMenu } from "../../../i18n/LanguageMenu";
 import { useAuth } from "../../auth/useAuth";
 import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
 import { CreateWorkspaceForm } from "./CreateWorkspaceForm";
@@ -8,7 +9,7 @@ import classes from "./CreateWorkspaceRoute.module.css";
 
 export function CreateWorkspaceRoute() {
   const { t } = useTranslation();
-  useDocumentTitle("Create workspace · OpenPlany");
+  useDocumentTitle(t("workspace:create.documentTitle"));
   const { state: authState } = useAuth();
 
   if (
@@ -21,6 +22,7 @@ export function CreateWorkspaceRoute() {
   return (
     <div className={classes.page}>
       <div className={classes.topBar}>
+        <LanguageMenu size="input-xs" />
         <ColorSchemeToggle
           size="input-xs"
           labelLight={t("common:theme.switchToLight")}

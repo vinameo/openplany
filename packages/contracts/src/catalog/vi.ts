@@ -27,6 +27,24 @@ export const vi: ViCatalog = {
     "theme.switchToDark": "Chuyển sang giao diện tối",
     "language.buttonAriaLabel": "Ngôn ngữ: Tiếng Việt (VI)",
     "test.minute_other": "{{count}} phút",
+    "actions.signOut": "Đăng xuất",
+    "actions.settings": "Cài đặt",
+    "actions.goBack": "Quay lại",
+    "actions.retry": "Thử lại",
+    "actions.tryAgain": "Thử lại",
+    "actions.discard": "Huỷ",
+    "actions.keepEditing": "Tiếp tục chỉnh sửa",
+    comingSoon: "Sắp ra mắt",
+    error: "Lỗi",
+    "table.sortBy": "Sắp xếp theo {{title}}",
+    "table.ascending": "Tăng dần",
+    "table.descending": "Giảm dần",
+    "orgSize.justMyself": "Chỉ mình tôi",
+    "orgSize.from2To10": "2-10",
+    "orgSize.from11To50": "11-50",
+    "orgSize.from51To200": "51-200",
+    "orgSize.from201To500": "201-500",
+    "orgSize.from500Plus": "500+",
   },
   auth: {
     signIn: "Đăng nhập",
@@ -130,6 +148,77 @@ export const vi: ViCatalog = {
     "errors.lastAdmin":
       "Workspace cần có ít nhất một Admin. Hãy chỉ định người khác làm Admin trước.",
     "errors.memberGone": "Người này không còn trong Workspace này nữa.",
+    "shell.home": "Trang chủ",
+    "shell.settings": "Cài đặt",
+    "shell.workspaceHeading": "Workspace",
+    "shell.newWorkItem": "Tạo công việc",
+    "shell.closeSidebar": "Đóng thanh bên",
+    "shell.collapseSidebar": "Thu gọn thanh bên",
+    "shell.openSidebar": "Mở thanh bên",
+    "shell.expandSidebar": "Mở rộng thanh bên",
+    "switcher.switchWorkspace": "Chuyển Workspace – {{name}}",
+    "switcher.memberCount_other": "{{count}} thành viên",
+    "switcher.createWorkspace": "Tạo Workspace",
+    "switcher.createUser": "Tạo người dùng",
+    "switcher.rolesAndPermissions": "Vai trò & Quyền",
+    "search.placeholder": "Tìm lệnh…",
+    "search.ariaLabel": "Tìm lệnh (sắp ra mắt)",
+    "createButton.label": "Tạo Workspace",
+    "discard.title": "Huỷ thay đổi?",
+    "discard.message":
+      "Bạn có thay đổi chưa lưu. Bạn có chắc muốn huỷ không?",
+    "discard.keepEditing": "Tiếp tục chỉnh sửa",
+    "discard.discard": "Huỷ",
+    "notFound.documentTitle": "Không tìm thấy Workspace · OpenPlany",
+    "notFound.title": "Không tìm thấy Workspace",
+    "notFound.description":
+      "Workspace không tồn tại hoặc bạn không có quyền truy cập.",
+    "notFound.goToWorkspaces": "Đến danh sách Workspace",
+    "homeRedirect.loadErrorTitle": "Không thể tải danh sách Workspace.",
+    "homeRedirect.loadErrorDesc":
+      "Đã có lỗi xảy ra khi tải danh sách Workspace của bạn.",
+    "homeRedirect.tryAgain": "Thử lại",
+    "noWorkspace.documentTitle": "OpenPlany",
+    "noWorkspace.title": "Bạn chưa ở trong Workspace nào",
+    "noWorkspace.adminDesc":
+      "Tạo một Workspace để bắt đầu lập kế hoạch, hoặc nhờ một Workspace Admin thêm bạn vào.",
+    "noWorkspace.memberDesc":
+      "Nhờ một Workspace Admin thêm bạn vào Workspace để bắt đầu.",
+    "noWorkspace.createButton": "Tạo Workspace",
+    "noWorkspace.checkAgain": "Kiểm tra lại",
+    "noWorkspace.checkError": "Không thể kiểm tra. Thử lại sau.",
+    "create.documentTitle": "Tạo Workspace · OpenPlany",
+    "create.title": "Tạo Workspace của bạn",
+    "create.nameLabel": "Đặt tên cho Workspace",
+    "create.namePlaceholder":
+      "Tên quen thuộc và dễ nhận diện luôn là lựa chọn tốt nhất.",
+    "create.slugLabel": "Đặt URL cho Workspace",
+    "create.slugDescription": "Bạn không thể đổi URL này sau đó.",
+    "create.slugPlaceholder": "Nhập hoặc dán URL",
+    "create.slugChecking": "Đang kiểm tra…",
+    "create.slugAvailable": "✓ Khả dụng",
+    "create.orgSizeLabel": "Có bao nhiêu người sẽ sử dụng Workspace này?",
+    "create.orgSizePlaceholder": "Chọn một khoảng",
+    "create.submitButton": "Tạo Workspace",
+    "create.goBackButton": "Quay lại",
+    "create.errors.slugRequired": "Nhập URL cho Workspace",
+    "create.errors.slugLength":
+      "URL phải từ {{min}} đến {{max}} ký tự",
+    "create.errors.slugPattern":
+      "URL chỉ có thể dùng chữ thường, số và dấu gạch ngang đơn, và không được bắt đầu hoặc kết thúc bằng dấu gạch ngang",
+    "create.errors.slugReserved":
+      "URL này đã được đặt trước. Hãy chọn URL khác.",
+    "create.errors.slugTaken":
+      "URL này đã được sử dụng. Hãy chọn URL khác.",
+    "create.errors.orgSizeRequired":
+      "Chọn số lượng người sẽ sử dụng Workspace này",
+    "create.errors.rateLimited_other":
+      "Bạn đã tạo nhiều Workspace gần đây. Thử lại sau {{count}} phút.",
+    "create.errors.generic":
+      "Không thể tạo Workspace. Vui lòng thử lại.",
+    "home.verifyEmailTitle": "Xác thực email của bạn",
+    "home.verifyEmailBody":
+      "Kiểm tra hộp thư đến của bạn để tìm liên kết xác thực từ OpenPlany.",
   },
   project: {
     title: "Dự án",
@@ -159,6 +248,26 @@ export const vi: ViCatalog = {
     "errors.workspaceAdmin":
       "Workspace Admin đã có quyền truy cập vào mọi dự án.",
     "errors.timezoneInvalid": "Chọn một múi giờ hợp lệ",
+    "list.title": "Dự án",
+    "list.loadError": "Không thể tải danh sách dự án.",
+    "list.retry": "Thử lại",
+    "list.showingTruncated":
+      "Đang hiển thị {{shown}} trên tổng số {{total}} dự án.",
+    "list.emptyCanCreateTitle": "Chưa có dự án nào",
+    "list.emptyCanCreateDesc":
+      "Tạo một dự án để bắt đầu theo dõi công việc.",
+    "list.emptyCanCreateButton": "Thêm dự án",
+    "list.emptyCannotCreateDesc":
+      "Bạn chưa được thêm vào dự án nào.",
+    "list.noMatch": "Không có dự án nào khớp với \"{{search}}\"",
+    "list.clearSearch": "Xoá tìm kiếm",
+    "list.searchPlaceholder": "Tìm kiếm…",
+    "list.searchAriaLabel": "Tìm kiếm dự án",
+    "list.addProject": "Thêm dự án",
+    "list.tableAriaLabel": "Dự án",
+    "list.colProjectName": "Tên dự án",
+    "list.colMembers": "Thành viên",
+    "list.colCreatedDate": "Ngày tạo",
   },
   members: {
     title: "Thành viên",
@@ -185,6 +294,10 @@ export const vi: ViCatalog = {
     truncated: "Đang hiện {{shown}} trên tổng số {{total}} thành viên.",
     projectTruncated:
       "Đang hiện {{shown}} trên tổng số {{total}} thành viên dự án.",
+    "cell.hiddenForRole": "Bị ẩn đối với vai trò của bạn",
+    "cell.you": "(bạn)",
+    "cell.deactivated": "Đã vô hiệu hoá",
+    "cell.andMore_other": "và thêm {{count}} người nữa",
   },
   users: {
     "errors.firstNameRequired": "Nhập tên",

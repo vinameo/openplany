@@ -9,6 +9,8 @@ import {
   Text,
   Title,
 } from "@mantine/core";
+import { t } from "i18next";
+import { getLanguage } from "../../i18n";
 import { useCurrentWorkspace } from "../workspaces/currentWorkspace/useCurrentWorkspace";
 import { CreateProjectModal } from "./create/CreateProjectModal";
 import {
@@ -58,13 +60,13 @@ export function ProjectsHome() {
     return (
       <Stack gap="md">
         <Group gap="xs" align="center">
-          <Title order={2}>Projects</Title>
+          <Title order={2}>{t("project:list.title")}</Title>
         </Group>
         <Alert color="red" role="alert">
           <Group justify="space-between" align="center">
-            <Text size="sm">Couldn't load projects.</Text>
+            <Text size="sm">{t("project:list.loadError")}</Text>
             <Button variant="subtle" color="red" size="xs" onClick={reload}>
-              Retry
+              {t("project:list.retry")}
             </Button>
           </Group>
         </Alert>
@@ -73,7 +75,10 @@ export function ProjectsHome() {
   }
 
   const { data } = state;
-  const numberFormat = new Intl.NumberFormat("en-US");
+  const currentLang = getLanguage();
+  const numberFormat = new Intl.NumberFormat(
+    currentLang === "vi" ? "vi-VN" : "en-US",
+  );
   const displayedProjects = applyProjectListQuery(data.projects, {
     search,
     sort,
@@ -83,7 +88,7 @@ export function ProjectsHome() {
     <>
       <Stack gap="md">
         <Group gap="xs" align="center">
-          <Title order={2}>Projects</Title>
+          <Title order={2}>{t("project:list.title")}</Title>
           <Badge variant="light" color="gray" size="sm">
             {data.total}
           </Badge>
@@ -91,7 +96,10 @@ export function ProjectsHome() {
 
         {data.truncated && (
           <Alert color="yellow" role="alert">
-            {`Showing the first ${numberFormat.format(data.projects.length)} of ${numberFormat.format(data.total)} projects.`}
+            {t("project:list.showingTruncated", {
+              shown: numberFormat.format(data.projects.length),
+              total: numberFormat.format(data.total),
+            })}
           </Alert>
         )}
 
@@ -99,19 +107,19 @@ export function ProjectsHome() {
           canCreate ? (
             <Stack align="center" gap="xs" py="xl">
               <Text size="md" fw={500}>
-                No projects yet
+                {t("project:list.emptyCanCreateTitle")}
               </Text>
               <Text size="sm" c="dimmed">
-                Create a project to start tracking work.
+                {t("project:list.emptyCanCreateDesc")}
               </Text>
               <Button mt="xs" onClick={() => setCreateModalOpened(true)}>
-                Add project
+                {t("project:list.emptyCanCreateButton")}
               </Button>
             </Stack>
           ) : (
             <Stack align="center" gap="xs" py="xl">
               <Text size="sm" c="dimmed">
-                You haven't been added to any projects yet.
+                {t("project:list.emptyCannotCreateDesc")}
               </Text>
             </Stack>
           )
@@ -128,10 +136,10 @@ export function ProjectsHome() {
             {displayedProjects.length === 0 ? (
               <Stack align="center" gap="xs" py="xl">
                 <Text size="sm" c="dimmed">
-                  {`No projects match "${search}"`}
+                  {t("project:list.noMatch", { search })}
                 </Text>
                 <Button variant="subtle" size="sm" onClick={handleClearSearch}>
-                  Clear search
+                  {t("project:list.clearSearch")}
                 </Button>
               </Stack>
             ) : (

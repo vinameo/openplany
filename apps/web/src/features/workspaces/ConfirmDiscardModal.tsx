@@ -1,4 +1,5 @@
 import { Button, Group, Modal, Stack, Text } from "@mantine/core";
+import { t } from "i18next";
 
 export interface ConfirmDiscardModalProps {
   opened: boolean;
@@ -15,19 +16,19 @@ export function ConfirmDiscardModal({
     <Modal
       opened={opened}
       onClose={onClose}
-      title="Discard changes?"
+      title={t("workspace:discard.title")}
       size="sm"
     >
       <Stack gap="md">
         <Text size="sm">
-          You have unsaved changes. Are you sure you want to discard them?
+          {t("workspace:discard.message")}
         </Text>
         <Group justify="flex-end" gap="xs">
           <Button variant="default" onClick={onClose}>
-            Keep editing
+            {t("workspace:discard.keepEditing")}
           </Button>
           <Button color="red" onClick={onDiscard}>
-            Discard
+            {t("workspace:discard.discard")}
           </Button>
         </Group>
       </Stack>

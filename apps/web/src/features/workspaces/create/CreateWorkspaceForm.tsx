@@ -7,12 +7,14 @@ import {
   Title,
 } from "@mantine/core";
 import { useNavigate } from "react-router";
-import { ORGANIZATION_SIZES } from "@repo/contracts";
+import { useTranslation } from "react-i18next";
+import { ORGANIZATION_SIZES, ORGANIZATION_SIZE_KEYS } from "@repo/contracts";
 import classes from "./CreateWorkspaceForm.module.css";
 import { SlugInput } from "./SlugInput";
 import { useCreateWorkspaceForm } from "./useCreateWorkspaceForm";
 
 export function CreateWorkspaceForm() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const {
     form,
@@ -38,23 +40,28 @@ export function CreateWorkspaceForm() {
   let slugDisplayError = form.errors.slug;
   if (!slugDisplayError && slugStatus.kind === "unavailable") {
     if (slugStatus.reason === "RESERVED") {
-      slugDisplayError = "This URL is reserved. Choose another one.";
+      slugDisplayError = t("workspace:create.errors.slugReserved");
     } else if (slugStatus.reason === "TAKEN") {
-      slugDisplayError = "This URL is already taken. Choose another one.";
+      slugDisplayError = t("workspace:create.errors.slugTaken");
     }
   }
+
+  const organizationSizeOptions = ORGANIZATION_SIZES.map((size) => ({
+    value: size,
+    label: t(ORGANIZATION_SIZE_KEYS[size]),
+  }));
 
   return (
     <div className={classes.container}>
       <Title order={1} className={classes.title}>
-        Create your workspace
+        {t("workspace:create.title")}
       </Title>
 
       <form onSubmit={handleSubmit} className={classes.form}>
         <TextInput
-          label="Name your workspace"
+          label={t("workspace:create.nameLabel")}
           withAsterisk
-          placeholder="Something familiar and recognizable is always best."
+          placeholder={t("workspace:create.namePlaceholder")}
           maxLength={80}
           autoFocus
           autoComplete="organization"
@@ -67,9 +74,10 @@ export function CreateWorkspaceForm() {
 
         <div>
           <SlugInput
-            label="Set your workspace's URL"
+            label={t("workspace:create.slugLabel")}
             withAsterisk
-            description="You can't change this URL later."
+            description={t("workspace:create.slugDescription")}
+            placeholder={t("workspace:create.slugPlaceholder")}
             value={form.values.slug}
             onChange={handleSlugChange}
             onPaste={handleSlugPaste}
@@ -86,20 +94,22 @@ export function CreateWorkspaceForm() {
           >
             {slugStatus.kind === "checking" && (
               <span className={classes.statusChecking}>
-                <Loader size="xs" /> Checking…
+                <Loader size="xs" /> {t("workspace:create.slugChecking")}
               </span>
             )}
             {slugStatus.kind === "available" && !slugDisplayError && (
-              <span className={classes.statusAvailable}>✓ Available</span>
+              <span className={classes.statusAvailable}>
+                {t("workspace:create.slugAvailable")}
+              </span>
             )}
           </div>
         </div>
 
         <Select
-          label="How many people will use this workspace?"
+          label={t("workspace:create.orgSizeLabel")}
           withAsterisk
-          placeholder="Select a range"
-          data={ORGANIZATION_SIZES as unknown as string[]}
+          placeholder={t("workspace:create.orgSizePlaceholder")}
+          data={organizationSizeOptions}
           allowDeselect={false}
           searchable={false}
           checkIconPosition="right"
@@ -120,7 +130,7 @@ export function CreateWorkspaceForm() {
         />
 
         {generalError && (
-          <Alert color="red" title="Error">
+          <Alert color="red" title={t("common:error")}>
             {generalError}
           </Alert>
         )}
@@ -132,7 +142,7 @@ export function CreateWorkspaceForm() {
             loading={isSubmitting}
             disabled={!canSubmit}
           >
-            Create workspace
+            {t("workspace:create.submitButton")}
           </Button>
 
           <Button
@@ -141,10 +151,11 @@ export function CreateWorkspaceForm() {
             onClick={handleGoBack}
             disabled={isSubmitting}
           >
-            Go back
+            {t("workspace:create.goBackButton")}
           </Button>
         </div>
       </form>
     </div>
   );
 }
+
