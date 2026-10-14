@@ -26,6 +26,7 @@ Open-source project management tool for tracking issues. This is a **pnpm + Turb
 | Frontend        | React + Vite + Mantine UI + react-router                       | 19 / 8 / 9 / 8    |
 | Server state    | TanStack Query (`@tanstack/react-query`)                       | 5                 |
 | Auth            | Opaque session cookie, argon2id via `node:crypto` (Node 24+), `helmet`, `cookie-parser` | — |
+| i18n            | i18next (API core), react-i18next (web)                        | 24.x / 15.x       |
 | Testing         | Vitest (API: unit + e2e with Supertest; web/ui: jsdom + React Testing Library) | 4.x (api), 5.x (web/ui) |
 | Linting         | oxlint (API with `--type-aware`, ui), ESLint flat config (web) | —                 |
 
@@ -312,7 +313,7 @@ Each of those features passed every ticket's acceptance criteria and its checks,
 4. **Adversarial inputs.** For each endpoint, list and test: missing field, wrong type, array or `null` instead of object, empty string, control characters and NUL, over-long values, non-canonical case, an ID from another workspace, two concurrent identical writes. Each one answers 4xx, never 500. On the web, test path segments that collide with route words (e.g. a workspace slug `projects`).
 5. **Migrations meet real data.** Before adding a unique index or constraint, query for the rows that would violate it and stop with a message naming them. Partial indexes do not serve FK lookups: every FK column gets a full index.
 6. **Extract before you copy.** When new code would repeat a block (about 10 lines of logic, a JSX block, a CSS rule set) from existing code, extract it into a shared component, hook or helper in a prefactor commit, then use it in both places. Carry over only what the new code reads: no dead refs or state.
-7. **Copy from the spec.** User-facing text comes from the spec or `@repo/contracts` constants, never from `err.message`.
+7. **Copy from the catalog.** User-facing text is a key in the `@repo/contracts` catalog, rendered with `t`. Where the web picks a sentence for an API error, it picks by `code`; where it shows the API's `message` or `fields`, the API has already translated them by `Accept-Language`. No decision compares `err.message`.
 
 **Self-review** (before step 3; done when every finding is fixed or recorded with a reason in the report):
 
@@ -336,7 +337,7 @@ The `spec-review` skill (user-level, shared across projects) reads this section.
 - **P9 Decide on locked rows.** A value a write depends on (a role, a membership, a count) is read inside the write's transaction from a locked row, never taken from what the guard read.
 - **P10 Live rows.** Every read and lock on a soft-deletable table says how deleted rows are excluded or answered.
 - **P11 One rule, one section.** A rule (a check order, a count, a filter) is stated once; other sections and files point to it.
-- **P12 One code per message.** Each sentence the web shows for an error has its own `code` in the API error table, and the web error table maps codes, never messages.
+- **P12 One code per message.** Each sentence the web shows for an error has its own `code` in the API error table, and the web error table maps codes, never messages, and a decision that needs to tell two errors apart gets two codes.
 
 **Feature workflow skills** (`.claude/skills/`): `write-feature-spec` (grill → five spec files → `spec-reviewer` subagent, which runs the user-level `spec-review` skill with the checks above → tickets), `implement-ticket` (one ticket, and the final self-review and merge) and `implement-feature` (`/implement-feature <docs path>`: every ticket in order through the `deep-coder` subagent, then the branch review and merge).
 

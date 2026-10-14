@@ -121,3 +121,26 @@ _Avoid_: Promote/demote (fine in prose, not as a term)
 
 **Last Admin**:
 The only active Admin left in a workspace. They cannot be demoted or removed, and cannot leave, so the workspace is never left without someone to manage it. Two Admins demoting each other at the same moment cannot both succeed.
+
+## Interface language
+
+OpenPlany supports English (`en`, default) and Vietnamese (`vi`). Interface language is browser-based (stored in `localStorage` under `openplany.language`), reactive across tabs via `storage` events, and passed to the API via the `Accept-Language` request header.
+
+### Vietnamese glossary (Thuật ngữ Tiếng Việt)
+
+When Vietnamese is active, the UI and API errors are localized, while core system domain terms remain verbatim in English:
+
+| Keep in English (Giữ tiếng Anh) | Vietnamese Translation (Dịch) |
+| -------------------------------- | ----------------------------- |
+| Workspace, Workspace Admin | Project → **Dự án** |
+| Admin, Member, Guest | Members → **Thành viên** |
+| Project Admin, Contributor, Commenter, Viewer | Settings → **Cài đặt** |
+| Project ID | Work item → **Công việc** |
+| OpenPlany | Joining date → **Ngày tham gia** |
+| | Permission → **Quyền** |
+| | Role → **Vai trò** |
+| | Deactivated account → **Đã vô hiệu hoá** |
+| | Login lockout → **Tạm khoá** |
+
+All translations address the user politely as "bạn". User-supplied content (such as project names, descriptions, and user names), time zone identifiers, server logs, and logos remain untranslated.
+
