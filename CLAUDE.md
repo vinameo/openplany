@@ -316,7 +316,8 @@ Each of those features passed every ticket's acceptance criteria and its checks,
 
 **Self-review** (before step 3; done when every finding is fixed or recorded with a reason in the report):
 
-- Review `git diff develop...HEAD` as a whole branch, not ticket by ticket, against the design pass, the OWASP list (§5) and §7. Tickets built in separate contexts duplicate each other: look specifically for two implementations of the same idea across tickets.
+- Before each ticket's commit, review its diff against the ticket and the spec sections it cites (`implement-ticket` step 8).
+- After the last ticket, review `git diff develop...HEAD` as a whole branch, not ticket by ticket: spec completeness, SOLID, the OWASP Top 10 (§5), extensibility against the spec's roadmap and `FC-` constraints, the design pass and §7. The checklist is "After the last ticket: feature review" in `implement-ticket`. Tickets built in separate contexts duplicate each other: look specifically for two implementations of the same idea across tickets. Fix the findings before merging.
 - Prefer running `/code-review` on the branch. Otherwise, review it yourself against the same lists. Also run it right after the tracer-bullet ticket: later tickets copy whatever the tracer establishes.
 - Write the report to `.claude/reviews/<branch with "/" as "__">.md` (untracked) after the last commit. A PreToolUse hook (`.claude/hooks/requireBranchReview.mjs`) refuses `git merge` of a `feature/`, `fix/`, `refactor/`, `chore/` or `review/` branch whose report is missing or older than its tip.
 
@@ -336,7 +337,7 @@ The `spec-review` skill (user-level, shared across projects) reads this section.
 
 **Other coding agents (Codex, Antigravity).** `AGENTS.md` is a symlink to this file, and `.agents/skills` and `.agents/agents` are symlinks to `.claude/skills` and `.claude/agents`, so every agent reads the same rules, skills and subagents. In an agent's frontmatter, restrict tools with `disallowedTools`, never `tools:`: Antigravity drops an agent whose `tools:` names Claude Code tools (`agy agents` must list every file in `.claude/agents`). Antigravity gets the merge-gate hook from `.agents/hooks.json`, which runs the same `.claude/hooks/requireBranchReview.mjs`. When a skill names a Claude Code feature your agent lacks:
 - A subagent (`deep-coder`, `spec-reviewer`) your agent cannot start (Codex): read `.claude/agents/<name>.md` and do its job yourself, one ticket at a time, with its preloaded skills as background where you have them.
-- `/code-review` or `/security-review`: review `git diff develop...HEAD` yourself against §5 (OWASP), §7 and the design pass in §8.
+- `/code-review` or `/security-review`: review `git diff develop...HEAD` yourself with the feature-review checklist in `implement-ticket`.
 - `$ARGUMENTS`: the path or number the user gave with the request.
 - Codex has no merge-gate hook: write the review report before `git merge` anyway.
 
