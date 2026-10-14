@@ -1,5 +1,6 @@
 import { notifications } from "@mantine/notifications";
 import { useNavigate } from "react-router";
+import { useTranslation } from "react-i18next";
 import {
   EDITABLE_WORKSPACE_FIELDS,
   normalizeWorkspaceName,
@@ -26,6 +27,7 @@ export interface GeneralSettingsFormValues extends Record<string, unknown> {
 }
 
 export function useGeneralSettingsForm(workspace: WorkspaceResponse) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { applyWorkspaceUpdate, reload } = useCurrentWorkspace();
@@ -48,7 +50,10 @@ export function useGeneralSettingsForm(workspace: WorkspaceResponse) {
       name: normalizeWorkspaceName,
     },
     validate: {
-      name: (val) => workspaceNameProblem(val),
+      name: (val) => {
+        const problem = workspaceNameProblem(val);
+        return problem ? t(problem.key, problem.params) : null;
+      },
     },
     submit: async (changes) => {
       const response = await workspaceApi.update(workspace.slug, changes);
@@ -59,7 +64,7 @@ export function useGeneralSettingsForm(workspace: WorkspaceResponse) {
         });
       }
       notifications.show({
-        message: "Workspace updated",
+        message: t("workspace:settings.general.updatedNotification"),
         color: "green",
       });
       return {
@@ -76,7 +81,7 @@ export function useGeneralSettingsForm(workspace: WorkspaceResponse) {
 
       if (error.status === 404) {
         notifications.show({
-          message: error.message || "Workspace not found",
+          message: error.message || t("workspace:errors.notFound"),
           color: "red",
         });
         void refresh();

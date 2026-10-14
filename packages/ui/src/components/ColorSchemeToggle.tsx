@@ -6,17 +6,28 @@ import {
 } from "@mantine/core";
 import classes from "./ColorSchemeToggle.module.css";
 
-export type ColorSchemeToggleProps = Omit<ActionIconProps, "children">;
+export type ColorSchemeToggleProps = Omit<ActionIconProps, "children"> & {
+  labelLight?: string;
+  labelDark?: string;
+  labels?: { light?: string; dark?: string };
+};
 
 /** Switches between light and dark; Mantine persists the choice in localStorage. */
-export function ColorSchemeToggle(props: ColorSchemeToggleProps) {
+export function ColorSchemeToggle({
+  labelLight,
+  labelDark,
+  labels,
+  ...props
+}: ColorSchemeToggleProps) {
   const { setColorScheme } = useMantineColorScheme();
   // Read during render (no SSR here), so the icon is right on the first paint.
   const colorScheme = useComputedColorScheme("light", {
     getInitialValueInEffect: false,
   });
   const isDark = colorScheme === "dark";
-  const label = isDark ? "Switch to light mode" : "Switch to dark mode";
+  const lightLabel = labelLight ?? labels?.light ?? "Switch to light mode";
+  const darkLabel = labelDark ?? labels?.dark ?? "Switch to dark mode";
+  const label = isDark ? lightLabel : darkLabel;
 
   return (
     <ActionIcon

@@ -53,7 +53,7 @@ Implementing agents treat every sketch as a *hypothesis* and build to the invari
 - **Adversarial input table** per endpoint, with the expected 4xx for each row.
 - **Bounds**: list maximums, real counts beside previews, rate limits on lookups whose 403/404 reveal existence, one log line per person and window for warnings any member can trigger.
 - **Migrations**: the pre-check of existing rows, the exact `down()`, and the soft-delete scope of every index.
-- **Copy and codes** for every user-facing message, including errors. Each sentence the web must tell apart has its own `code` in the API error table.
+- **Copy and codes** for every user-facing message, including errors, in both English (`en`) and Vietnamese (`vi`), following the glossary in `CONTEXT.md` (BA FC-4). Each sentence the web must tell apart has its own `code` in the API error table.
 
 ## Ticket rules
 

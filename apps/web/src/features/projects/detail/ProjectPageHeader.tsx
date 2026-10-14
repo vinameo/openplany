@@ -1,5 +1,6 @@
 import { Anchor, Breadcrumbs, Skeleton, Text } from "@mantine/core";
 import { Link } from "react-router";
+import { useTranslation } from "react-i18next";
 import { useCurrentWorkspace } from "../../workspaces/currentWorkspace/useCurrentWorkspace";
 import { useWorkspaceSidebar } from "../../workspaces/shell/useWorkspaceSidebar";
 import { SidebarExpandButton } from "../../workspaces/shell/SidebarExpandButton";
@@ -12,16 +13,20 @@ import classes from "./ProjectPageHeader.module.css";
 import { workspacePath } from "../../workspaces/workspacePaths";
 
 export function ProjectPageHeader() {
+  const { t } = useTranslation();
   const { workspace } = useCurrentWorkspace();
   const { project } = useCurrentProject();
   const { mode } = useWorkspaceSidebar();
   const pageMeta = useProjectPageMeta();
+  const pageTitle = pageMeta?.titleKey
+    ? t(pageMeta.titleKey)
+    : pageMeta?.title;
 
   return (
     <header className={headerClasses.pageHeader}>
       <div className={headerClasses.titleGroup}>
         <SidebarExpandButton />
-        <nav aria-label="Breadcrumb" className={classes.breadcrumbNav}>
+        <nav aria-label={t("project:detail.breadcrumb")} className={classes.breadcrumbNav}>
           <Breadcrumbs
             separator="›"
             separatorMargin={6}
@@ -58,17 +63,17 @@ export function ProjectPageHeader() {
               <Skeleton
                 height={14}
                 width={120}
-                aria-label="Loading project"
+                aria-label={t("project:detail.loadingProject")}
               />
             )}
 
             <Text
               aria-current="page"
               className={classes.breadcrumbItem}
-              title={pageMeta?.title}
+              title={pageTitle}
               fw={500}
             >
-              {pageMeta?.title}
+              {pageTitle}
             </Text>
           </Breadcrumbs>
         </nav>

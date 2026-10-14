@@ -15,13 +15,12 @@ import {
   PROJECT_COVER_KEYS,
   PROJECT_DESCRIPTION_ALLOWED_CHARS,
   PROJECT_DESCRIPTION_MAX,
-  PROJECT_FIELD_MESSAGES,
   PROJECT_NAME_MAX,
-  TIMEZONE_MESSAGES,
   WORKSPACE_TIMEZONES,
   type ProjectCoverKey,
   type UpdateProjectRequest,
 } from '@repo/contracts';
+import { validationMessage } from '../../common/validation.js';
 import { ProjectIconDto } from './createProject.dto.js';
 
 const isProvided = (_o: unknown, v: unknown) => v !== undefined;
@@ -32,34 +31,50 @@ export class UpdateProjectDto implements UpdateProjectRequest {
   @Transform(({ value }) =>
     typeof value === 'string' ? normalizeProjectName(value) : value,
   )
-  @Matches(NO_HIDDEN_CHARS, { message: PROJECT_FIELD_MESSAGES.hiddenChars })
-  @MaxLength(PROJECT_NAME_MAX, { message: PROJECT_FIELD_MESSAGES.nameTooLong })
-  @MinLength(1, { message: PROJECT_FIELD_MESSAGES.nameRequired })
-  @IsString({ message: PROJECT_FIELD_MESSAGES.nameRequired })
+  @Matches(NO_HIDDEN_CHARS, {
+    message: validationMessage('project:errors.hiddenChars'),
+  })
+  @MaxLength(PROJECT_NAME_MAX, {
+    message: validationMessage('project:errors.nameTooLong', {
+      max: PROJECT_NAME_MAX,
+    }),
+  })
+  @MinLength(1, { message: validationMessage('project:errors.nameRequired') })
+  @IsString({ message: validationMessage('project:errors.nameRequired') })
   name?: string;
 
   @ValidateIf(isProvided)
   @Matches(PROJECT_DESCRIPTION_ALLOWED_CHARS, {
-    message: PROJECT_FIELD_MESSAGES.hiddenChars,
+    message: validationMessage('project:errors.hiddenChars'),
   })
   @MaxLength(PROJECT_DESCRIPTION_MAX, {
-    message: PROJECT_FIELD_MESSAGES.descriptionTooLong,
+    message: validationMessage('project:errors.descriptionTooLong', {
+      max: PROJECT_DESCRIPTION_MAX,
+    }),
   })
-  @IsString({ message: PROJECT_FIELD_MESSAGES.descriptionTooLong })
+  @IsString({
+    message: validationMessage('project:errors.descriptionTooLong', {
+      max: PROJECT_DESCRIPTION_MAX,
+    }),
+  })
   description?: string;
 
   @ValidateIf(isProvided)
   @ValidateNested()
   @Type(() => ProjectIconDto)
-  @IsObject({ message: PROJECT_FIELD_MESSAGES.iconRequired })
+  @IsObject({ message: validationMessage('project:errors.iconRequired') })
   icon?: ProjectIconDto;
 
   @ValidateIf(isProvided)
-  @IsIn(PROJECT_COVER_KEYS, { message: PROJECT_FIELD_MESSAGES.coverRequired })
+  @IsIn(PROJECT_COVER_KEYS, {
+    message: validationMessage('project:errors.coverRequired'),
+  })
   coverKey?: ProjectCoverKey;
 
   /** null = follow workspace timezone (RQ D6). */
   @ValidateIf(isSetTimezone)
-  @IsIn(WORKSPACE_TIMEZONES, { message: TIMEZONE_MESSAGES.invalid })
+  @IsIn(WORKSPACE_TIMEZONES, {
+    message: validationMessage('project:errors.timezoneInvalid'),
+  })
   timezone?: string | null;
 }

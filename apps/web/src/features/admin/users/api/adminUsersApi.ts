@@ -1,8 +1,16 @@
-import type { CreatedUserResponse, CreateUserRequest } from "@repo/contracts";
+import type {
+  CreatedUserResponse,
+  CreateUserRequest,
+  MessageKey,
+} from "@repo/contracts";
 import { request } from "../../../../lib/apiClient";
+import { translate } from "../../../../i18n/index.js";
 
-export const GENERIC_CREATE_USER_ERROR =
-  "Couldn't create the user. Please try again.";
+export const GENERIC_CREATE_USER_ERROR_KEY: MessageKey =
+  "admin:users.errors.createFailed";
+export const GENERIC_CREATE_USER_ERROR = translate(
+  GENERIC_CREATE_USER_ERROR_KEY,
+);
 
 export const adminUsersApi = {
   createUser(body: CreateUserRequest): Promise<CreatedUserResponse> {
@@ -13,8 +21,7 @@ export const adminUsersApi = {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       },
-      GENERIC_CREATE_USER_ERROR,
+      GENERIC_CREATE_USER_ERROR_KEY,
     );
   },
 };
-

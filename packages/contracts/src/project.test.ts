@@ -14,6 +14,7 @@ import {
   PROJECT_IDENTIFIER_PATTERN,
   PROJECT_ERROR_MESSAGES,
   PROJECT_FIELD_MESSAGES,
+  PROJECT_FIELD_MESSAGE_REFS,
   projectNameProblem,
   projectDescriptionProblem,
   effectiveProjectTimezone,
@@ -143,19 +144,21 @@ describe("project contracts", () => {
     });
 
     it("projectNameProblem returns expected problem or null", () => {
-      expect(projectNameProblem("")).toBe(PROJECT_FIELD_MESSAGES.nameRequired);
+      expect(projectNameProblem("")).toBe(
+        PROJECT_FIELD_MESSAGE_REFS.nameRequired,
+      );
       expect(projectNameProblem("   ")).toBe(
-        PROJECT_FIELD_MESSAGES.nameRequired,
+        PROJECT_FIELD_MESSAGE_REFS.nameRequired,
       );
       expect(projectNameProblem("a".repeat(80))).toBeNull();
       expect(projectNameProblem("a".repeat(81))).toBe(
-        PROJECT_FIELD_MESSAGES.nameTooLong,
+        PROJECT_FIELD_MESSAGE_REFS.nameTooLong,
       );
       expect(projectNameProblem("Project \u0000")).toBe(
-        PROJECT_FIELD_MESSAGES.hiddenChars,
+        PROJECT_FIELD_MESSAGE_REFS.hiddenChars,
       );
       expect(projectNameProblem("Project \u200B")).toBe(
-        PROJECT_FIELD_MESSAGES.hiddenChars,
+        PROJECT_FIELD_MESSAGE_REFS.hiddenChars,
       );
       expect(projectNameProblem("Valid Project Name")).toBeNull();
     });
@@ -164,13 +167,13 @@ describe("project contracts", () => {
       expect(projectDescriptionProblem("")).toBeNull();
       expect(projectDescriptionProblem("a".repeat(2000))).toBeNull();
       expect(projectDescriptionProblem("a".repeat(2001))).toBe(
-        PROJECT_FIELD_MESSAGES.descriptionTooLong,
+        PROJECT_FIELD_MESSAGE_REFS.descriptionTooLong,
       );
       expect(projectDescriptionProblem("Desc \u0000")).toBe(
-        PROJECT_FIELD_MESSAGES.hiddenChars,
+        PROJECT_FIELD_MESSAGE_REFS.hiddenChars,
       );
       expect(projectDescriptionProblem("Desc \u0007")).toBe(
-        PROJECT_FIELD_MESSAGES.hiddenChars,
+        PROJECT_FIELD_MESSAGE_REFS.hiddenChars,
       );
       expect(
         projectDescriptionProblem("Valid multi-line\ndescription\r\n\ttext"),

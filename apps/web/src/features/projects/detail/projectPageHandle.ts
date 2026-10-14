@@ -1,7 +1,9 @@
+import type { MessageKey } from "@repo/contracts";
 import { useRouteHandleMeta } from "../../../hooks/useRouteHandleMeta";
 
 export interface ProjectPageMeta {
-  title: string;
+  title?: string;
+  titleKey?: MessageKey;
 }
 
 export interface ProjectPageHandle {
@@ -12,7 +14,8 @@ function isProjectPageMeta(value: unknown): value is ProjectPageMeta {
   return (
     typeof value === "object" &&
     value !== null &&
-    typeof (value as { title?: unknown }).title === "string"
+    (typeof (value as { title?: unknown }).title === "string" ||
+      typeof (value as { titleKey?: unknown }).titleKey === "string")
   );
 }
 

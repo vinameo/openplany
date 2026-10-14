@@ -1,3 +1,6 @@
+import type { MessageKey } from "@repo/contracts";
+import { getLanguage, translate } from "../i18n/index.js";
+
 /** Error response shape shared by every endpoint (auth api-spec 2.1). */
 export interface ApiErrorBody {
   statusCode: number;
@@ -8,7 +11,15 @@ export interface ApiErrorBody {
   retryAfterSeconds?: number;
 }
 
-export const GENERIC_ERROR = "Something went wrong. Please try again.";
+export const GENERIC_ERROR_KEY: MessageKey = "errors:genericError";
+export const GENERIC_ERROR = translate(GENERIC_ERROR_KEY);
+
+function resolveFallbackMessage(fallback: MessageKey | string): string {
+  if (typeof fallback === "string" && fallback.includes(":")) {
+    return translate(fallback as MessageKey);
+  }
+  return fallback;
+}
 
 /** A failed API call, carrying the machine-readable parts of the error body. */
 export class ApiRequestError extends Error {
@@ -48,19 +59,27 @@ function isApiErrorBody(value: unknown): value is ApiErrorBody {
 export async function request<T>(
   path: string,
   init: RequestInit = {},
-  fallbackMessage = GENERIC_ERROR,
+  fallbackMessage: MessageKey | string = GENERIC_ERROR_KEY,
 ): Promise<T> {
+  const lang = getLanguage();
+  const headers = {
+    Accept: "application/json",
+    ...init.headers,
+    "Accept-Language": lang,
+  };
+  const resolvedFallback = resolveFallbackMessage(fallbackMessage);
+
   let response: Response;
   try {
     // Same origin through the Vite proxy, so the session cookie is sent as is.
     response = await fetch(path, {
       ...init,
-      headers: { Accept: "application/json", ...init.headers },
+      headers,
     });
   } catch (cause: unknown) {
     throw new ApiRequestError(
       0,
-      { code: "NETWORK_ERROR", message: fallbackMessage },
+      { code: "NETWORK_ERROR", message: resolvedFallback },
       { cause },
     );
   }
@@ -73,7 +92,7 @@ export async function request<T>(
   } catch (cause: unknown) {
     throw new ApiRequestError(
       response.status,
-      { code: "INVALID_RESPONSE", message: fallbackMessage },
+      { code: "INVALID_RESPONSE", message: resolvedFallback },
       { cause },
     );
   }
@@ -83,6 +102,6 @@ export async function request<T>(
     response.status,
     isApiErrorBody(body)
       ? body
-      : { code: "UNKNOWN_ERROR", message: fallbackMessage },
+      : { code: "UNKNOWN_ERROR", message: resolvedFallback },
   );
 }

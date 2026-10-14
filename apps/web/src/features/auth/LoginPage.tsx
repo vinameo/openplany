@@ -1,7 +1,7 @@
 import { useRef, useState, type FormEvent } from "react";
 import { Anchor, Button, PasswordInput, Text, TextInput } from "@mantine/core";
+import { useTranslation } from "react-i18next";
 import { ApiRequestError } from "../../lib/apiClient";
-import { GENERIC_SIGN_IN_ERROR } from "./api/authApi";
 import { AuthLayout } from "./AuthLayout";
 import { formatCountdown, useCountdown } from "./useCountdown";
 import classes from "./LoginPage.module.css";
@@ -38,6 +38,7 @@ export function LoginPage({
   onSubmit,
   forgotPasswordHref = "/forgot-password",
 }: LoginPageProps) {
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
@@ -56,7 +57,7 @@ export function LoginPage({
       setFormError(
         error instanceof Error && error.message !== ""
           ? error.message
-          : GENERIC_SIGN_IN_ERROR,
+          : t("auth:errors.signInFailed"),
       );
       return;
     }
@@ -107,8 +108,8 @@ export function LoginPage({
 
   return (
     <AuthLayout
-      title="Sign in to OpenPlany"
-      subtitle="Plan projects and docs in one place."
+      title={t("auth:signIn.title")}
+      subtitle={t("auth:signIn.subtitle")}
     >
       <form
         className={classes.form}
@@ -116,8 +117,8 @@ export function LoginPage({
         noValidate
       >
         <TextInput
-          label="Email"
-          placeholder="name@company.com"
+          label={t("auth:signIn.email")}
+          placeholder={t("auth:signIn.emailPlaceholder")}
           type="email"
           autoComplete="email"
           required
@@ -134,8 +135,8 @@ export function LoginPage({
         <div className={classes.passwordField}>
           <PasswordInput
             ref={passwordRef}
-            label="Password"
-            placeholder="Enter your password"
+            label={t("auth:signIn.password")}
+            placeholder={t("auth:signIn.passwordPlaceholder")}
             autoComplete="current-password"
             required
             value={password}
@@ -145,8 +146,8 @@ export function LoginPage({
             visibilityToggleFocusable
             visibilityToggleButtonProps={{
               "aria-label": isPasswordVisible
-                ? "Hide password"
-                : "Show password",
+                ? t("auth:signIn.hidePassword")
+                : t("auth:signIn.showPassword"),
             }}
             error={fieldErrors.password}
             onChange={(event) => {
@@ -161,7 +162,7 @@ export function LoginPage({
           />
           {/* After the input in DOM so Tab goes email → password → eye → this link. */}
           <Anchor href={forgotPasswordHref} className={classes.forgotLink}>
-            Forgot password?
+            {t("auth:signIn.forgotPassword")}
           </Anchor>
         </div>
 
@@ -179,8 +180,10 @@ export function LoginPage({
           className={classes.submit}
         >
           {isLockedOut
-            ? `Try again in ${formatCountdown(lockout.remainingSeconds)}`
-            : "Sign in"}
+            ? t("auth:signIn.tryAgainIn", {
+                time: formatCountdown(lockout.remainingSeconds),
+              })
+            : t("auth:signIn.submit")}
         </Button>
       </form>
     </AuthLayout>

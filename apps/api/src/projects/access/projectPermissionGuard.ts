@@ -46,7 +46,7 @@ export class ProjectPermissionGuard implements CanActivate {
       throw new ApiException(
         HttpStatus.FORBIDDEN,
         'FORBIDDEN',
-        "You don't have permission to do this",
+        { key: 'errors:forbidden' },
       );
     }
     return true;

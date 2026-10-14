@@ -52,7 +52,7 @@ export class WorkspacesService {
       throw new ApiException(
         HttpStatus.TOO_MANY_REQUESTS,
         'TOO_MANY_ATTEMPTS',
-        "You've checked several URLs recently. Try again later.",
+        { key: 'workspace:errors.rateLimitSlugCheck' },
         { retryAfterSeconds: rateCheck.retryAfterSeconds },
       );
     }
@@ -100,7 +100,7 @@ export class WorkspacesService {
         throw new ApiException(
           HttpStatus.TOO_MANY_REQUESTS,
           'TOO_MANY_ATTEMPTS',
-          "You've created several workspaces recently. Try again later.",
+          { key: 'workspace:errors.rateLimitCreate' },
           { retryAfterSeconds: result.retryAfterSeconds },
         );
       }
@@ -109,7 +109,7 @@ export class WorkspacesService {
         throw new ApiException(
           HttpStatus.UNAUTHORIZED,
           'UNAUTHENTICATED',
-          'Sign in to continue',
+          { key: 'errors:http.unauthenticated' },
         );
       }
 
@@ -124,10 +124,10 @@ export class WorkspacesService {
         throw new ApiException(
           HttpStatus.CONFLICT,
           'SLUG_ALREADY_EXISTS',
-          'This URL is already taken. Choose another one.',
+          { key: 'workspace:errors.slugTakenAnother' },
           {
             fields: {
-              slug: 'This URL is already taken. Choose another one.',
+              slug: { key: 'workspace:errors.slugTakenAnother' },
             },
           },
         );
@@ -177,7 +177,7 @@ export class WorkspacesService {
       throw new ApiException(
         HttpStatus.BAD_REQUEST,
         'VALIDATION_ERROR',
-        'Nothing to update',
+        { key: 'errors:nothingToUpdate' },
       );
     }
 
@@ -222,7 +222,7 @@ export class WorkspacesService {
       throw new ApiException(
         HttpStatus.NOT_FOUND,
         'NOT_FOUND',
-        'Workspace not found',
+        { key: 'workspace:errors.notFound' },
       );
     }
 

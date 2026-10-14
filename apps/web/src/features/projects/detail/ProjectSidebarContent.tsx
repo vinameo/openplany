@@ -7,6 +7,8 @@ import {
   IconStack2,
 } from "@tabler/icons-react";
 import { useLocation, useParams } from "react-router";
+import { useTranslation } from "react-i18next";
+import type { MessageKey } from "@repo/contracts";
 import { ComingSoonHint } from "../../layout/ComingSoonHint";
 import { useCurrentWorkspace } from "../../workspaces/currentWorkspace/useCurrentWorkspace";
 import { HomeIcon, SettingsIcon } from "../../workspaces/icons";
@@ -18,21 +20,23 @@ import { projectPath, projectSettingsPath } from "../projectPaths";
 import { useCurrentProject } from "./currentProjectContext";
 
 interface ProjectNavItem {
-  label: string;
+  key: string;
+  labelKey: MessageKey;
   icon: ReactNode;
   /** Path below the Project home ("" is the Project home); absent until the page exists (RQ D4, BA FC-20). */
   subPath?: string;
 }
 
 const PROJECT_NAV_ITEMS: readonly ProjectNavItem[] = [
-  { label: "Home", icon: <HomeIcon width={16} height={16} />, subPath: "" },
-  { label: "Work items", icon: <IconStack2 size={16} stroke={1.75} /> },
-  { label: "Milestones", icon: <IconFlag size={16} stroke={1.75} /> },
-  { label: "Pages", icon: <IconFileText size={16} stroke={1.75} /> },
-  { label: "Settings", icon: <SettingsIcon width={16} height={16} /> },
+  { key: "home", labelKey: "workspace:shell.home", icon: <HomeIcon width={16} height={16} />, subPath: "" },
+  { key: "workItems", labelKey: "project:sidebar.workItems", icon: <IconStack2 size={16} stroke={1.75} /> },
+  { key: "milestones", labelKey: "project:sidebar.milestones", icon: <IconFlag size={16} stroke={1.75} /> },
+  { key: "pages", labelKey: "project:sidebar.pages", icon: <IconFileText size={16} stroke={1.75} /> },
+  { key: "settings", labelKey: "common:actions.settings", icon: <SettingsIcon width={16} height={16} /> },
 ];
 
 export function ProjectSidebarContent() {
+  const { t } = useTranslation();
   const { workspace } = useCurrentWorkspace();
   const { projectIdentifier = "" } = useParams();
   const { project } = useCurrentProject();
@@ -46,13 +50,13 @@ export function ProjectSidebarContent() {
     project === null || project.permissions.includes("project.settings.view");
 
   const visibleItems = PROJECT_NAV_ITEMS.filter(
-    (item) => item.label !== "Settings" || showSettings,
+    (item) => item.key !== "settings" || showSettings,
   );
 
   return (
     <>
       <div className={classes.headerRow}>
-        <Text className={classes.heading}>Project</Text>
+        <Text className={classes.heading}>{t("project:title")}</Text>
         <Group gap={4} wrap="nowrap">
           <ComingSoonHint>
             {(trigger) => (
@@ -60,7 +64,7 @@ export function ProjectSidebarContent() {
                 variant="subtle"
                 color="gray"
                 size="md"
-                aria-label="Project options"
+                aria-label={t("project:sidebar.optionsAriaLabel")}
                 onClick={(e) => {
                   trigger.onClick(e);
                   e.preventDefault();
@@ -85,7 +89,7 @@ export function ProjectSidebarContent() {
           <ul role="list" className={classes.navList}>
             {visibleItems.map((item) => {
               const to =
-                item.label === "Settings"
+                item.key === "settings"
                   ? settingsPath
                   : item.subPath === undefined
                     ? undefined
@@ -93,12 +97,12 @@ export function ProjectSidebarContent() {
               const active =
                 to !== undefined &&
                 (currentPath === to ||
-                  (item.label === "Settings" &&
+                  (item.key === "settings" &&
                     currentPath.startsWith(`${settingsPath}/`)));
               return (
-                <li key={item.label}>
+                <li key={item.key}>
                   <SidebarNavItem
-                    label={item.label}
+                    label={t(item.labelKey)}
                     icon={item.icon}
                     to={to}
                     active={active}

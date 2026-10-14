@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Button, UnstyledButton } from "@mantine/core";
+import { useTranslation } from "react-i18next";
 import type {
   ProjectCoverKey,
   ProjectIcon as ProjectIconData,
@@ -27,6 +28,8 @@ export function ProjectCoverHeader({
   children,
   variant,
 }: ProjectCoverHeaderProps) {
+  const { t } = useTranslation();
+
   return (
     <div className={`${classes.coverHeader} ${classes[variant]}`}>
       <img
@@ -40,7 +43,7 @@ export function ProjectCoverHeader({
           {({ onClick }) => (
             <UnstyledButton
               type="button"
-              aria-label="Change icon"
+              aria-label={t("project:icons.changeAriaLabel")}
               onClick={onClick}
               className={classes.iconBox}
             >
@@ -64,7 +67,7 @@ export function ProjectCoverHeader({
               onClick={onClick}
               className={classes.changeCoverButton}
             >
-              Change cover
+              {t("project:covers.changeButton")}
             </Button>
           )}
         </ProjectCoverPicker>

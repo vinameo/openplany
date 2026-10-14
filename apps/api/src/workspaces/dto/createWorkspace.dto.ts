@@ -5,7 +5,6 @@ import {
   ORGANIZATION_SIZES,
   RESERVED_WORKSPACE_SLUG_LIST,
   WORKSPACE_NAME_MAX,
-  WORKSPACE_NAME_MESSAGES,
   WORKSPACE_SLUG_MAX,
   WORKSPACE_SLUG_MIN,
   WORKSPACE_SLUG_PATTERN,
@@ -21,38 +20,51 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
+import { validationMessage } from '../../common/validation.js';
 
 const normalizeName = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? normalizeWorkspaceName(value) : value;
 
 export class CreateWorkspaceDto {
   @Transform(normalizeName)
-  @Matches(NO_URL, { message: WORKSPACE_NAME_MESSAGES.url })
+  @Matches(NO_URL, {
+    message: validationMessage('workspace:errors.nameUrl'),
+  })
   @Matches(NO_HIDDEN_CHARS, {
-    message: WORKSPACE_NAME_MESSAGES.hiddenChars,
+    message: validationMessage('workspace:errors.nameHiddenChars'),
   })
   @MaxLength(WORKSPACE_NAME_MAX, {
-    message: WORKSPACE_NAME_MESSAGES.tooLong,
+    message: validationMessage('workspace:errors.nameTooLong', {
+      max: WORKSPACE_NAME_MAX,
+    }),
   })
-  @MinLength(1, { message: WORKSPACE_NAME_MESSAGES.required })
-  @IsString({ message: WORKSPACE_NAME_MESSAGES.required })
+  @MinLength(1, {
+    message: validationMessage('workspace:errors.nameRequired'),
+  })
+  @IsString({
+    message: validationMessage('workspace:errors.nameRequired'),
+  })
   name: string;
 
   @IsNotIn(RESERVED_WORKSPACE_SLUG_LIST, {
-    message: 'This URL is reserved. Choose another one.',
+    message: validationMessage('workspace:errors.slugReserved'),
   })
   @Matches(WORKSPACE_SLUG_PATTERN, {
-    message:
-      "URL can use only lowercase letters, numbers, and single hyphens, and can't start or end with a hyphen",
+    message: validationMessage('workspace:errors.slugPattern'),
   })
   @Length(WORKSPACE_SLUG_MIN, WORKSPACE_SLUG_MAX, {
-    message: `URL must be between ${WORKSPACE_SLUG_MIN} and ${WORKSPACE_SLUG_MAX} characters`,
+    message: validationMessage('workspace:errors.slugLength', {
+      min: WORKSPACE_SLUG_MIN,
+      max: WORKSPACE_SLUG_MAX,
+    }),
   })
-  @IsString({ message: 'Enter a workspace URL' })
+  @IsString({
+    message: validationMessage('workspace:errors.slugRequired'),
+  })
   slug: string;
 
   @IsIn(ORGANIZATION_SIZES, {
-    message: 'Select how many people will use this workspace',
+    message: validationMessage('workspace:errors.orgSizeRequired'),
   })
   organizationSize: OrganizationSize;
 }

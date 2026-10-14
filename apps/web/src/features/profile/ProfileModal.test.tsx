@@ -133,7 +133,9 @@ describe("profile popup", () => {
     ).toBeInTheDocument();
     expect(screen.getByLabelText(/first name/i)).toHaveFocus();
     // Only session check and workspaces list, no PATCH to profile API
-    const patchCalls = fetchMock.mock.calls.filter(([, init]) => init?.method === "PATCH");
+    const patchCalls = fetchMock.mock.calls.filter(
+      ([, init]) => init?.method === "PATCH",
+    );
     expect(patchCalls).toHaveLength(0);
   });
 

@@ -6,6 +6,7 @@ import helmet from 'helmet';
 import { getAllowedOrigins } from './allowedOrigins.js';
 import { ApiExceptionFilter } from './apiExceptionFilter.js';
 import { requestIdMiddleware } from './requestId.middleware.js';
+import { languageMiddleware } from '../i18n/language.middleware.js';
 import { createValidationPipe } from './validation.js';
 
 /** Parses TRUST_PROXY into the value Express' 'trust proxy' setting expects. */
@@ -33,6 +34,7 @@ export function configureApp(app: INestApplication): void {
   }
   expressApp.set('trust proxy', trustProxy);
   app.use(requestIdMiddleware);
+  app.use(languageMiddleware);
   app.setGlobalPrefix('api');
   app.use(helmet());
   app.use(cookieParser());

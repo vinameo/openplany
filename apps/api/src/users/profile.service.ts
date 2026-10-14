@@ -1,4 +1,5 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import type { MessageRef } from '@repo/contracts';
 import { ApiException } from '../common/apiException.js';
 import { Clock } from '../auth/clock.js';
 import {
@@ -43,7 +44,7 @@ export class ProfileService {
       throw new ApiException(
         HttpStatus.BAD_REQUEST,
         'VALIDATION_ERROR',
-        'Nothing to update',
+        { key: 'errors:nothingToUpdate' },
       );
     }
 
@@ -58,14 +59,16 @@ export class ProfileService {
       displayName: user.displayName ?? '',
     };
     const merged = { ...current, ...requested };
-    const fields: Record<string, string> = {};
-    if (merged.firstName === '') fields.firstName = 'Enter your first name';
-    if (merged.displayName === '') fields.displayName = 'Enter a display name';
+    const fields: Record<string, MessageRef> = {};
+    if (merged.firstName === '')
+      fields.firstName = { key: 'users:errors.enterYourFirstName' };
+    if (merged.displayName === '')
+      fields.displayName = { key: 'users:errors.displayNameRequired' };
     if (Object.keys(fields).length > 0) {
       throw new ApiException(
         HttpStatus.BAD_REQUEST,
         'VALIDATION_ERROR',
-        'Check the highlighted fields',
+        { key: 'errors:checkHighlightedFields' },
         { fields },
       );
     }
@@ -103,6 +106,6 @@ function unauthenticated(): ApiException {
   return new ApiException(
     HttpStatus.UNAUTHORIZED,
     'UNAUTHENTICATED',
-    'Sign in to continue',
+    { key: 'errors:http.unauthenticated' },
   );
 }

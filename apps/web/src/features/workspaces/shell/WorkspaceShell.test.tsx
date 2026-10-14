@@ -59,10 +59,16 @@ describe("WorkspaceShell (desktop)", () => {
     expect(settingsLink).toHaveAttribute("href", "/openstudy/settings");
     expect(settingsLink).not.toHaveAttribute("aria-current");
 
-    expect(within(nav).getByRole("button", { name: "New work item" })).toBeInTheDocument();
-    expect(within(nav).queryByRole("group", { name: "Projects" })).not.toBeInTheDocument();
+    expect(
+      within(nav).getByRole("button", { name: "New work item" }),
+    ).toBeInTheDocument();
+    expect(
+      within(nav).queryByRole("group", { name: "Projects" }),
+    ).not.toBeInTheDocument();
 
-    expect(screen.getByText("Home", { selector: "header *" })).toBeInTheDocument();
+    expect(
+      screen.getByText("Home", { selector: "header *" }),
+    ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Expand sidebar" }),
     ).not.toBeInTheDocument();
@@ -87,7 +93,9 @@ describe("WorkspaceShell (desktop)", () => {
     // Focus -> tooltip
     newBtn.focus();
     expect(document.activeElement).toBe(newBtn);
-    expect(await screen.findByRole("tooltip", { name: "Coming soon" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("tooltip", { name: "Coming soon" }),
+    ).toBeInTheDocument();
 
     // Click -> does not change URL
     await user.click(newBtn);
@@ -105,7 +113,9 @@ describe("WorkspaceShell (desktop)", () => {
 
     const { unmount } = renderApp("/openstudy");
     await screen.findByRole("navigation", { name: "Workspace" });
-    expect(screen.queryByRole("group", { name: "Projects" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("group", { name: "Projects" }),
+    ).not.toBeInTheDocument();
     unmount();
 
     // Mobile drawer
@@ -115,7 +125,9 @@ describe("WorkspaceShell (desktop)", () => {
     const openBtn = await screen.findByRole("button", { name: "Open sidebar" });
     await user.click(openBtn);
     const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).queryByRole("group", { name: "Projects" })).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole("group", { name: "Projects" }),
+    ).not.toBeInTheDocument();
   });
 
   it("AC-04: navigating to Settings hides Workspace sidebar, Back button restores it", async () => {
@@ -178,7 +190,9 @@ describe("WorkspaceShell (desktop)", () => {
 
     // After collapse:
     expect(localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY)).toBe("true");
-    expect(screen.queryByRole("link", { name: "Home" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Home" }),
+    ).not.toBeInTheDocument();
 
     const expandBtn = screen.getByRole("button", { name: "Expand sidebar" });
     expect(document.activeElement).toBe(expandBtn);
@@ -188,8 +202,12 @@ describe("WorkspaceShell (desktop)", () => {
 
     // After expand:
     expect(localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY)).toBe("false");
-    expect(await screen.findByRole("link", { name: "Home" })).toBeInTheDocument();
-    const newCollapseBtn = screen.getByRole("button", { name: "Collapse sidebar" });
+    expect(
+      await screen.findByRole("link", { name: "Home" }),
+    ).toBeInTheDocument();
+    const newCollapseBtn = screen.getByRole("button", {
+      name: "Collapse sidebar",
+    });
     expect(document.activeElement).toBe(newCollapseBtn);
   });
 
@@ -207,7 +225,9 @@ describe("WorkspaceShell (desktop)", () => {
     renderApp("/openstudy");
 
     await screen.findByRole("button", { name: "Expand sidebar" });
-    expect(screen.queryByRole("link", { name: "Home" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Home" }),
+    ).not.toBeInTheDocument();
   });
 
   it("AC-08: invalid storage value defaults to open", async () => {
@@ -223,8 +243,12 @@ describe("WorkspaceShell (desktop)", () => {
 
     renderApp("/openstudy");
 
-    expect(await screen.findByRole("link", { name: "Home" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Collapse sidebar" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("link", { name: "Home" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Collapse sidebar" }),
+    ).toBeInTheDocument();
   });
 
   it("AC-08: throwing storage defaults to open with console.warn", async () => {
@@ -237,13 +261,17 @@ describe("WorkspaceShell (desktop)", () => {
     });
 
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const getItemSpy = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
-      throw new Error("Storage quota exceeded or disabled");
-    });
+    const getItemSpy = vi
+      .spyOn(Storage.prototype, "getItem")
+      .mockImplementation(() => {
+        throw new Error("Storage quota exceeded or disabled");
+      });
 
     try {
       renderApp("/openstudy");
-      expect(await screen.findByRole("link", { name: "Home" })).toBeInTheDocument();
+      expect(
+        await screen.findByRole("link", { name: "Home" }),
+      ).toBeInTheDocument();
       expect(warnSpy).toHaveBeenCalled();
     } finally {
       getItemSpy.mockRestore();
@@ -254,12 +282,19 @@ describe("WorkspaceShell (desktop)", () => {
   it("AC-09: collapsed state persists across workspace transitions", async () => {
     const user = userEvent.setup();
     const ws1 = makeWorkspace({ slug: "openstudy", name: "OpenStudy" });
-    const ws2 = makeWorkspace({ id: "ws-2", slug: "math-club", name: "Math Club" });
+    const ws2 = makeWorkspace({
+      id: "ws-2",
+      slug: "math-club",
+      name: "Math Club",
+    });
 
     mockFetch({
       "GET /api/auth/session": () => jsonResponse(200, makeSession()),
       "GET /api/workspaces": () =>
-        jsonResponse(200, { workspaces: [ws1, ws2], lastWorkspaceSlug: ws1.slug }),
+        jsonResponse(200, {
+          workspaces: [ws1, ws2],
+          lastWorkspaceSlug: ws1.slug,
+        }),
       "GET /api/workspaces/openstudy": () => jsonResponse(200, ws1),
       "GET /api/workspaces/math-club": () => jsonResponse(200, ws2),
     });
@@ -275,8 +310,12 @@ describe("WorkspaceShell (desktop)", () => {
     // Navigate to ws2
     await router.navigate("/math-club");
 
-    expect(await screen.findByRole("button", { name: "Expand sidebar" })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Home" })).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: "Expand sidebar" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Home" }),
+    ).not.toBeInTheDocument();
   });
 
   it("AC-12: accessibility attributes aria-expanded and aria-controls match sidebar id", async () => {
@@ -295,7 +334,9 @@ describe("WorkspaceShell (desktop)", () => {
     const sidebarId = nav.id;
     expect(sidebarId).toBeTruthy();
 
-    const collapseBtn = screen.getByRole("button", { name: "Collapse sidebar" });
+    const collapseBtn = screen.getByRole("button", {
+      name: "Collapse sidebar",
+    });
     expect(collapseBtn).toHaveAttribute("aria-expanded", "true");
     expect(collapseBtn).toHaveAttribute("aria-controls", sidebarId);
 
@@ -318,7 +359,10 @@ describe("WorkspaceShell (desktop)", () => {
     mockFetch({
       "GET /api/auth/session": () => jsonResponse(200, makeSession()),
       "GET /api/workspaces": () =>
-        jsonResponse(200, { workspaces: [guestWs], lastWorkspaceSlug: guestWs.slug }),
+        jsonResponse(200, {
+          workspaces: [guestWs],
+          lastWorkspaceSlug: guestWs.slug,
+        }),
       "GET /api/workspaces/openstudy": () => jsonResponse(200, guestWs),
     });
 
@@ -332,9 +376,7 @@ describe("WorkspaceShell (desktop)", () => {
     await user.click(settingsLink);
 
     // Guest should see General settings in read-only form, not Access Denied
-    expect(
-      screen.queryByText(/access denied/i),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/access denied/i)).not.toBeInTheDocument();
     const nameInput = await screen.findByLabelText(/workspace name/i);
     expect(nameInput).toHaveAttribute("readonly");
     expect(
@@ -418,20 +460,31 @@ describe("WorkspaceShell (desktop)", () => {
 
     // Tab through header
     await user.tab();
-    expect(screen.getByRole("button", { name: "Switch workspace – OpenStudy" })).toHaveFocus();
+    expect(
+      screen.getByRole("button", { name: "Switch workspace – OpenStudy" }),
+    ).toHaveFocus();
 
     await user.tab();
-    expect(screen.getByRole("button", { name: "Search commands (coming soon)" })).toHaveFocus();
+    expect(
+      screen.getByRole("button", { name: "Search commands (coming soon)" }),
+    ).toHaveFocus();
 
     await user.tab();
-    expect(screen.getByRole("button", { name: /switch to (dark|light) mode/i })).toHaveFocus();
+    expect(screen.getByRole("button", { name: /language:/i })).toHaveFocus();
+
+    await user.tab();
+    expect(
+      screen.getByRole("button", { name: /switch to (dark|light) mode/i }),
+    ).toHaveFocus();
 
     await user.tab();
     expect(screen.getByRole("button", { name: /edit profile/i })).toHaveFocus();
 
     // Tab into sidebar
     await user.tab();
-    expect(screen.getByRole("button", { name: "Collapse sidebar" })).toHaveFocus();
+    expect(
+      screen.getByRole("button", { name: "Collapse sidebar" }),
+    ).toHaveFocus();
 
     await user.tab();
     expect(screen.getByRole("button", { name: "New work item" })).toHaveFocus();
@@ -466,7 +519,9 @@ describe("WorkspaceShell (mobile)", () => {
     renderApp("/openstudy");
 
     // Initially, no Home link exists in DOM
-    expect(screen.queryByRole("link", { name: "Home" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Home" }),
+    ).not.toBeInTheDocument();
 
     const openBtn = await screen.findByRole("button", { name: "Open sidebar" });
     await user.click(openBtn);
@@ -478,7 +533,9 @@ describe("WorkspaceShell (mobile)", () => {
     const homeLinks = within(dialog).getAllByRole("link", { name: "Home" });
     expect(homeLinks).toHaveLength(1);
 
-    const settingsLinks = within(dialog).getAllByRole("link", { name: "Settings" });
+    const settingsLinks = within(dialog).getAllByRole("link", {
+      name: "Settings",
+    });
     expect(settingsLinks).toHaveLength(1);
 
     // No other extraneous items
@@ -516,14 +573,20 @@ describe("WorkspaceShell (mobile)", () => {
     expect(localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY)).toBeNull();
 
     // Now in settings, tap back to workspace
-    const backBtns = await screen.findAllByRole("link", { name: "Back to workspace" });
+    const backBtns = await screen.findAllByRole("link", {
+      name: "Back to workspace",
+    });
     await user.click(backBtns[0]);
 
     // Back at Home, open drawer again
-    const newOpenBtn = await screen.findByRole("button", { name: "Open sidebar" });
+    const newOpenBtn = await screen.findByRole("button", {
+      name: "Open sidebar",
+    });
     await user.click(newOpenBtn);
 
-    expect(await screen.findByRole("dialog", { name: "Workspace" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("dialog", { name: "Workspace" }),
+    ).toBeInTheDocument();
 
     // Press Escape -> closes drawer
     await user.keyboard("{Escape}");
@@ -546,7 +609,9 @@ describe("WorkspaceShell (mobile)", () => {
 
     renderApp("/openstudy");
 
-    await user.click(await screen.findByRole("button", { name: "Open sidebar" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Open sidebar" }),
+    );
     const dialog = await screen.findByRole("dialog", { name: "Workspace" });
 
     await user.click(within(dialog).getByRole("link", { name: "Home" }));
@@ -574,7 +639,9 @@ describe("WorkspaceShell (mobile)", () => {
     await user.click(openBtn);
 
     const dialog = await screen.findByRole("dialog", { name: "Workspace" });
-    const newBtn = within(dialog).getByRole("button", { name: "New work item" });
+    const newBtn = within(dialog).getByRole("button", {
+      name: "New work item",
+    });
     expect(newBtn).toBeInTheDocument();
 
     await user.click(newBtn);
@@ -582,7 +649,8 @@ describe("WorkspaceShell (mobile)", () => {
     // Coming soon status popover appears
     expect(screen.getByRole("status")).toHaveTextContent("Coming soon");
     // Drawer remains open
-    expect(screen.getByRole("dialog", { name: "Workspace" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("dialog", { name: "Workspace" }),
+    ).toBeInTheDocument();
   });
 });
-

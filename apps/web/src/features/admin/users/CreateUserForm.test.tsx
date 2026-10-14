@@ -101,7 +101,9 @@ describe("CreateUserForm", () => {
 
     await user.type(passwordInput, "short");
     await user.click(confirmInput);
-    expect(await screen.findByText("Use 8 to 128 characters")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Use 8 to 128 characters"),
+    ).toBeInTheDocument();
 
     await user.type(emailInput, "an@openplany.dev");
     await user.clear(passwordInput);
@@ -121,7 +123,9 @@ describe("CreateUserForm", () => {
     await user.type(passwordInput, "password123");
     await user.type(confirmInput, "password999");
     await user.click(passwordInput); // trigger blur on confirm
-    expect(await screen.findByText("Passwords don't match")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Passwords don't match"),
+    ).toBeInTheDocument();
 
     // Type in confirmInput until matching: error disappears immediately
     await user.clear(confirmInput);
@@ -156,8 +160,14 @@ describe("CreateUserForm", () => {
     await user.type(screen.getByLabelText(/last name/i), "  Nguyen  ");
     // Display name autofills as "An Nguyen"
     await user.type(screen.getByLabelText(/email/i), "  An@OpenPlany.dev  ");
-    await user.type(screen.getByLabelText(/^password/i), "  secret password 123  ");
-    await user.type(screen.getByLabelText(/confirm password/i), "  secret password 123  ");
+    await user.type(
+      screen.getByLabelText(/^password/i),
+      "  secret password 123  ",
+    );
+    await user.type(
+      screen.getByLabelText(/confirm password/i),
+      "  secret password 123  ",
+    );
 
     const submitBtn = screen.getByRole("button", { name: "Create user" });
     await waitFor(() => expect(submitBtn).toBeEnabled());
@@ -166,7 +176,9 @@ describe("CreateUserForm", () => {
 
     await waitFor(() => expect(onSuccess).toHaveBeenCalled());
 
-    const postCall = fetchMock.mock.calls.find((c) => c[0] === "/api/admin/users");
+    const postCall = fetchMock.mock.calls.find(
+      (c) => c[0] === "/api/admin/users",
+    );
     expect(postCall).toBeDefined();
     const sentBody = JSON.parse(postCall![1]!.body as string);
     expect(sentBody).toEqual({
@@ -194,9 +206,14 @@ describe("CreateUserForm", () => {
           }),
         ),
       "POST /api/admin/users": () =>
-        apiError(409, "EMAIL_ALREADY_EXISTS", "A user with this email already exists.", {
-          fields: { email: "A user with this email already exists." },
-        }),
+        apiError(
+          409,
+          "EMAIL_ALREADY_EXISTS",
+          "A user with this email already exists.",
+          {
+            fields: { email: "A user with this email already exists." },
+          },
+        ),
     });
 
     const { user } = renderForm();
@@ -292,9 +309,14 @@ describe("CreateUserForm", () => {
           }),
         ),
       "POST /api/admin/users": () =>
-        apiError(429, "TOO_MANY_ATTEMPTS", "Too many users created. Try again later.", {
-          retryAfterSeconds: 120,
-        }),
+        apiError(
+          429,
+          "TOO_MANY_ATTEMPTS",
+          "Too many users created. Try again later.",
+          {
+            retryAfterSeconds: 120,
+          },
+        ),
     });
 
     const { user } = renderForm();
@@ -309,7 +331,9 @@ describe("CreateUserForm", () => {
     await user.click(submitBtn);
 
     expect(
-      await screen.findByText("Too many users created. Try again in 2 minutes."),
+      await screen.findByText(
+        "Too many users created. Try again in 2 minutes.",
+      ),
     ).toBeInTheDocument();
   });
 
@@ -345,4 +369,3 @@ describe("CreateUserForm", () => {
     expect(confirmInput).not.toHaveAttribute("name");
   });
 });
-

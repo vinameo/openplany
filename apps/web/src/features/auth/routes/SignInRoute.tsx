@@ -1,4 +1,5 @@
 import { Navigate } from "react-router";
+import { useTranslation } from "react-i18next";
 import { useDelayedFlag } from "../../../hooks/useDelayedFlag";
 import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
 import { AuthLayout } from "../AuthLayout";
@@ -13,19 +14,20 @@ import { useAuth } from "../useAuth";
 export const SESSION_CHECK_GRACE_MS = 300;
 
 export function SignInRoute() {
+  const { t } = useTranslation();
   const { state, signIn } = useAuth();
   const showFormWhileLoading = useDelayedFlag(
     state.status === "loading",
     SESSION_CHECK_GRACE_MS,
   );
-  useDocumentTitle("Sign in · OpenPlany");
+  useDocumentTitle(t("auth:signIn.documentTitle"));
 
   if (state.status === "authenticated") {
     return <Navigate to={sessionDestination(state.session)} replace />;
   }
   if (state.status === "loading" && !showFormWhileLoading) {
     // Background only, so a signed-in user never sees the form flash.
-    return <AuthLayout title="Sign in to OpenPlany" showCard={false} />;
+    return <AuthLayout title={t("auth:signIn.title")} showCard={false} />;
   }
 
   async function handleSubmit(values: LoginValues): Promise<void> {

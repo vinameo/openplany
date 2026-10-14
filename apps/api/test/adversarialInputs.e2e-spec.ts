@@ -597,5 +597,42 @@ describe('Adversarial inputs (e2e)', () => {
         .send(body as object),
     );
   });
+
+  it('runs adversarial inputs with Accept-Language: vi without 5xx', async () => {
+    const user = await newUser();
+    const valid = { email: user.email, password: 'Secret123!' };
+    await expectNoServerErrors(adversarialBodies(valid), async (body) => {
+      const res = await http()
+        .post('/api/auth/sign-in')
+        .set('Origin', ORIGIN)
+        .set('Accept-Language', 'vi')
+        .send(body as object);
+      expect(res.headers['content-language']).toBe('vi');
+      return res;
+    });
+
+    const ws = await seedWorkspace();
+    const admin = await newWorkspaceAdmin(ws.id);
+    const validProject = {
+      name: 'Vi Project',
+      identifier: 'VIP',
+      description: 'Dự án',
+      icon: { name: DEFAULT_PROJECT_ICON, color: DEFAULT_PROJECT_ICON_COLOR },
+      coverKey: DEFAULT_PROJECT_COVER,
+    };
+    await expectNoServerErrors(
+      adversarialBodies(validProject).slice(0, 10),
+      async (body) => {
+        const res = await http()
+          .post(`/api/workspaces/${ws.slug}/projects`)
+          .set('Cookie', admin.cookie)
+          .set('Origin', ORIGIN)
+          .set('Accept-Language', 'vi')
+          .send(body as object);
+        expect(res.headers['content-language']).toBe('vi');
+        return res;
+      },
+    );
+  });
 });
 

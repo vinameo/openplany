@@ -35,7 +35,7 @@ export class WorkspaceMemberGuard implements CanActivate {
       throw new ApiException(
         HttpStatus.NOT_FOUND,
         'NOT_FOUND',
-        'Workspace not found',
+        { key: 'workspace:errors.notFound' },
       );
     }
 
@@ -43,7 +43,7 @@ export class WorkspaceMemberGuard implements CanActivate {
       throw new ApiException(
         HttpStatus.UNAUTHORIZED,
         'UNAUTHENTICATED',
-        'Sign in to continue',
+        { key: 'errors:http.unauthenticated' },
       );
     }
 
@@ -55,7 +55,7 @@ export class WorkspaceMemberGuard implements CanActivate {
       throw new ApiException(
         HttpStatus.NOT_FOUND,
         'NOT_FOUND',
-        'Workspace not found',
+        { key: 'workspace:errors.notFound' },
       );
     }
 

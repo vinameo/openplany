@@ -1,4 +1,5 @@
 import { useCallback, useId, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Badge, Button, Stack, Text, Tooltip } from "@mantine/core";
 import { useMutationState } from "@tanstack/react-query";
 import {
@@ -22,12 +23,7 @@ import { useCurrentWorkspace } from "../../../workspaces/currentWorkspace/useCur
 import { useCurrentProject } from "../../detail/currentProjectContext";
 import { projectMemberMutationKeys } from "../../api/projectQueries";
 import { AddProjectMembersModal } from "./AddProjectMembersModal";
-import {
-  inheritedRoleTooltip,
-  NO_MEMBERS_YET,
-  NONE_ADDED_TO_PROJECT,
-  ROLE_LIMITED_TOOLTIP,
-} from "./projectMembersMessages";
+import { inheritedRoleTooltip } from "./projectMembersMessages";
 import {
   ChangeProjectRoleConfirm,
   type ChangeProjectRoleConfirmState,
@@ -39,6 +35,7 @@ import {
 import { useProjectMembers } from "./useProjectMembers";
 
 export function ProjectMembersSettingsPage() {
+  const { t } = useTranslation();
   const { project } = useCurrentProject();
   const { workspace } = useCurrentWorkspace();
   const [modalOpened, setModalOpened] = useState(false);
@@ -150,10 +147,10 @@ export function ProjectMembersSettingsPage() {
 
   const emptyState = (
     <Stack align="center" gap="sm">
-      <Text c="dimmed">{NO_MEMBERS_YET}</Text>
+      <Text c="dimmed">{t("project:members.emptyTitle")}</Text>
       {canAddMember && (
         <Button variant="light" onClick={() => setModalOpened(true)}>
-          Add member
+          {t("project:members.addMember")}
         </Button>
       )}
     </Stack>
@@ -165,12 +162,14 @@ export function ProjectMembersSettingsPage() {
         scheme={PROJECT_ROLE_SCHEME}
         state={listViewState}
         inheritedRow={(m) => m.source === "inherited"}
-        noneAddedNote={NONE_ADDED_TO_PROJECT}
+        noneAddedNote={t("project:members.noneAddedNote")}
         truncatedMessage={truncatedProjectMembersMessage}
         canSeeEmail={canSeeEmail}
         canAddMember={canAddMember}
         onAddMember={() => setModalOpened(true)}
-        roleHint={(m) => (m.roleLimited ? ROLE_LIMITED_TOOLTIP : null)}
+        roleHint={(m) =>
+          m.roleLimited ? t("project:members.roleLimitedTooltip") : null
+        }
         roleControl={(m, roleHint) => {
           if (
             m.source === "inherited" ||

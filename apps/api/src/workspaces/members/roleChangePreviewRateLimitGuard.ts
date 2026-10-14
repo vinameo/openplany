@@ -35,7 +35,7 @@ export class RoleChangePreviewRateLimitGuard implements CanActivate {
       throw new ApiException(
         HttpStatus.UNAUTHORIZED,
         'UNAUTHENTICATED',
-        'Sign in to continue',
+        { key: 'errors:http.unauthenticated' },
       );
     }
 
@@ -50,7 +50,7 @@ export class RoleChangePreviewRateLimitGuard implements CanActivate {
       throw new ApiException(
         HttpStatus.TOO_MANY_REQUESTS,
         'TOO_MANY_ATTEMPTS',
-        'Too many attempts. Try again later.',
+        { key: 'errors:tooManyAttempts' },
         { retryAfterSeconds: decision.retryAfterSeconds },
       );
     }

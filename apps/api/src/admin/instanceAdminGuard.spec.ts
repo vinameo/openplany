@@ -76,7 +76,7 @@ describe('InstanceAdminGuard', () => {
     const warnSpy = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
     const reflector = new Reflector();
     const getAllAndOverrideSpy = vi.spyOn(reflector, 'getAllAndOverride').mockReturnValue(
-      "You don't have permission to create users",
+      { key: 'admin:errors.cannotCreateUsers' },
     );
     const guard = new InstanceAdminGuard(reflector);
     const context = contextFor({

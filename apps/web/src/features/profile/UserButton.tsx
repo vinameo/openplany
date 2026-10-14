@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Avatar, Text, UnstyledButton } from "@mantine/core";
 import type { AuthUser } from "../auth/api/authTypes";
 import { ProfileModal } from "./ProfileModal";
@@ -11,6 +12,7 @@ interface UserButtonProps {
 
 /** Avatar and name in the head bar; opens the profile popup. */
 export function UserButton({ user }: UserButtonProps) {
+  const { t } = useTranslation();
   const [openings, setOpenings] = useState(0);
   const [opened, setOpened] = useState(false);
   const name = userLabel(user);
@@ -26,7 +28,7 @@ export function UserButton({ user }: UserButtonProps) {
         className={classes.button}
         onClick={open}
         aria-haspopup="dialog"
-        aria-label={`Edit profile – ${name}`}
+        aria-label={t("profile:userButton.ariaLabel", { name })}
       >
         <Avatar
           src={user.avatarUrl}

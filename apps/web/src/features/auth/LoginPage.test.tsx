@@ -1,8 +1,9 @@
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AppUiProvider } from "@repo/ui";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiRequestError } from "../../lib/apiClient";
+import { resetLanguageModuleForTest, setLanguage } from "../../i18n/language";
 import { LoginPage } from "./LoginPage";
 
 type Submit = (values: { email: string; password: string }) => Promise<void>;
@@ -192,5 +193,65 @@ describe("LoginPage", () => {
     expect(
       screen.getByRole("link", { name: "Forgot password?" }),
     ).toHaveAttribute("href", "/forgot-password");
+  });
+
+  describe("Vietnamese localization (RQ AC-02, AC-04, AC-05)", () => {
+    beforeEach(() => {
+      setLanguage("vi");
+    });
+
+    afterEach(() => {
+      resetLanguageModuleForTest();
+    });
+
+    it("renders form elements and labels in Vietnamese", () => {
+      renderLoginPage();
+
+      expect(
+        screen.getByRole("heading", {
+          level: 1,
+          name: "Đăng nhập vào OpenPlany",
+        }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText("Lập kế hoạch dự án và tài liệu tại cùng một nơi."),
+      ).toBeInTheDocument();
+      expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/^mật khẩu/i)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText("Nhập mật khẩu")).toBeInTheDocument();
+      expect(
+        screen.getByRole("link", { name: "Quên mật khẩu?" }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Đăng nhập" })).toBeDisabled();
+    });
+
+    it("displays Vietnamese validation and lockout errors (AC-05)", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        const { user } = renderLoginPage(
+          vi.fn<Submit>().mockRejectedValue(
+            new ApiRequestError(429, {
+              code: "TOO_MANY_ATTEMPTS",
+              message: "Quá nhiều lần thử. Tạm khoá trong 2 phút.",
+              retryAfterSeconds: 90,
+            }),
+          ),
+          { advanceTimers: vi.advanceTimersByTime },
+        );
+
+        await user.type(screen.getByLabelText(/email/i), "an@openplany.dev");
+        await user.type(screen.getByLabelText(/^mật khẩu/i), "secret123");
+        await user.click(screen.getByRole("button", { name: "Đăng nhập" }));
+
+        expect(await screen.findByRole("alert")).toHaveTextContent(
+          "Quá nhiều lần thử. Tạm khoá trong 2 phút.",
+        );
+        expect(
+          screen.getByRole("button", { name: "Thử lại sau 1:30" }),
+        ).toBeDisabled();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 });

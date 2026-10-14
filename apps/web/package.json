@@ -38,8 +38,10 @@
     "dayjs": "^1.11.23",
     "embla-carousel": "^8.6.0",
     "embla-carousel-react": "^8.6.0",
+    "i18next": "^26.4.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "react-i18next": "^17.0.16",
     "react-router": "^8.4.0",
     "recharts": "^3.10.1"
   },

@@ -9,13 +9,8 @@ import {
   Text,
   Title,
 } from "@mantine/core";
-import { truncatedMembersMessage } from "@repo/contracts";
-import {
-  COULDNT_LOAD_MEMBERS,
-  TRY_AGAIN,
-  NO_MEMBERS_MATCH,
-  CLEAR_SEARCH_AND_FILTERS,
-} from "./membersMessages";
+import { useTranslation } from "react-i18next";
+import { formatNumber } from "../../i18n";
 import {
   applyMemberListQuery,
   DEFAULT_MEMBER_SORT,
@@ -65,7 +60,7 @@ export function MembersListView<R extends string, M extends MemberRowView<R>>({
   canSeeEmail,
   canAddMember,
   onAddMember,
-  title = "Members",
+  title,
   note,
   alerts,
   roleHint,
@@ -77,9 +72,12 @@ export function MembersListView<R extends string, M extends MemberRowView<R>>({
   noneAddedNote,
   truncatedMessage,
 }: MembersListViewProps<R, M>) {
+  const { t } = useTranslation();
   const [search, setSearch] = useState("");
   const [roles, setRoles] = useState<R[]>([]);
   const [sort, setSort] = useState<MemberSort>(DEFAULT_MEMBER_SORT);
+
+  const resolvedTitle = title ?? t("members:title");
 
   const clearSearchAndFilters = () => {
     setSearch("");
@@ -117,18 +115,18 @@ export function MembersListView<R extends string, M extends MemberRowView<R>>({
     return (
       <Stack gap="md">
         <Group gap="xs" align="center">
-          <Title order={2}>{title}</Title>
+          <Title order={2}>{resolvedTitle}</Title>
         </Group>
         <Alert color="red" role="alert">
           <Group justify="space-between" align="center">
-            <Text size="sm">{COULDNT_LOAD_MEMBERS}</Text>
+            <Text size="sm">{t("workspace:settings.members.loadError")}</Text>
             <Button
               variant="subtle"
               color="red"
               size="xs"
               onClick={state.retry}
             >
-              {TRY_AGAIN}
+              {t("common:actions.tryAgain")}
             </Button>
           </Group>
         </Alert>
@@ -139,7 +137,7 @@ export function MembersListView<R extends string, M extends MemberRowView<R>>({
   return (
     <Stack gap="md">
       <Group gap="xs" align="center">
-        <Title order={2}>{title}</Title>
+        <Title order={2}>{resolvedTitle}</Title>
         <Badge variant="light" color="gray" size="sm">
           {state.total}
         </Badge>
@@ -149,10 +147,12 @@ export function MembersListView<R extends string, M extends MemberRowView<R>>({
 
       {state.truncated && (
         <Alert color="yellow" role="alert">
-          {(truncatedMessage ?? truncatedMembersMessage)(
-            state.listMax,
-            state.total,
-          )}
+          {truncatedMessage
+            ? truncatedMessage(state.listMax, state.total)
+            : t("members:truncated", {
+                shown: formatNumber(state.listMax),
+                total: formatNumber(state.total),
+              })}
         </Alert>
       )}
 
@@ -175,14 +175,14 @@ export function MembersListView<R extends string, M extends MemberRowView<R>>({
           {filteredMembers.length === 0 ? (
             <Stack align="center" gap="xs" py="xl">
               <Text size="sm" c="dimmed">
-                {NO_MEMBERS_MATCH}
+                {t("members:noMembersMatch")}
               </Text>
               <Button
                 variant="subtle"
                 size="sm"
                 onClick={clearSearchAndFilters}
               >
-                {CLEAR_SEARCH_AND_FILTERS}
+                {t("members:clearSearchAndFilters")}
               </Button>
             </Stack>
           ) : (

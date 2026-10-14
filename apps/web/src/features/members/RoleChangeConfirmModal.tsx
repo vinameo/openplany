@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Alert, Button, Group, Modal, Stack } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
+import { useTranslation } from "react-i18next";
 import classes from "./RoleChangeConfirmModal.module.css";
 
 export interface RoleChangeConfirmModalProps {
@@ -28,6 +29,7 @@ export function RoleChangeConfirmModal({
   onConfirm,
   onCancel,
 }: RoleChangeConfirmModalProps) {
+  const { t } = useTranslation();
   const isMobile = useMediaQuery("(max-width: 48em)");
 
   return (
@@ -57,7 +59,7 @@ export function RoleChangeConfirmModal({
             disabled={pending}
             data-autofocus
           >
-            Cancel
+            {t("common:actions.cancel")}
           </Button>
           <Button
             color={danger ? "red" : undefined}

@@ -1,11 +1,10 @@
 import { notifications } from "@mantine/notifications";
-import { MEMBER_MESSAGES } from "@repo/contracts";
+import { translate } from "../../i18n/language";
 import { ApiRequestError } from "../../lib/apiClient";
 import type { SubmitOutcome } from "./AddMembersModalFrame";
 import { mapFieldErrors } from "./addMembersRows";
 import {
   addedMembersMessage,
-  SOMETHING_WENT_WRONG,
   tooManyAttemptsMessage,
 } from "./membersMessages";
 
@@ -68,7 +67,7 @@ async function failureOutcome(
 ): Promise<SubmitOutcome> {
   if (!(err instanceof ApiRequestError)) {
     console.error(`${logContext}.failed`, err);
-    return { kind: "alert", message: SOMETHING_WENT_WRONG };
+    return { kind: "alert", message: translate("errors:genericError") };
   }
 
   if (err.status === 403 || err.status === 404) {
@@ -76,9 +75,9 @@ async function failureOutcome(
       notifications.show({
         color: "red",
         message:
-          err.message === MEMBER_MESSAGES.roleNotAllowed
-            ? MEMBER_MESSAGES.roleNotAllowed
-            : MEMBER_MESSAGES.notAllowed,
+          err.code === "ROLE_NOT_ALLOWED"
+            ? translate("members:errors.roleNotAllowed")
+            : translate("members:errors.notAllowed"),
       });
     }
     await runLogged(refreshAfterLostAccess, `${logContext}.refresh_failed`);
@@ -97,10 +96,10 @@ async function failureOutcome(
     if (Object.keys(rowErrors).length > 0) {
       return { kind: "rowErrors", byRowId: rowErrors };
     }
-    return { kind: "alert", message: MEMBER_MESSAGES.checkFields };
+    return { kind: "alert", message: translate("members:errors.checkFields") };
   }
 
-  return { kind: "alert", message: SOMETHING_WENT_WRONG };
+  return { kind: "alert", message: translate("errors:genericError") };
 }
 
 async function runLogged(

@@ -1,3 +1,4 @@
+import type { MessageRef } from "./catalog/index.js";
 import type { WorkspaceRole } from "./workspace.js";
 import type { WorkspacePermission } from "./workspacePermissions.js";
 import type { ProjectRole } from "./projectRoles.js";
@@ -41,6 +42,14 @@ export const PERMISSION_GRANT_PROBLEM_MESSAGES = {
   ADMIN_ONLY: "Only Admins can have this permission",
   GUEST_VIEW_ONLY: "Guests and Viewers can only view",
 } as const satisfies Record<PermissionGrantProblem, string>;
+
+export const PERMISSION_GRANT_PROBLEM_REFS = {
+  UNKNOWN_PERMISSION: { key: "admin:errors.unknownPermission" },
+  SCOPE_MISMATCH: { key: "admin:errors.scopeMismatch" },
+  ROLE_LOCKED: { key: "admin:errors.roleLocked" },
+  ADMIN_ONLY: { key: "admin:errors.adminOnly" },
+  GUEST_VIEW_ONLY: { key: "admin:errors.guestViewOnly" },
+} as const satisfies Record<PermissionGrantProblem, MessageRef>;
 
 export function isRoleLocked(role: RoleRef): boolean {
   return LOCKED_ROLES.some(

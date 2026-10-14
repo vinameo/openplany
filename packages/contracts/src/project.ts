@@ -1,3 +1,4 @@
+import type { MessageRef } from "./catalog/index.js";
 import { NO_HIDDEN_CHARS, removeDiacritics } from "./workspace.js";
 import type { ProjectRole } from "./projectRoles.js";
 import type { EnforcedProjectPermission } from "./projectPermissions.js";
@@ -251,31 +252,47 @@ export const PROJECT_FIELD_MESSAGES = {
   coverRequired: "Choose a cover",
 } as const;
 
+export const PROJECT_FIELD_MESSAGE_REFS = {
+  nameRequired: { key: "project:errors.nameRequired" },
+  nameTooLong: {
+    key: "project:errors.nameTooLong",
+    params: { max: PROJECT_NAME_MAX },
+  },
+  hiddenChars: { key: "project:errors.hiddenChars" },
+  descriptionTooLong: {
+    key: "project:errors.descriptionTooLong",
+    params: { max: PROJECT_DESCRIPTION_MAX },
+  },
+  iconRequired: { key: "project:errors.iconRequired" },
+  iconColorInvalid: { key: "project:errors.iconColorInvalid" },
+  coverRequired: { key: "project:errors.coverRequired" },
+} as const satisfies Record<keyof typeof PROJECT_FIELD_MESSAGES, MessageRef>;
+
 /** Lỗi đầu tiên của tên (sau normalizeProjectName), hoặc null. Web dùng; API dùng decorator + cùng câu. */
-export function projectNameProblem(name: string): string | null {
+export function projectNameProblem(name: string): MessageRef | null {
   const normalized = normalizeProjectName(name);
   if (!normalized) {
-    return PROJECT_FIELD_MESSAGES.nameRequired;
+    return PROJECT_FIELD_MESSAGE_REFS.nameRequired;
   }
   if (normalized.length > PROJECT_NAME_MAX) {
-    return PROJECT_FIELD_MESSAGES.nameTooLong;
+    return PROJECT_FIELD_MESSAGE_REFS.nameTooLong;
   }
   if (!NO_HIDDEN_CHARS.test(normalized)) {
-    return PROJECT_FIELD_MESSAGES.hiddenChars;
+    return PROJECT_FIELD_MESSAGE_REFS.hiddenChars;
   }
   return null;
 }
 
 /** Lỗi đầu tiên của mô tả, hoặc null. */
-export function projectDescriptionProblem(description: string): string | null {
+export function projectDescriptionProblem(description: string): MessageRef | null {
   if (!description) {
     return null;
   }
   if (description.length > PROJECT_DESCRIPTION_MAX) {
-    return PROJECT_FIELD_MESSAGES.descriptionTooLong;
+    return PROJECT_FIELD_MESSAGE_REFS.descriptionTooLong;
   }
   if (!PROJECT_DESCRIPTION_ALLOWED_CHARS.test(description)) {
-    return PROJECT_FIELD_MESSAGES.hiddenChars;
+    return PROJECT_FIELD_MESSAGE_REFS.hiddenChars;
   }
   return null;
 }
@@ -286,3 +303,10 @@ export const PROJECT_ERROR_MESSAGES = {
   notFound: "This project doesn't exist.",
   forbidden: "You don't have access to this project.",
 } as const;
+
+export const PROJECT_ERROR_MESSAGE_REFS = {
+  nameTaken: { key: "project:errors.nameTaken" },
+  identifierTaken: { key: "project:errors.identifierTaken" },
+  notFound: { key: "project:errors.notFound" },
+  forbidden: { key: "project:errors.forbidden" },
+} as const satisfies Record<keyof typeof PROJECT_ERROR_MESSAGES, MessageRef>;

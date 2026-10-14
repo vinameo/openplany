@@ -75,7 +75,10 @@ export const appRoutes: RouteObject[] = [
                             index: true,
                             element: <HomePage />,
                             handle: {
-                              workspacePage: { title: "Home", icon: HomeIcon },
+                              workspacePage: {
+                                titleKey: "workspace:shell.home",
+                                icon: HomeIcon,
+                              },
                             } satisfies WorkspacePageHandle,
                           },
                         ],
@@ -146,7 +149,9 @@ export const appRoutes: RouteObject[] = [
                             index: true,
                             element: <ProjectHomePage />,
                             handle: {
-                              projectPage: { title: "Home" },
+                              projectPage: {
+                                titleKey: "workspace:shell.home",
+                              },
                             } satisfies ProjectPageHandle,
                           },
                         ],

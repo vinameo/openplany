@@ -1,6 +1,13 @@
+import { translate } from "../../../i18n/language";
+
 export const PROJECT_SETTINGS_MESSAGES = {
-  identifierReadOnly:
-    "The project ID can't be changed. It is part of this project's links and will prefix its work item numbers.",
-  deleteForbidden: "You don't have permission to delete this project.",
-  noAccess: "You don't have access to project settings.",
+  get identifierReadOnly(): string {
+    return translate("project:settings.general.identifierReadOnly");
+  },
+  get deleteForbidden(): string {
+    return translate("project:settings.delete.forbidden");
+  },
+  get noAccess(): string {
+    return translate("project:settings.noAccess");
+  },
 } as const;

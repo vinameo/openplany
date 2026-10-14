@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Avatar, Button, Group, Modal, Stack, Text } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import type { AuthUser } from "../auth/api/authTypes";
@@ -19,6 +20,7 @@ interface ProfileModalProps {
  * form always starts from the current user and discarded typing is gone.
  */
 export function ProfileModal({ opened, onClose, user }: ProfileModalProps) {
+  const { t } = useTranslation();
   const isNarrow = useMediaQuery("(max-width: 575px)");
   const state = useProfileForm({ user, onSaved: onClose });
   const { form, hasChanges, isSaving } = state;
@@ -46,7 +48,7 @@ export function ProfileModal({ opened, onClose, user }: ProfileModalProps) {
   const footer = isConfirmingDiscard ? (
     <Group justify="space-between" className={classes.footer}>
       <Text fw={500} role="alert">
-        Discard unsaved changes?
+        {t("profile:discardModal.title")}
       </Text>
       <Group gap="sm">
         <Button
@@ -54,10 +56,10 @@ export function ProfileModal({ opened, onClose, user }: ProfileModalProps) {
           variant="default"
           onClick={() => setIsConfirmingDiscard(false)}
         >
-          Keep editing
+          {t("common:actions.keepEditing")}
         </Button>
         <Button color="red" onClick={onClose}>
-          Discard
+          {t("common:actions.discard")}
         </Button>
       </Group>
     </Group>
@@ -69,7 +71,7 @@ export function ProfileModal({ opened, onClose, user }: ProfileModalProps) {
         loading={isSaving}
         fullWidth={isNarrow}
       >
-        Save changes
+        {t("common:actions.saveChanges")}
       </Button>
     </div>
   );
@@ -78,14 +80,17 @@ export function ProfileModal({ opened, onClose, user }: ProfileModalProps) {
     <Modal
       opened={opened}
       onClose={requestClose}
-      title="Profile"
+      title={t("profile:title")}
       size={840}
       radius="lg"
       padding="xl"
       fullScreen={isNarrow}
       closeOnEscape={!isSaving}
       closeOnClickOutside={!isSaving}
-      closeButtonProps={{ disabled: isSaving, "aria-label": "Close profile" }}
+      closeButtonProps={{
+        disabled: isSaving,
+        "aria-label": t("profile:modal.closeProfile"),
+      }}
       transitionProps={{ transition: isNarrow ? "slide-up" : "fade" }}
       classNames={{ title: classes.title }}
     >

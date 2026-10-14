@@ -30,7 +30,7 @@ export class WorkspaceWriteRateLimitGuard implements CanActivate {
       throw new ApiException(
         HttpStatus.UNAUTHORIZED,
         'UNAUTHENTICATED',
-        'Sign in to continue',
+        { key: 'errors:http.unauthenticated' },
       );
     }
 
@@ -42,7 +42,7 @@ export class WorkspaceWriteRateLimitGuard implements CanActivate {
       throw new ApiException(
         HttpStatus.TOO_MANY_REQUESTS,
         'TOO_MANY_ATTEMPTS',
-        'Too many changes. Try again later.',
+        { key: 'errors:tooManyWorkspaceWrites' },
         { retryAfterSeconds: decision.retryAfterSeconds },
       );
     }

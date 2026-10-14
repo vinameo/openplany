@@ -52,8 +52,6 @@ const RESET_ONLY_SESSION_MS = 15 * 60 * 1000;
 const SESSION_TOUCH_INTERVAL_MS = 5 * 60 * 1000;
 export const MAX_USER_AGENT_LENGTH = 512;
 
-const INVALID_CREDENTIALS = 'Incorrect email or password';
-
 @Injectable()
 export class AuthService implements OnModuleInit {
   private readonly logger = new Logger(AuthService.name);
@@ -100,7 +98,7 @@ export class AuthService implements OnModuleInit {
       throw new ApiException(
         HttpStatus.TOO_MANY_REQUESTS,
         'TOO_MANY_ATTEMPTS',
-        `Too many attempts. Try again in ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}.`,
+        { key: 'auth:errors.tooManyAttempts', params: { count: minutes } },
         { retryAfterSeconds: limit.retryAfterSeconds },
       );
     }
@@ -137,20 +135,16 @@ export class AuthService implements OnModuleInit {
     // Only revealed once the password is proven correct (rule 6).
     if (!user.isActive) {
       await fail('inactive', user.id);
-      throw new ApiException(
-        HttpStatus.FORBIDDEN,
-        'ACCOUNT_DEACTIVATED',
-        'Your account is deactivated. Contact your admin.',
-      );
+      throw new ApiException(HttpStatus.FORBIDDEN, 'ACCOUNT_DEACTIVATED', {
+        key: 'auth:errors.accountDeactivated',
+      });
     }
     // Rule 7. Q5 (what is_managed means) is still open; the spec blocks it.
     if (user.isManaged) {
       await fail('managed_sso', user.id);
-      throw new ApiException(
-        HttpStatus.FORBIDDEN,
-        'SSO_REQUIRED',
-        "Sign in with your organization's SSO",
-      );
+      throw new ApiException(HttpStatus.FORBIDDEN, 'SSO_REQUIRED', {
+        key: 'auth:errors.ssoRequired',
+      });
     }
 
     const resetOnly = user.isPasswordExpired || user.isPasswordResetRequired;
@@ -240,11 +234,9 @@ function unusableReason(user: User): LoginReason | null {
 }
 
 function invalidCredentials(): ApiException {
-  return new ApiException(
-    HttpStatus.UNAUTHORIZED,
-    'INVALID_CREDENTIALS',
-    INVALID_CREDENTIALS,
-  );
+  return new ApiException(HttpStatus.UNAUTHORIZED, 'INVALID_CREDENTIALS', {
+    key: 'auth:errors.invalidCredentials',
+  });
 }
 
 function truncateUserAgent(userAgent: string | null): string | null {

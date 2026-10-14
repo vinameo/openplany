@@ -10,6 +10,7 @@ import {
   Text,
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
+import { useTranslation } from 'react-i18next';
 import { ADD_MEMBERS_MAX } from '@repo/contracts';
 import { ConfirmDiscardModal } from '../workspaces/ConfirmDiscardModal';
 import { PlusIcon } from '../workspaces/icons';
@@ -62,7 +63,7 @@ export function AddMembersModalFrame<
 >({
   opened,
   onClose,
-  title = 'Add member',
+  title,
   description,
   scheme,
   defaultRole,
@@ -72,6 +73,8 @@ export function AddMembersModalFrame<
   notice,
   onSubmit,
 }: AddMembersModalFrameProps<R, C>) {
+  const { t } = useTranslation();
+  const resolvedTitle = title ?? t("members:modal.title");
   const isMobile = useMediaQuery('(max-width: 48em)', false, {
     getInitialValueInEffect: false,
   });
@@ -135,7 +138,7 @@ export function AddMembersModalFrame<
       <Modal
         opened={opened}
         onClose={handleAttemptClose}
-        title={title}
+        title={resolvedTitle}
         size="lg"
         fullScreen={isMobile}
       >
@@ -192,7 +195,7 @@ export function AddMembersModalFrame<
 
                   <div className={classes.roleGroup}>
                     <Select
-                      aria-label="Role"
+                      aria-label={t("members:modal.roleAriaLabel")}
                       data={roleOptions}
                       value={row.role}
                       error={row.roleError}
@@ -226,7 +229,7 @@ export function AddMembersModalFrame<
 
                     {rows.length > 1 && (
                       <CloseButton
-                        aria-label="Remove row"
+                        aria-label={t("members:modal.removeRowAriaLabel")}
                         onClick={() =>
                           dispatch({ type: 'remove', id: row.id })
                         }
@@ -249,7 +252,7 @@ export function AddMembersModalFrame<
                 onClick={() => dispatch({ type: 'add' })}
                 disabled={isSubmitting}
               >
-                + Add more
+                {t("members:modal.addMore")}
               </Button>
             </div>
           )}
@@ -260,14 +263,14 @@ export function AddMembersModalFrame<
               onClick={handleAttemptClose}
               disabled={isSubmitting}
             >
-              Cancel
+              {t("common:actions.cancel")}
             </Button>
             <Button
               onClick={() => void handleSubmit()}
               disabled={!hasAnySelected || isSubmitting}
               loading={isSubmitting}
             >
-              Add member
+              {t("members:modal.submit")}
             </Button>
           </Group>
         </Stack>

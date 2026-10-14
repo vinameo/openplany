@@ -1,3 +1,4 @@
+import type { MessageRef } from "./catalog/index.js";
 import { type WorkspaceRole, removeDiacritics } from "./workspace.js";
 
 export const WORKSPACE_MEMBER_LIST_MAX = 1000;
@@ -72,8 +73,18 @@ export const MEMBER_NOT_ADDABLE_MESSAGES = {
   unavailable: "This person can't be added. Their account may be deactivated.",
 } as const satisfies Record<MemberNotAddableReason, string>;
 
+export const MEMBER_NOT_ADDABLE_MESSAGE_REFS = {
+  already_member: { key: "members:errors.alreadyMember" },
+  unavailable: { key: "members:errors.unavailable" },
+} as const satisfies Record<MemberNotAddableReason, MessageRef>;
+
 export const WORKSPACE_ROLE_CHANGE_MESSAGES = {
   lastAdmin:
     "A workspace needs at least one Admin. Make someone else an Admin first.",
   memberGone: "This person is no longer in this workspace.",
 } as const;
+
+export const WORKSPACE_ROLE_CHANGE_MESSAGE_REFS = {
+  lastAdmin: { key: "workspace:errors.lastAdmin" },
+  memberGone: { key: "workspace:errors.memberGone" },
+} as const satisfies Record<keyof typeof WORKSPACE_ROLE_CHANGE_MESSAGES, MessageRef>;

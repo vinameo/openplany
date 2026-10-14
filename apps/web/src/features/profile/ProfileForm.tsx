@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { Alert, SimpleGrid, Stack, TextInput } from "@mantine/core";
 import type { ProfileFormState } from "./useProfileForm";
 
@@ -12,6 +13,7 @@ interface ProfileFormProps {
 
 /** The profile fields. Knows nothing about the popup, so a page can reuse it. */
 export function ProfileForm({ state, email, footer }: ProfileFormProps) {
+  const { t } = useTranslation();
   const { form, isSaving, submitError, handleSubmit } = state;
 
   return (
@@ -24,8 +26,8 @@ export function ProfileForm({ state, email, footer }: ProfileFormProps) {
           verticalSpacing="md"
         >
           <TextInput
-            label="First name"
-            placeholder="Given name"
+            label={t("profile:form.firstName")}
+            placeholder={t("profile:form.firstNamePlaceholder")}
             autoComplete="given-name"
             withAsterisk
             readOnly={isSaving}
@@ -34,16 +36,16 @@ export function ProfileForm({ state, email, footer }: ProfileFormProps) {
             key={form.key("firstName")}
           />
           <TextInput
-            label="Last name"
-            placeholder="Family name"
+            label={t("profile:form.lastName")}
+            placeholder={t("profile:form.lastNamePlaceholder")}
             autoComplete="family-name"
             readOnly={isSaving}
             {...form.getInputProps("lastName")}
             key={form.key("lastName")}
           />
           <TextInput
-            label="Display name"
-            placeholder="How others see you"
+            label={t("profile:form.displayName")}
+            placeholder={t("profile:form.displayNamePlaceholder")}
             autoComplete="nickname"
             withAsterisk
             readOnly={isSaving}
@@ -57,8 +59,8 @@ export function ProfileForm({ state, email, footer }: ProfileFormProps) {
           spacing="lg"
         >
           <TextInput
-            label="Email"
-            description="Contact your admin to change your email."
+            label={t("profile:form.email")}
+            description={t("profile:form.emailDescription")}
             autoComplete="email"
             variant="filled"
             value={email}

@@ -1,6 +1,6 @@
 import { Button, Container, Stack, Text, Title } from "@mantine/core";
 import { Link } from "react-router";
-import { PROJECT_ERROR_MESSAGES } from "@repo/contracts";
+import { useTranslation } from "react-i18next";
 import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
 import { useCurrentWorkspace } from "../../workspaces/currentWorkspace/useCurrentWorkspace";
 import { workspacePath } from "../../workspaces/workspacePaths";
@@ -10,18 +10,23 @@ export interface ProjectErrorPageProps {
 }
 
 export function ProjectErrorPage({ status }: ProjectErrorPageProps) {
+  const { t } = useTranslation();
   const { workspace } = useCurrentWorkspace();
   const isForbidden = status === 403;
 
   useDocumentTitle(
-    isForbidden ? "Forbidden · OpenPlany" : "Not found · OpenPlany",
+    isForbidden
+      ? t("project:errors.forbiddenDocTitle")
+      : t("project:errors.notFoundDocTitle"),
   );
 
   const code = isForbidden ? "403" : "404";
-  const title = isForbidden ? "Forbidden" : "Not Found";
+  const title = isForbidden
+    ? t("project:errors.forbiddenTitle")
+    : t("project:errors.notFoundTitle");
   const message = isForbidden
-    ? PROJECT_ERROR_MESSAGES.forbidden
-    : PROJECT_ERROR_MESSAGES.notFound;
+    ? t("project:errors.forbidden")
+    : t("project:errors.notFound");
 
   return (
     <Container size="sm" py={96}>
@@ -46,7 +51,7 @@ export function ProjectErrorPage({ status }: ProjectErrorPageProps) {
           to={workspacePath(workspace.slug)}
           variant="filled"
         >
-          Homepage
+          {t("project:detail.homepage")}
         </Button>
       </Stack>
     </Container>

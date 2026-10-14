@@ -1,3 +1,4 @@
+import type { MessageRef } from "./catalog/index.js";
 import type { WorkspaceRole } from "./workspace.js";
 import type {
   EnforcedWorkspacePermission,
@@ -129,6 +130,12 @@ export const PROJECT_ROLE_CHANGE_MESSAGES = {
   memberGone: "This person is no longer in this project.",
 } as const;
 
+export const PROJECT_ROLE_CHANGE_MESSAGE_REFS = {
+  cantChange: { key: "project:errors.cantChangeRole" },
+  inherited: { key: "project:errors.inheritedRole" },
+  memberGone: { key: "project:errors.memberGone" },
+} as const satisfies Record<keyof typeof PROJECT_ROLE_CHANGE_MESSAGES, MessageRef>;
+
 export const PROJECT_MEMBER_NOT_ADDABLE_REASONS = [
   "unavailable",
   "not_in_workspace",
@@ -148,6 +155,17 @@ export const PROJECT_MEMBER_NOT_ADDABLE_MESSAGES: Record<
   unavailable: "This person can't be added. Their account may be deactivated.",
   role_not_allowed: MEMBER_MESSAGES.roleOutOfRange,
   workspace_admin: "Workspace Admins can already access every project.",
+};
+
+export const PROJECT_MEMBER_NOT_ADDABLE_MESSAGE_REFS: Record<
+  ProjectMemberNotAddableReason,
+  MessageRef
+> = {
+  already_member: { key: "project:errors.alreadyMember" },
+  not_in_workspace: { key: "project:errors.notInWorkspace" },
+  unavailable: { key: "project:errors.unavailable" },
+  role_not_allowed: { key: "members:errors.roleOutOfRange" },
+  workspace_admin: { key: "project:errors.workspaceAdmin" },
 };
 
 export const PROJECT_MEMBER_NOT_ADDABLE_FIELD: Record<

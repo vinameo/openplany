@@ -2,11 +2,11 @@ import { useCallback } from "react";
 import { useNavigate } from "react-router";
 import { notifications } from "@mantine/notifications";
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import {
   normalizeProjectName,
   projectNameProblem,
   projectDescriptionProblem,
-  PROJECT_ERROR_MESSAGES,
   type ProjectListItem,
 } from "@repo/contracts";
 import { GENERIC_ERROR } from "../../../../lib/apiClient";
@@ -28,6 +28,7 @@ import {
 } from "../projectSettingsValues";
 
 export function useProjectGeneralSettingsForm(project: ProjectListItem) {
+  const { t } = useTranslation();
   const { workspace } = useCurrentWorkspace();
   const { reload, applyProjectUpdate } = useCurrentProject();
   const queryClient = useQueryClient();
@@ -46,12 +47,12 @@ export function useProjectGeneralSettingsForm(project: ProjectListItem) {
       );
       applyProjectUpdate(res.project);
       notifications.show({
-        message: "Project updated",
+        message: t("project:settings.general.successNotification"),
         color: "teal",
       });
       return toProjectSettingsValues(res.project);
     },
-    [workspace.slug, project, applyProjectUpdate],
+    [workspace.slug, project, applyProjectUpdate, t],
   );
 
   const onApiError = useCallback(
@@ -62,7 +63,7 @@ export function useProjectGeneralSettingsForm(project: ProjectListItem) {
       }
       if (error.status === 404) {
         notifications.show({
-          message: PROJECT_ERROR_MESSAGES.notFound,
+          message: t("project:errors.notFound"),
           color: "red",
         });
         void Promise.resolve(
@@ -86,7 +87,7 @@ export function useProjectGeneralSettingsForm(project: ProjectListItem) {
       }
       return GENERIC_ERROR;
     },
-    [reload, navigate, workspace.slug, queryClient, project.identifier],
+    [reload, navigate, workspace.slug, queryClient, project.identifier, t],
   );
 
   const {
@@ -105,10 +106,16 @@ export function useProjectGeneralSettingsForm(project: ProjectListItem) {
       name: normalizeProjectName,
     },
     validate: {
-      name: (val) =>
-        val !== undefined ? projectNameProblem(String(val)) : null,
-      description: (val) =>
-        val !== undefined ? projectDescriptionProblem(String(val)) : null,
+      name: (val) => {
+        if (val === undefined) return null;
+        const problem = projectNameProblem(String(val));
+        return problem ? t(problem.key, problem.params) : null;
+      },
+      description: (val) => {
+        if (val === undefined) return null;
+        const problem = projectDescriptionProblem(String(val));
+        return problem ? t(problem.key, problem.params) : null;
+      },
     },
     submit,
     onApiError,

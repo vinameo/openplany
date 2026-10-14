@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Alert } from "@mantine/core";
+import { useTranslation } from "react-i18next";
 import {
   isWorkspaceAdminRole,
   WORKSPACE_MEMBER_LIST_MAX,
@@ -19,6 +20,7 @@ import { ChangeWorkspaceRoleModal } from "./ChangeWorkspaceRoleModal";
 import { useWorkspaceMembersQuery } from "./useWorkspaceMembersQuery";
 
 export function MembersSettingsPage() {
+  const { t } = useTranslation();
   const { workspace } = useCurrentWorkspace();
   const { state, reload } = useWorkspaceMembersQuery(workspace.slug);
   const [addModalOpened, setAddModalOpened] = useState(false);
@@ -41,7 +43,7 @@ export function MembersSettingsPage() {
         el.focus();
       } else {
         const filtersBtn = document.querySelector<HTMLButtonElement>(
-          'button[aria-label="Filter by role"]',
+          'button[data-role-filter], button[aria-label="Filter by role"]',
         );
         filtersBtn?.focus();
       }
@@ -101,7 +103,7 @@ export function MembersSettingsPage() {
         alerts={
           showNoActiveAdmin ? (
             <Alert color="red" role="alert">
-              No active Admin. Ask your instance admin for help.
+              {t("workspace:settings.members.noActiveAdmin")}
             </Alert>
           ) : undefined
         }

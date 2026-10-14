@@ -1,4 +1,5 @@
 import type { EnforcedWorkspacePermission } from "./workspacePermissions.js";
+import type { MessageKey } from "./catalog/types.js";
 
 export const WORKSPACE_NAME_MAX = 80;
 export const WORKSPACE_SLUG_MIN = 3;
@@ -17,6 +18,15 @@ export const ORGANIZATION_SIZES = [
   "500+",
 ] as const;
 export type OrganizationSize = (typeof ORGANIZATION_SIZES)[number];
+
+export const ORGANIZATION_SIZE_KEYS: Record<OrganizationSize, MessageKey> = {
+  "Just myself": "common:orgSize.justMyself",
+  "2-10": "common:orgSize.from2To10",
+  "11-50": "common:orgSize.from11To50",
+  "51-200": "common:orgSize.from51To200",
+  "201-500": "common:orgSize.from201To500",
+  "500+": "common:orgSize.from500Plus",
+};
 
 export const WORKSPACE_ROLES = ["admin", "member", "guest"] as const;
 export type WorkspaceRole = (typeof WORKSPACE_ROLES)[number];

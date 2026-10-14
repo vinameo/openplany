@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   PROJECT_FIELD_MESSAGES,
+  PROJECT_FIELD_MESSAGE_REFS,
   TIMEZONE_MESSAGES,
   projectNameProblem,
   projectDescriptionProblem,
@@ -21,7 +22,7 @@ describe('Project field messages and validation consistency (API B6, B11.1)', ()
       return {};
     } catch (err) {
       if (err instanceof ApiException) {
-        return err.fields ?? {};
+        return err.getEnglishFields() ?? {};
       }
       throw err;
     }
@@ -35,7 +36,7 @@ describe('Project field messages and validation consistency (API B6, B11.1)', ()
       return {};
     } catch (err) {
       if (err instanceof ApiException) {
-        return err.fields ?? {};
+        return err.getEnglishFields() ?? {};
       }
       throw err;
     }
@@ -57,8 +58,8 @@ describe('Project field messages and validation consistency (API B6, B11.1)', ()
         const updateFields = await validateUpdate({ name });
         expect(updateFields.name).toBe(PROJECT_FIELD_MESSAGES.nameRequired);
 
-        expect(projectNameProblem(name)).toBe(
-          PROJECT_FIELD_MESSAGES.nameRequired,
+        expect(projectNameProblem(name)).toEqual(
+          PROJECT_FIELD_MESSAGE_REFS.nameRequired,
         );
       }
     });
@@ -71,7 +72,9 @@ describe('Project field messages and validation consistency (API B6, B11.1)', ()
       const updateFields = await validateUpdate({ name });
       expect(updateFields.name).toBe(PROJECT_FIELD_MESSAGES.nameTooLong);
 
-      expect(projectNameProblem(name)).toBe(PROJECT_FIELD_MESSAGES.nameTooLong);
+      expect(projectNameProblem(name)).toEqual(
+        PROJECT_FIELD_MESSAGE_REFS.nameTooLong,
+      );
     });
 
     it('row 5: strings with hidden chars give hiddenChars', async () => {
@@ -82,8 +85,8 @@ describe('Project field messages and validation consistency (API B6, B11.1)', ()
         const updateFields = await validateUpdate({ name });
         expect(updateFields.name).toBe(PROJECT_FIELD_MESSAGES.hiddenChars);
 
-        expect(projectNameProblem(name)).toBe(
-          PROJECT_FIELD_MESSAGES.hiddenChars,
+        expect(projectNameProblem(name)).toEqual(
+          PROJECT_FIELD_MESSAGE_REFS.hiddenChars,
         );
       }
     });
@@ -102,8 +105,8 @@ describe('Project field messages and validation consistency (API B6, B11.1)', ()
         PROJECT_FIELD_MESSAGES.descriptionTooLong,
       );
 
-      expect(projectDescriptionProblem(description)).toBe(
-        PROJECT_FIELD_MESSAGES.descriptionTooLong,
+      expect(projectDescriptionProblem(description)).toEqual(
+        PROJECT_FIELD_MESSAGE_REFS.descriptionTooLong,
       );
     });
 
@@ -115,8 +118,8 @@ describe('Project field messages and validation consistency (API B6, B11.1)', ()
         const updateFields = await validateUpdate({ description });
         expect(updateFields.description).toBe(PROJECT_FIELD_MESSAGES.hiddenChars);
 
-        expect(projectDescriptionProblem(description)).toBe(
-          PROJECT_FIELD_MESSAGES.hiddenChars,
+        expect(projectDescriptionProblem(description)).toEqual(
+          PROJECT_FIELD_MESSAGE_REFS.hiddenChars,
         );
       }
     });

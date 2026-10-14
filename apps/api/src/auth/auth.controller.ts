@@ -44,11 +44,9 @@ export class AuthController {
       token === null ? null : await this.authService.getSession(token);
     if (result === null) {
       if (token !== null) this.sessionCookie.clear(response);
-      throw new ApiException(
-        HttpStatus.UNAUTHORIZED,
-        'UNAUTHENTICATED',
-        'Sign in to continue',
-      );
+      throw new ApiException(HttpStatus.UNAUTHORIZED, 'UNAUTHENTICATED', {
+        key: 'errors:http.unauthenticated',
+      });
     }
     if (token !== null && result.renewedMaxAgeMs !== null) {
       this.sessionCookie.set(response, token, result.renewedMaxAgeMs);

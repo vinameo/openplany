@@ -1,5 +1,6 @@
 import { Alert, Button, PasswordInput, TextInput, Title } from "@mantine/core";
 import { useNavigate } from "react-router";
+import { useTranslation } from "react-i18next";
 import { PASSWORD_MIN } from "@repo/contracts";
 import { useCreateUserForm } from "./useCreateUserForm";
 import classes from "./CreateUserForm.module.css";
@@ -9,7 +10,11 @@ export interface CreateUserFormProps {
   onCancel?: () => void;
 }
 
-export function CreateUserForm({ onSuccess, onCancel }: CreateUserFormProps = {}) {
+export function CreateUserForm({
+  onSuccess,
+  onCancel,
+}: CreateUserFormProps = {}) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   function handleGoBack() {
@@ -39,13 +44,18 @@ export function CreateUserForm({ onSuccess, onCancel }: CreateUserFormProps = {}
   return (
     <div className={classes.container}>
       <Title order={1} className={classes.title}>
-        Create user
+        {t("admin:users.form.title")}
       </Title>
 
-      <form onSubmit={handleSubmit} noValidate autoComplete="off" className={classes.form}>
+      <form
+        onSubmit={handleSubmit}
+        noValidate
+        autoComplete="off"
+        className={classes.form}
+      >
         <div className={classes.row}>
           <TextInput
-            label="First name"
+            label={t("admin:users.form.firstName")}
             withAsterisk
             autoComplete="off"
             data-autofocus
@@ -56,7 +66,7 @@ export function CreateUserForm({ onSuccess, onCancel }: CreateUserFormProps = {}
             key={form.key("firstName")}
           />
           <TextInput
-            label="Last name"
+            label={t("admin:users.form.lastName")}
             autoComplete="off"
             data-1p-ignore
             data-lpignore="true"
@@ -68,10 +78,10 @@ export function CreateUserForm({ onSuccess, onCancel }: CreateUserFormProps = {}
 
         <div className={classes.row}>
           <TextInput
-            label="Display name"
+            label={t("admin:users.form.displayName")}
             withAsterisk
             autoComplete="off"
-            description="How their name appears in OpenPlany."
+            description={t("admin:users.form.displayNameDescription")}
             data-1p-ignore
             data-lpignore="true"
             readOnly={isSubmitting}
@@ -79,12 +89,12 @@ export function CreateUserForm({ onSuccess, onCancel }: CreateUserFormProps = {}
             key={form.key("displayName")}
           />
           <TextInput
-            label="Email"
+            label={t("admin:users.form.email")}
             withAsterisk
             type="email"
             inputMode="email"
             autoComplete="off"
-            description="They'll sign in with this email."
+            description={t("admin:users.form.emailDescription")}
             data-1p-ignore
             data-lpignore="true"
             readOnly={isSubmitting}
@@ -95,11 +105,15 @@ export function CreateUserForm({ onSuccess, onCancel }: CreateUserFormProps = {}
 
         <div className={classes.row}>
           <PasswordInput
-            label="Password"
+            label={t("admin:users.form.password")}
             withAsterisk
             autoComplete="new-password"
-            description={`At least ${PASSWORD_MIN} characters.`}
-            visibilityToggleButtonProps={{ "aria-label": "Show password" }}
+            description={t("admin:users.form.passwordDescription", {
+              min: PASSWORD_MIN,
+            })}
+            visibilityToggleButtonProps={{
+              "aria-label": t("admin:users.form.showPassword"),
+            }}
             data-1p-ignore
             data-lpignore="true"
             readOnly={isSubmitting}
@@ -107,11 +121,13 @@ export function CreateUserForm({ onSuccess, onCancel }: CreateUserFormProps = {}
             key={form.key("password")}
           />
           <PasswordInput
-            label="Confirm password"
+            label={t("admin:users.form.confirmPassword")}
             withAsterisk
             autoComplete="new-password"
-            description="Re-enter the password to confirm."
-            visibilityToggleButtonProps={{ "aria-label": "Show password" }}
+            description={t("admin:users.form.confirmPasswordDescription")}
+            visibilityToggleButtonProps={{
+              "aria-label": t("admin:users.form.showPassword"),
+            }}
             data-1p-ignore
             data-lpignore="true"
             readOnly={isSubmitting}
@@ -121,7 +137,7 @@ export function CreateUserForm({ onSuccess, onCancel }: CreateUserFormProps = {}
         </div>
 
         {submitError && (
-          <Alert color="red" title="Error" role="alert">
+          <Alert color="red" title={t("common:error")} role="alert">
             {submitError}
           </Alert>
         )}
@@ -133,7 +149,7 @@ export function CreateUserForm({ onSuccess, onCancel }: CreateUserFormProps = {}
             loading={isSubmitting}
             disabled={!form.isValid()}
           >
-            Create user
+            {t("admin:users.form.submit")}
           </Button>
 
           <Button
@@ -142,11 +158,10 @@ export function CreateUserForm({ onSuccess, onCancel }: CreateUserFormProps = {}
             onClick={handleGoBack}
             disabled={isSubmitting}
           >
-            Cancel
+            {t("common:actions.cancel")}
           </Button>
         </div>
       </form>
     </div>
   );
 }
-

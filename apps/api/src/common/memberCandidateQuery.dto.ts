@@ -4,8 +4,8 @@ import {
   EMAIL_MAX,
   MEMBER_CANDIDATE_QUERY_ALLOWED,
   MEMBER_CANDIDATE_QUERY_MIN,
-  MEMBER_MESSAGES,
 } from '@repo/contracts';
+import { validationMessage } from './validation.js';
 
 export class MemberCandidateQueryDto {
   @Transform(({ value }) =>
@@ -13,10 +13,10 @@ export class MemberCandidateQueryDto {
   )
   @IsString()
   @Length(MEMBER_CANDIDATE_QUERY_MIN, EMAIL_MAX, {
-    message: MEMBER_MESSAGES.candidateQueryTooShort,
+    message: validationMessage('members:errors.candidateQueryTooShort'),
   })
   @Matches(MEMBER_CANDIDATE_QUERY_ALLOWED, {
-    message: MEMBER_MESSAGES.candidateQueryInvalid,
+    message: validationMessage('members:errors.candidateQueryInvalid'),
   })
   email!: string;
 }

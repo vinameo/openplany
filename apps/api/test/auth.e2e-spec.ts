@@ -197,6 +197,78 @@ describe('Auth (e2e)', () => {
       });
     });
 
+    it('returns Vietnamese error messages and Content-Language header when Accept-Language is vi', async () => {
+      await createUser('an@openplany.dev', { is_active: false });
+
+      // Deactivated account
+      const deactResponse = await http()
+        .post('/api/auth/sign-in')
+        .set('Origin', ORIGIN)
+        .set('Accept-Language', 'vi-VN,vi;q=0.9')
+        .send({ email: 'an@openplany.dev', password: PASSWORD })
+        .expect(403);
+
+      expect(deactResponse.headers['content-language']).toBe('vi');
+      expect(deactResponse.body).toMatchObject({
+        code: 'ACCOUNT_DEACTIVATED',
+        message: 'Tài khoản của bạn đã vô hiệu hoá. Liên hệ quản trị viên.',
+      });
+
+      // Invalid credentials
+      const invalidResponse = await http()
+        .post('/api/auth/sign-in')
+        .set('Origin', ORIGIN)
+        .set('Accept-Language', 'vi')
+        .send({ email: 'an@openplany.dev', password: 'wrong' })
+        .expect(401);
+
+      expect(invalidResponse.headers['content-language']).toBe('vi');
+      expect(invalidResponse.body).toMatchObject({
+        code: 'INVALID_CREDENTIALS',
+        message: 'Email hoặc mật khẩu không chính xác',
+      });
+
+      // Validation errors
+      const validationResponse = await http()
+        .post('/api/auth/sign-in')
+        .set('Origin', ORIGIN)
+        .set('Accept-Language', 'vi')
+        .send({ email: 'invalid-email', password: '' })
+        .expect(400);
+
+      expect(validationResponse.headers['content-language']).toBe('vi');
+      expect(validationResponse.body).toMatchObject({
+        code: 'VALIDATION_ERROR',
+        message: 'Kiểm tra các trường được đánh dấu',
+        fields: {
+          email: 'Nhập email hợp lệ',
+          password: 'Nhập mật khẩu',
+        },
+      });
+    });
+
+    it('returns lockout message in Vietnamese with singular/plural minutes (AC-05)', async () => {
+      await createUser('an@openplany.dev');
+      for (let i = 0; i < 5; i += 1) {
+        await signIn({ email: 'an@openplany.dev', password: 'wrong' }).expect(
+          401,
+        );
+      }
+
+      const response = await http()
+        .post('/api/auth/sign-in')
+        .set('Origin', ORIGIN)
+        .set('Accept-Language', 'vi')
+        .send({ email: 'an@openplany.dev', password: PASSWORD })
+        .expect(429);
+
+      expect(response.headers['content-language']).toBe('vi');
+      expect(response.body.code).toBe('TOO_MANY_ATTEMPTS');
+      expect(response.body.message).toMatch(
+        /^Quá nhiều lần thử\. Tạm khoá trong \d+ phút\.$/,
+      );
+    });
+
     it('lets at most 5 of 12 parallel wrong-password tries reach the password check', async () => {
       await createUser('an@openplany.dev');
 

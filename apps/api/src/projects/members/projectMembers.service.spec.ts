@@ -994,7 +994,7 @@ describe('ProjectMembersService', () => {
         ),
       ).rejects.toMatchObject({
         status: 403,
-        code: 'FORBIDDEN',
+        code: 'ROLE_NOT_ALLOWED',
         message: MEMBER_MESSAGES.roleNotAllowed,
       });
 
@@ -1110,7 +1110,7 @@ describe('ProjectMembersService', () => {
         ),
       ).rejects.toMatchObject({
         status: 403,
-        code: 'FORBIDDEN',
+        code: 'ROLE_NOT_ALLOWED',
         message: MEMBER_MESSAGES.roleNotAllowed,
       });
 

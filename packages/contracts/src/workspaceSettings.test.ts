@@ -4,6 +4,7 @@ import {
   normalizeWorkspaceName,
   pickChangedFields,
   WORKSPACE_NAME_MESSAGES,
+  WORKSPACE_NAME_MESSAGE_REFS,
   workspaceNameProblem,
 } from './workspaceSettings.js';
 
@@ -18,38 +19,53 @@ describe('workspaceSettings', () => {
     });
   });
 
+  describe('WORKSPACE_NAME_MESSAGES', () => {
+    it('has expected English string constants', () => {
+      expect(WORKSPACE_NAME_MESSAGES.required).toBe('Enter a workspace name');
+      expect(WORKSPACE_NAME_MESSAGES.tooLong).toBe(
+        'Workspace name must be 80 characters or fewer',
+      );
+      expect(WORKSPACE_NAME_MESSAGES.hiddenChars).toBe(
+        "Contains characters that aren't allowed",
+      );
+      expect(WORKSPACE_NAME_MESSAGES.url).toBe(
+        'Workspace name cannot contain a URL',
+      );
+    });
+  });
+
   describe('workspaceNameProblem', () => {
     it('returns required message when empty or whitespace-only', () => {
-      expect(workspaceNameProblem('')).toBe(WORKSPACE_NAME_MESSAGES.required);
-      expect(workspaceNameProblem('   ')).toBe(WORKSPACE_NAME_MESSAGES.required);
+      expect(workspaceNameProblem('')).toBe(WORKSPACE_NAME_MESSAGE_REFS.required);
+      expect(workspaceNameProblem('   ')).toBe(WORKSPACE_NAME_MESSAGE_REFS.required);
     });
 
     it('returns tooLong message when over 80 characters', () => {
       const longName = 'a'.repeat(81);
-      expect(workspaceNameProblem(longName)).toBe(WORKSPACE_NAME_MESSAGES.tooLong);
+      expect(workspaceNameProblem(longName)).toBe(WORKSPACE_NAME_MESSAGE_REFS.tooLong);
     });
 
     it('returns hiddenChars message when containing hidden control/format characters', () => {
       const withControl = 'Open\u0000Plany';
       expect(workspaceNameProblem(withControl)).toBe(
-        WORKSPACE_NAME_MESSAGES.hiddenChars,
+        WORKSPACE_NAME_MESSAGE_REFS.hiddenChars,
       );
 
       const withFormat = 'Open\u200BPlany'; // zero-width space
       expect(workspaceNameProblem(withFormat)).toBe(
-        WORKSPACE_NAME_MESSAGES.hiddenChars,
+        WORKSPACE_NAME_MESSAGE_REFS.hiddenChars,
       );
     });
 
     it('returns url message when containing URL schemes or starting with www.', () => {
       expect(workspaceNameProblem('https://openplany.com')).toBe(
-        WORKSPACE_NAME_MESSAGES.url,
+        WORKSPACE_NAME_MESSAGE_REFS.url,
       );
       expect(workspaceNameProblem('ftp://files.example')).toBe(
-        WORKSPACE_NAME_MESSAGES.url,
+        WORKSPACE_NAME_MESSAGE_REFS.url,
       );
       expect(workspaceNameProblem('www.openplany.com')).toBe(
-        WORKSPACE_NAME_MESSAGES.url,
+        WORKSPACE_NAME_MESSAGE_REFS.url,
       );
     });
 

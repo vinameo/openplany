@@ -6,6 +6,7 @@ import {
   USER_NAME_MAX,
   normalizeName,
 } from "@repo/contracts";
+import { translate } from "../../../i18n/index.js";
 
 export type CreateUserField =
   | "firstName"
@@ -33,12 +34,16 @@ export function validateCreateUserField(
   switch (field) {
     case "firstName": {
       const normalized = normalizeName(values.firstName);
-      if (normalized === "") return "Enter a first name";
+      if (normalized === "") {
+        return translate("admin:users.validation.enterFirstName");
+      }
       if (normalized.length > USER_NAME_MAX) {
-        return `First name must be ${USER_NAME_MAX} characters or fewer`;
+        return translate("admin:users.validation.firstNameMax", {
+          max: USER_NAME_MAX,
+        });
       }
       if (!USER_NAME_ALLOWED.test(normalized)) {
-        return "Contains characters that aren't allowed";
+        return translate("admin:users.validation.disallowedCharacters");
       }
       return null;
     }
@@ -47,22 +52,28 @@ export function validateCreateUserField(
       const normalized = normalizeName(values.lastName);
       if (normalized === "") return null;
       if (normalized.length > USER_NAME_MAX) {
-        return `Last name must be ${USER_NAME_MAX} characters or fewer`;
+        return translate("admin:users.validation.lastNameMax", {
+          max: USER_NAME_MAX,
+        });
       }
       if (!USER_NAME_ALLOWED.test(normalized)) {
-        return "Contains characters that aren't allowed";
+        return translate("admin:users.validation.disallowedCharacters");
       }
       return null;
     }
 
     case "displayName": {
       const normalized = normalizeName(values.displayName);
-      if (normalized === "") return "Enter a display name";
+      if (normalized === "") {
+        return translate("admin:users.validation.enterDisplayName");
+      }
       if (normalized.length > USER_NAME_MAX) {
-        return `Display name must be ${USER_NAME_MAX} characters or fewer`;
+        return translate("admin:users.validation.displayNameMax", {
+          max: USER_NAME_MAX,
+        });
       }
       if (!USER_NAME_ALLOWED.test(normalized)) {
-        return "Contains characters that aren't allowed";
+        return translate("admin:users.validation.disallowedCharacters");
       }
       return null;
     }
@@ -74,7 +85,7 @@ export function validateCreateUserField(
         !EMAIL_REGEX.test(trimmed) ||
         trimmed.length > EMAIL_MAX
       ) {
-        return "Enter a valid email";
+        return translate("admin:users.validation.invalidEmail");
       }
       return null;
     }
@@ -82,13 +93,16 @@ export function validateCreateUserField(
     case "password": {
       const pwd = values.password;
       if (pwd.length < PASSWORD_MIN || pwd.length > PASSWORD_MAX) {
-        return `Use ${PASSWORD_MIN} to ${PASSWORD_MAX} characters`;
+        return translate("admin:users.validation.passwordLength", {
+          min: PASSWORD_MIN,
+          max: PASSWORD_MAX,
+        });
       }
       if (
         values.email.trim() !== "" &&
         pwd.toLowerCase() === values.email.trim().toLowerCase()
       ) {
-        return "Password can't be the same as the email";
+        return translate("admin:users.validation.passwordSameAsEmail");
       }
       return null;
     }
@@ -98,10 +112,9 @@ export function validateCreateUserField(
         values.confirmPassword === "" ||
         values.confirmPassword !== values.password
       ) {
-        return "Passwords don't match";
+        return translate("admin:users.validation.passwordsDoNotMatch");
       }
       return null;
     }
   }
 }
-

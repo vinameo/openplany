@@ -1,6 +1,8 @@
 import { Alert, Button, Select, SimpleGrid, TextInput } from "@mantine/core";
+import { useTranslation } from "react-i18next";
 import {
   ORGANIZATION_SIZES,
+  ORGANIZATION_SIZE_KEYS,
   WORKSPACE_NAME_MAX,
   type WorkspaceResponse,
 } from "@repo/contracts";
@@ -15,6 +17,7 @@ interface GeneralSettingsFormProps {
 }
 
 export function GeneralSettingsForm({ workspace }: GeneralSettingsFormProps) {
+  const { t } = useTranslation();
   const {
     form,
     hasChanges,
@@ -27,7 +30,14 @@ export function GeneralSettingsForm({ workspace }: GeneralSettingsFormProps) {
   const nameLength = form.values.name ? form.values.name.length : 0;
   const remaining = WORKSPACE_NAME_MAX - nameLength;
   const nameDescription =
-    remaining <= 10 ? `${remaining} characters left` : undefined;
+    remaining <= 10
+      ? t("common:charactersLeft", { count: remaining })
+      : undefined;
+
+  const organizationSizeOptions = ORGANIZATION_SIZES.map((size) => ({
+    value: size,
+    label: t(ORGANIZATION_SIZE_KEYS[size]),
+  }));
 
   return (
     <form className={classes.form} onSubmit={handleSubmit} noValidate>
@@ -40,7 +50,7 @@ export function GeneralSettingsForm({ workspace }: GeneralSettingsFormProps) {
       <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="lg">
         {/* 1. Workspace name */}
         <TextInput
-          label="Workspace name"
+          label={t("workspace:settings.general.nameLabel")}
           required
           readOnly={!canEdit}
           description={nameDescription}
@@ -50,8 +60,8 @@ export function GeneralSettingsForm({ workspace }: GeneralSettingsFormProps) {
 
         {/* 2. Company size */}
         <Select
-          label="Company size"
-          data={ORGANIZATION_SIZES}
+          label={t("workspace:settings.general.companySizeLabel")}
+          data={organizationSizeOptions}
           allowDeselect={false}
           searchable={false}
           checkIconPosition="right"
@@ -87,7 +97,7 @@ export function GeneralSettingsForm({ workspace }: GeneralSettingsFormProps) {
             loading={isSaving}
             disabled={!hasChanges || !form.isValid()}
           >
-            Update workspace
+            {t("workspace:settings.general.submitButton")}
           </Button>
         </div>
       )}

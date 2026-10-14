@@ -1,5 +1,6 @@
 import { useMemo, type ReactNode } from "react";
 import { Select, type OptionsFilter } from "@mantine/core";
+import { useTranslation } from "react-i18next";
 import { WORKSPACE_TIMEZONE_SET, WORKSPACE_TIMEZONES } from "@repo/contracts";
 import {
   buildTimezoneOptions,
@@ -19,8 +20,8 @@ export interface TimezoneSelectProps {
 }
 
 export function TimezoneSelect({
-  label = "Workspace Timezone",
-  description = "Set the timezone used for dates, times, and notifications in this workspace.",
+  label,
+  description,
   inputWrapperOrder,
   value,
   onChange,
@@ -29,6 +30,10 @@ export function TimezoneSelect({
   error,
   followOption,
 }: TimezoneSelectProps) {
+  const { t } = useTranslation("workspace");
+  const effectiveLabel = label ?? t("settings.general.timezoneLabel");
+  const effectiveDescription =
+    description ?? t("settings.general.timezoneDescription");
   const isFollow = followOption && value === followOption.value;
   const isUnknownZone = value && !WORKSPACE_TIMEZONE_SET.has(value) && !isFollow;
 
@@ -78,8 +83,8 @@ export function TimezoneSelect({
 
   return (
     <Select
-      label={label}
-      description={description}
+      label={effectiveLabel}
+      description={effectiveDescription}
       inputWrapperOrder={inputWrapperOrder}
       data={selectData}
       value={value}
@@ -95,7 +100,7 @@ export function TimezoneSelect({
       error={error}
       allowDeselect={false}
       maxDropdownHeight={280}
-      nothingFoundMessage="No timezone found"
+      nothingFoundMessage={t("settings.general.timezoneNotFound")}
       checkIconPosition="right"
       comboboxProps={{ withinPortal: true }}
     />

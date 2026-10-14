@@ -1,5 +1,6 @@
 import { forwardRef } from "react";
 import { Button, Group, TextInput } from "@mantine/core";
+import { t } from "i18next";
 import { SearchIcon } from "../workspaces/icons";
 import classes from "./ProjectsToolbar.module.css";
 
@@ -19,15 +20,15 @@ export const ProjectsToolbar = forwardRef<HTMLInputElement, ProjectsToolbarProps
       <Group wrap="wrap" gap="sm">
         <TextInput
           ref={ref}
-          placeholder="Search…"
-          aria-label="Search projects"
+          placeholder={t("project:list.searchPlaceholder")}
+          aria-label={t("project:list.searchAriaLabel")}
           leftSection={<SearchIcon width={14} height={14} />}
           value={search}
           onChange={(e) => onSearchChange(e.currentTarget.value)}
           className={classes.search}
         />
         {canCreate && (
-          <Button onClick={onAddProject}>Add project</Button>
+          <Button onClick={onAddProject}>{t("project:list.addProject")}</Button>
         )}
       </Group>
     );

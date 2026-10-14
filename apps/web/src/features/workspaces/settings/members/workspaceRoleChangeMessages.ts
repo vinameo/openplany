@@ -1,41 +1,56 @@
+import { translate } from "../../../../i18n";
+
 export function confirmTitle(name: string, label: string): string {
-  return `Change ${name}'s role to ${label}?`;
+  return translate("members:roleChange.confirmTitle", { name, role: label });
 }
 
 export function gainImplicit(name: string): string {
-  return `As a Workspace Admin, ${name} will be a Project Admin in every project of this workspace, including private ones.`;
+  return translate("members:roleChange.gainImplicit", { name });
 }
 
 export function rolesReplaced(n: number): string {
-  return `Their roles in ${n} ${n === 1 ? "project" : "projects"} will be replaced.`;
+  return translate("members:roleChange.rolesReplaced", { count: n });
 }
 
 export function loseImplicit(name: string, n: number): string {
-  return `${name} will lose access to all ${n} ${n === 1 ? "project" : "projects"} until someone adds them back.`;
+  return translate("members:roleChange.loseImplicit", { name, count: n });
 }
 
 export function inProjects(name: string, n: number): string {
-  return `${name} is in ${n} ${n === 1 ? "project" : "projects"}.`;
+  return translate("members:roleChange.inProjects", { name, count: n });
 }
 
 export function noProjects(name: string): string {
-  return `${name} isn't in any projects yet.`;
+  return translate("members:roleChange.noProjects", { name });
 }
 
 export function onlyAdminsChoose(roleLabel: string): string {
-  return `Only Workspace Admins can choose this. They'll be ${roleLabel} in every project.`;
+  return translate("members:roleChange.onlyAdminsChoose", { role: roleLabel });
 }
 
-export const losingAdminWarning =
-  "These projects will have no Project Admin other than Workspace Admins:";
+export function losingAdminWarning(): string {
+  return translate("members:roleChange.losingAdminWarning");
+}
 
-export const previewFailed = "Couldn't check what this change affects.";
+export function previewFailed(): string {
+  return translate("members:roleChange.previewFailed");
+}
 
 export function toastChanged(name: string, label: string, n: number): string {
   const article = /^[aeiou]/i.test(label) ? "an" : "a";
-  const base = `${name} is now ${article} ${label}.`;
   if (n > 0) {
-    return `${base} Applied to ${n} ${n === 1 ? "project" : "projects"}.`;
+    return translate(
+      `members:roleChange.toastChangedWithProjects_${article}` as const,
+      {
+        name,
+        role: label,
+        count: n,
+      },
+    );
   }
-  return base;
+  return translate(`members:roleChange.toastChanged_${article}` as const, {
+    name,
+    role: label,
+  });
 }
+

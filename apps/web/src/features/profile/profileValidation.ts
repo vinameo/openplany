@@ -2,7 +2,9 @@ import {
   USER_NAME_ALLOWED,
   USER_NAME_MAX,
   normalizeName,
+  type MessageKey,
 } from "@repo/contracts";
+import { translate } from "../../i18n/index.js";
 
 export const PROFILE_FIELDS = ["firstName", "lastName", "displayName"] as const;
 export type ProfileField = (typeof PROFILE_FIELDS)[number];
@@ -10,14 +12,14 @@ export type ProfileValues = Record<ProfileField, string>;
 
 export { normalizeName };
 
-const LABELS: Record<ProfileField, string> = {
-  firstName: "First name",
-  lastName: "Last name",
-  displayName: "Display name",
+const LABELS: Record<ProfileField, MessageKey> = {
+  firstName: "profile:form.firstName",
+  lastName: "profile:form.lastName",
+  displayName: "profile:form.displayName",
 };
-const REQUIRED_MESSAGES: Partial<Record<ProfileField, string>> = {
-  firstName: "Enter your first name",
-  displayName: "Enter a display name",
+const REQUIRED_MESSAGES: Partial<Record<ProfileField, MessageKey>> = {
+  firstName: "profile:validation.enterFirstName",
+  displayName: "profile:validation.enterDisplayName",
 };
 
 /** The error for one field, or null when the value is acceptable. */
@@ -27,11 +29,16 @@ export function validateName(
 ): string | null {
   const name = normalizeName(value);
   const required = REQUIRED_MESSAGES[field];
-  if (required !== undefined && name === "") return required;
+  if (required !== undefined && name === "") return translate(required);
   if (name.length > USER_NAME_MAX) {
-    return `${LABELS[field]} must be ${USER_NAME_MAX} characters or fewer`;
+    return translate("profile:validation.nameMax", {
+      label: translate(LABELS[field]),
+      max: USER_NAME_MAX,
+    });
   }
-  if (!USER_NAME_ALLOWED.test(name)) return "Contains characters that aren't allowed";
+  if (!USER_NAME_ALLOWED.test(name)) {
+    return translate("profile:validation.disallowedCharacters");
+  }
   return null;
 }
 

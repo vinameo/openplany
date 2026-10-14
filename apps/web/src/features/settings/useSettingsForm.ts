@@ -5,7 +5,8 @@ import {
   type UseFormReturnType,
 } from "@mantine/form";
 import { pickChangedFields } from "@repo/contracts";
-import { ApiRequestError, GENERIC_ERROR } from "../../lib/apiClient";
+import { ApiRequestError, GENERIC_ERROR_KEY } from "../../lib/apiClient";
+import { translate } from "../../i18n/language";
 import { useAuth } from "../auth/useAuth";
 import { splitServerFieldErrors } from "./serverFieldErrors";
 
@@ -111,7 +112,7 @@ export function useSettingsForm<
     } catch (error: unknown) {
       if (!(error instanceof ApiRequestError)) {
         console.error("Settings update failed unexpectedly", error);
-        setSubmitError(GENERIC_ERROR);
+        setSubmitError(translate(GENERIC_ERROR_KEY));
         return;
       }
 
@@ -150,7 +151,7 @@ export function useSettingsForm<
           setSubmitError(customMessage);
         }
       } else {
-        setSubmitError(GENERIC_ERROR);
+        setSubmitError(translate(GENERIC_ERROR_KEY));
       }
     } finally {
       setIsSaving(false);

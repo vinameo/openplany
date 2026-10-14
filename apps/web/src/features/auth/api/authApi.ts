@@ -1,7 +1,10 @@
+import type { MessageKey } from "@repo/contracts";
+import { translate } from "../../../i18n/language";
 import { ApiRequestError, request } from "../../../lib/apiClient";
 import type { AuthSession, SignInRequest } from "./authTypes";
 
-export const GENERIC_SIGN_IN_ERROR = "Couldn't sign in. Please try again.";
+export const GENERIC_SIGN_IN_ERROR_KEY: MessageKey = "auth:errors.signInFailed";
+export const GENERIC_SIGN_IN_ERROR = translate(GENERIC_SIGN_IN_ERROR_KEY);
 
 export const authApi = {
   signIn(values: SignInRequest): Promise<AuthSession> {
@@ -12,7 +15,7 @@ export const authApi = {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),
       },
-      GENERIC_SIGN_IN_ERROR,
+      GENERIC_SIGN_IN_ERROR_KEY,
     );
   },
 
@@ -22,7 +25,7 @@ export const authApi = {
       return await request<AuthSession>(
         "/api/auth/session",
         {},
-        GENERIC_SIGN_IN_ERROR,
+        GENERIC_SIGN_IN_ERROR_KEY,
       );
     } catch (error: unknown) {
       if (error instanceof ApiRequestError && error.status === 401) return null;
@@ -34,7 +37,7 @@ export const authApi = {
     return request<void>(
       "/api/auth/sign-out",
       { method: "POST" },
-      GENERIC_SIGN_IN_ERROR,
+      GENERIC_SIGN_IN_ERROR_KEY,
     );
   },
 };

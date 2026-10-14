@@ -1,5 +1,6 @@
 import { Button, Text } from "@mantine/core";
 import { Navigate } from "react-router";
+import { useTranslation } from "react-i18next";
 import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
 import { AuthLayout } from "../AuthLayout";
 import { HOME_PATH, SIGN_IN_PATH } from "../sessionDestination";
@@ -12,11 +13,12 @@ import classes from "./AuthRoutes.module.css";
  * the user leave.
  */
 export function SetPasswordRoute() {
+  const { t } = useTranslation();
   const { state, signOut } = useAuth();
-  useDocumentTitle("Set a new password · OpenPlany");
+  useDocumentTitle(t("auth:setPassword.documentTitle"));
 
   if (state.status === "loading") {
-    return <AuthLayout title="Set a new password" showCard={false} />;
+    return <AuthLayout title={t("auth:setPassword.title")} showCard={false} />;
   }
   if (state.status === "anonymous") {
     return <Navigate to={SIGN_IN_PATH} replace />;
@@ -27,20 +29,17 @@ export function SetPasswordRoute() {
 
   return (
     <AuthLayout
-      title="Set a new password"
-      subtitle="Your password has to be changed before you continue."
+      title={t("auth:setPassword.title")}
+      subtitle={t("auth:setPassword.subtitle")}
     >
-      <Text className={classes.text}>
-        Changing it here isn&apos;t available yet. Ask your admin to reset your
-        password.
-      </Text>
+      <Text className={classes.text}>{t("auth:setPassword.body")}</Text>
       <Button
         fullWidth
         variant="default"
         className={classes.action}
         onClick={() => void signOut()}
       >
-        Back to sign in
+        {t("auth:setPassword.backToSignIn")}
       </Button>
     </AuthLayout>
   );

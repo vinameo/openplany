@@ -1,3 +1,4 @@
+import type { MessageRef } from "./catalog/index.js";
 import { ADD_MEMBERS_MAX } from "./workspaceMembers.js";
 
 export const MEMBER_MESSAGES = {
@@ -18,6 +19,27 @@ export const MEMBER_MESSAGES = {
   someNotAdded: "Some people couldn't be added",
   tooManySearches: "Too many searches. Try again later.",
 } as const;
+
+export const MEMBER_MESSAGE_REFS = {
+  rowDuplicate: { key: "members:errors.rowDuplicate" },
+  candidateQueryTooShort: { key: "members:errors.candidateQueryTooShort" },
+  candidateQueryInvalid: { key: "members:errors.candidateQueryInvalid" },
+  choosePerson: { key: "members:errors.choosePerson" },
+  chooseRole: { key: "members:errors.chooseRole" },
+  addAtLeastOne: { key: "members:errors.addAtLeastOne" },
+  addAtMost: {
+    key: "members:errors.addAtMost",
+    params: { max: ADD_MEMBERS_MAX },
+  },
+  checkFields: { key: "members:errors.checkFields" },
+  notAllowed: { key: "members:errors.notAllowed" },
+  roleNotAllowed: { key: "members:errors.roleNotAllowed" },
+  roleChanged: { key: "members:errors.roleChanged" },
+  sameRole: { key: "members:errors.sameRole" },
+  roleOutOfRange: { key: "members:errors.roleOutOfRange" },
+  someNotAdded: { key: "members:errors.someNotAdded" },
+  tooManySearches: { key: "members:errors.tooManySearches" },
+} as const satisfies Record<keyof typeof MEMBER_MESSAGES, MessageRef>;
 
 export function truncatedMembersMessage(shown: number, total: number): string {
   return `Showing the first ${shown.toLocaleString("en-US")} of ${total.toLocaleString("en-US")} members.`;

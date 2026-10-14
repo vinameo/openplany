@@ -11,8 +11,7 @@ import {
   USER_NAME_MAX,
   normalizeName as normalizeNameContract,
 } from '@repo/contracts';
-
-const HIDDEN_CHARS_MESSAGE = "Contains characters that aren't allowed";
+import { validationMessage } from '../../common/validation.js';
 
 /** NFC first: macOS Vietnamese input may send decomposed forms of the same name. */
 const normalizeName = ({ value }: { value: unknown }): unknown =>
@@ -29,30 +28,44 @@ const isProvided = (_object: unknown, value: unknown): boolean =>
 export class UpdateProfileDto {
   @ValidateIf(isProvided)
   @Transform(normalizeName)
-  @Matches(USER_NAME_ALLOWED, { message: HIDDEN_CHARS_MESSAGE })
-  @MaxLength(USER_NAME_MAX, {
-    message: `First name must be ${USER_NAME_MAX} characters or fewer`,
+  @Matches(USER_NAME_ALLOWED, {
+    message: validationMessage('users:errors.hiddenChars'),
   })
-  @MinLength(1, { message: 'Enter your first name' })
-  @IsString({ message: 'Enter your first name' })
+  @MaxLength(USER_NAME_MAX, {
+    message: validationMessage('users:errors.firstNameTooLong', {
+      max: USER_NAME_MAX,
+    }),
+  })
+  @MinLength(1, { message: validationMessage('users:errors.enterYourFirstName') })
+  @IsString({ message: validationMessage('users:errors.enterYourFirstName') })
   firstName?: string;
 
   @ValidateIf(isProvided)
   @Transform(normalizeName)
-  @Matches(USER_NAME_ALLOWED, { message: HIDDEN_CHARS_MESSAGE })
-  @MaxLength(USER_NAME_MAX, {
-    message: `Last name must be ${USER_NAME_MAX} characters or fewer`,
+  @Matches(USER_NAME_ALLOWED, {
+    message: validationMessage('users:errors.hiddenChars'),
   })
-  @IsString({ message: 'Last name must be text' })
+  @MaxLength(USER_NAME_MAX, {
+    message: validationMessage('users:errors.lastNameTooLong', {
+      max: USER_NAME_MAX,
+    }),
+  })
+  @IsString({ message: validationMessage('users:errors.lastNameText') })
   lastName?: string;
 
   @ValidateIf(isProvided)
   @Transform(normalizeName)
-  @Matches(USER_NAME_ALLOWED, { message: HIDDEN_CHARS_MESSAGE })
-  @MaxLength(USER_NAME_MAX, {
-    message: `Display name must be ${USER_NAME_MAX} characters or fewer`,
+  @Matches(USER_NAME_ALLOWED, {
+    message: validationMessage('users:errors.hiddenChars'),
   })
-  @MinLength(1, { message: 'Enter a display name' })
-  @IsString({ message: 'Enter a display name' })
+  @MaxLength(USER_NAME_MAX, {
+    message: validationMessage('users:errors.displayNameTooLong', {
+      max: USER_NAME_MAX,
+    }),
+  })
+  @MinLength(1, {
+    message: validationMessage('users:errors.displayNameRequired'),
+  })
+  @IsString({ message: validationMessage('users:errors.displayNameRequired') })
   displayName?: string;
 }

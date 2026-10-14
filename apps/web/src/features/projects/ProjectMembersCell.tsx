@@ -1,5 +1,6 @@
 import { useContext } from "react";
 import { Avatar, Text, UnstyledButton } from "@mantine/core";
+import { t } from "i18next";
 import {
   PROJECT_MEMBER_AVATAR_LIMIT,
   type ProjectMemberSummary,
@@ -31,11 +32,12 @@ export function ProjectMembersCell({
       : undefined);
 
   if (members === null) {
+    const hiddenLabel = t("members:cell.hiddenForRole");
     return (
-      <PersonHint content="Hidden for your role">
+      <PersonHint content={hiddenLabel}>
         {({ onClick, onKeyDown }) => (
           <UnstyledButton
-            aria-label="Hidden for your role"
+            aria-label={hiddenLabel}
             onClick={onClick}
             onKeyDown={onKeyDown}
             className={classes.hiddenButton}
@@ -57,24 +59,26 @@ export function ProjectMembersCell({
     );
   }
 
+  const youSuffix = t("members:cell.you");
+  const deactivatedLabel = t("members:cell.deactivated");
   const visibleMembers = members.slice(0, PROJECT_MEMBER_AVATAR_LIMIT);
   const overflowMembers = members.slice(PROJECT_MEMBER_AVATAR_LIMIT);
   const total = Math.max(memberCount ?? members.length, members.length);
   const overflowCount = total - visibleMembers.length;
   // Members past the API preview are counted but not named.
   const unnamedCount = total - members.length;
-  const unnamedLabel = `and ${unnamedCount} more`;
+  const unnamedLabel = t("members:cell.andMore", { count: unnamedCount });
 
   return (
     <Avatar.Group spacing="xs">
       {visibleMembers.map((member) => {
         const name = memberDisplayName(member);
         const isYou = Boolean(activeUserId && member.userId === activeUserId);
-        const nameWithYou = isYou ? `${name} (you)` : name;
+        const nameWithYou = isYou ? `${name} ${youSuffix}` : name;
         const ariaLabel = [
           nameWithYou,
           member.email,
-          !member.accountActive ? "deactivated" : undefined,
+          !member.accountActive ? deactivatedLabel.toLowerCase() : undefined,
         ]
           .filter(Boolean)
           .join(", ");
@@ -86,7 +90,7 @@ export function ProjectMembersCell({
               <div className={classes.hintEmail}>{member.email}</div>
             )}
             {!member.accountActive && (
-              <div className={classes.hintDeactivated}>Deactivated</div>
+              <div className={classes.hintDeactivated}>{deactivatedLabel}</div>
             )}
           </div>
         );
@@ -119,7 +123,7 @@ export function ProjectMembersCell({
                 return (
                   <div key={m.userId} className={classes.overflowName}>
                     {name}
-                    {isYou ? " (you)" : ""}
+                    {isYou ? ` ${youSuffix}` : ""}
                   </div>
                 );
               })}
@@ -133,7 +137,7 @@ export function ProjectMembersCell({
             const overflowNames = overflowMembers.map((m) => {
               const name = memberDisplayName(m);
               const isYou = Boolean(activeUserId && m.userId === activeUserId);
-              return `${name}${isYou ? " (you)" : ""}`;
+              return `${name}${isYou ? ` ${youSuffix}` : ""}`;
             });
             if (unnamedCount > 0) overflowNames.push(unnamedLabel);
             const overflowAriaLabel = `+${overflowCount}: ${overflowNames.join(", ")}`;

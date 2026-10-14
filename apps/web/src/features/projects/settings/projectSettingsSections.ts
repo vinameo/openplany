@@ -1,4 +1,4 @@
-import type { EnforcedProjectPermission } from "@repo/contracts";
+import type { EnforcedProjectPermission, MessageKey } from "@repo/contracts";
 import type {
   SettingsGroup,
   SettingsSection,
@@ -6,7 +6,7 @@ import type {
 import { SettingsIcon, UsersIcon } from "../../workspaces/icons";
 
 export const PROJECT_SETTINGS_GROUPS = [
-  { key: "general", label: "General" },
+  { key: "general", labelKey: "project:settings.groups.general" },
 ] as const satisfies readonly SettingsGroup[];
 
 export type ProjectSettingsGroup =
@@ -16,7 +16,8 @@ export interface ProjectSettingsSection
   extends SettingsSection<EnforcedProjectPermission> {
   key: string;
   group: ProjectSettingsGroup;
-  label: string;
+  label?: string;
+  labelKey?: MessageKey;
   viewPermission?: EnforcedProjectPermission;
   comingSoon?: true;
 }
@@ -25,14 +26,14 @@ export const PROJECT_SETTINGS_SECTIONS: readonly ProjectSettingsSection[] = [
   {
     key: "general",
     group: "general",
-    label: "General",
+    labelKey: "project:settings.sections.general",
     icon: SettingsIcon,
     viewPermission: "project.settings.view",
   },
   {
     key: "members",
     group: "general",
-    label: "Members",
+    labelKey: "project:settings.sections.members",
     icon: UsersIcon,
     viewPermission: "project.members.view",
   },

@@ -1,4 +1,5 @@
 import { ActionIcon, Tooltip } from "@mantine/core";
+import { t } from "i18next";
 import { PanelLeftIcon } from "../icons";
 import { useWorkspaceSidebar } from "./useWorkspaceSidebar";
 
@@ -7,7 +8,10 @@ export function SidebarExpandButton() {
     useWorkspaceSidebar();
 
   const showExpandButton = !isOpen || mode === "mobile";
-  const label = mode === "mobile" ? "Open sidebar" : "Expand sidebar";
+  const label =
+    mode === "mobile"
+      ? t("workspace:shell.openSidebar")
+      : t("workspace:shell.expandSidebar");
 
   if (!showExpandButton) {
     return null;

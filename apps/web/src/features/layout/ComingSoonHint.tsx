@@ -1,6 +1,7 @@
 import { useCallback, useState, type MouseEvent, type ReactElement } from "react";
 import { Popover, Text, Tooltip } from "@mantine/core";
 import { useTimeout } from "@mantine/hooks";
+import { t } from "i18next";
 import { useIsDesktop } from "./useIsDesktop";
 import classes from "./ComingSoonHint.module.css";
 
@@ -34,7 +35,7 @@ export function ComingSoonHint({ children }: ComingSoonHintProps) {
   if (isDesktop) {
     return (
       <Tooltip
-        label="Coming soon"
+        label={t("common:comingSoon")}
         withArrow
         openDelay={300}
         events={{ hover: true, focus: true, touch: false }}
@@ -57,7 +58,7 @@ export function ComingSoonHint({ children }: ComingSoonHintProps) {
       <Popover.Target>{children({ onClick: handleClick })}</Popover.Target>
       <Popover.Dropdown>
         <Text size="sm" role="status">
-          Coming soon
+          {t("common:comingSoon")}
         </Text>
       </Popover.Dropdown>
     </Popover>

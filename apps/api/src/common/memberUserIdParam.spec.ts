@@ -24,7 +24,7 @@ describe('MemberUserIdParam', () => {
         new ApiException(
           HttpStatus.BAD_REQUEST,
           'VALIDATION_ERROR',
-          'Check the highlighted fields',
+          { key: 'errors:checkHighlightedFields' },
           {
             fields: {
               userId:

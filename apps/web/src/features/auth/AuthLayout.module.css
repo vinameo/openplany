@@ -11,10 +11,13 @@
     var(--app-color-page);
 }
 
-.schemeToggle {
+.headerControls {
   position: absolute;
   top: 16px;
   right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 /* Single card on an empty page: no shadow; page/card contrast (plus a hairline in dark mode) is enough. */

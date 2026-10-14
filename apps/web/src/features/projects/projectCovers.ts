@@ -2,8 +2,10 @@ import {
   DEFAULT_PROJECT_COVER,
   isProjectCoverKey,
   PROJECT_COVER_KEYS,
+  type MessageKey,
   type ProjectCoverKey,
 } from "@repo/contracts";
+import { translate } from "../../i18n/language";
 import cover01 from "./covers/cover-01.webp";
 import cover01Thumb from "./covers/cover-01-thumb.webp";
 import cover02 from "./covers/cover-02.webp";
@@ -24,18 +26,75 @@ import cover08Thumb from "./covers/cover-08-thumb.webp";
 export interface ProjectCoverEntry {
   full: string;
   thumb: string;
-  label: string;
+  labelKey: MessageKey;
+  readonly label: string;
 }
 
 export const PROJECT_COVERS = {
-  "cover-01": { full: cover01, thumb: cover01Thumb, label: "Cover 1" },
-  "cover-02": { full: cover02, thumb: cover02Thumb, label: "Cover 2" },
-  "cover-03": { full: cover03, thumb: cover03Thumb, label: "Cover 3" },
-  "cover-04": { full: cover04, thumb: cover04Thumb, label: "Cover 4" },
-  "cover-05": { full: cover05, thumb: cover05Thumb, label: "Cover 5" },
-  "cover-06": { full: cover06, thumb: cover06Thumb, label: "Cover 6" },
-  "cover-07": { full: cover07, thumb: cover07Thumb, label: "Cover 7" },
-  "cover-08": { full: cover08, thumb: cover08Thumb, label: "Cover 8" },
+  "cover-01": {
+    full: cover01,
+    thumb: cover01Thumb,
+    labelKey: "project:covers.cover1",
+    get label(): string {
+      return translate(this.labelKey);
+    },
+  },
+  "cover-02": {
+    full: cover02,
+    thumb: cover02Thumb,
+    labelKey: "project:covers.cover2",
+    get label(): string {
+      return translate(this.labelKey);
+    },
+  },
+  "cover-03": {
+    full: cover03,
+    thumb: cover03Thumb,
+    labelKey: "project:covers.cover3",
+    get label(): string {
+      return translate(this.labelKey);
+    },
+  },
+  "cover-04": {
+    full: cover04,
+    thumb: cover04Thumb,
+    labelKey: "project:covers.cover4",
+    get label(): string {
+      return translate(this.labelKey);
+    },
+  },
+  "cover-05": {
+    full: cover05,
+    thumb: cover05Thumb,
+    labelKey: "project:covers.cover5",
+    get label(): string {
+      return translate(this.labelKey);
+    },
+  },
+  "cover-06": {
+    full: cover06,
+    thumb: cover06Thumb,
+    labelKey: "project:covers.cover6",
+    get label(): string {
+      return translate(this.labelKey);
+    },
+  },
+  "cover-07": {
+    full: cover07,
+    thumb: cover07Thumb,
+    labelKey: "project:covers.cover7",
+    get label(): string {
+      return translate(this.labelKey);
+    },
+  },
+  "cover-08": {
+    full: cover08,
+    thumb: cover08Thumb,
+    labelKey: "project:covers.cover8",
+    get label(): string {
+      return translate(this.labelKey);
+    },
+  },
 } as const satisfies Record<ProjectCoverKey, ProjectCoverEntry>;
 
 export function projectCover(key: string): ProjectCoverEntry {

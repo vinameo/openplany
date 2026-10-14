@@ -39,9 +39,7 @@ export class WorkspacesController {
 
   @Get('slug-check')
   @UseGuards(InstanceAdminGuard)
-  @InstanceAdminDeniedMessage(
-    "You don't have permission to check workspace slugs",
-  )
+  @InstanceAdminDeniedMessage({ key: 'workspace:errors.cannotCheckSlug' })
   checkSlug(
     @CurrentUserId() userId: string,
     @Query() query: SlugCheckQueryDto,
@@ -56,7 +54,7 @@ export class WorkspacesController {
 
   @Post()
   @UseGuards(InstanceAdminGuard)
-  @InstanceAdminDeniedMessage("You don't have permission to create workspaces")
+  @InstanceAdminDeniedMessage({ key: 'workspace:errors.cannotCreate' })
   async create(
     @CurrentUserId() userId: string,
     @Body() dto: CreateWorkspaceDto,

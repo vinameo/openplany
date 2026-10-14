@@ -57,7 +57,7 @@ export class AdminRolesService {
       throw new ApiException(
         HttpStatus.BAD_REQUEST,
         'VALIDATION_ERROR',
-        'Validation failed',
+        { key: 'errors:validationFailed' },
         { fields: prePlan.fields },
       );
     }
@@ -81,7 +81,7 @@ export class AdminRolesService {
         throw new ApiException(
           HttpStatus.BAD_REQUEST,
           'VALIDATION_ERROR',
-          'Foreign key violation',
+          { key: 'errors:foreignKeyViolation' },
         );
       }
       throw err;
@@ -91,7 +91,7 @@ export class AdminRolesService {
       throw new ApiException(
         HttpStatus.CONFLICT,
         'ROLE_PERMISSIONS_CHANGED',
-        'Someone else changed these permissions. Reload to see the latest.',
+        { key: 'admin:errors.conflictReload' },
       );
     }
 
@@ -99,7 +99,7 @@ export class AdminRolesService {
       throw new ApiException(
         HttpStatus.BAD_REQUEST,
         'VALIDATION_ERROR',
-        'Validation failed',
+        { key: 'errors:validationFailed' },
         { fields: planResult.fields },
       );
     }

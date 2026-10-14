@@ -1,4 +1,5 @@
 import { ActionIcon, UnstyledButton } from "@mantine/core";
+import { useTranslation } from "react-i18next";
 import { SearchIcon } from "../workspaces/icons";
 import { ComingSoonHint } from "./ComingSoonHint";
 import { useIsDesktop } from "./useIsDesktop";
@@ -9,6 +10,7 @@ import classes from "./CommandSearchPlaceholder.module.css";
  * Accessible, non-clickable button indicating "Coming soon".
  */
 export function CommandSearchPlaceholder() {
+  const { t } = useTranslation();
   const isDesktop = useIsDesktop();
 
   if (isDesktop) {
@@ -19,11 +21,11 @@ export function CommandSearchPlaceholder() {
             type="button"
             className={classes.searchBox}
             aria-disabled="true"
-            aria-label="Search commands (coming soon)"
+            aria-label={t("workspace:search.ariaLabel")}
             onClick={onClick}
           >
             <SearchIcon width={16} height={16} className={classes.searchIcon} />
-            <span className={classes.searchLabel}>Search commands…</span>
+            <span className={classes.searchLabel}>{t("workspace:search.placeholder")}</span>
           </UnstyledButton>
         )}
       </ComingSoonHint>
@@ -38,7 +40,7 @@ export function CommandSearchPlaceholder() {
           variant="subtle"
           color="gray"
           aria-disabled="true"
-          aria-label="Search commands (coming soon)"
+          aria-label={t("workspace:search.ariaLabel")}
           className={classes.searchIconBtn}
           onClick={onClick}
         >

@@ -1,11 +1,20 @@
+import type { Language } from "@repo/contracts";
+import { getLanguage } from "../../../i18n";
+
 const formatterCache = new Map<string, Intl.DateTimeFormat>();
 
-/** "Oct 08, 2026", en-US calendar date format with timezone support (WEB B2.2). */
-export function formatCalendarDate(iso: string, timeZone?: string): string {
-  const key = timeZone ?? "default";
+/** Calendar date format with language and timezone support (WEB B6, INV-11). */
+export function formatCalendarDate(
+  iso: string,
+  timeZone?: string,
+  lang?: Language,
+): string {
+  const currentLang = lang ?? getLanguage();
+  const locale = currentLang === "vi" ? "vi-VN" : "en-US";
+  const key = `${currentLang}:${timeZone ?? "default"}`;
   let formatter = formatterCache.get(key);
   if (!formatter) {
-    formatter = new Intl.DateTimeFormat("en-US", {
+    formatter = new Intl.DateTimeFormat(locale, {
       month: "short",
       day: "2-digit",
       year: "numeric",
@@ -15,3 +24,4 @@ export function formatCalendarDate(iso: string, timeZone?: string): string {
   }
   return formatter.format(new Date(iso));
 }
+

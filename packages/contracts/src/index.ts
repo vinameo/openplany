@@ -45,6 +45,7 @@ export {
   PERMISSION_GRANT_PROBLEMS,
   type PermissionGrantProblem,
   PERMISSION_GRANT_PROBLEM_MESSAGES,
+  PERMISSION_GRANT_PROBLEM_REFS,
   permissionGrantProblem,
   permissionRevokeProblem,
   isRoleLocked,
@@ -68,3 +69,5 @@ export * from "./workspaceMembers.js";
 export * from "./projectMembers.js";
 export * from "./memberMessages.js";
 export * from "./workspaceRoleChange.js";
+export * from "./languages.js";
+export * from "./catalog/index.js";

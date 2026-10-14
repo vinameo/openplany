@@ -15,13 +15,15 @@ export function MemberUserIdParam(): ParameterDecorator {
         new ApiException(
           HttpStatus.BAD_REQUEST,
           'VALIDATION_ERROR',
-          'Check the highlighted fields',
+          { key: 'errors:checkHighlightedFields' },
           {
             fields: {
-              userId:
-                typeof error === 'string'
-                  ? error
-                  : 'Validation failed (uuid v4 is expected)',
+              userId: {
+                libraryText:
+                  typeof error === 'string'
+                    ? error
+                    : 'Validation failed (uuid v4 is expected)',
+              },
             },
           },
         ),

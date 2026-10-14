@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import {
   DEFAULT_ADDED_WORKSPACE_ROLE,
   isWorkspaceAdminRole,
@@ -37,6 +38,7 @@ export function AddMembersModal({
   addableRoles,
   onSuccess,
 }: AddMembersModalProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { reload: reloadWorkspace } = useCurrentWorkspace();
 
@@ -76,8 +78,8 @@ export function AddMembersModal({
     <AddMembersModalFrame<WorkspaceRole, MemberCandidate>
       opened={opened}
       onClose={onClose}
-      title="Add member"
-      description="Add members to collaborate in your workspace."
+      title={t("workspace:settings.members.addMemberTitle")}
+      description={t("workspace:settings.members.addMemberDescription")}
       scheme={WORKSPACE_ROLE_SCHEME}
       defaultRole={defaultRole}
       roleOptionsFor={() => sortedAddableRoles}
@@ -93,7 +95,7 @@ export function AddMembersModal({
       )}
       notice={(row: AddMemberRow<WorkspaceRole, MemberCandidate>) =>
         row.role === highestAddableRole && isWorkspaceAdminRole(row.role)
-          ? "Admins can manage everyone in this workspace, including you."
+          ? t("workspace:settings.members.adminNotice")
           : null
       }
       onSubmit={handleSubmit}

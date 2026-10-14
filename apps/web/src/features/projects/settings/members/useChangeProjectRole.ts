@@ -2,15 +2,16 @@ import { useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { notifications } from "@mantine/notifications";
 import {
-  MEMBER_MESSAGES,
-  PROJECT_ERROR_MESSAGES,
-  PROJECT_ROLE_CHANGE_MESSAGES,
+  MEMBER_MESSAGE_REFS,
+  PROJECT_ERROR_MESSAGE_REFS,
+  PROJECT_ROLE_CHANGE_MESSAGE_REFS,
   PROJECT_ROLE_LABELS,
   type ChangeProjectRoleRequest,
   type ChangeProjectRoleResponse,
   type ProjectMemberResponse,
 } from "@repo/contracts";
 import { ApiRequestError } from "../../../../lib/apiClient";
+import { translate } from "../../../../i18n/language";
 import {
   changeRoleFailed,
   tooManyAttemptsMessage,
@@ -45,49 +46,49 @@ export function getProjectRoleChangeErrorMessage(err: unknown): {
   if (err instanceof ApiRequestError) {
     if (err.code === "PROJECT_NOT_FOUND") {
       return {
-        message: PROJECT_ERROR_MESSAGES.notFound,
+        message: translate(PROJECT_ERROR_MESSAGE_REFS.notFound.key),
         shouldReload: true,
       };
     }
     if (err.code === "ROLE_INHERITED") {
       return {
-        message: PROJECT_ROLE_CHANGE_MESSAGES.inherited,
+        message: translate(PROJECT_ROLE_CHANGE_MESSAGE_REFS.inherited.key),
         shouldReload: true,
       };
     }
     if (err.code === "ROLE_CHANGED") {
       return {
-        message: MEMBER_MESSAGES.roleChanged,
+        message: translate(MEMBER_MESSAGE_REFS.roleChanged.key),
         shouldReload: true,
       };
     }
     if (err.status === 404 || err.code === "NOT_FOUND") {
       return {
-        message: PROJECT_ROLE_CHANGE_MESSAGES.memberGone,
+        message: translate(PROJECT_ROLE_CHANGE_MESSAGE_REFS.memberGone.key),
         shouldReload: true,
       };
     }
     if (err.code === "ROLE_NOT_ALLOWED") {
       return {
-        message: MEMBER_MESSAGES.roleNotAllowed,
+        message: translate(MEMBER_MESSAGE_REFS.roleNotAllowed.key),
         shouldReload: true,
       };
     }
     if (err.status === 403 || err.code === "FORBIDDEN") {
       return {
-        message: PROJECT_ROLE_CHANGE_MESSAGES.cantChange,
+        message: translate(PROJECT_ROLE_CHANGE_MESSAGE_REFS.cantChange.key),
         shouldReload: true,
       };
     }
     if (err.code === "PROJECT_ROLE_NOT_ALLOWED") {
       return {
-        message: MEMBER_MESSAGES.roleOutOfRange,
+        message: translate(MEMBER_MESSAGE_REFS.roleOutOfRange.key),
         shouldReload: false,
       };
     }
     if (err.code === "ROLE_UNCHANGED") {
       return {
-        message: MEMBER_MESSAGES.sameRole,
+        message: translate(MEMBER_MESSAGE_REFS.sameRole.key),
         shouldReload: false,
       };
     }

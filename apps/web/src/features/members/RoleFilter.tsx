@@ -7,6 +7,8 @@ import {
   Stack,
   Text,
 } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
+import { formatNumber } from '../../i18n';
 import { FilterIcon } from '../workspaces/icons';
 import type { RoleScheme } from './roleScheme';
 
@@ -21,10 +23,12 @@ export function RoleFilter<R extends string>({
   selectedRoles,
   onChange,
 }: RoleFilterProps<R>) {
+  const { t } = useTranslation();
+
   const label =
     selectedRoles.length > 0
-      ? `Filters · ${selectedRoles.length}`
-      : 'Filters';
+      ? `${t("members:filter.filters")} · ${formatNumber(selectedRoles.length)}`
+      : t("members:filter.filters");
 
   const sortedRoles = useMemo(
     () => [...scheme.roles].sort((a, b) => scheme.rank[b] - scheme.rank[a]),
@@ -42,7 +46,8 @@ export function RoleFilter<R extends string>({
         <Button
           variant="default"
           leftSection={<FilterIcon width={14} height={14} />}
-          aria-label="Filter by role"
+          aria-label={t("members:filter.filterByRoleAriaLabel")}
+          data-role-filter="true"
         >
           {label}
         </Button>
@@ -51,7 +56,7 @@ export function RoleFilter<R extends string>({
         <Stack gap="xs">
           <Group justify="space-between" align="center">
             <Text size="xs" fw={600} c="dimmed">
-              Role
+              {t("members:filter.roleHeading")}
             </Text>
             {selectedRoles.length > 0 && (
               <Button
@@ -59,7 +64,7 @@ export function RoleFilter<R extends string>({
                 size="compact-xs"
                 onClick={() => onChange([])}
               >
-                Clear
+                {t("common:actions.clear")}
               </Button>
             )}
           </Group>

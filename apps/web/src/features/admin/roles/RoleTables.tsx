@@ -1,4 +1,5 @@
 import { Select, Table, Tooltip, VisuallyHidden } from "@mantine/core";
+import { useTranslation } from "react-i18next";
 import {
   type ProjectRole,
   PROJECT_ROLE_LABELS,
@@ -12,18 +13,24 @@ interface WorkspaceRolesTableProps {
 }
 
 export function WorkspaceRolesTable({ rows }: WorkspaceRolesTableProps) {
+  const { t } = useTranslation();
+
   return (
     <Table.ScrollContainer minWidth={320}>
       <Table withTableBorder withColumnBorders className={classes.table}>
         <Table.Caption>
-          <VisuallyHidden>Workspace roles</VisuallyHidden>
+          <VisuallyHidden>
+            {t("admin:roles.overview.workspaceRolesCaption")}
+          </VisuallyHidden>
         </Table.Caption>
         <Table.Thead>
           <Table.Tr>
             <Table.Th scope="col" className={classes.roleCol}>
-              Role
+              {t("admin:roles.overview.roleCol")}
             </Table.Th>
-            <Table.Th scope="col">Description</Table.Th>
+            <Table.Th scope="col">
+              {t("admin:roles.overview.descriptionCol")}
+            </Table.Th>
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
@@ -32,7 +39,11 @@ export function WorkspaceRolesTable({ rows }: WorkspaceRolesTableProps) {
               <Table.Th scope="row" className={classes.roleName}>
                 {row.label}
               </Table.Th>
-              <Table.Td className={classes.descCell}>{row.summary}</Table.Td>
+              <Table.Td className={classes.descCell}>
+                {t(`common:roles.workspace.summary.${row.role}`, {
+                  defaultValue: row.summary,
+                })}
+              </Table.Td>
             </Table.Tr>
           ))}
         </Table.Tbody>
@@ -46,18 +57,24 @@ interface ProjectRolesTableProps {
 }
 
 export function ProjectRolesTable({ rows }: ProjectRolesTableProps) {
+  const { t } = useTranslation();
+
   return (
     <Table.ScrollContainer minWidth={320}>
       <Table withTableBorder withColumnBorders className={classes.table}>
         <Table.Caption>
-          <VisuallyHidden>Project roles</VisuallyHidden>
+          <VisuallyHidden>
+            {t("admin:roles.overview.projectRolesCaption")}
+          </VisuallyHidden>
         </Table.Caption>
         <Table.Thead>
           <Table.Tr>
             <Table.Th scope="col" className={classes.roleCol}>
-              Role
+              {t("admin:roles.overview.roleCol")}
             </Table.Th>
-            <Table.Th scope="col">Description</Table.Th>
+            <Table.Th scope="col">
+              {t("admin:roles.overview.descriptionCol")}
+            </Table.Th>
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
@@ -66,7 +83,11 @@ export function ProjectRolesTable({ rows }: ProjectRolesTableProps) {
               <Table.Th scope="row" className={classes.roleName}>
                 {row.label}
               </Table.Th>
-              <Table.Td className={classes.descCell}>{row.summary}</Table.Td>
+              <Table.Td className={classes.descCell}>
+                {t(`common:roles.project.summary.${row.role}`, {
+                  defaultValue: row.summary,
+                })}
+              </Table.Td>
             </Table.Tr>
           ))}
         </Table.Tbody>
@@ -85,6 +106,7 @@ function renderCell(
   role: ProjectRole | null,
   emptyVisuallyHiddenText: string,
   selectData: { value: string; label: string }[],
+  lockedTooltipText: string,
 ) {
   if (role === null) {
     return (
@@ -102,7 +124,7 @@ function renderCell(
   return (
     <Tooltip
       id={tooltipId}
-      label="Set by OpenPlany. It can't be changed here."
+      label={lockedTooltipText}
       withArrow
       multiline
       events={{ hover: true, focus: true, touch: false }}
@@ -126,30 +148,41 @@ function renderCell(
 }
 
 export function ProjectAccessTable({ rows }: ProjectAccessTableProps) {
+  const { t } = useTranslation();
+
   const selectData = PROJECT_ROLES.map((role) => ({
     value: role,
     label: PROJECT_ROLE_LABELS[role],
   }));
 
+  const everyProjectCol = t("admin:roles.overview.everyProjectCol");
+  const lowestRoleCol = t("admin:roles.overview.lowestRoleCol");
+  const highestRoleCol = t("admin:roles.overview.highestRoleCol");
+  const lockedTooltip = t("admin:roles.overview.lockedTooltip");
+  const onlyAddedProjects = t("admin:roles.overview.onlyAddedProjects");
+  const notAddedToProjects = t("admin:roles.overview.notAddedToProjects");
+
   return (
     <Table.ScrollContainer minWidth={540}>
       <Table withTableBorder withColumnBorders className={classes.table}>
         <Table.Caption>
-          <VisuallyHidden>Workspace roles in projects</VisuallyHidden>
+          <VisuallyHidden>
+            {t("admin:roles.overview.accessCaption")}
+          </VisuallyHidden>
         </Table.Caption>
         <Table.Thead>
           <Table.Tr>
             <Table.Th scope="col" className={classes.roleCol}>
-              Workspace role
+              {t("admin:roles.overview.workspaceRoleCol")}
             </Table.Th>
             <Table.Th scope="col" className={classes.projectRoleCol}>
-              Every project
+              {everyProjectCol}
             </Table.Th>
             <Table.Th scope="col" className={classes.projectRoleCol}>
-              Lowest role when added
+              {lowestRoleCol}
             </Table.Th>
             <Table.Th scope="col" className={classes.projectRoleCol}>
-              Highest role when added
+              {highestRoleCol}
             </Table.Th>
           </Table.Tr>
         </Table.Thead>
@@ -162,28 +195,31 @@ export function ProjectAccessTable({ rows }: ProjectAccessTableProps) {
               <Table.Td>
                 {renderCell(
                   row.label,
-                  "Every project",
+                  everyProjectCol,
                   row.everyProject,
-                  "Only projects they're added to",
+                  onlyAddedProjects,
                   selectData,
+                  lockedTooltip,
                 )}
               </Table.Td>
               <Table.Td>
                 {renderCell(
                   row.label,
-                  "Lowest role when added",
+                  lowestRoleCol,
                   row.lowest,
-                  "Not added to projects",
+                  notAddedToProjects,
                   selectData,
+                  lockedTooltip,
                 )}
               </Table.Td>
               <Table.Td>
                 {renderCell(
                   row.label,
-                  "Highest role when added",
+                  highestRoleCol,
                   row.highest,
-                  "Not added to projects",
+                  notAddedToProjects,
                   selectData,
+                  lockedTooltip,
                 )}
               </Table.Td>
             </Table.Tr>

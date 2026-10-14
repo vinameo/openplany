@@ -6,6 +6,7 @@ import {
 } from "react";
 import { useForm } from "@mantine/form";
 import { useNavigate } from "react-router";
+import { useTranslation } from "react-i18next";
 import {
   extractSlugFromUrl,
   normalizeSlugInput,
@@ -28,6 +29,7 @@ import { useSlugAvailability } from "./useSlugAvailability";
 import { workspacePath } from "../workspacePaths";
 
 export function useCreateWorkspaceForm() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { expireSession } = useAuth();
   const { add } = useWorkspaces();
@@ -45,26 +47,32 @@ export function useCreateWorkspaceForm() {
     },
     validateInputOnBlur: true,
     validate: {
-      name: (value) => workspaceNameProblem(value),
+      name: (value) => {
+        const problem = workspaceNameProblem(value);
+        return problem ? t(problem.key, problem.params) : null;
+      },
       slug: (value) => {
-        if (!value) return "Enter a workspace URL";
+        if (!value) return t("workspace:create.errors.slugRequired");
         if (
           value.length < WORKSPACE_SLUG_MIN ||
           value.length > WORKSPACE_SLUG_MAX
         ) {
-          return `URL must be between ${WORKSPACE_SLUG_MIN} and ${WORKSPACE_SLUG_MAX} characters`;
+          return t("workspace:create.errors.slugLength", {
+            min: WORKSPACE_SLUG_MIN,
+            max: WORKSPACE_SLUG_MAX,
+          });
         }
         if (!WORKSPACE_SLUG_PATTERN.test(value)) {
-          return "URL can use only lowercase letters, numbers, and single hyphens, and can't start or end with a hyphen";
+          return t("workspace:create.errors.slugPattern");
         }
         if (RESERVED_WORKSPACE_SLUGS.has(value)) {
-          return "This URL is reserved. Choose another one.";
+          return t("workspace:create.errors.slugReserved");
         }
         return null;
       },
       organizationSize: (value) => {
         if (!value || !ORGANIZATION_SIZES.includes(value)) {
-          return "Select how many people will use this workspace";
+          return t("workspace:create.errors.orgSizeRequired");
         }
         return null;
       },
@@ -154,7 +162,7 @@ export function useCreateWorkspaceForm() {
 
         if (error.status === 409) {
           const conflictMsg =
-            error.fields.slug || "This URL is already taken. Choose another one.";
+            error.fields?.slug || t("workspace:create.errors.slugTaken");
           form.setFieldError("slug", conflictMsg);
           markTaken(form.values.slug);
           return;
@@ -166,7 +174,7 @@ export function useCreateWorkspaceForm() {
             Math.ceil((error.retryAfterSeconds ?? 60) / 60),
           );
           setGeneralError(
-            `You've created several workspaces recently. Try again in ${minutes} minutes.`,
+            t("workspace:create.errors.rateLimited", { count: minutes }),
           );
           return;
         }
@@ -177,10 +185,10 @@ export function useCreateWorkspaceForm() {
         }
 
         setGeneralError(
-          error.message || "Couldn't create the workspace. Please try again.",
+          error.message || t("workspace:create.errors.generic"),
         );
       } else {
-        setGeneralError("Couldn't create the workspace. Please try again.");
+        setGeneralError(t("workspace:create.errors.generic"));
       }
     } finally {
       setIsSubmitting(false);

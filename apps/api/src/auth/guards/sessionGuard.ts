@@ -42,7 +42,7 @@ export class SessionGuard implements CanActivate {
       throw new ApiException(
         HttpStatus.UNAUTHORIZED,
         'UNAUTHENTICATED',
-        'Sign in to continue',
+        { key: 'errors:http.unauthenticated' },
       );
     }
     if (result.renewedMaxAgeMs !== null) {
@@ -58,7 +58,7 @@ export class SessionGuard implements CanActivate {
       throw new ApiException(
         HttpStatus.FORBIDDEN,
         'PASSWORD_RESET_REQUIRED',
-        'Set a new password to continue',
+        { key: 'errors:passwordResetRequired' },
       );
     }
 

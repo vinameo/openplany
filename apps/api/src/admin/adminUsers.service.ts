@@ -13,7 +13,7 @@ import {
 } from './repositories/adminUsersRepository.js';
 import { generateUsername } from './username.js';
 
-const EMAIL_ALREADY_EXISTS_MESSAGE = 'A user with this email already exists.';
+const EMAIL_ALREADY_EXISTS_REF = { key: 'errors:emailAlreadyExists' } as const;
 
 @Injectable()
 export class AdminUsersService {
@@ -37,10 +37,10 @@ export class AdminUsersService {
       throw new ApiException(
         HttpStatus.BAD_REQUEST,
         'VALIDATION_ERROR',
-        'Check the highlighted fields',
+        { key: 'errors:checkHighlightedFields' },
         {
           fields: {
-            password: "Password can't be the same as the email",
+            password: { key: 'users:errors.passwordSameAsEmail' },
           },
         },
       );
@@ -52,10 +52,10 @@ export class AdminUsersService {
       throw new ApiException(
         HttpStatus.CONFLICT,
         'EMAIL_ALREADY_EXISTS',
-        EMAIL_ALREADY_EXISTS_MESSAGE,
+        EMAIL_ALREADY_EXISTS_REF,
         {
           fields: {
-            email: EMAIL_ALREADY_EXISTS_MESSAGE,
+            email: EMAIL_ALREADY_EXISTS_REF,
           },
         },
       );
@@ -83,10 +83,10 @@ export class AdminUsersService {
         throw new ApiException(
           HttpStatus.CONFLICT,
           'EMAIL_ALREADY_EXISTS',
-          EMAIL_ALREADY_EXISTS_MESSAGE,
+          EMAIL_ALREADY_EXISTS_REF,
           {
             fields: {
-              email: EMAIL_ALREADY_EXISTS_MESSAGE,
+              email: EMAIL_ALREADY_EXISTS_REF,
             },
           },
         );

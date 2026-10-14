@@ -1,4 +1,5 @@
 import { type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
 import { useCurrentWorkspace } from "../currentWorkspace/useCurrentWorkspace";
 import { SettingsSectionFrame } from "../../settings/SettingsSectionFrame";
@@ -19,6 +20,7 @@ export function SettingsSectionRoute({
   children,
   sections = WORKSPACE_SETTINGS_SECTIONS,
 }: SettingsSectionRouteProps) {
+  const { t } = useTranslation();
   const { workspace } = useCurrentWorkspace();
   const handleKey = useSettingsSectionKey();
   const sectionKey = propSectionKey ?? handleKey;
@@ -28,7 +30,16 @@ export function SettingsSectionRoute({
     throw new Error(`Unknown settings section key "${sectionKey ?? "undefined"}"`);
   }
 
-  useDocumentTitle(`${section.label} · ${workspace.name} settings`);
+  const sectionLabel = section.labelKey
+    ? t(section.labelKey)
+    : (section.label ?? section.key);
+
+  useDocumentTitle(
+    t("workspace:settings.documentTitle", {
+      section: sectionLabel,
+      workspace: workspace.name,
+    }),
+  );
 
   const hasPermission =
     !section.viewPermission ||
@@ -37,7 +48,7 @@ export function SettingsSectionRoute({
   return (
     <SettingsSectionFrame
       icon={section.icon}
-      label={section.label}
+      label={sectionLabel}
       allowed={hasPermission}
     >
       {children}
