@@ -90,11 +90,7 @@ export const ALL_RESTRICTED_SELECTORS = [
  * Note: URL template rules ALWAYS apply to exempt areas as well.
  */
 export const EXEMPT_AREAS = [
-  // Quản trị, hồ sơ, phần chung (Ticket 09)
-  "src/features/admin/**",
-  "src/features/profile/**",
-  "src/hooks/**",
-  "src/lib/**",
+  // Quản trị, hồ sơ, phần chung (Ticket 09) - testing
 ];
 
 export default defineConfig([
@@ -118,18 +114,27 @@ export default defineConfig([
       "src/**/*Paths.ts",
       "src/**/*.test.{ts,tsx}",
       "src/test/**",
+      "src/**/test/**",
       ...EXEMPT_AREAS,
     ],
     rules: {
       "no-restricted-syntax": ["error", ...ALL_RESTRICTED_SELECTORS],
     },
   },
-  {
-    // Exempt areas: only enforces URL helpers (never loses URL rule, BA ADR-07)
-    files: EXEMPT_AREAS,
-    ignores: ["src/**/*Paths.ts", "src/**/*.test.{ts,tsx}", "src/test/**"],
-    rules: {
-      "no-restricted-syntax": ["error", ...URL_SELECTORS],
-    },
-  },
+  ...(EXEMPT_AREAS.length > 0
+    ? [
+        {
+          // Exempt areas: only enforces URL helpers (never loses URL rule, BA ADR-07)
+          files: EXEMPT_AREAS,
+          ignores: [
+            "src/**/*Paths.ts",
+            "src/**/*.test.{ts,tsx}",
+            "src/test/**",
+          ],
+          rules: {
+            "no-restricted-syntax": ["error", ...URL_SELECTORS],
+          },
+        },
+      ]
+    : []),
 ]);

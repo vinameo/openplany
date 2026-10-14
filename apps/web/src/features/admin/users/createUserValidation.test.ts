@@ -31,7 +31,10 @@ describe("createUserValidation", () => {
         validateCreateUserField("firstName", { ...baseValues, firstName: "" }),
       ).toBe("Enter a first name");
       expect(
-        validateCreateUserField("firstName", { ...baseValues, firstName: "   " }),
+        validateCreateUserField("firstName", {
+          ...baseValues,
+          firstName: "   ",
+        }),
       ).toBe("Enter a first name");
     });
 
@@ -96,7 +99,10 @@ describe("createUserValidation", () => {
 
     it("requires non-empty display name", () => {
       expect(
-        validateCreateUserField("displayName", { ...baseValues, displayName: "" }),
+        validateCreateUserField("displayName", {
+          ...baseValues,
+          displayName: "",
+        }),
       ).toBe("Enter a display name");
       expect(
         validateCreateUserField("displayName", {
@@ -143,10 +149,16 @@ describe("createUserValidation", () => {
         validateCreateUserField("email", { ...baseValues, email: "invalid" }),
       ).toBe("Enter a valid email");
       expect(
-        validateCreateUserField("email", { ...baseValues, email: "no-domain@" }),
+        validateCreateUserField("email", {
+          ...baseValues,
+          email: "no-domain@",
+        }),
       ).toBe("Enter a valid email");
       expect(
-        validateCreateUserField("email", { ...baseValues, email: "@domain.com" }),
+        validateCreateUserField("email", {
+          ...baseValues,
+          email: "@domain.com",
+        }),
       ).toBe("Enter a valid email");
       expect(
         validateCreateUserField("email", { ...baseValues, email: "a@b" }),
@@ -221,4 +233,3 @@ describe("createUserValidation", () => {
     });
   });
 });
-

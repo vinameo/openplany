@@ -1,30 +1,41 @@
+import type { MessageKey } from "@repo/contracts";
+import { translate } from "../../../i18n/index.js";
 
-export const PERMISSION_GROUP_LABELS = {
+export const PERMISSION_GROUP_KEYS = {
   // Workspace groups
-  "workspace.settings": "Settings",
-  "workspace.members": "Members",
-  "workspace.projects": "Projects",
-  "workspace.delete": "Workspace",
+  "workspace.settings": "permissionGroups:workspace.settings",
+  "workspace.members": "permissionGroups:workspace.members",
+  "workspace.projects": "permissionGroups:workspace.projects",
+  "workspace.delete": "permissionGroups:workspace.delete",
 
   // Project groups
-  "project.settings": "Project",
-  "project.archive": "Project",
-  "project.members": "Members",
-  "project.workitems": "Work items",
-  "project.comments": "Comments",
-  "project.reactions": "Comments",
-  "project.cycles": "Cycles",
-  "project.modules": "Modules",
-  "project.views": "Views",
-  "project.pages": "Pages",
-  "project.labels": "Labels, states and estimates",
-  "project.states": "Labels, states and estimates",
-  "project.estimates": "Labels, states and estimates",
-  "project.analytics": "Analytics",
-} as const;
+  "project.settings": "permissionGroups:project.settings",
+  "project.archive": "permissionGroups:project.settings",
+  "project.members": "permissionGroups:project.members",
+  "project.workitems": "permissionGroups:project.workitems",
+  "project.comments": "permissionGroups:project.comments",
+  "project.reactions": "permissionGroups:project.comments",
+  "project.cycles": "permissionGroups:project.cycles",
+  "project.modules": "permissionGroups:project.modules",
+  "project.views": "permissionGroups:project.views",
+  "project.pages": "permissionGroups:project.pages",
+  "project.labels": "permissionGroups:project.labels",
+  "project.states": "permissionGroups:project.labels",
+  "project.estimates": "permissionGroups:project.labels",
+  "project.analytics": "permissionGroups:project.analytics",
+} as const satisfies Record<string, MessageKey>;
+
+/** PERMISSION_GROUP_LABELS stores message keys (INV-15) */
+export const PERMISSION_GROUP_LABELS = PERMISSION_GROUP_KEYS;
+
+export function permissionGroupKeyOf(permission: string): MessageKey {
+  const parts = permission.split(".");
+  const key = `${parts[0]}.${parts[1]}` as keyof typeof PERMISSION_GROUP_KEYS;
+  return (
+    PERMISSION_GROUP_KEYS[key] ?? ("permissionGroups:general" as MessageKey)
+  );
+}
 
 export function permissionGroupOf(permission: string): string {
-  const parts = permission.split(".");
-  const key = `${parts[0]}.${parts[1]}` as keyof typeof PERMISSION_GROUP_LABELS;
-  return PERMISSION_GROUP_LABELS[key] ?? "General";
+  return translate(permissionGroupKeyOf(permission));
 }

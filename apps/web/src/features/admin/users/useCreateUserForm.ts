@@ -6,10 +6,14 @@ import {
   normalizeName,
   type CreateUserRequest,
 } from "@repo/contracts";
+import { useTranslation } from "react-i18next";
 import { ApiRequestError } from "../../../lib/apiClient";
 import { authApi } from "../../auth/api/authApi";
 import { useAuth } from "../../auth/useAuth";
-import { adminUsersApi, GENERIC_CREATE_USER_ERROR } from "./api/adminUsersApi";
+import {
+  adminUsersApi,
+  GENERIC_CREATE_USER_ERROR_KEY,
+} from "./api/adminUsersApi";
 import {
   type CreateUserField,
   type CreateUserValues,
@@ -31,6 +35,7 @@ export interface CreateUserFormState {
 export function useCreateUserForm({
   onCreated,
 }: UseCreateUserFormOptions): CreateUserFormState {
+  const { t } = useTranslation();
   const { updateUser, expireSession } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -131,8 +136,11 @@ export function useCreateUserForm({
       const created = await adminUsersApi.createUser(request);
       notifications.show({
         color: "green",
-        title: "User created",
-        message: `${created.displayName} can now sign in with ${created.email}.`,
+        title: t("admin:users.notifications.createdTitle"),
+        message: t("admin:users.notifications.createdMessage", {
+          displayName: created.displayName,
+          email: created.email,
+        }),
       });
       onCreated();
     } catch (error: unknown) {
@@ -169,7 +177,7 @@ export function useCreateUserForm({
         }
 
         if (error.status === 403 && error.code === "FORBIDDEN") {
-          setSubmitError("You no longer have permission to create users.");
+          setSubmitError(t("admin:users.errors.noPermission"));
           try {
             const session = await authApi.getSession();
             if (session !== null) {
@@ -196,17 +204,17 @@ export function useCreateUserForm({
         if (error.status === 429 && error.code === "TOO_MANY_ATTEMPTS") {
           const minutes = Math.ceil((error.retryAfterSeconds ?? 60) / 60);
           setSubmitError(
-            `Too many users created. Try again in ${minutes} ${minutes === 1 ? "minute" : "minutes"}.`,
+            t("admin:users.errors.tooManyUsers", { count: minutes }),
           );
           return;
         }
 
-        setSubmitError(error.message || GENERIC_CREATE_USER_ERROR);
+        setSubmitError(error.message || t(GENERIC_CREATE_USER_ERROR_KEY));
         return;
       }
 
       console.error("Create user failed", error);
-      setSubmitError(GENERIC_CREATE_USER_ERROR);
+      setSubmitError(t(GENERIC_CREATE_USER_ERROR_KEY));
     }
   }
 
@@ -217,4 +225,3 @@ export function useCreateUserForm({
     handleSubmit,
   };
 }
-

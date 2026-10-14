@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { Button, Group, List, Modal, Stack, Text } from "@mantine/core";
+import { useTranslation } from "react-i18next";
 import {
   type PermissionItem,
   type RoleRef,
@@ -33,6 +34,8 @@ export function ConfirmPermissionChangesModal({
   isSaving,
   permissions,
 }: ConfirmPermissionChangesModalProps) {
+  const { t } = useTranslation();
+
   const labelMap = useMemo(() => {
     const map = new Map<string, string>();
     if (!permissions) return map;
@@ -64,7 +67,9 @@ export function ConfirmPermissionChangesModal({
   }, [permissions]);
 
   function getPermissionLabel(perm: string): string {
-    return labelMap.get(perm) ?? perm;
+    return t(`permissions:${perm}`, {
+      defaultValue: labelMap.get(perm) ?? perm,
+    });
   }
 
   function getRoleHeading(ref: RoleRef): string {
@@ -78,14 +83,12 @@ export function ConfirmPermissionChangesModal({
     <Modal
       opened={opened}
       onClose={onClose}
-      title="Save permission changes?"
+      title={t("admin:roles.confirmModal.title")}
       trapFocus
       returnFocus
     >
       <Stack gap="md">
-        <Text size="sm">
-          These changes apply to every workspace right away.
-        </Text>
+        <Text size="sm">{t("admin:roles.confirmModal.description")}</Text>
 
         <Stack gap="sm">
           {diff.map((item) => {
@@ -114,10 +117,10 @@ export function ConfirmPermissionChangesModal({
 
         <Group justify="flex-end" gap="sm" mt="md">
           <Button variant="default" onClick={onClose} disabled={isSaving}>
-            Cancel
+            {t("common:actions.cancel")}
           </Button>
           <Button onClick={onConfirm} loading={isSaving} disabled={isSaving}>
-            Save
+            {t("common:actions.save")}
           </Button>
         </Group>
       </Stack>

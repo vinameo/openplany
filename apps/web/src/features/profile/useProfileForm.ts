@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { ApiRequestError } from "../../lib/apiClient";
 import type { AuthUser } from "../auth/api/authTypes";
 import { useAuth } from "../auth/useAuth";
-import { GENERIC_PROFILE_ERROR, profileApi } from "./api/profileApi";
+import { GENERIC_PROFILE_ERROR_KEY, profileApi } from "./api/profileApi";
 import {
   diffProfile,
   PROFILE_FIELDS,
@@ -21,6 +22,7 @@ interface UseProfileFormOptions {
 
 /** Form state, validation and saving for the profile popup. */
 export function useProfileForm({ user, onSaved }: UseProfileFormOptions) {
+  const { t } = useTranslation();
   const { updateUser, expireSession } = useAuth();
   // Snapshot at mount: later changes to the signed-in user must not overwrite typing.
   const [initialValues] = useState<ProfileValues>(() => ({
@@ -61,7 +63,7 @@ export function useProfileForm({ user, onSaved }: UseProfileFormOptions) {
       const saved = await profileApi.updateMe(changes);
       updateUser(saved);
       notifications.show({
-        message: "Profile updated",
+        message: t("profile:notifications.updated"),
         color: "green",
         autoClose: 3000,
       });
@@ -69,7 +71,7 @@ export function useProfileForm({ user, onSaved }: UseProfileFormOptions) {
     } catch (error: unknown) {
       if (!(error instanceof ApiRequestError)) {
         console.error("Profile update failed unexpectedly", error);
-        setSubmitError(GENERIC_PROFILE_ERROR);
+        setSubmitError(t(GENERIC_PROFILE_ERROR_KEY));
         return;
       }
       if (error.status === 401) {

@@ -50,7 +50,7 @@ type SaveErrorState =
 
 export function RolesAndPermissionsRoute() {
   const { t } = useTranslation();
-  useDocumentTitle("Roles & Permissions · OpenPlany");
+  useDocumentTitle(t("admin:roles.documentTitle"));
   const { state: authState } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -173,7 +173,7 @@ export function RolesAndPermissionsRoute() {
       setConfirmModalOpened(false);
       setDraft({});
       notifications.show({
-        message: "Permissions updated",
+        message: t("admin:roles.notifications.updated"),
         color: "green",
       });
     } else if (result.status === "conflict") {
@@ -210,24 +210,22 @@ export function RolesAndPermissionsRoute() {
             size="compact-sm"
             leftSection={<ArrowLeftIcon width={16} height={16} />}
             onClick={handleGoBack}
-            aria-label="Back"
+            aria-label={t("admin:roles.back")}
             className={classes.backButton}
           >
-            Back
+            {t("admin:roles.back")}
           </Button>
           <Title order={1} className={classes.title}>
-            Roles & Permissions
+            {t("admin:roles.title")}
           </Title>
-          <Text className={classes.subtitle}>
-            How roles work in every workspace on this OpenPlany instance.
-          </Text>
+          <Text className={classes.subtitle}>{t("admin:roles.subtitle")}</Text>
         </div>
 
         {saveError?.type === "conflict" && (
           <Alert
             color="yellow"
             mb="xl"
-            title="Someone else changed these permissions. Reload to see the latest."
+            title={t("admin:errors.conflictReload")}
           >
             <Group justify="flex-end" mt="xs">
               <Button
@@ -235,14 +233,14 @@ export function RolesAndPermissionsRoute() {
                 variant="default"
                 onClick={handleConflictReload}
               >
-                Reload
+                {t("common:actions.reload")}
               </Button>
             </Group>
           </Alert>
         )}
 
         {saveError?.type === "invalid" && (
-          <Alert color="red" mb="xl" title="Validation error">
+          <Alert color="red" mb="xl" title={t("common:error")}>
             {Object.entries(saveError.fields).map(([field, msg]) => (
               <div key={field}>{msg}</div>
             ))}
@@ -250,7 +248,7 @@ export function RolesAndPermissionsRoute() {
         )}
 
         {saveError?.type === "failed" && (
-          <Alert color="red" mb="xl" title="Error">
+          <Alert color="red" mb="xl" title={t("common:error")}>
             {saveError.message}
           </Alert>
         )}
@@ -263,12 +261,15 @@ export function RolesAndPermissionsRoute() {
                 hasWorkspaceChanges ? (
                   <>
                     <Indicator size={6} color="blue" offset={0} inline />
-                    <VisuallyHidden> (unsaved changes)</VisuallyHidden>
+                    <VisuallyHidden>
+                      {" "}
+                      {t("admin:roles.unsavedChangesIndicator")}
+                    </VisuallyHidden>
                   </>
                 ) : null
               }
             >
-              Workspace roles
+              {t("admin:roles.tabWorkspace")}
             </Tabs.Tab>
             <Tabs.Tab
               value="project"
@@ -276,12 +277,15 @@ export function RolesAndPermissionsRoute() {
                 hasProjectChanges ? (
                   <>
                     <Indicator size={6} color="blue" offset={0} inline />
-                    <VisuallyHidden> (unsaved changes)</VisuallyHidden>
+                    <VisuallyHidden>
+                      {" "}
+                      {t("admin:roles.unsavedChangesIndicator")}
+                    </VisuallyHidden>
                   </>
                 ) : null
               }
             >
-              Project roles
+              {t("admin:roles.tabProject")}
             </Tabs.Tab>
           </Tabs.List>
 
@@ -289,16 +293,18 @@ export function RolesAndPermissionsRoute() {
             <Stack gap="xl">
               <SettingsSection
                 titleOrder={2}
-                title="Workspace roles"
-                description="What each role can do in a workspace."
+                title={t("admin:roles.workspaceRolesSection.title")}
+                description={t("admin:roles.workspaceRolesSection.description")}
               >
                 <WorkspaceRolesTable rows={overview.workspaceRoles} />
               </SettingsSection>
 
               <SettingsSection
                 titleOrder={2}
-                title="Workspace permissions"
-                description="Choose what each workspace role can do. Changes apply to every workspace on this instance."
+                title={t("admin:roles.workspacePermissionsSection.title")}
+                description={t(
+                  "admin:roles.workspacePermissionsSection.description",
+                )}
               >
                 {roleState.status === "loading" && (
                   <Stack gap="xs">
@@ -308,9 +314,13 @@ export function RolesAndPermissionsRoute() {
                 )}
                 {roleState.status === "error" && (
                   <Alert color="red">
-                    <Text mb="xs">{rolesLoadError}</Text>
+                    <Text mb="xs">
+                      {t("admin:roles.errors.loadFailed", {
+                        defaultValue: rolesLoadError,
+                      })}
+                    </Text>
                     <Button size="xs" variant="default" onClick={reload}>
-                      Try again
+                      {t("common:actions.tryAgain")}
                     </Button>
                   </Alert>
                 )}
@@ -329,16 +339,16 @@ export function RolesAndPermissionsRoute() {
             <Stack gap="xl">
               <SettingsSection
                 titleOrder={2}
-                title="Project roles"
-                description="Each project member has one of these roles in that project."
+                title={t("admin:roles.projectRolesSection.title")}
+                description={t("admin:roles.projectRolesSection.description")}
               >
                 <ProjectRolesTable rows={overview.projectRoles} />
               </SettingsSection>
 
               <SettingsSection
                 titleOrder={2}
-                title="Workspace roles in projects"
-                description="How each workspace role decides access to projects. Set by OpenPlany and the same in every workspace."
+                title={t("admin:roles.projectAccessSection.title")}
+                description={t("admin:roles.projectAccessSection.description")}
               >
                 {roleState.status === "loading" && (
                   <Stack gap="xs">
@@ -348,9 +358,13 @@ export function RolesAndPermissionsRoute() {
                 )}
                 {roleState.status === "error" && (
                   <Alert color="red">
-                    <Text mb="xs">{rolesLoadError}</Text>
+                    <Text mb="xs">
+                      {t("admin:roles.errors.loadFailed", {
+                        defaultValue: rolesLoadError,
+                      })}
+                    </Text>
                     <Button size="xs" variant="default" onClick={reload}>
-                      Try again
+                      {t("common:actions.tryAgain")}
                     </Button>
                   </Alert>
                 )}
@@ -361,8 +375,10 @@ export function RolesAndPermissionsRoute() {
 
               <SettingsSection
                 titleOrder={2}
-                title="Project permissions"
-                description="Choose what each project role can do. Changes apply to every project on this instance."
+                title={t("admin:roles.projectPermissionsSection.title")}
+                description={t(
+                  "admin:roles.projectPermissionsSection.description",
+                )}
               >
                 {roleState.status === "loading" && (
                   <Stack gap="xs">
@@ -400,17 +416,19 @@ export function RolesAndPermissionsRoute() {
           }
         />
 
-        <Modal opened={blocked} onClose={stay} title="Discard unsaved changes?">
+        <Modal
+          opened={blocked}
+          onClose={stay}
+          title={t("admin:roles.discardModal.title")}
+        >
           <Stack gap="md">
-            <Text size="sm">
-              You have unsaved changes that will be lost if you leave this page.
-            </Text>
+            <Text size="sm">{t("admin:roles.discardModal.description")}</Text>
             <Group justify="flex-end" gap="sm">
               <Button variant="default" onClick={stay}>
-                Keep editing
+                {t("common:actions.keepEditing")}
               </Button>
               <Button color="red" onClick={proceed}>
-                Discard
+                {t("common:actions.discard")}
               </Button>
             </Group>
           </Stack>

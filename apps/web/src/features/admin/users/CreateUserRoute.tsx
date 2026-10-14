@@ -8,10 +8,13 @@ import classes from "./CreateUserRoute.module.css";
 
 export function CreateUserRoute() {
   const { t } = useTranslation();
-  useDocumentTitle("Create user · OpenPlany");
+  useDocumentTitle(t("admin:users.documentTitle"));
   const { state: authState } = useAuth();
 
-  if (authState.status === "authenticated" && !authState.session.user.isInstanceAdmin) {
+  if (
+    authState.status === "authenticated" &&
+    !authState.session.user.isInstanceAdmin
+  ) {
     return <Navigate to="/" replace />;
   }
 

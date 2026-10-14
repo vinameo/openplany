@@ -39,6 +39,9 @@ export const en = {
     "actions.copied": "Copied",
     "actions.copyUrl": "Copy URL",
     "actions.createUser": "Create user",
+    "actions.saveChanges": "Save changes",
+    "actions.save": "Save",
+    "actions.reload": "Reload",
     warning: "Warning",
     charactersLeft_one: "{{count}} character left",
     charactersLeft_other: "{{count}} characters left",
@@ -114,8 +117,7 @@ export const en = {
     roleUnchanged: "Role is unchanged",
     lastAdmin:
       "A workspace needs at least one Admin. Make someone else an Admin first.",
-    roleInherited:
-      "Workspace Admins are Project Admins in every project.",
+    roleInherited: "Workspace Admins are Project Admins in every project.",
     tooManyAttempts: "Too many attempts. Try again later.",
     tooManyUsersCreated_one:
       "Too many users created. Try again in {{count}} minute.",
@@ -134,8 +136,7 @@ export const en = {
   workspace: {
     title: "Workspace",
     "errors.nameRequired": "Enter a workspace name",
-    "errors.nameTooLong":
-      "Workspace name must be {{max}} characters or fewer",
+    "errors.nameTooLong": "Workspace name must be {{max}} characters or fewer",
     "errors.nameHiddenChars": "Contains characters that aren't allowed",
     "errors.nameUrl": "Workspace name cannot contain a URL",
     "errors.slugRequired": "Enter a workspace URL",
@@ -143,8 +144,7 @@ export const en = {
     "errors.slugPattern":
       "URL can use only lowercase letters, numbers, and single hyphens, and can't start or end with a hyphen",
     "errors.slugLength": "URL must be between {{min}} and {{max}} characters",
-    "errors.orgSizeRequired":
-      "Select how many people will use this workspace",
+    "errors.orgSizeRequired": "Select how many people will use this workspace",
     "errors.orgSizeSelect": "Select a company size",
     "errors.slugTaken": "A workspace with this URL already exists",
     "errors.notFound": "Workspace not found",
@@ -156,8 +156,7 @@ export const en = {
       "You've checked several URLs recently. Try again later.",
     "errors.rateLimitCreate":
       "You've created several workspaces recently. Try again later.",
-    "errors.slugTakenAnother":
-      "This URL is already taken. Choose another one.",
+    "errors.slugTakenAnother": "This URL is already taken. Choose another one.",
     "errors.lastAdmin":
       "A workspace needs at least one Admin. Make someone else an Admin first.",
     "errors.memberGone": "This person is no longer in this workspace.",
@@ -219,18 +218,15 @@ export const en = {
       "URL must be between {{min}} and {{max}} characters",
     "create.errors.slugPattern":
       "URL can use only lowercase letters, numbers, and single hyphens, and can't start or end with a hyphen",
-    "create.errors.slugReserved":
-      "This URL is reserved. Choose another one.",
-    "create.errors.slugTaken":
-      "This URL is already taken. Choose another one.",
+    "create.errors.slugReserved": "This URL is reserved. Choose another one.",
+    "create.errors.slugTaken": "This URL is already taken. Choose another one.",
     "create.errors.orgSizeRequired":
       "Select how many people will use this workspace",
     "create.errors.rateLimited_one":
       "You've created several workspaces recently. Try again in {{count}} minute.",
     "create.errors.rateLimited_other":
       "You've created several workspaces recently. Try again in {{count}} minutes.",
-    "create.errors.generic":
-      "Couldn't create the workspace. Please try again.",
+    "create.errors.generic": "Couldn't create the workspace. Please try again.",
     "home.verifyEmailTitle": "Verify your email",
     "home.verifyEmailBody":
       "Check your inbox for a verification link from OpenPlany.",
@@ -274,8 +270,7 @@ export const en = {
   project: {
     title: "Project",
     "errors.nameRequired": "Enter a project name",
-    "errors.nameTooLong":
-      "Enter a project name (up to {{max}} characters)",
+    "errors.nameTooLong": "Enter a project name (up to {{max}} characters)",
     "errors.hiddenChars": "Contains characters that aren't allowed",
     "errors.descriptionTooLong":
       "Keep the description under {{max}} characters",
@@ -309,9 +304,8 @@ export const en = {
     "list.emptyCanCreateTitle": "No projects yet",
     "list.emptyCanCreateDesc": "Create a project to start tracking work.",
     "list.emptyCanCreateButton": "Add project",
-    "list.emptyCannotCreateDesc":
-      "You haven't been added to any projects yet.",
-    "list.noMatch": "No projects match \"{{search}}\"",
+    "list.emptyCannotCreateDesc": "You haven't been added to any projects yet.",
+    "list.noMatch": 'No projects match "{{search}}"',
     "list.clearSearch": "Clear search",
     "list.searchPlaceholder": "Search…",
     "list.searchAriaLabel": "Search projects",
@@ -420,15 +414,13 @@ export const en = {
     "members.addMemberTitle": "Add member",
     "members.noneAddedNote": "No one has been added to this project yet.",
     "members.roleLimitedTooltip": "Limited by their workspace role",
-    "members.workspaceAdminsNote":
-      "Workspace Admins can access every project.",
+    "members.workspaceAdminsNote": "Workspace Admins can access every project.",
     "members.addProjectMembersDescription":
       "Add members to collaborate in your project.",
     "members.projectAdminNotice":
       "Project Admins can manage everyone in this project, including you.",
     "members.typeFullEmail": "Type the full email address",
-    "members.noWorkspaceMemberFound":
-      "No workspace member with this email.",
+    "members.noWorkspaceMemberFound": "No workspace member with this email.",
     "members.addToWorkspaceLink": "Add to workspace",
     "members.alreadyInProject": "Already in this project",
     "members.workspaceAdminCandidate": "Workspace Admin · has access",
@@ -453,8 +445,7 @@ export const en = {
     title: "Members",
     "errors.rowDuplicate": "This person is already in another row",
     "errors.candidateQueryTooShort": "Type at least 3 characters",
-    "errors.candidateQueryInvalid":
-      "Remove special characters from the email",
+    "errors.candidateQueryInvalid": "Remove special characters from the email",
     "errors.choosePerson": "Choose a person",
     "errors.chooseRole": "Choose a role",
     "errors.addAtLeastOne": "Add at least one person",
@@ -559,10 +550,8 @@ export const en = {
   },
   users: {
     "errors.firstNameRequired": "Enter a first name",
-    "errors.firstNameTooLong":
-      "First name must be {{max}} characters or fewer",
-    "errors.lastNameTooLong":
-      "Last name must be {{max}} characters or fewer",
+    "errors.firstNameTooLong": "First name must be {{max}} characters or fewer",
+    "errors.lastNameTooLong": "Last name must be {{max}} characters or fewer",
     "errors.lastNameText": "Last name must be text",
     "errors.displayNameRequired": "Enter a display name",
     "errors.displayNameTooLong":
@@ -595,21 +584,208 @@ export const en = {
       "Too many users created. Try again in {{count}} minute.",
     "errors.tooManyUsers_other":
       "Too many users created. Try again in {{count}} minutes.",
+
+    "roles.title": "Roles & Permissions",
+    "roles.subtitle":
+      "How roles work in every workspace on this OpenPlany instance.",
+    "roles.documentTitle": "Roles & Permissions · OpenPlany",
+    "roles.back": "Back",
+    "roles.tabWorkspace": "Workspace roles",
+    "roles.tabProject": "Project roles",
+    "roles.unsavedChangesIndicator": "(unsaved changes)",
+    "roles.workspaceRolesSection.title": "Workspace roles",
+    "roles.workspaceRolesSection.description":
+      "What each role can do in a workspace.",
+    "roles.workspacePermissionsSection.title": "Workspace permissions",
+    "roles.workspacePermissionsSection.description":
+      "Choose what each workspace role can do. Changes apply to every workspace on this instance.",
+    "roles.projectRolesSection.title": "Project roles",
+    "roles.projectRolesSection.description":
+      "Each project member has one of these roles in that project.",
+    "roles.projectAccessSection.title": "Workspace roles in projects",
+    "roles.projectAccessSection.description":
+      "How each workspace role decides access to projects. Set by OpenPlany and the same in every workspace.",
+    "roles.projectPermissionsSection.title": "Project permissions",
+    "roles.projectPermissionsSection.description":
+      "Choose what each project role can do. Changes apply to every project on this instance.",
+    "roles.notifications.updated": "Permissions updated",
+    "roles.confirmModal.title": "Save permission changes?",
+    "roles.confirmModal.description":
+      "These changes apply to every workspace right away.",
+    "roles.discardModal.title": "Discard unsaved changes?",
+    "roles.discardModal.description":
+      "You have unsaved changes that will be lost if you leave this page.",
+    "roles.unsavedChanges.regionLabel": "Unsaved changes bar",
+    "roles.unsavedChanges.count_one": "{{count}} unsaved change",
+    "roles.unsavedChanges.count_other": "{{count}} unsaved changes",
+    "roles.matrix.workspaceCaption": "Workspace permissions by role",
+    "roles.matrix.projectCaption": "Project permissions by role",
+    "roles.matrix.permissionCol": "Permission",
+    "roles.matrix.locked": "locked",
+    "roles.matrix.changed": "changed",
+    "roles.matrix.notEnforced": "Not enforced yet",
+    "roles.overview.workspaceRolesCaption": "Workspace roles",
+    "roles.overview.projectRolesCaption": "Project roles",
+    "roles.overview.accessCaption": "Workspace roles in projects",
+    "roles.overview.roleCol": "Role",
+    "roles.overview.descriptionCol": "Description",
+    "roles.overview.workspaceRoleCol": "Workspace role",
+    "roles.overview.everyProjectCol": "Every project",
+    "roles.overview.lowestRoleCol": "Lowest role when added",
+    "roles.overview.highestRoleCol": "Highest role when added",
+    "roles.overview.lockedTooltip":
+      "Set by OpenPlany. It can't be changed here.",
+    "roles.overview.onlyAddedProjects": "Only projects they're added to",
+    "roles.overview.notAddedToProjects": "Not added to projects",
+    "roles.errors.loadFailed": "Couldn't load roles and permissions.",
+    "roles.errors.updateFailed":
+      "Couldn't update permissions. Please try again.",
+
+    "users.documentTitle": "Create user · OpenPlany",
+    "users.form.title": "Create user",
+    "users.form.firstName": "First name",
+    "users.form.lastName": "Last name",
+    "users.form.displayName": "Display name",
+    "users.form.displayNameDescription": "How their name appears in OpenPlany.",
+    "users.form.email": "Email",
+    "users.form.emailDescription": "They'll sign in with this email.",
+    "users.form.password": "Password",
+    "users.form.passwordDescription": "At least {{min}} characters.",
+    "users.form.showPassword": "Show password",
+    "users.form.confirmPassword": "Confirm password",
+    "users.form.confirmPasswordDescription":
+      "Re-enter the password to confirm.",
+    "users.form.submit": "Create user",
+    "users.notifications.createdTitle": "User created",
+    "users.notifications.createdMessage":
+      "{{displayName}} can now sign in with {{email}}.",
+    "users.errors.noPermission":
+      "You no longer have permission to create users.",
+    "users.errors.tooManyUsers_one":
+      "Too many users created. Try again in {{count}} minute.",
+    "users.errors.tooManyUsers_other":
+      "Too many users created. Try again in {{count}} minutes.",
+    "users.errors.createFailed": "Couldn't create the user. Please try again.",
+    "users.validation.enterFirstName": "Enter a first name",
+    "users.validation.firstNameMax":
+      "First name must be {{max}} characters or fewer",
+    "users.validation.enterDisplayName": "Enter a display name",
+    "users.validation.displayNameMax":
+      "Display name must be {{max}} characters or fewer",
+    "users.validation.lastNameMax":
+      "Last name must be {{max}} characters or fewer",
+    "users.validation.invalidEmail": "Enter a valid email",
+    "users.validation.passwordLength": "Use {{min}} to {{max}} characters",
+    "users.validation.passwordSameAsEmail":
+      "Password can't be the same as the email",
+    "users.validation.passwordsDoNotMatch": "Passwords don't match",
+    "users.validation.disallowedCharacters":
+      "Contains characters that aren't allowed",
   },
   profile: {
     title: "Profile",
-    "errors.saveFailed": "Couldn't save profile. Please try again.",
+    "discardModal.title": "Discard unsaved changes?",
+    "form.firstName": "First name",
+    "form.firstNamePlaceholder": "Given name",
+    "form.lastName": "Last name",
+    "form.lastNamePlaceholder": "Family name",
+    "form.displayName": "Display name",
+    "form.displayNamePlaceholder": "How others see you",
+    "form.email": "Email",
+    "form.emailDescription": "Contact your admin to change your email.",
+    "modal.closeProfile": "Close profile",
+    "userButton.ariaLabel": "Edit profile – {{name}}",
+    "notifications.updated": "Profile updated",
+    "errors.saveFailed": "Couldn't save your profile. Please try again.",
+    "validation.enterFirstName": "Enter your first name",
+    "validation.enterDisplayName": "Enter a display name",
+    "validation.nameMax": "{{label}} must be {{max}} characters or fewer",
+    "validation.disallowedCharacters":
+      "Contains characters that aren't allowed",
   },
   permissions: {
+    "project.analytics.export": "Export analytics",
+    "project.analytics.view": "View analytics",
     "project.archive": "Archive project",
+    "project.comments.create": "Add comments",
+    "project.comments.delete.any": "Delete any comments",
+    "project.comments.delete.own": "Delete own comments",
+    "project.comments.update.own": "Edit own comments",
+    "project.cycles.create": "Create cycles",
+    "project.cycles.delete.any": "Delete any cycles",
+    "project.cycles.delete.own": "Delete own cycles",
+    "project.cycles.update.any": "Edit any cycles",
+    "project.cycles.view": "View cycles",
+    "project.estimates.manage": "Manage estimates",
+    "project.estimates.view": "View estimates",
+    "project.labels.manage": "Manage labels",
+    "project.labels.view": "View labels",
+    "project.members.manage": "Manage project members",
+    "project.members.view": "View project members",
+    "project.modules.create": "Create modules",
+    "project.modules.delete.any": "Delete any modules",
+    "project.modules.delete.own": "Delete own modules",
+    "project.modules.update.any": "Edit any modules",
+    "project.modules.view": "View modules",
+    "project.pages.create": "Create pages",
+    "project.pages.delete.any": "Delete any pages",
+    "project.pages.delete.own": "Delete own pages",
+    "project.pages.update.any": "Edit any pages",
+    "project.pages.update.own": "Edit own pages",
+    "project.pages.view": "View pages",
+    "project.reactions.create": "Add reactions",
+    "project.settings.update": "Edit project settings",
+    "project.settings.view": "View project settings",
+    "project.states.manage": "Manage states",
+    "project.states.view": "View states",
+    "project.views.create": "Create views",
+    "project.views.delete.any": "Delete any views",
+    "project.views.delete.own": "Delete own views",
+    "project.views.update.any": "Edit any views",
+    "project.views.update.own": "Edit own views",
+    "project.views.view": "View views",
+    "project.workitems.create": "Create work items",
+    "project.workitems.delete.any": "Delete any work items",
+    "project.workitems.delete.own": "Delete own work items",
+    "project.workitems.update.any": "Edit any work items",
+    "project.workitems.view": "View work items",
+    "workspace.delete": "Delete workspace",
+    "workspace.members.add": "Add members",
+    "workspace.members.email.view": "View member emails",
+    "workspace.members.history.view": "View member history",
+    "workspace.members.remove": "Remove members",
+    "workspace.members.role.update": "Change member roles",
+    "workspace.members.view": "View workspace members",
+    "workspace.projects.browse": "Browse projects",
+    "workspace.projects.create": "Create projects",
+    "workspace.projects.delete": "Delete projects",
+    "workspace.settings.update": "Edit workspace settings",
+    "workspace.settings.view": "View workspace settings",
   },
   permissionGroups: {
+    "workspace.settings": "Settings",
+    "workspace.members": "Members",
+    "workspace.projects": "Projects",
+    "workspace.delete": "Workspace",
+    "project.settings": "Project",
     "project.archive": "Project",
+    "project.members": "Members",
+    "project.workitems": "Work items",
+    "project.comments": "Comments",
+    "project.reactions": "Comments",
+    "project.cycles": "Cycles",
+    "project.modules": "Modules",
+    "project.views": "Views",
+    "project.pages": "Pages",
+    "project.labels": "Labels, states and estimates",
+    "project.states": "Labels, states and estimates",
+    "project.estimates": "Labels, states and estimates",
+    "project.analytics": "Analytics",
+    general: "General",
   },
   settings: {
     title: "Settings",
-    "messages.readOnly":
-      "You don't have permission to change these settings.",
+    "messages.readOnly": "You don't have permission to change these settings.",
     "messages.permissionLost":
       "You no longer have permission to change these settings.",
     "messages.tooManyChanges_one":

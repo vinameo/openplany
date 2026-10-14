@@ -12,7 +12,7 @@ import {
   WORKSPACE_ROLE_QUALIFIED_LABELS,
   WORKSPACE_ROLES,
 } from "@repo/contracts";
-import { permissionGroupOf } from "./permissionLabels";
+import { permissionGroupKeyOf, permissionGroupOf } from "./permissionLabels";
 
 export type RoleId = `${RoleScope}.${string}`;
 
@@ -34,6 +34,7 @@ export interface MatrixRow {
 }
 
 export interface MatrixGroup {
+  groupKey?: string;
   label: string;
   rows: MatrixRow[];
 }
@@ -166,15 +167,16 @@ export function buildPermissionMatrix(
       cells,
     };
 
-    const groupLabel = permissionGroupOf(perm);
-    const existing = groupMap.get(groupLabel) ?? [];
+    const groupKey = permissionGroupKeyOf(perm);
+    const existing = groupMap.get(groupKey) ?? [];
     existing.push(row);
-    groupMap.set(groupLabel, existing);
+    groupMap.set(groupKey, existing);
   }
 
   const groups: MatrixGroup[] = Array.from(groupMap.entries()).map(
-    ([groupLabel, rows]) => ({
-      label: groupLabel,
+    ([groupKey, rows]) => ({
+      groupKey,
+      label: permissionGroupOf(rows[0].permission),
       rows,
     }),
   );

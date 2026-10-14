@@ -1,4 +1,5 @@
 import { Button, Text } from "@mantine/core";
+import { useTranslation } from "react-i18next";
 import classes from "./SaveChangesBar.module.css";
 
 interface SaveChangesBarProps {
@@ -14,13 +15,20 @@ export function SaveChangesBar({
   onSaveClick,
   disabled = false,
 }: SaveChangesBarProps) {
+  const { t } = useTranslation();
+
   if (changeCount <= 0) return null;
 
-  const countText =
-    changeCount === 1 ? "1 unsaved change" : `${changeCount} unsaved changes`;
+  const countText = t("admin:roles.unsavedChanges.count", {
+    count: changeCount,
+  });
 
   return (
-    <div className={classes.bar} role="region" aria-label="Unsaved changes bar">
+    <div
+      className={classes.bar}
+      role="region"
+      aria-label={t("admin:roles.unsavedChanges.regionLabel")}
+    >
       <Text className={classes.text}>{countText}</Text>
       <div className={classes.actions}>
         <Button
@@ -29,17 +37,12 @@ export function SaveChangesBar({
           onClick={onDiscard}
           disabled={disabled}
         >
-          Discard
+          {t("common:actions.discard")}
         </Button>
-        <Button
-          variant="filled"
-          onClick={onSaveClick}
-          disabled={disabled}
-        >
-          Save changes
+        <Button variant="filled" onClick={onSaveClick} disabled={disabled}>
+          {t("common:actions.saveChanges")}
         </Button>
       </div>
     </div>
   );
 }
-

@@ -51,7 +51,9 @@ describe("CreateUserRoute", () => {
   it("renders page with title 'Create user' and inputs for instance admin", async () => {
     renderRoute({ isInstanceAdmin: true });
 
-    expect(await screen.findByRole("heading", { name: "Create user" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Create user" }),
+    ).toBeInTheDocument();
     expect(screen.getByLabelText(/first name/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/last name/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/display name/i)).toBeInTheDocument();

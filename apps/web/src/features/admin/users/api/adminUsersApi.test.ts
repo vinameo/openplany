@@ -1,10 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CreatedUserResponse, CreateUserRequest } from "@repo/contracts";
 import { apiError, jsonResponse, mockFetch } from "../../../../test/fetchMock";
-import {
-  adminUsersApi,
-  GENERIC_CREATE_USER_ERROR,
-} from "./adminUsersApi";
+import { adminUsersApi, GENERIC_CREATE_USER_ERROR } from "./adminUsersApi";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -71,4 +68,3 @@ describe("adminUsersApi", () => {
     });
   });
 });
-

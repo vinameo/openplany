@@ -40,6 +40,9 @@ export const vi: ViCatalog = {
     "actions.copied": "Đã sao chép",
     "actions.copyUrl": "Sao chép URL",
     "actions.createUser": "Tạo người dùng",
+    "actions.saveChanges": "Lưu thay đổi",
+    "actions.save": "Lưu",
+    "actions.reload": "Tải lại",
     warning: "Cảnh báo",
     charactersLeft_other: "Còn lại {{count}} ký tự",
     comingSoon: "Sắp ra mắt",
@@ -111,8 +114,7 @@ export const vi: ViCatalog = {
     roleUnchanged: "Vai trò không thay đổi",
     lastAdmin:
       "Workspace cần có ít nhất một Admin. Hãy chỉ định người khác làm Admin trước.",
-    roleInherited:
-      "Workspace Admin là Project Admin trong mọi dự án.",
+    roleInherited: "Workspace Admin là Project Admin trong mọi dự án.",
     tooManyAttempts: "Quá nhiều lần thử. Vui lòng thử lại sau.",
     tooManyUsersCreated_other:
       "Quá nhiều người dùng được tạo. Thử lại sau {{count}} phút.",
@@ -129,8 +131,7 @@ export const vi: ViCatalog = {
   workspace: {
     title: "Workspace",
     "errors.nameRequired": "Nhập tên Workspace",
-    "errors.nameTooLong":
-      "Tên Workspace phải có {{max}} ký tự trở xuống",
+    "errors.nameTooLong": "Tên Workspace phải có {{max}} ký tự trở xuống",
     "errors.nameHiddenChars": "Chứa ký tự không được phép",
     "errors.nameUrl": "Tên Workspace không thể chứa liên kết URL",
     "errors.slugRequired": "Nhập URL cho Workspace",
@@ -138,8 +139,7 @@ export const vi: ViCatalog = {
     "errors.slugPattern":
       "URL chỉ có thể dùng chữ thường, số và dấu gạch ngang đơn, và không được bắt đầu hoặc kết thúc bằng dấu gạch ngang",
     "errors.slugLength": "URL phải từ {{min}} đến {{max}} ký tự",
-    "errors.orgSizeRequired":
-      "Chọn số lượng người sẽ sử dụng Workspace này",
+    "errors.orgSizeRequired": "Chọn số lượng người sẽ sử dụng Workspace này",
     "errors.orgSizeSelect": "Chọn quy mô công ty",
     "errors.slugTaken": "Một Workspace với URL này đã tồn tại",
     "errors.notFound": "Không tìm thấy Workspace",
@@ -151,8 +151,7 @@ export const vi: ViCatalog = {
       "Bạn đã kiểm tra quá nhiều URL gần đây. Thử lại sau.",
     "errors.rateLimitCreate":
       "Bạn đã tạo quá nhiều không gian làm việc gần đây. Thử lại sau.",
-    "errors.slugTakenAnother":
-      "URL này đã được sử dụng. Hãy chọn URL khác.",
+    "errors.slugTakenAnother": "URL này đã được sử dụng. Hãy chọn URL khác.",
     "errors.lastAdmin":
       "Workspace cần có ít nhất một Admin. Hãy chỉ định người khác làm Admin trước.",
     "errors.memberGone": "Người này không còn trong Workspace này nữa.",
@@ -173,8 +172,7 @@ export const vi: ViCatalog = {
     "search.ariaLabel": "Tìm lệnh (sắp ra mắt)",
     "createButton.label": "Tạo Workspace",
     "discard.title": "Huỷ thay đổi?",
-    "discard.message":
-      "Bạn có thay đổi chưa lưu. Bạn có chắc muốn huỷ không?",
+    "discard.message": "Bạn có thay đổi chưa lưu. Bạn có chắc muốn huỷ không?",
     "discard.keepEditing": "Tiếp tục chỉnh sửa",
     "discard.discard": "Huỷ",
     "notFound.documentTitle": "Không tìm thấy Workspace · OpenPlany",
@@ -210,20 +208,17 @@ export const vi: ViCatalog = {
     "create.submitButton": "Tạo Workspace",
     "create.goBackButton": "Quay lại",
     "create.errors.slugRequired": "Nhập URL cho Workspace",
-    "create.errors.slugLength":
-      "URL phải từ {{min}} đến {{max}} ký tự",
+    "create.errors.slugLength": "URL phải từ {{min}} đến {{max}} ký tự",
     "create.errors.slugPattern":
       "URL chỉ có thể dùng chữ thường, số và dấu gạch ngang đơn, và không được bắt đầu hoặc kết thúc bằng dấu gạch ngang",
     "create.errors.slugReserved":
       "URL này đã được đặt trước. Hãy chọn URL khác.",
-    "create.errors.slugTaken":
-      "URL này đã được sử dụng. Hãy chọn URL khác.",
+    "create.errors.slugTaken": "URL này đã được sử dụng. Hãy chọn URL khác.",
     "create.errors.orgSizeRequired":
       "Chọn số lượng người sẽ sử dụng Workspace này",
     "create.errors.rateLimited_other":
       "Bạn đã tạo nhiều Workspace gần đây. Thử lại sau {{count}} phút.",
-    "create.errors.generic":
-      "Không thể tạo Workspace. Vui lòng thử lại.",
+    "create.errors.generic": "Không thể tạo Workspace. Vui lòng thử lại.",
     "home.verifyEmailTitle": "Xác thực email của bạn",
     "home.verifyEmailBody":
       "Kiểm tra hộp thư đến của bạn để tìm liên kết xác thực từ OpenPlany.",
@@ -255,8 +250,7 @@ export const vi: ViCatalog = {
     "settings.members.caption": "Thành viên Workspace",
     "settings.members.noActiveAdmin":
       "Không có Admin nào đang hoạt động. Hãy yêu cầu quản trị viên hệ thống trợ giúp.",
-    "settings.members.forbiddenMessage":
-      "Bạn không còn quyền xem thành viên.",
+    "settings.members.forbiddenMessage": "Bạn không còn quyền xem thành viên.",
     "settings.members.loadError": "Không thể tải danh sách thành viên.",
     "settings.members.addMemberTitle": "Thêm thành viên",
     "settings.members.addMemberDescription":
@@ -280,8 +274,7 @@ export const vi: ViCatalog = {
     "errors.notFound": "Dự án này không tồn tại.",
     "errors.forbidden": "Bạn không có quyền truy cập dự án này.",
     "errors.cantChangeRole": "Bạn không thể thay đổi vai trò của người này",
-    "errors.inheritedRole":
-      "Workspace Admin là Project Admin trong mọi dự án.",
+    "errors.inheritedRole": "Workspace Admin là Project Admin trong mọi dự án.",
     "errors.memberGone": "Người này không còn trong dự án này nữa.",
     "errors.alreadyMember": "Đã là thành viên của dự án này",
     "errors.notInWorkspace": "Người này không còn trong Workspace này nữa.",
@@ -298,12 +291,10 @@ export const vi: ViCatalog = {
     "list.showingTruncated":
       "Đang hiển thị {{shown}} trên tổng số {{total}} dự án.",
     "list.emptyCanCreateTitle": "Chưa có dự án nào",
-    "list.emptyCanCreateDesc":
-      "Tạo một dự án để bắt đầu theo dõi công việc.",
+    "list.emptyCanCreateDesc": "Tạo một dự án để bắt đầu theo dõi công việc.",
     "list.emptyCanCreateButton": "Thêm dự án",
-    "list.emptyCannotCreateDesc":
-      "Bạn chưa được thêm vào dự án nào.",
-    "list.noMatch": "Không có dự án nào khớp với \"{{search}}\"",
+    "list.emptyCannotCreateDesc": "Bạn chưa được thêm vào dự án nào.",
+    "list.noMatch": 'Không có dự án nào khớp với "{{search}}"',
     "list.clearSearch": "Xoá tìm kiếm",
     "list.searchPlaceholder": "Tìm kiếm…",
     "list.searchAriaLabel": "Tìm kiếm dự án",
@@ -411,8 +402,7 @@ export const vi: ViCatalog = {
     "members.addMemberTitle": "Thêm thành viên",
     "members.noneAddedNote": "Chưa có ai được thêm vào dự án này.",
     "members.roleLimitedTooltip": "Bị giới hạn bởi vai trò trong Workspace",
-    "members.workspaceAdminsNote":
-      "Workspace Admin có thể truy cập mọi dự án.",
+    "members.workspaceAdminsNote": "Workspace Admin có thể truy cập mọi dự án.",
     "members.addProjectMembersDescription":
       "Thêm thành viên để cộng tác trong dự án của bạn.",
     "members.projectAdminNotice":
@@ -424,7 +414,8 @@ export const vi: ViCatalog = {
     "members.alreadyInProject": "Đã ở trong dự án này",
     "members.workspaceAdminCandidate": "Workspace Admin · có quyền truy cập",
     "members.notAddedToProject": "Chưa được thêm vào dự án này",
-    "members.limitedToRole": "Bị giới hạn thành {{role}} bởi vai trò trong Workspace.",
+    "members.limitedToRole":
+      "Bị giới hạn thành {{role}} bởi vai trò trong Workspace.",
     "members.roleRaisedHint": "{{wsRole}} được thêm làm {{role}} trở lên.",
     "members.inheritedRoleTooltip":
       "{{wsRole}} là {{projRole}} trong mọi dự án. Thay đổi điều này trong trang Thành viên của Workspace.",
@@ -470,8 +461,7 @@ export const vi: ViCatalog = {
     "cell.deactivated": "Đã vô hiệu hoá",
     "cell.andMore_other": "và thêm {{count}} người nữa",
     addedCount_other: "Đã thêm {{count}} thành viên",
-    tooManyAttempts_other:
-      "Quá nhiều lần thử. Thử lại sau {{count}} giây.",
+    tooManyAttempts_other: "Quá nhiều lần thử. Thử lại sau {{count}} giây.",
     tooManyAttemptsLater: "Quá nhiều lần thử. Vui lòng thử lại sau.",
     tooManySearches_other:
       "Quá nhiều lượt tìm kiếm. Thử lại sau {{count}} giây.",
@@ -540,8 +530,7 @@ export const vi: ViCatalog = {
     "errors.lastNameTooLong": "Họ phải có {{max}} ký tự trở xuống",
     "errors.lastNameText": "Họ phải là văn bản",
     "errors.displayNameRequired": "Nhập tên hiển thị",
-    "errors.displayNameTooLong":
-      "Tên hiển thị phải có {{max}} ký tự trở xuống",
+    "errors.displayNameTooLong": "Tên hiển thị phải có {{max}} ký tự trở xuống",
     "errors.passwordLength": "Sử dụng từ {{min}} đến {{max}} ký tự",
     "errors.emailValid": "Nhập một email hợp lệ",
     "errors.emailTaken": "Một người dùng có email này đã tồn tại",
@@ -568,23 +557,201 @@ export const vi: ViCatalog = {
     "errors.tooManyUpdates": "Quá nhiều lượt cập nhật. Thử lại sau.",
     "errors.tooManyUsers_other":
       "Quá nhiều người dùng được tạo. Thử lại sau {{count}} phút.",
+
+    "roles.title": "Vai trò & Quyền hạn",
+    "roles.subtitle":
+      "Cách các vai trò hoạt động trong từng workspace trên phiên bản OpenPlany này.",
+    "roles.documentTitle": "Vai trò & Quyền hạn · OpenPlany",
+    "roles.back": "Quay lại",
+    "roles.tabWorkspace": "Vai trò workspace",
+    "roles.tabProject": "Vai trò dự án",
+    "roles.unsavedChangesIndicator": "(thay đổi chưa lưu)",
+    "roles.workspaceRolesSection.title": "Vai trò workspace",
+    "roles.workspaceRolesSection.description":
+      "Những gì mỗi vai trò có thể làm trong một workspace.",
+    "roles.workspacePermissionsSection.title": "Quyền hạn workspace",
+    "roles.workspacePermissionsSection.description":
+      "Chọn những gì mỗi vai trò workspace có thể làm. Các thay đổi áp dụng cho mọi workspace trên hệ thống này.",
+    "roles.projectRolesSection.title": "Vai trò dự án",
+    "roles.projectRolesSection.description":
+      "Mỗi thành viên dự án có một trong các vai trò này trong dự án đó.",
+    "roles.projectAccessSection.title": "Vai trò workspace trong dự án",
+    "roles.projectAccessSection.description":
+      "Cách mỗi vai trò workspace quyết định quyền truy cập vào các dự án. Được thiết lập bởi OpenPlany và giống nhau trong mọi workspace.",
+    "roles.projectPermissionsSection.title": "Quyền hạn dự án",
+    "roles.projectPermissionsSection.description":
+      "Chọn những gì mỗi vai trò dự án có thể làm. Các thay đổi áp dụng cho mọi dự án trên hệ thống này.",
+    "roles.notifications.updated": "Đã cập nhật quyền hạn",
+    "roles.confirmModal.title": "Lưu các thay đổi quyền hạn?",
+    "roles.confirmModal.description":
+      "Những thay đổi này sẽ áp dụng ngay lập tức cho mọi workspace.",
+    "roles.discardModal.title": "Huỷ các thay đổi chưa lưu?",
+    "roles.discardModal.description":
+      "Bạn có các thay đổi chưa lưu sẽ bị mất nếu rời khỏi trang này.",
+    "roles.unsavedChanges.regionLabel": "Thanh thay đổi chưa lưu",
+    "roles.unsavedChanges.count_other": "{{count}} thay đổi chưa lưu",
+    "roles.matrix.workspaceCaption": "Quyền hạn workspace theo vai trò",
+    "roles.matrix.projectCaption": "Quyền hạn dự án theo vai trò",
+    "roles.matrix.permissionCol": "Quyền hạn",
+    "roles.matrix.locked": "khoá",
+    "roles.matrix.changed": "đã thay đổi",
+    "roles.matrix.notEnforced": "Chưa áp dụng",
+    "roles.overview.workspaceRolesCaption": "Vai trò workspace",
+    "roles.overview.projectRolesCaption": "Vai trò dự án",
+    "roles.overview.accessCaption": "Vai trò workspace trong dự án",
+    "roles.overview.roleCol": "Vai trò",
+    "roles.overview.descriptionCol": "Mô tả",
+    "roles.overview.workspaceRoleCol": "Vai trò workspace",
+    "roles.overview.everyProjectCol": "Mọi dự án",
+    "roles.overview.lowestRoleCol": "Vai trò thấp nhất khi thêm",
+    "roles.overview.highestRoleCol": "Vai trò cao nhất khi thêm",
+    "roles.overview.lockedTooltip":
+      "Được thiết lập bởi OpenPlany. Không thể thay đổi tại đây.",
+    "roles.overview.onlyAddedProjects": "Chỉ các dự án được thêm vào",
+    "roles.overview.notAddedToProjects": "Không được thêm vào dự án",
+    "roles.errors.loadFailed": "Không thể tải vai trò và quyền hạn.",
+    "roles.errors.updateFailed":
+      "Không thể cập nhật quyền hạn. Vui lòng thử lại.",
+
+    "users.documentTitle": "Tạo người dùng · OpenPlany",
+    "users.form.title": "Tạo người dùng",
+    "users.form.firstName": "Tên",
+    "users.form.lastName": "Họ",
+    "users.form.displayName": "Tên hiển thị",
+    "users.form.displayNameDescription":
+      "Tên của họ sẽ xuất hiện như thế nào trong OpenPlany.",
+    "users.form.email": "Email",
+    "users.form.emailDescription": "Họ sẽ đăng nhập bằng email này.",
+    "users.form.password": "Mật khẩu",
+    "users.form.passwordDescription": "Ít nhất {{min}} ký tự.",
+    "users.form.showPassword": "Hiện mật khẩu",
+    "users.form.confirmPassword": "Xác nhận mật khẩu",
+    "users.form.confirmPasswordDescription": "Nhập lại mật khẩu để xác nhận.",
+    "users.form.submit": "Tạo người dùng",
+    "users.notifications.createdTitle": "Đã tạo người dùng",
+    "users.notifications.createdMessage":
+      "{{displayName}} hiện có thể đăng nhập bằng {{email}}.",
+    "users.errors.noPermission": "Bạn không còn quyền tạo người dùng.",
+    "users.errors.tooManyUsers_other":
+      "Quá nhiều người dùng được tạo. Thử lại sau {{count}} phút.",
+    "users.errors.createFailed": "Không thể tạo người dùng. Vui lòng thử lại.",
+    "users.validation.enterFirstName": "Nhập tên",
+    "users.validation.firstNameMax": "Tên phải có từ {{max}} ký tự trở xuống",
+    "users.validation.enterDisplayName": "Nhập tên hiển thị",
+    "users.validation.displayNameMax":
+      "Tên hiển thị phải có từ {{max}} ký tự trở xuống",
+    "users.validation.lastNameMax": "Họ phải có từ {{max}} ký tự trở xuống",
+    "users.validation.invalidEmail": "Nhập một email hợp lệ",
+    "users.validation.passwordLength": "Dùng từ {{min}} đến {{max}} ký tự",
+    "users.validation.passwordSameAsEmail":
+      "Mật khẩu không được trùng với email",
+    "users.validation.passwordsDoNotMatch": "Mật khẩu không khớp",
+    "users.validation.disallowedCharacters": "Chứa ký tự không được phép",
   },
   profile: {
     title: "Hồ sơ",
-    "errors.saveFailed": "Không thể lưu hồ sơ. Vui lòng thử lại.",
+    "discardModal.title": "Huỷ các thay đổi chưa lưu?",
+    "form.firstName": "Tên",
+    "form.firstNamePlaceholder": "Tên",
+    "form.lastName": "Họ",
+    "form.lastNamePlaceholder": "Họ",
+    "form.displayName": "Tên hiển thị",
+    "form.displayNamePlaceholder": "Cách người khác nhìn thấy bạn",
+    "form.email": "Email",
+    "form.emailDescription": "Liên hệ quản trị viên để đổi email của bạn.",
+    "modal.closeProfile": "Đóng hồ sơ",
+    "userButton.ariaLabel": "Chỉnh sửa hồ sơ – {{name}}",
+    "notifications.updated": "Đã cập nhật hồ sơ",
+    "errors.saveFailed": "Không thể lưu hồ sơ của bạn. Vui lòng thử lại.",
+    "validation.enterFirstName": "Nhập tên của bạn",
+    "validation.enterDisplayName": "Nhập tên hiển thị",
+    "validation.nameMax": "{{label}} phải có từ {{max}} ký tự trở xuống",
+    "validation.disallowedCharacters": "Chứa ký tự không được phép",
   },
   permissions: {
+    "project.analytics.export": "Xuất phân tích",
+    "project.analytics.view": "Xem phân tích",
     "project.archive": "Lưu trữ dự án",
+    "project.comments.create": "Thêm bình luận",
+    "project.comments.delete.any": "Xoá bất kỳ bình luận nào",
+    "project.comments.delete.own": "Xoá bình luận của mình",
+    "project.comments.update.own": "Chỉnh sửa bình luận của mình",
+    "project.cycles.create": "Tạo chu kỳ",
+    "project.cycles.delete.any": "Xoá bất kỳ chu kỳ nào",
+    "project.cycles.delete.own": "Xoá chu kỳ của mình",
+    "project.cycles.update.any": "Chỉnh sửa bất kỳ chu kỳ nào",
+    "project.cycles.view": "Xem chu kỳ",
+    "project.estimates.manage": "Quản lý ước tính",
+    "project.estimates.view": "Xem ước tính",
+    "project.labels.manage": "Quản lý nhãn",
+    "project.labels.view": "Xem nhãn",
+    "project.members.manage": "Quản lý thành viên dự án",
+    "project.members.view": "Xem thành viên dự án",
+    "project.modules.create": "Tạo module",
+    "project.modules.delete.any": "Xoá bất kỳ module nào",
+    "project.modules.delete.own": "Xoá module của mình",
+    "project.modules.update.any": "Chỉnh sửa bất kỳ module nào",
+    "project.modules.view": "Xem module",
+    "project.pages.create": "Tạo trang",
+    "project.pages.delete.any": "Xoá bất kỳ trang nào",
+    "project.pages.delete.own": "Xoá trang của mình",
+    "project.pages.update.any": "Chỉnh sửa bất kỳ trang nào",
+    "project.pages.update.own": "Chỉnh sửa trang của mình",
+    "project.pages.view": "Xem trang",
+    "project.reactions.create": "Thêm biểu cảm",
+    "project.settings.update": "Chỉnh sửa cài đặt dự án",
+    "project.settings.view": "Xem cài đặt dự án",
+    "project.states.manage": "Quản lý trạng thái",
+    "project.states.view": "Xem trạng thái",
+    "project.views.create": "Tạo chế độ xem",
+    "project.views.delete.any": "Xoá bất kỳ chế độ xem nào",
+    "project.views.delete.own": "Xoá chế độ xem của mình",
+    "project.views.update.any": "Chỉnh sửa bất kỳ chế độ xem nào",
+    "project.views.update.own": "Chỉnh sửa chế độ xem của mình",
+    "project.views.view": "Xem chế độ xem",
+    "project.workitems.create": "Tạo công việc",
+    "project.workitems.delete.any": "Xoá bất kỳ công việc nào",
+    "project.workitems.delete.own": "Xoá công việc của mình",
+    "project.workitems.update.any": "Chỉnh sửa bất kỳ công việc nào",
+    "project.workitems.view": "Xem công việc",
+    "workspace.delete": "Xoá workspace",
+    "workspace.members.add": "Thêm thành viên",
+    "workspace.members.email.view": "Xem email thành viên",
+    "workspace.members.history.view": "Xem lịch sử thành viên",
+    "workspace.members.remove": "Xoá thành viên",
+    "workspace.members.role.update": "Thay đổi vai trò thành viên",
+    "workspace.members.view": "Xem thành viên workspace",
+    "workspace.projects.browse": "Duyệt dự án",
+    "workspace.projects.create": "Tạo dự án",
+    "workspace.projects.delete": "Xoá dự án",
+    "workspace.settings.update": "Chỉnh sửa cài đặt workspace",
+    "workspace.settings.view": "Xem cài đặt workspace",
   },
   permissionGroups: {
+    "workspace.settings": "Cài đặt",
+    "workspace.members": "Thành viên",
+    "workspace.projects": "Dự án",
+    "workspace.delete": "Workspace",
+    "project.settings": "Dự án",
     "project.archive": "Dự án",
+    "project.members": "Thành viên",
+    "project.workitems": "Công việc",
+    "project.comments": "Bình luận",
+    "project.reactions": "Bình luận",
+    "project.cycles": "Chu kỳ",
+    "project.modules": "Module",
+    "project.views": "Chế độ xem",
+    "project.pages": "Trang",
+    "project.labels": "Nhãn, trạng thái và ước tính",
+    "project.states": "Nhãn, trạng thái và ước tính",
+    "project.estimates": "Nhãn, trạng thái và ước tính",
+    "project.analytics": "Phân tích",
+    general: "Chung",
   },
   settings: {
     title: "Cài đặt",
-    "messages.readOnly":
-      "Bạn không có quyền thay đổi các cài đặt này.",
-    "messages.permissionLost":
-      "Bạn không còn quyền thay đổi các cài đặt này.",
+    "messages.readOnly": "Bạn không có quyền thay đổi các cài đặt này.",
+    "messages.permissionLost": "Bạn không còn quyền thay đổi các cài đặt này.",
     "messages.tooManyChanges_other":
       "Quá nhiều thay đổi. Thử lại sau {{count}} phút.",
     "nav.sectionAriaLabel": "Mục cài đặt",
