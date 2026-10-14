@@ -426,4 +426,34 @@ describe("ProjectsHome", () => {
     expect(rows[1]).toHaveTextContent("Alpha Project");
     expect(rows[2]).toHaveTextContent("Frontend Redesign");
   });
+
+  it("AC-12: renders dash '—' in Members column when project has members: [] and memberCount: 0", async () => {
+    const emptyProject: ProjectListItem = {
+      ...sampleProject,
+      id: "p-empty",
+      name: "Empty Project",
+      identifier: "EMP",
+      members: [],
+      memberCount: 0,
+    };
+
+    renderHomeApp({
+      "GET /api/workspaces/acme": () => jsonResponse(200, testWorkspace),
+      "GET /api/workspaces/acme/projects": () =>
+        jsonResponse(200, {
+          projects: [emptyProject],
+          total: 1,
+          truncated: false,
+        } satisfies ProjectListResponse),
+    });
+
+    expect(await screen.findByText("Empty Project")).toBeInTheDocument();
+    const row = screen.getAllByRole("row")[1];
+    expect(row).toBeDefined();
+    // Members cell displays dash "—"
+    expect(row).toHaveTextContent("—");
+    expect(
+      screen.queryByRole("button", { name: "Hidden for your role" }),
+    ).not.toBeInTheDocument();
+  });
 });

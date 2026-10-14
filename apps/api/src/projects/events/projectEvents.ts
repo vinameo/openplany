@@ -45,6 +45,7 @@ export interface ProjectDeletedEvent {
 export interface ProjectMembersListTruncatedEvent {
   projectId: string;
   total: number;
+  source: 'assigned' | 'inherited';
   requestId?: string;
 }
 
@@ -106,13 +107,7 @@ export abstract class ProjectEvents {
     event: ProjectMemberCandidatesSearchedEvent,
   ): Promise<void>;
   abstract membersAdded(event: ProjectMembersAddedEvent): Promise<void>;
-  abstract addRoleForbidden(
-    event: ProjectAddRoleForbiddenEvent,
-  ): Promise<void>;
+  abstract addRoleForbidden(event: ProjectAddRoleForbiddenEvent): Promise<void>;
   abstract roleChanged(event: ProjectMemberRoleChangedEvent): Promise<void>;
-  abstract roleForbidden(
-    event: ProjectMemberRoleForbiddenEvent,
-  ): Promise<void>;
+  abstract roleForbidden(event: ProjectMemberRoleForbiddenEvent): Promise<void>;
 }
-
-

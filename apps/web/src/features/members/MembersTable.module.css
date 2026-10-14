@@ -11,13 +11,37 @@
 }
 
 /* Column widths; the email column only exists for viewers who may see it. */
-.colFullName { width: 35%; }
-.colDisplayName { width: 27%; }
-.colRole { width: 18%; }
-.colJoined { width: 20%; }
+.colFullName {
+  width: 35%;
+}
+.colDisplayName {
+  width: 27%;
+}
+.colRole {
+  width: 18%;
+}
+.colJoined {
+  width: 20%;
+}
 
-.withEmail .colFullName { width: 26%; }
-.withEmail .colDisplayName { width: 20%; }
-.withEmail .colEmail { width: 24%; }
-.withEmail .colRole { width: 14%; }
-.withEmail .colJoined { width: 16%; }
+.withEmail .colFullName {
+  width: 26%;
+}
+.withEmail .colDisplayName {
+  width: 20%;
+}
+.withEmail .colEmail {
+  width: 24%;
+}
+.withEmail .colRole {
+  width: 14%;
+}
+.withEmail .colJoined {
+  width: 16%;
+}
+
+.inheritedRow,
+.inheritedRow > td {
+  background-color: var(--app-color-row-inherited);
+  color: var(--app-color-row-inherited-text);
+}

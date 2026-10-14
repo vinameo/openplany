@@ -4,6 +4,7 @@ import {
   MEMBER_MESSAGES,
   looksLikeFullEmail,
   truncatedMembersMessage,
+  truncatedProjectMembersMessage,
 } from "./memberMessages.js";
 
 describe("memberMessages", () => {
@@ -14,6 +15,20 @@ describe("memberMessages", () => {
       );
       expect(truncatedMembersMessage(10, 20)).toBe(
         "Showing the first 10 of 20 members.",
+      );
+    });
+  });
+
+  describe("truncatedProjectMembersMessage", () => {
+    it("formats shown and total numbers with thousands separator for project members", () => {
+      expect(truncatedProjectMembersMessage(1000, 1005)).toBe(
+        "Showing the first 1,000 of 1,005 project members.",
+      );
+      expect(truncatedProjectMembersMessage(10, 20)).toBe(
+        "Showing the first 10 of 20 project members.",
+      );
+      expect(truncatedProjectMembersMessage(1000, 1234567)).toBe(
+        "Showing the first 1,000 of 1,234,567 project members.",
       );
     });
   });

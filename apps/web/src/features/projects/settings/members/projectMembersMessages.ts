@@ -22,6 +22,8 @@ export const ALREADY_IN_PROJECT_LABEL = 'Already in this project';
 export const WORKSPACE_ADMIN_CANDIDATE_LABEL =
   'Workspace Admin · has access';
 export const NOT_ADDED_TO_PROJECT = 'Not added to this project';
+export const NONE_ADDED_TO_PROJECT =
+  'No one has been added to this project yet.';
 
 export function limitedToRoleMessage(roleLabel: string): string {
   return `Limited to ${roleLabel} by their workspace role.`;

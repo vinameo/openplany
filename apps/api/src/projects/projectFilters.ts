@@ -32,7 +32,7 @@ export const ACTIVE_PROJECT_MEMBER: FindOptionsWhere<ProjectMember> = {
 export function projectMembersQuery(
   manager: EntityManager,
   where: FindOptionsWhere<ProjectMember>,
-  implicitRoles: readonly string[] = [],
+  implicitRoles: readonly string[],
 ): SelectQueryBuilder<ProjectMember> {
   const qb = manager
     .createQueryBuilder(ProjectMember, 'pm')

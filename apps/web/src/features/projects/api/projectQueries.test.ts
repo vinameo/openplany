@@ -332,4 +332,97 @@ describe("projectQueries cache helpers", () => {
     expect(cached?.total).toBe(PROJECT_MEMBER_LIST_MAX + 3);
     expect(cached?.truncated).toBe(true);
   });
+
+  it("AC-11 (cache): addProjectMembersToCache keeps inherited rows at top, bounds assigned rows, and sets truncated per INV-03", () => {
+    const qc = new QueryClient();
+    const inheritedAdmin1: ProjectMemberResponse = {
+      userId: "u-ws-admin-1",
+      firstName: "Admin",
+      lastName: "One",
+      displayName: "Admin One",
+      avatarUrl: null,
+      role: "admin",
+      assignedRole: null,
+      accountActive: true,
+      roleLimited: false,
+      joinedAt: null,
+      source: "inherited",
+      workspaceRole: "admin",
+      assignableRoles: [],
+    };
+    const inheritedAdmin2: ProjectMemberResponse = {
+      userId: "u-ws-admin-2",
+      firstName: "Admin",
+      lastName: "Two",
+      displayName: "Admin Two",
+      avatarUrl: null,
+      role: "admin",
+      assignedRole: null,
+      accountActive: true,
+      roleLimited: false,
+      joinedAt: null,
+      source: "inherited",
+      workspaceRole: "admin",
+      assignableRoles: [],
+    };
+    const assignedMember = (n: number): ProjectMemberResponse => ({
+      userId: `u-assigned-${n}`,
+      firstName: "Assigned",
+      lastName: String(n),
+      displayName: `Assigned ${n}`,
+      avatarUrl: null,
+      role: "contributor",
+      assignedRole: "contributor",
+      accountActive: true,
+      roleLimited: false,
+      joinedAt: "2026-10-12T00:00:00Z",
+      source: "assigned",
+      workspaceRole: "member",
+      assignableRoles: [],
+    });
+
+    const fullAssigned = Array.from(
+      { length: PROJECT_MEMBER_LIST_MAX },
+      (_, i) => assignedMember(i),
+    );
+
+    qc.setQueryData(projectKeys.members(slug, "P1"), {
+      members: [inheritedAdmin1, inheritedAdmin2, ...fullAssigned],
+      total: PROJECT_MEMBER_LIST_MAX,
+      truncated: false,
+      addableRoles: ["contributor" as const],
+      assignedAdminCount: 0,
+    });
+
+    const newAssigned1 = assignedMember(PROJECT_MEMBER_LIST_MAX + 1);
+    const newAssigned2 = assignedMember(PROJECT_MEMBER_LIST_MAX + 2);
+
+    const projectUpdate = makeItem("1", "P1", "Project 1");
+    projectUpdate.memberCount = PROJECT_MEMBER_LIST_MAX + 2;
+
+    addProjectMembersToCache(qc, slug, "P1", {
+      members: [newAssigned1, newAssigned2],
+      project: projectUpdate,
+      assignedAdminCount: 0,
+    });
+
+    const cached = qc.getQueryData<ProjectMemberListResponse>(
+      projectKeys.members(slug, "P1"),
+    );
+
+    // Total in members array: 2 inherited + 1000 assigned = 1002
+    expect(cached?.members).toHaveLength(PROJECT_MEMBER_LIST_MAX + 2);
+    // First 2 are inherited
+    expect(cached?.members[0].userId).toBe("u-ws-admin-1");
+    expect(cached?.members[0].source).toBe("inherited");
+    expect(cached?.members[1].userId).toBe("u-ws-admin-2");
+    expect(cached?.members[1].source).toBe("inherited");
+    // Next are assigned
+    expect(cached?.members[2].source).toBe("assigned");
+    // Total reflects project memberCount only
+    expect(cached?.total).toBe(PROJECT_MEMBER_LIST_MAX + 2);
+    // Truncated because total (1002) > assigned rows in cache (1000)
+    expect(cached?.truncated).toBe(true);
+  });
 });
+

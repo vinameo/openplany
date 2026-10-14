@@ -26,6 +26,7 @@ import { makeWorkspace } from "../../../workspaces/test/workspaceFixtures";
 import { tooManyAttemptsMessage } from "../../../members/membersMessages";
 import {
   NO_MEMBERS_YET,
+  NONE_ADDED_TO_PROJECT,
   ROLE_LIMITED_TOOLTIP,
   WORKSPACE_ADMINS_NOTE,
 } from "./projectMembersMessages";
@@ -375,8 +376,40 @@ describe("ProjectMembersSettingsPage", () => {
     });
 
     expect(
-      await screen.findByText("Showing the first 1,000 of 1,001 members."),
+      await screen.findByText(
+        "Showing the first 1,000 of 1,001 project members.",
+      ),
     ).toBeInTheDocument();
+  });
+
+  it("AC-04: payload with inherited and truncated assigned members renders total badge and project members truncation alert", async () => {
+    const inheritedAdmin1: ProjectMemberResponse = {
+      ...memberKai,
+      userId: "u-admin-1",
+      source: "inherited",
+      role: "admin",
+      workspaceRole: "admin",
+      assignedRole: null,
+      joinedAt: null,
+      assignableRoles: [],
+    };
+    renderMembersApp({
+      membersResponse: {
+        members: [inheritedAdmin1, memberNam],
+        total: 1005,
+        truncated: true,
+        addableRoles: [],
+        assignedAdminCount: 0,
+      },
+    });
+
+    expect(
+      await screen.findByText(
+        "Showing the first 1,000 of 1,005 project members.",
+      ),
+    ).toBeInTheDocument();
+    // Badge shows total (1005), not members.length (2)
+    expect(screen.getByText("1005")).toBeInTheDocument();
   });
 
   it("AC-39: displays No members yet and Add member button when total is 0 and canAddMember is true", async () => {
@@ -600,7 +633,9 @@ describe("ProjectMembersSettingsPage", () => {
         assignedAdminCount: 2,
       },
       extraRoutes: {
-        "PATCH /api/workspaces/the-firsts/projects/TFP11/members/u-an": (init) => {
+        "PATCH /api/workspaces/the-firsts/projects/TFP11/members/u-an": (
+          init,
+        ) => {
           patchPayload = JSON.parse(init?.body as string);
           return jsonResponse(200, {
             member: {
@@ -892,7 +927,9 @@ describe("ProjectMembersSettingsPage", () => {
         assignedAdminCount: 1,
       },
       extraRoutes: {
-        "PATCH /api/workspaces/the-firsts/projects/TFP11/members/u-an": (init) => {
+        "PATCH /api/workspaces/the-firsts/projects/TFP11/members/u-an": (
+          init,
+        ) => {
           patchCalled = true;
           patchPayload = JSON.parse(init?.body as string);
           return jsonResponse(200, {
@@ -1295,7 +1332,9 @@ describe("ProjectMembersSettingsPage", () => {
 
     // Wait for table to load
     expect(await screen.findByText("Binh Le")).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Role for An Nguyen" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("combobox", { name: "Role for An Nguyen" }),
+    ).toBeInTheDocument();
 
     // Click Filter by role button to open filter dropdown
     const filterBtn = screen.getByRole("button", { name: "Filter by role" });
@@ -1311,7 +1350,9 @@ describe("ProjectMembersSettingsPage", () => {
     await user.keyboard("{Escape}");
 
     // Now only An (Commenter) is in the table, Binh (Contributor) is filtered out
-    expect(screen.getByRole("combobox", { name: "Role for An Nguyen" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("combobox", { name: "Role for An Nguyen" }),
+    ).toBeInTheDocument();
     expect(screen.queryByText("Binh Le")).not.toBeInTheDocument();
 
     // Now change An's role to Contributor
@@ -1338,5 +1379,547 @@ describe("ProjectMembersSettingsPage", () => {
       ).toHaveFocus();
     });
   });
-});
 
+  it("AC-05: clicking each column header in both directions keeps inherited members at top", async () => {
+    const user = userEvent.setup();
+    const inheritedKai: ProjectMemberResponse = {
+      userId: "u-kai-admin",
+      firstName: "Kai",
+      lastName: "Tran",
+      displayName: "kaitran",
+      email: "kai@openplany.dev",
+      avatarUrl: null,
+      role: "admin",
+      assignedRole: null,
+      roleLimited: false,
+      joinedAt: null,
+      accountActive: true,
+      source: "inherited",
+      workspaceRole: "admin",
+      assignableRoles: [],
+    };
+    const inheritedLan: ProjectMemberResponse = {
+      userId: "u-lan-admin",
+      firstName: "Lan",
+      lastName: "Pham",
+      displayName: "lanpham",
+      email: "lan@openplany.dev",
+      avatarUrl: null,
+      role: "admin",
+      assignedRole: null,
+      roleLimited: false,
+      joinedAt: null,
+      accountActive: true,
+      source: "inherited",
+      workspaceRole: "admin",
+      assignableRoles: [],
+    };
+    const assignedAn: ProjectMemberResponse = {
+      userId: "u-an-assigned",
+      firstName: "An",
+      lastName: "Do",
+      displayName: "ando",
+      email: "an@openplany.dev",
+      avatarUrl: null,
+      role: "admin",
+      assignedRole: "admin",
+      roleLimited: false,
+      joinedAt: "2026-10-01T00:00:00.000Z",
+      accountActive: true,
+      source: "assigned",
+      workspaceRole: "member",
+      assignableRoles: ["admin", "contributor"],
+    };
+    const assignedChi: ProjectMemberResponse = {
+      userId: "u-chi-assigned",
+      firstName: "Chi",
+      lastName: "Le",
+      displayName: "chile",
+      email: "chi@openplany.dev",
+      avatarUrl: null,
+      role: "viewer",
+      assignedRole: "viewer",
+      roleLimited: false,
+      joinedAt: "2026-10-05T00:00:00.000Z",
+      accountActive: true,
+      source: "assigned",
+      workspaceRole: "member",
+      assignableRoles: ["viewer"],
+    };
+
+    const membersData: ProjectMemberListResponse = {
+      members: [inheritedKai, inheritedLan, assignedAn, assignedChi],
+      total: 2,
+      truncated: false,
+      addableRoles: ["admin", "contributor", "commenter", "viewer"],
+      assignedAdminCount: 1,
+    };
+
+    const { container } = renderMembersApp({
+      membersResponse: membersData,
+    });
+
+    expect(await screen.findByText("Kai Tran")).toBeInTheDocument();
+
+    const columnHeaders = [
+      "Full name",
+      "Display name",
+      "Email",
+      "Role",
+      "Joining date",
+    ];
+
+    for (const title of columnHeaders) {
+      const headerBtn = screen.getByRole("button", {
+        name: `Sort by ${title}`,
+      });
+      // Click header button to open menu and choose Ascending
+      await user.click(headerBtn);
+      const ascItem = await screen.findByRole("menuitem", {
+        name: /^ascending/i,
+      });
+      await user.click(ascItem);
+
+      let rows = container.querySelectorAll("tbody tr");
+      expect(rows).toHaveLength(4);
+      expect(rows[0].className).toContain("inheritedRow");
+      expect(rows[1].className).toContain("inheritedRow");
+      expect(rows[2].className).not.toContain("inheritedRow");
+      expect(rows[3].className).not.toContain("inheritedRow");
+
+      // Click header button to open menu and choose Descending
+      await user.click(headerBtn);
+      const descItem = await screen.findByRole("menuitem", {
+        name: /^descending/i,
+      });
+      await user.click(descItem);
+
+      rows = container.querySelectorAll("tbody tr");
+      expect(rows).toHaveLength(4);
+      expect(rows[0].className).toContain("inheritedRow");
+      expect(rows[1].className).toContain("inheritedRow");
+      expect(rows[2].className).not.toContain("inheritedRow");
+      expect(rows[3].className).not.toContain("inheritedRow");
+    }
+  });
+
+  it("AC-06: filter and search apply to both groups, badge in title remains equal to total", async () => {
+    const user = userEvent.setup();
+    const inheritedKai: ProjectMemberResponse = {
+      userId: "u-kai-admin",
+      firstName: "Kai",
+      lastName: "Tran",
+      displayName: "kaitran",
+      email: "kai@openplany.dev",
+      avatarUrl: null,
+      role: "admin",
+      assignedRole: null,
+      roleLimited: false,
+      joinedAt: null,
+      accountActive: true,
+      source: "inherited",
+      workspaceRole: "admin",
+      assignableRoles: [],
+    };
+    const assignedChi: ProjectMemberResponse = {
+      userId: "u-chi-assigned",
+      firstName: "Chi",
+      lastName: "Le",
+      displayName: "chile",
+      email: "chi@openplany.dev",
+      avatarUrl: null,
+      role: "viewer",
+      assignedRole: "viewer",
+      roleLimited: false,
+      joinedAt: "2026-10-05T00:00:00.000Z",
+      accountActive: true,
+      source: "assigned",
+      workspaceRole: "member",
+      assignableRoles: ["viewer"],
+    };
+
+    const membersData: ProjectMemberListResponse = {
+      members: [inheritedKai, assignedChi],
+      total: 1, // Only assignedChi is counted in total
+      truncated: false,
+      addableRoles: ["admin", "contributor", "commenter", "viewer"],
+      assignedAdminCount: 0,
+    };
+
+    renderMembersApp({
+      membersResponse: membersData,
+    });
+
+    expect(await screen.findByText("Kai Tran")).toBeInTheDocument();
+    expect(screen.getByText("Chi Le")).toBeInTheDocument();
+
+    // Title badge shows total = 1
+    const heading = screen.getByRole("heading", { name: /^members/i });
+    expect(within(heading.parentElement!).getByText("1")).toBeInTheDocument();
+
+    // Search for inherited member
+    const searchInput = screen.getByRole("textbox", { name: "Search members" });
+    await user.type(searchInput, "kai");
+
+    expect(screen.getByText("Kai Tran")).toBeInTheDocument();
+    expect(screen.queryByText("Chi Le")).not.toBeInTheDocument();
+    // Title badge remains 1
+    expect(within(heading.parentElement!).getByText("1")).toBeInTheDocument();
+
+    // Clear search and search for assigned member
+    await user.clear(searchInput);
+    await user.type(searchInput, "chi");
+
+    expect(screen.queryByText("Kai Tran")).not.toBeInTheDocument();
+    expect(screen.getByText("Chi Le")).toBeInTheDocument();
+    // Title badge remains 1
+    expect(within(heading.parentElement!).getByText("1")).toBeInTheDocument();
+
+    // Clear search
+    await user.clear(searchInput);
+
+    // Filter by role: Project Admin (matches inheritedKai)
+    const filterBtn = screen.getByRole("button", { name: "Filter by role" });
+    await user.click(filterBtn);
+    const adminCheckbox = await screen.findByRole("checkbox", {
+      name: "Project Admin",
+    });
+    await user.click(adminCheckbox);
+    await user.keyboard("{Escape}");
+
+    expect(screen.getByText("Kai Tran")).toBeInTheDocument();
+    expect(screen.queryByText("Chi Le")).not.toBeInTheDocument();
+    // Title badge still shows total = 1
+    expect(within(heading.parentElement!).getByText("1")).toBeInTheDocument();
+  });
+
+  it("AC-07: inherited row has .inheritedRow class, no button/combobox, tooltip on hover and focus; handles viewer as that admin and deactivated admin", async () => {
+    const sessionAdminKai: ProjectMemberResponse = {
+      userId: "user-1", // Matches makeSession() user
+      firstName: "SelfAdmin",
+      lastName: "User",
+      displayName: "selfadmin",
+      email: "selfadmin@openplany.dev",
+      avatarUrl: null,
+      role: "admin",
+      assignedRole: null,
+      roleLimited: false,
+      joinedAt: null,
+      accountActive: true,
+      source: "inherited",
+      workspaceRole: "admin",
+      assignableRoles: [],
+    };
+    const deactivatedInheritedLan: ProjectMemberResponse = {
+      userId: "u-lan-deactivated",
+      firstName: "Lan",
+      lastName: "Pham",
+      displayName: "lanpham",
+      email: "lan@openplany.dev",
+      avatarUrl: null,
+      role: "admin",
+      assignedRole: null,
+      roleLimited: false,
+      joinedAt: null,
+      accountActive: false, // Deactivated
+      source: "inherited",
+      workspaceRole: "admin",
+      assignableRoles: [],
+    };
+
+    const membersData: ProjectMemberListResponse = {
+      members: [sessionAdminKai, deactivatedInheritedLan],
+      total: 0,
+      truncated: false,
+      addableRoles: ["admin", "contributor", "commenter", "viewer"],
+      assignedAdminCount: 0,
+    };
+
+    renderMembersApp({
+      membersResponse: membersData,
+    });
+
+    expect(await screen.findByText("SelfAdmin User")).toBeInTheDocument();
+    expect(screen.getByText("Lan Pham")).toBeInTheDocument();
+
+    const selfRow = screen.getByText("SelfAdmin User").closest("tr")!;
+    const lanRow = screen.getByText("Lan Pham").closest("tr")!;
+
+    // Self inherited admin row
+    expect(selfRow.className).toContain("inheritedRow");
+    expect(selfRow.getAttribute("data-readonly")).toBe("true");
+    expect(within(selfRow).queryByRole("combobox")).not.toBeInTheDocument();
+    expect(within(selfRow).queryByRole("button")).not.toBeInTheDocument();
+
+    // Deactivated inherited admin row
+    expect(lanRow.className).toContain("inheritedRow");
+    expect(lanRow.getAttribute("data-readonly")).toBe("true");
+    expect(within(lanRow).queryByRole("combobox")).not.toBeInTheDocument();
+    expect(within(lanRow).queryByRole("button")).not.toBeInTheDocument();
+
+    // Deactivated badge uses variant="default"
+    const deactivatedBadge = within(lanRow).getByText("Deactivated");
+    expect(deactivatedBadge.closest(".mantine-Badge-root")).toHaveAttribute(
+      "data-variant",
+      "default",
+    );
+
+    // Workspace Admin badge uses variant="default"
+    const adminBadges = screen.getAllByText("Workspace Admin");
+    const badgeRoot = adminBadges[0].closest(".mantine-Badge-root")!;
+    expect(badgeRoot).toHaveAttribute("data-variant", "default");
+    expect(badgeRoot).toHaveAttribute("tabindex", "0");
+
+    // Focus on badge
+    (badgeRoot as HTMLElement).focus();
+    expect(badgeRoot).toHaveFocus();
+  });
+
+  it("AC-09: project created by Workspace Admin with 0 project members displays Members 0, toolbar, inherited rows, and none-added note", async () => {
+    const inheritedKai: ProjectMemberResponse = {
+      userId: "u-kai-admin",
+      firstName: "Kai",
+      lastName: "Tran",
+      displayName: "kaitran",
+      email: "kai@openplany.dev",
+      avatarUrl: null,
+      role: "admin",
+      assignedRole: null,
+      roleLimited: false,
+      joinedAt: null,
+      accountActive: true,
+      source: "inherited",
+      workspaceRole: "admin",
+      assignableRoles: [],
+    };
+
+    renderMembersApp({
+      membersResponse: {
+        members: [inheritedKai],
+        total: 0,
+        truncated: false,
+        addableRoles: ["admin", "contributor", "commenter", "viewer"],
+        assignedAdminCount: 0,
+      },
+    });
+
+    // Heading "Members" with total badge "0"
+    const heading = await screen.findByRole("heading", { name: /^members/i });
+    expect(within(heading.parentElement!).getByText("0")).toBeInTheDocument();
+
+    // Toolbar is present
+    expect(screen.getByPlaceholderText("Search…")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Filter by role" }),
+    ).toBeInTheDocument();
+
+    // Inherited member is present
+    expect(screen.getByText("Kai Tran")).toBeInTheDocument();
+
+    // D7 note is present under table
+    expect(screen.getByText(NONE_ADDED_TO_PROJECT)).toBeInTheDocument();
+
+    // "No members yet" empty state is NOT rendered
+    expect(screen.queryByText(NO_MEMBERS_YET)).not.toBeInTheDocument();
+  });
+
+  it("AC-10: displays No members yet when viewer has no workspace.members.view; and filtering role out hides none-added note", async () => {
+    const user = userEvent.setup();
+    // Part 1: Viewer has no workspace.members.view -> API returns members: [], total: 0
+    renderMembersApp({
+      membersResponse: {
+        members: [],
+        total: 0,
+        truncated: false,
+        addableRoles: ["admin", "contributor", "commenter", "viewer"],
+        assignedAdminCount: 0,
+      },
+    });
+
+    expect(await screen.findByText(NO_MEMBERS_YET)).toBeInTheDocument();
+    expect(screen.queryByText(NONE_ADDED_TO_PROJECT)).not.toBeInTheDocument();
+    cleanup();
+    vi.unstubAllGlobals();
+
+    // Part 2: Viewer has workspace.members.view, filters by Role Viewer -> No members match, no none-added note
+    const inheritedKai: ProjectMemberResponse = {
+      userId: "u-kai-admin",
+      firstName: "Kai",
+      lastName: "Tran",
+      displayName: "kaitran",
+      email: "kai@openplany.dev",
+      avatarUrl: null,
+      role: "admin",
+      assignedRole: null,
+      roleLimited: false,
+      joinedAt: null,
+      accountActive: true,
+      source: "inherited",
+      workspaceRole: "admin",
+      assignableRoles: [],
+    };
+
+    renderMembersApp({
+      membersResponse: {
+        members: [inheritedKai],
+        total: 0,
+        truncated: false,
+        addableRoles: ["admin", "contributor", "commenter", "viewer"],
+        assignedAdminCount: 0,
+      },
+    });
+
+    expect(await screen.findByText("Kai Tran")).toBeInTheDocument();
+    expect(screen.getByText(NONE_ADDED_TO_PROJECT)).toBeInTheDocument();
+
+    const filterBtn = screen.getByRole("button", { name: "Filter by role" });
+    await user.click(filterBtn);
+    const viewerCheckbox = await screen.findByRole("checkbox", {
+      name: "Viewer",
+    });
+    await user.click(viewerCheckbox);
+    await user.keyboard("{Escape}");
+
+    expect(
+      screen.getByText("No members match your search"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(NONE_ADDED_TO_PROJECT)).not.toBeInTheDocument();
+  });
+
+  it("AC-11: adding 1 member to project with 0 members updates count to Members 1, keeps inherited row at top, removes none-added note, and makes no second GET to /members", async () => {
+    const user = userEvent.setup();
+    const inheritedKai: ProjectMemberResponse = {
+      userId: "u-kai-admin",
+      firstName: "Kai",
+      lastName: "Tran",
+      displayName: "kaitran",
+      email: "kai@openplany.dev",
+      avatarUrl: null,
+      role: "admin",
+      assignedRole: null,
+      roleLimited: false,
+      joinedAt: null,
+      accountActive: true,
+      source: "inherited",
+      workspaceRole: "admin",
+      assignableRoles: [],
+    };
+    const candidateAn = {
+      userId: "u-an",
+      firstName: "An",
+      lastName: "Nguyen",
+      displayName: "An Nguyen",
+      email: "an@openplany.dev",
+      avatarUrl: null,
+      status: "addable" as const,
+      addableRoles: [
+        "contributor" as const,
+        "commenter" as const,
+        "viewer" as const,
+      ],
+    };
+
+    let membersGetCount = 0;
+
+    renderMembersApp({
+      membersResponse: {
+        members: [inheritedKai],
+        total: 0,
+        truncated: false,
+        addableRoles: ["admin", "contributor", "commenter", "viewer"],
+        assignedAdminCount: 0,
+      },
+      extraRoutes: {
+        "GET /api/workspaces/the-firsts/projects/TFP11/members": () => {
+          membersGetCount += 1;
+          return jsonResponse(200, {
+            members: [inheritedKai],
+            total: 0,
+            truncated: false,
+            addableRoles: ["admin", "contributor", "commenter", "viewer"],
+            assignedAdminCount: 0,
+          });
+        },
+        "GET /api/workspaces/the-firsts/projects/TFP11/member-candidates": () =>
+          jsonResponse(200, { candidates: [candidateAn] }),
+        "POST /api/workspaces/the-firsts/projects/TFP11/members": () =>
+          jsonResponse(201, {
+            members: [
+              {
+                userId: "u-an",
+                firstName: "An",
+                lastName: "Nguyen",
+                displayName: "An Nguyen",
+                email: "an@openplany.dev",
+                avatarUrl: null,
+                role: "contributor",
+                assignedRole: "contributor",
+                accountActive: true,
+                roleLimited: false,
+                joinedAt: "2026-10-14T00:00:00.000Z",
+                source: "assigned",
+                workspaceRole: "member",
+                assignableRoles: ["contributor", "commenter", "viewer"],
+              },
+            ],
+            project: {
+              ...sampleProject,
+              memberCount: 1,
+            },
+            assignedAdminCount: 0,
+          }),
+      },
+    });
+
+    expect(await screen.findByText("Kai Tran")).toBeInTheDocument();
+    expect(screen.getByText(NONE_ADDED_TO_PROJECT)).toBeInTheDocument();
+    const heading = screen.getByRole("heading", { name: /^members/i });
+    expect(within(heading.parentElement!).getByText("0")).toBeInTheDocument();
+    expect(membersGetCount).toBe(1);
+
+    // Click "Add member"
+    const addBtn = screen.getByRole("button", { name: /^add member$/i });
+    await user.click(addBtn);
+
+    const modal = await screen.findByRole("dialog", { name: "Add member" });
+    const emailInput = screen.getByRole("textbox", { name: "Email" });
+    await user.type(emailInput, "an@");
+
+    await waitFor(() => {
+      expect(screen.getByText("an@openplany.dev")).toBeInTheDocument();
+    });
+
+    await user.click(
+      screen.getByRole("option", { name: /an@openplany\.dev/i }),
+    );
+
+    const submitBtn = within(modal).getByRole("button", { name: "Add member" });
+    await user.click(submitBtn);
+
+    // Modal closes
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("dialog", { name: "Add member" }),
+      ).not.toBeInTheDocument();
+    });
+
+    // Kai Tran is still at the top
+    const rows = document.querySelectorAll("tbody tr");
+    expect(rows).toHaveLength(2);
+    expect(
+      within(rows[0] as HTMLElement).getByText("Kai Tran"),
+    ).toBeInTheDocument();
+    expect(
+      within(rows[1] as HTMLElement).getAllByText("An Nguyen").length,
+    ).toBeGreaterThan(0);
+
+    // Total badge is now 1
+    expect(within(heading.parentElement!).getByText("1")).toBeInTheDocument();
+
+    // D7 note is gone
+    expect(screen.queryByText(NONE_ADDED_TO_PROJECT)).not.toBeInTheDocument();
+
+    // No second GET request to /members
+    expect(membersGetCount).toBe(1);
+  });
+});
