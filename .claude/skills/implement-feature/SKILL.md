@@ -1,6 +1,6 @@
 ---
 name: implement-feature
-description: Implement every ticket of an OpenPlany feature spec in order, one deep-coder subagent per ticket, then self-review the whole branch and merge it into develop. Use when the user passes a packages/docs/<n>-<feature> path and asks to implement or code the whole feature.
+description: Implement every ticket of an OpenPlany feature spec in order, one deep-coder subagent per ticket, then review the whole feature (spec, SOLID, OWASP Top 10, extensibility), fix the findings and merge it into develop. Use when the user passes a packages/docs/<n>-<feature> path and asks to implement or code the whole feature.
 argument-hint: <packages/docs/n-feature path, or just the number>
 disable-model-invocation: true
 ---
@@ -38,16 +38,14 @@ Run tickets in the order from step 1, one after another. Do not run them in para
 
 Give the user one line after each ticket: the ticket, the commit, any deviation.
 
-## 5. Whole-branch review
+## 5. Feature review
 
-After the last ticket, do "Last ticket of the feature" from the `implement-ticket` skill:
+After the last ticket, run "After the last ticket: feature review" from the `implement-ticket` skill: the spec, SOLID, OWASP Top 10 and extensibility checks, with `/code-review` and `/security-review`.
 
-1. Run `/code-review` on `develop...HEAD` and `/security-review` (OWASP Top 10). Also check by hand for two implementations of the same idea across tickets, and for every AC in `1-requirement-spec.md` that has no test.
-2. Fix the findings through `deep-coder`, or record each skipped finding with a reason.
-3. Run `pnpm lint && pnpm typecheck && pnpm test && pnpm dup` and `pnpm --filter @repo/api test:e2e`.
-4. Write `.claude/reviews/<branch with "/" as "__">.md` after the last commit.
-5. Merge as described in CLAUDE.md §8 step 3. Do not push.
+1. Send the findings to `deep-coder` to fix, in batches grouped by area or file, and check its commits as in step 4.2. Record each finding you defer, with its reason.
+2. After the fixes, re-check the areas they touched. Repeat until no finding is open.
+3. Write the review report, re-run the checks, and merge as the skill says. Do not push.
 
 ## Final report
 
-Give the commits per ticket, the spec deviations, the review findings (fixed or deferred with a reason), the check results and the merge commit.
+Give the commits per ticket, the spec deviations, the review findings per area (fixed or deferred with a reason), the check results and the merge commit.
