@@ -57,7 +57,7 @@ The short uppercase code of a project, unique within its workspace and never reu
 _Avoid_: Key, prefix, identifier (in user-facing text)
 
 **Project member**:
-A workspace member who has been placed in a project with a project role. Only workspace members can be project members. Workspace Admins are never project members. People who can see the workspace's members also see them on every project's member list, as Project Admin through their workspace role; they cannot be changed or removed there.
+A workspace member who has been placed in a project with a project role. Only workspace members can be project members. Workspace Admins are never project members. People who can see the workspace's members also see them on every project's member list, as Project Admin through their workspace role; they cannot be changed or removed there. They are not counted among a project's members: a project's member count and the members shown in the project list include only people added to it.
 _Avoid_: Participant
 
 **Former project member**:
