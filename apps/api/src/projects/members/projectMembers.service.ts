@@ -492,9 +492,10 @@ export class ProjectMembersService {
         targetId: targetUserId,
         requestId,
       });
+      // Own code, so the client picks its sentence without reading `message`.
       throw new ApiException(
         HttpStatus.FORBIDDEN,
-        'FORBIDDEN',
+        'ROLE_NOT_ALLOWED',
         MEMBER_MESSAGES.roleNotAllowed,
       );
     }

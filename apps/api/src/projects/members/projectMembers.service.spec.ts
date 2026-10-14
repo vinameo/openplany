@@ -1375,7 +1375,7 @@ describe('ProjectMembersService', () => {
       expect(events.roleForbiddenEvents).toHaveLength(0);
     });
 
-    it('throws 403 FORBIDDEN and emits roleForbidden when role is not allowed for actor (AC-08)', async () => {
+    it('throws 403 ROLE_NOT_ALLOWED and emits roleForbidden when role is not allowed for actor (AC-08)', async () => {
       repo.changeRoleResult = { status: 'role_not_allowed' };
       await expect(
         service.changeRole(
@@ -1388,7 +1388,7 @@ describe('ProjectMembersService', () => {
         ),
       ).rejects.toMatchObject({
         status: 403,
-        code: 'FORBIDDEN',
+        code: 'ROLE_NOT_ALLOWED',
         message: MEMBER_MESSAGES.roleNotAllowed,
       });
       expect(events.roleForbiddenEvents).toHaveLength(1);
