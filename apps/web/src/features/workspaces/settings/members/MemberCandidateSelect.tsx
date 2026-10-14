@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Anchor, Stack, Text } from "@mantine/core";
+import { useTranslation } from "react-i18next";
 import type { MemberCandidate } from "@repo/contracts";
 import { useAuth } from "../../../auth/useAuth";
 import { MemberCandidateCombobox } from "../../../members/MemberCandidateCombobox";
@@ -24,6 +25,7 @@ export function MemberCandidateSelect({
   errorId,
   disabled = false,
 }: MemberCandidateSelectProps) {
+  const { t } = useTranslation();
   const [search, setSearch] = useState("");
   const { state: authState } = useAuth();
   const isInstanceAdmin =
@@ -39,11 +41,13 @@ export function MemberCandidateSelect({
       search={search}
       onSearchChange={setSearch}
       state={candidateState}
-      disabledLabel={(c) => (c.alreadyMember ? "Already a member" : null)}
+      disabledLabel={(c) =>
+        c.alreadyMember ? t("members:candidate.alreadyMember") : null
+      }
       emptyContent={
         <Stack gap="xs" align="flex-start">
           <Text size="sm">
-            No user with this email. Ask your instance admin to create the account.
+            {t("members:candidate.noUserWithEmail")}
           </Text>
           {isInstanceAdmin && (
             <Anchor
@@ -52,7 +56,7 @@ export function MemberCandidateSelect({
               rel="noopener"
               size="sm"
             >
-              Create user
+              {t("common:actions.createUser")}
             </Anchor>
           )}
         </Stack>

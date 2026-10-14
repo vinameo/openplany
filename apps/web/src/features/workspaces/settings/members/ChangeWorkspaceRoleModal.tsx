@@ -9,14 +9,13 @@ import {
   Text,
 } from "@mantine/core";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import {
   isProjectAdminRole,
   isViewOnlyRole,
-  MEMBER_MESSAGES,
   PROJECT_ROLE_LABELS,
   PROJECT_ROLE_SUMMARIES,
   projectRoleAppliedBy,
-  WORKSPACE_ROLE_CHANGE_MESSAGES,
   WORKSPACE_ROLE_QUALIFIED_LABELS,
   type ProjectRole,
   type WorkspaceMemberResponse,
@@ -59,6 +58,7 @@ export function ChangeWorkspaceRoleModal({
   onClose,
   onSuccess,
 }: ChangeWorkspaceRoleModalProps) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [customProjectRole, setCustomProjectRole] =
     useState<ProjectRole | null>(null);
@@ -141,19 +141,19 @@ export function ChangeWorkspaceRoleModal({
     const err = previewQuery.error;
     if (err instanceof ApiRequestError) {
       if (err.status === 400 && err.code === "ROLE_UNCHANGED") {
-        previewErrorMessage = MEMBER_MESSAGES.sameRole;
+        previewErrorMessage = t("members:errors.sameRole");
       } else if (err.status === 403 || err.code === "FORBIDDEN") {
-        previewErrorMessage = MEMBER_MESSAGES.roleNotAllowed;
+        previewErrorMessage = t("members:errors.roleNotAllowed");
       } else if (err.status === 404 || err.code === "NOT_FOUND") {
-        previewErrorMessage = WORKSPACE_ROLE_CHANGE_MESSAGES.memberGone;
+        previewErrorMessage = t("workspace:errors.memberGone");
       } else if (err.status === 429 || err.code === "TOO_MANY_ATTEMPTS") {
         previewErrorMessage = tooManyAttemptsMessage(err.retryAfterSeconds);
       } else {
-        previewErrorMessage = previewFailed;
+        previewErrorMessage = previewFailed();
         canRetryPreview = true;
       }
     } else {
-      previewErrorMessage = previewFailed;
+      previewErrorMessage = previewFailed();
       canRetryPreview = true;
     }
   }
@@ -192,7 +192,7 @@ export function ChangeWorkspaceRoleModal({
     <RoleChangeConfirmModal
       opened={opened}
       title={confirmTitle(displayName, roleLabel)}
-      confirmLabel={`Change to ${roleLabel}`}
+      confirmLabel={t("members:roleChange.confirmButton", { role: roleLabel })}
       danger={isDanger}
       pending={changeRole.isPending}
       confirmDisabled={confirmDisabled}
@@ -216,14 +216,14 @@ export function ChangeWorkspaceRoleModal({
                 size="xs"
                 onClick={() => previewQuery.refetch()}
               >
-                Try again
+                {t("common:actions.tryAgain")}
               </Button>
             ) : null}
           </Group>
         </Alert>
       ) : isRoleStale ? (
         <Alert color="red" role="alert">
-          {MEMBER_MESSAGES.roleChanged}
+          {t("members:errors.roleChanged")}
         </Alert>
       ) : preview ? (
         <Stack gap="md">
@@ -265,7 +265,7 @@ export function ChangeWorkspaceRoleModal({
               </Text>
 
               <Select
-                label="Role in their projects"
+                label={t("members:roleChange.projectRoleLabel")}
                 value={selectedProjectRole}
                 data={preview.projectRoleChoices.map((r) => ({
                   value: r,
@@ -317,9 +317,9 @@ export function ChangeWorkspaceRoleModal({
           )}
 
           {showLosingAdminWarning && (
-            <Alert color="yellow" title="Warning">
+            <Alert color="yellow" title={t("common:warning")}>
               <Stack gap="xs">
-                <Text size="sm">{losingAdminWarning}</Text>
+                <Text size="sm">{losingAdminWarning()}</Text>
                 <BoundedProjectList
                   projects={
                     preview.projectsLosingAssignedAdmin.projects

@@ -34,6 +34,13 @@ export const vi: ViCatalog = {
     "actions.tryAgain": "Thử lại",
     "actions.discard": "Huỷ",
     "actions.keepEditing": "Tiếp tục chỉnh sửa",
+    "actions.cancel": "Huỷ",
+    "actions.clear": "Xoá",
+    "actions.copied": "Đã sao chép",
+    "actions.copyUrl": "Sao chép URL",
+    "actions.createUser": "Tạo người dùng",
+    warning: "Cảnh báo",
+    charactersLeft_other: "Còn lại {{count}} ký tự",
     comingSoon: "Sắp ra mắt",
     error: "Lỗi",
     "table.sortBy": "Sắp xếp theo {{title}}",
@@ -219,6 +226,42 @@ export const vi: ViCatalog = {
     "home.verifyEmailTitle": "Xác thực email của bạn",
     "home.verifyEmailBody":
       "Kiểm tra hộp thư đến của bạn để tìm liên kết xác thực từ OpenPlany.",
+    "settings.groups.administration": "Quản trị",
+    "settings.sections.general": "Chung",
+    "settings.sections.members": "Thành viên",
+    "settings.sidebar.navLabel": "Cài đặt Workspace",
+    "settings.sidebar.heading": "Cài đặt Workspace",
+    "settings.sidebar.backLabel": "Quay lại Workspace",
+    "settings.documentTitle":
+      "{{section}} · {{workspace}} · Cài đặt · OpenPlany",
+    "settings.notFound.title": "Không tìm thấy trang cài đặt",
+    "settings.notFound.description":
+      "Mục cài đặt này không tồn tại hoặc bạn không có quyền truy cập.",
+    "settings.notFound.noAccess":
+      "Bạn không có quyền truy cập cài đặt Workspace.",
+    "settings.general.nameLabel": "Tên Workspace",
+    "settings.general.companySizeLabel": "Quy mô công ty",
+    "settings.general.timezoneLabel": "Múi giờ Workspace",
+    "settings.general.timezoneDescription":
+      "Đặt múi giờ dùng cho ngày, giờ và thông báo trong Workspace này.",
+    "settings.general.timezoneNotFound": "Không tìm thấy múi giờ",
+    "settings.general.urlLabel": "URL Workspace",
+    "settings.general.urlDescription": "Không thể thay đổi URL Workspace.",
+    "settings.general.urlCopied": "Đã sao chép URL",
+    "settings.general.copyUrlAriaLabel": "Sao chép URL Workspace",
+    "settings.general.submitButton": "Cập nhật Workspace",
+    "settings.general.updatedNotification": "Đã cập nhật Workspace",
+    "settings.members.caption": "Thành viên Workspace",
+    "settings.members.noActiveAdmin":
+      "Không có Admin nào đang hoạt động. Hãy yêu cầu quản trị viên hệ thống trợ giúp.",
+    "settings.members.forbiddenMessage":
+      "Bạn không còn quyền xem thành viên.",
+    "settings.members.loadError": "Không thể tải danh sách thành viên.",
+    "settings.members.addMemberTitle": "Thêm thành viên",
+    "settings.members.addMemberDescription":
+      "Thêm thành viên để cộng tác trong Workspace của bạn.",
+    "settings.members.adminNotice":
+      "Admin có thể quản lý mọi người trong Workspace này, bao gồm cả bạn.",
   },
   project: {
     title: "Dự án",
@@ -298,6 +341,70 @@ export const vi: ViCatalog = {
     "cell.you": "(bạn)",
     "cell.deactivated": "Đã vô hiệu hoá",
     "cell.andMore_other": "và thêm {{count}} người nữa",
+    addedCount_other: "Đã thêm {{count}} thành viên",
+    tooManyAttempts_other:
+      "Quá nhiều lần thử. Thử lại sau {{count}} giây.",
+    tooManyAttemptsLater: "Quá nhiều lần thử. Vui lòng thử lại sau.",
+    tooManySearches_other:
+      "Quá nhiều lượt tìm kiếm. Thử lại sau {{count}} giây.",
+    tooManySearchesLater: "Quá nhiều lượt tìm kiếm. Vui lòng thử lại sau.",
+    changeRoleFailed: "Không thể đổi vai trò. Thử lại.",
+    noMembersMatch: "Không có thành viên nào khớp với tìm kiếm của bạn",
+    clearSearchAndFilters: "Xoá tìm kiếm và bộ lọc",
+    "table.fullName": "Họ và tên",
+    "table.displayName": "Tên hiển thị",
+    "table.email": "Email",
+    "table.role": "Vai trò",
+    "table.joiningDate": "Ngày tham gia",
+    "toolbar.searchPlaceholder": "Tìm kiếm…",
+    "toolbar.searchAriaLabel": "Tìm kiếm thành viên",
+    "toolbar.addMember": "Thêm thành viên",
+    "filter.filters": "Bộ lọc",
+    "filter.filterByRoleAriaLabel": "Lọc theo vai trò",
+    "filter.roleHeading": "Vai trò",
+    "modal.title": "Thêm thành viên",
+    "modal.roleAriaLabel": "Vai trò",
+    "modal.removeRowAriaLabel": "Xoá dòng",
+    "modal.addMore": "+ Thêm người khác",
+    "modal.submit": "Thêm thành viên",
+    "candidate.emailAriaLabel": "Email",
+    "candidate.emailPlaceholder": "Tìm kiếm theo tên hoặc email…",
+    "candidate.clearSelectionAriaLabel": "Xoá lựa chọn",
+    "candidate.alreadyMember": "Đã là thành viên",
+    "candidate.alreadySelected": "Đã được chọn",
+    "candidate.couldntSearch": "Không thể tìm kiếm. Thử lại.",
+    "candidate.noMembersFound": "Không tìm thấy thành viên nào.",
+    "candidate.noUserWithEmail":
+      "Không có người dùng nào có email này. Hãy yêu cầu quản trị viên hệ thống tạo tài khoản.",
+    "cell.roleForMember": "Vai trò của {{name}}",
+    "cell.notAddedToProject": "Chưa được thêm vào dự án này",
+    "cell.hiddenProjects_other": "và {{count}} dự án bạn không thể xem",
+    "roleChange.confirmTitle": "Đổi vai trò của {{name}} thành {{role}}?",
+    "roleChange.confirmButton": "Đổi thành {{role}}",
+    "roleChange.gainImplicit":
+      "Với tư cách là Workspace Admin, {{name}} sẽ là Project Admin trong mọi dự án của Workspace này, bao gồm cả dự án riêng tư.",
+    "roleChange.rolesReplaced_other":
+      "Vai trò của họ trong {{count}} dự án sẽ bị thay thế.",
+    "roleChange.loseImplicit_other":
+      "{{name}} sẽ mất quyền truy cập vào tất cả {{count}} dự án cho đến khi có người thêm lại họ.",
+    "roleChange.inProjects_other": "{{name}} đang ở trong {{count}} dự án.",
+    "roleChange.noProjects": "{{name}} chưa tham gia dự án nào.",
+    "roleChange.projectRoleLabel": "Vai trò trong các dự án của họ",
+    "roleChange.onlyAdminsChoose":
+      "Chỉ Workspace Admin mới có thể chọn mục này. Họ sẽ là {{role}} trong mọi dự án.",
+    "roleChange.losingAdminWarning":
+      "Các dự án này sẽ không còn Project Admin nào ngoài Workspace Admin:",
+    "roleChange.previewFailed":
+      "Không thể kiểm tra thay đổi này ảnh hưởng những gì.",
+    "roleChange.toastChanged_a": "{{name}} hiện là {{role}}.",
+    "roleChange.toastChanged_an": "{{name}} hiện là {{role}}.",
+    "roleChange.toastChanged": "{{name}} hiện là {{role}}.",
+    "roleChange.toastChangedWithProjects_a_other":
+      "{{name}} hiện là {{role}}. Đã áp dụng cho {{count}} dự án.",
+    "roleChange.toastChangedWithProjects_an_other":
+      "{{name}} hiện là {{role}}. Đã áp dụng cho {{count}} dự án.",
+    "roleChange.toastChangedWithProjects_other":
+      "{{name}} hiện là {{role}}. Đã áp dụng cho {{count}} dự án.",
   },
   users: {
     "errors.firstNameRequired": "Nhập tên",
@@ -343,5 +450,18 @@ export const vi: ViCatalog = {
   },
   permissionGroups: {
     "project.archive": "Dự án",
+  },
+  settings: {
+    title: "Cài đặt",
+    "messages.readOnly":
+      "Bạn không có quyền thay đổi các cài đặt này.",
+    "messages.permissionLost":
+      "Bạn không còn quyền thay đổi các cài đặt này.",
+    "messages.tooManyChanges_other":
+      "Quá nhiều thay đổi. Thử lại sau {{count}} phút.",
+    "nav.sectionAriaLabel": "Mục cài đặt",
+    "nav.chooseSectionPlaceholder": "Chọn một mục",
+    "section.accessDenied": "Truy cập bị từ chối",
+    "section.noAccess": "Bạn không có quyền truy cập trang này.",
   },
 };

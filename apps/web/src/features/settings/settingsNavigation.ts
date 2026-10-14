@@ -1,9 +1,11 @@
 import type { ComponentType, SVGProps } from "react";
+import type { MessageKey } from "@repo/contracts";
 
 export interface SettingsSection<P extends string = string> {
   key: string;
   group: string;
-  label: string;
+  label?: string;
+  labelKey?: MessageKey;
   icon: ComponentType<SVGProps<SVGSVGElement>>;
   /** Missing = everyone can view. */
   viewPermission?: P;
@@ -13,12 +15,14 @@ export interface SettingsSection<P extends string = string> {
 
 export interface SettingsGroup {
   key: string;
-  label: string;
+  label?: string;
+  labelKey?: MessageKey;
 }
 
 export interface SettingsNavigationGroup<P extends string = string> {
   key: string;
-  label: string;
+  label?: string;
+  labelKey?: MessageKey;
   sections: SettingsSection<P>[];
 }
 
@@ -60,6 +64,7 @@ export function buildSettingsNavigation<P extends string>(
       resultGroups.push({
         key: group.key,
         label: group.label,
+        labelKey: group.labelKey,
         sections: groupSections,
       });
     }

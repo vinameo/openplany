@@ -2,13 +2,12 @@ import { useCallback, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { notifications } from "@mantine/notifications";
 import {
-  MEMBER_MESSAGES,
-  WORKSPACE_ROLE_CHANGE_MESSAGES,
   WORKSPACE_ROLE_QUALIFIED_LABELS,
   type ChangeWorkspaceRoleRequest,
   type ChangeWorkspaceRoleResponse,
   type WorkspaceMemberResponse,
 } from "@repo/contracts";
+import { translate } from "../../../../i18n";
 import { ApiRequestError } from "../../../../lib/apiClient";
 import { useCurrentWorkspace } from "../../currentWorkspace/useCurrentWorkspace";
 import { projectKeys } from "../../../projects/api/projectQueries";
@@ -72,33 +71,33 @@ export function useChangeWorkspaceRole({
     onError: (err) => {
       if (err instanceof ApiRequestError) {
         if (err.code === "LAST_ADMIN") {
-          setErrorMessage(WORKSPACE_ROLE_CHANGE_MESSAGES.lastAdmin);
+          setErrorMessage(translate("workspace:errors.lastAdmin"));
           return;
         }
         if (err.code === "ROLE_UNCHANGED") {
-          setErrorMessage(MEMBER_MESSAGES.sameRole);
+          setErrorMessage(translate("members:errors.sameRole"));
           return;
         }
         if (err.code === "PROJECT_ROLE_NOT_ALLOWED") {
-          setErrorMessage(MEMBER_MESSAGES.roleOutOfRange);
+          setErrorMessage(translate("members:errors.roleOutOfRange"));
           return;
         }
         if (err.code === "ROLE_CHANGED") {
-          setErrorMessage(MEMBER_MESSAGES.roleChanged);
+          setErrorMessage(translate("members:errors.roleChanged"));
           void qc.invalidateQueries({
             queryKey: workspaceMemberKeys.list(slug),
           });
           return;
         }
         if (err.status === 404 || err.code === "NOT_FOUND") {
-          setErrorMessage(WORKSPACE_ROLE_CHANGE_MESSAGES.memberGone);
+          setErrorMessage(translate("workspace:errors.memberGone"));
           void qc.invalidateQueries({
             queryKey: workspaceMemberKeys.list(slug),
           });
           return;
         }
         if (err.status === 403 || err.code === "FORBIDDEN") {
-          setErrorMessage(MEMBER_MESSAGES.roleNotAllowed);
+          setErrorMessage(translate("members:errors.roleNotAllowed"));
           void qc.invalidateQueries({
             queryKey: workspaceMemberKeys.list(slug),
           });

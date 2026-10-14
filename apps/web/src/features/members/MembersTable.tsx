@@ -7,6 +7,7 @@ import {
   Tooltip,
   VisuallyHidden,
 } from "@mantine/core";
+import { useTranslation } from "react-i18next";
 import type { WorkspaceRole } from "@repo/contracts";
 import { MemberAvatar } from "./MemberAvatar";
 import {
@@ -46,13 +47,16 @@ export function MembersTable<
   canSeeEmail,
   currentSort,
   onSortChange,
-  caption = "Workspace members",
+  caption,
   roleHint,
   roleBadge,
   roleControl,
   isReadOnly,
   inheritedRow,
 }: MembersTableProps<R, M>) {
+  const { t } = useTranslation();
+  const tableCaption = caption ?? t("workspace:settings.members.caption");
+
   return (
     <Table.ScrollContainer
       minWidth={760}
@@ -61,7 +65,7 @@ export function MembersTable<
     >
       <Table verticalSpacing="sm" className={dataTableClasses.table}>
         <Table.Caption>
-          <VisuallyHidden>{caption}</VisuallyHidden>
+          <VisuallyHidden>{tableCaption}</VisuallyHidden>
         </Table.Caption>
         <colgroup className={canSeeEmail ? classes.withEmail : undefined}>
           <col className={classes.colFullName} />
@@ -73,35 +77,35 @@ export function MembersTable<
         <Table.Thead>
           <Table.Tr>
             <SortableHeader
-              title="Full name"
+              title={t("members:table.fullName")}
               sortKey="fullName"
               currentSort={currentSort}
               onSortChange={onSortChange}
               className={dataTableClasses.stickyHeader}
             />
             <SortableHeader
-              title="Display name"
+              title={t("members:table.displayName")}
               sortKey="displayName"
               currentSort={currentSort}
               onSortChange={onSortChange}
             />
             {canSeeEmail && (
               <SortableHeader
-                title="Email"
+                title={t("members:table.email")}
                 sortKey="email"
                 currentSort={currentSort}
                 onSortChange={onSortChange}
               />
             )}
             <SortableHeader
-              title="Role"
+              title={t("members:table.role")}
               sortKey="role"
               currentSort={currentSort}
               onSortChange={onSortChange}
               className={classes.roleHeader}
             />
             <SortableHeader
-              title="Joining date"
+              title={t("members:table.joiningDate")}
               sortKey="joinedAt"
               currentSort={currentSort}
               onSortChange={onSortChange}
@@ -132,7 +136,7 @@ export function MembersTable<
                         variant={isInherited ? "default" : "light"}
                         size="xs"
                       >
-                        Deactivated
+                        {t("members:cell.deactivated")}
                       </Badge>
                     )}
                   </Group>
@@ -189,7 +193,7 @@ export function MembersTable<
                   {member.joinedAt === null ? (
                     <Text size="sm">
                       <span aria-hidden="true">—</span>
-                      <VisuallyHidden>Not added to this project</VisuallyHidden>
+                      <VisuallyHidden>{t("members:cell.notAddedToProject")}</VisuallyHidden>
                     </Text>
                   ) : (
                     <Text size="sm">{formatJoiningDate(member.joinedAt)}</Text>

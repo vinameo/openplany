@@ -1,5 +1,6 @@
 import type { ComponentType, ReactNode, SVGProps } from "react";
 import { Alert, Text } from "@mantine/core";
+import { useTranslation } from "react-i18next";
 import classes from "./SettingsSectionFrame.module.css";
 
 export interface SettingsSectionFrameProps {
@@ -15,6 +16,8 @@ export function SettingsSectionFrame({
   allowed,
   children,
 }: SettingsSectionFrameProps) {
+  const { t } = useTranslation();
+
   return (
     <>
       <div className={classes.sectionHeader}>
@@ -25,8 +28,8 @@ export function SettingsSectionFrame({
         {allowed ? (
           children
         ) : (
-          <Alert color="red" title="Access Denied" role="alert">
-            You don't have access to this page.
+          <Alert color="red" title={t("settings:section.accessDenied")} role="alert">
+            {t("settings:section.noAccess")}
           </Alert>
         )}
       </div>

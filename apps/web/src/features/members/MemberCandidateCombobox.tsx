@@ -9,7 +9,7 @@ import {
   Text,
   useCombobox,
 } from '@mantine/core';
-import { MEMBER_MESSAGES } from '@repo/contracts';
+import { useTranslation } from 'react-i18next';
 import { MemberAvatar } from './MemberAvatar';
 import { memberDisplayName } from './memberListView';
 import { tooManySearchesMessage } from './membersMessages';
@@ -56,6 +56,7 @@ export function MemberCandidateCombobox<C extends CandidateBase>({
   disabled = false,
   placeholder = 'name@company.com',
 }: MemberCandidateComboboxProps<C>) {
+  const { t } = useTranslation();
   const combobox = useCombobox({
     onDropdownClose: () => combobox.resetSelectedOption(),
   });
@@ -106,7 +107,7 @@ export function MemberCandidateCombobox<C extends CandidateBase>({
     return (
       <InputBase
         component="div"
-        aria-label="Email"
+        aria-label={t("members:candidate.emailAriaLabel")}
         aria-describedby={error && errorId ? errorId : undefined}
         error={error}
         errorProps={error && errorId ? { id: errorId } : undefined}
@@ -114,7 +115,7 @@ export function MemberCandidateCombobox<C extends CandidateBase>({
         rightSection={
           !disabled ? (
             <CloseButton
-              aria-label="Clear selection"
+              aria-label={t("members:candidate.clearSelectionAriaLabel")}
               onClick={handleClear}
               size="sm"
             />
@@ -148,7 +149,7 @@ export function MemberCandidateCombobox<C extends CandidateBase>({
     if (state.status === 'too_short') {
       return (
         <Combobox.Empty>
-          {hint ?? state.hint ?? MEMBER_MESSAGES.candidateQueryTooShort}
+          {hint ?? state.hint ?? t("members:errors.candidateQueryTooShort")}
         </Combobox.Empty>
       );
     }
@@ -172,14 +173,14 @@ export function MemberCandidateCombobox<C extends CandidateBase>({
       if (state.message) {
         return <Combobox.Empty>{state.message}</Combobox.Empty>;
       }
-      return <Combobox.Empty>{"Couldn't search. Try again."}</Combobox.Empty>;
+      return <Combobox.Empty>{t("members:candidate.couldntSearch")}</Combobox.Empty>;
     }
 
     if (state.status === 'ready') {
       if (state.candidates.length === 0) {
         return (
           <Combobox.Empty>
-            {emptyContent ?? <Text size="sm">No members found.</Text>}
+            {emptyContent ?? <Text size="sm">{t("members:candidate.noMembersFound")}</Text>}
           </Combobox.Empty>
         );
       }
@@ -221,7 +222,7 @@ export function MemberCandidateCombobox<C extends CandidateBase>({
               )}
               {isAlreadySelected && !customDisabled && (
                 <Badge variant="light" color="gray" size="sm">
-                  Already selected
+                  {t("members:candidate.alreadySelected")}
                 </Badge>
               )}
             </Group>
@@ -243,7 +244,7 @@ export function MemberCandidateCombobox<C extends CandidateBase>({
       <Combobox.Target>
         <InputBase
           placeholder={placeholder}
-          aria-label="Email"
+          aria-label={t("members:candidate.emailAriaLabel")}
           aria-describedby={error && errorId ? errorId : undefined}
           value={search}
           error={error}

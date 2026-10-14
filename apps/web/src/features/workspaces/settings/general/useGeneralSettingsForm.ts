@@ -64,7 +64,7 @@ export function useGeneralSettingsForm(workspace: WorkspaceResponse) {
         });
       }
       notifications.show({
-        message: "Workspace updated",
+        message: t("workspace:settings.general.updatedNotification"),
         color: "green",
       });
       return {
@@ -81,7 +81,7 @@ export function useGeneralSettingsForm(workspace: WorkspaceResponse) {
 
       if (error.status === 404) {
         notifications.show({
-          message: error.message || "Workspace not found",
+          message: error.message || t("workspace:errors.notFound"),
           color: "red",
         });
         void refresh();

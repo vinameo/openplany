@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import type { WorkspaceMemberListResponse } from "@repo/contracts";
 import { ApiRequestError } from "../../../../lib/apiClient";
 import { useAuth } from "../../../auth/useAuth";
@@ -12,13 +13,11 @@ export type MembersState =
   | { status: "error"; message: string }
   | { status: "ready"; data: WorkspaceMemberListResponse };
 
-const FORBIDDEN_MESSAGE = "You no longer have permission to view members.";
-const DEFAULT_ERROR_MESSAGE = "Couldn't load members.";
-
 export function useWorkspaceMembersQuery(slug: string): {
   state: MembersState;
   reload: () => Promise<void>;
 } {
+  const { t } = useTranslation();
   const { reload: reloadWorkspace } = useCurrentWorkspace();
   const { expireSession } = useAuth();
 
@@ -49,11 +48,17 @@ export function useWorkspaceMembersQuery(slug: string): {
 
   let state: MembersState;
   if (isForbidden) {
-    state = { status: "error", message: FORBIDDEN_MESSAGE };
+    state = {
+      status: "error",
+      message: t("workspace:settings.members.forbiddenMessage"),
+    };
   } else if (query.isPending || query.isLoading) {
     state = { status: "loading" };
   } else if (query.isError) {
-    state = { status: "error", message: DEFAULT_ERROR_MESSAGE };
+    state = {
+      status: "error",
+      message: t("workspace:settings.members.loadError"),
+    };
   } else if (query.data) {
     state = { status: "ready", data: query.data };
   } else {

@@ -1,5 +1,5 @@
 import type { ComponentType, SVGProps } from "react";
-import type { EnforcedWorkspacePermission } from "@repo/contracts";
+import type { EnforcedWorkspacePermission, MessageKey } from "@repo/contracts";
 import { BuildingIcon, UsersIcon } from "../icons";
 import type {
   SettingsGroup,
@@ -7,7 +7,7 @@ import type {
 } from "../../settings/settingsNavigation";
 
 export const WORKSPACE_SETTINGS_GROUPS = [
-  { key: "administration", label: "Administration" },
+  { key: "administration", labelKey: "workspace:settings.groups.administration" },
 ] as const satisfies readonly SettingsGroup[];
 
 export type WorkspaceSettingsGroup =
@@ -17,7 +17,8 @@ export interface WorkspaceSettingsSection
   extends SettingsSection<EnforcedWorkspacePermission> {
   key: string;
   group: WorkspaceSettingsGroup;
-  label: string;
+  label?: string;
+  labelKey?: MessageKey;
   icon: ComponentType<SVGProps<SVGSVGElement>>;
   viewPermission?: EnforcedWorkspacePermission;
 }
@@ -26,13 +27,13 @@ export const WORKSPACE_SETTINGS_SECTIONS: readonly WorkspaceSettingsSection[] = 
   {
     key: "general",
     group: "administration",
-    label: "General",
+    labelKey: "workspace:settings.sections.general",
     icon: BuildingIcon,
   },
   {
     key: "members",
     group: "administration",
-    label: "Members",
+    labelKey: "workspace:settings.sections.members",
     icon: UsersIcon,
     viewPermission: "workspace.members.view",
   },

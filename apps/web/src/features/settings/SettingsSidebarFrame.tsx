@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { ActionIcon, Box, ScrollArea, Text } from "@mantine/core";
 import { Link } from "react-router";
+import { useTranslation } from "react-i18next";
 import { ArrowLeftIcon } from "../workspaces/icons";
 import { SidebarNavItem } from "../workspaces/shell/SidebarNavItem";
 import classes from "./SettingsSidebar.module.css";
@@ -27,6 +28,8 @@ export function SettingsSidebarFrame({
   activeKey,
   pathFor,
 }: SettingsSidebarFrameProps) {
+  const { t } = useTranslation();
+
   return (
     <Box
       component="nav"
@@ -61,6 +64,9 @@ export function SettingsSidebarFrame({
           <div className={classes.groupsWrapper}>
             {groups.map((group, groupIndex) => {
               const headingId = `settings-group-${group.key}`;
+              const groupLabel = group.labelKey
+                ? t(group.labelKey)
+                : (group.label ?? group.key);
 
               return (
                 <div
@@ -76,7 +82,7 @@ export function SettingsSidebarFrame({
                     c="dimmed"
                     className={classes.groupLabel}
                   >
-                    {group.label}
+                    {groupLabel}
                   </Text>
                   <ul
                     role="list"
@@ -86,11 +92,14 @@ export function SettingsSidebarFrame({
                     {group.sections.map((section) => {
                       const Icon = section.icon;
                       const isComingSoon = section.comingSoon === true;
+                      const sectionLabel = section.labelKey
+                        ? t(section.labelKey)
+                        : (section.label ?? section.key);
 
                       return (
                         <li key={section.key}>
                           <SidebarNavItem
-                            label={section.label}
+                            label={sectionLabel}
                             icon={<Icon width={16} height={16} />}
                             to={isComingSoon ? undefined : pathFor(section.key)}
                             active={section.key === activeKey}

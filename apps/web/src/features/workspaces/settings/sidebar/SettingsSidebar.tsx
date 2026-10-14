@@ -1,5 +1,6 @@
 import { Text } from "@mantine/core";
-import { WORKSPACE_ROLE_LABELS } from "@repo/contracts";
+import { WORKSPACE_ROLE_LABELS, type MessageKey } from "@repo/contracts";
+import { useTranslation } from "react-i18next";
 import { useCurrentWorkspace } from "../../currentWorkspace/useCurrentWorkspace";
 import { WorkspaceAvatar } from "../../WorkspaceAvatar";
 import { workspacePath, workspaceSettingsPath } from "../../workspacePaths";
@@ -13,10 +14,11 @@ import { useSettingsNavigation } from "./useSettingsNavigation";
 
 interface SettingsSidebarProps {
   sections?: readonly WorkspaceSettingsSection[];
-  groups?: readonly { key: WorkspaceSettingsGroup; label: string }[];
+  groups?: readonly { key: WorkspaceSettingsGroup; label?: string; labelKey?: MessageKey }[];
 }
 
 export function SettingsSidebar({ sections, groups }: SettingsSidebarProps) {
+  const { t } = useTranslation();
   const { workspace } = useCurrentWorkspace();
   const nav = useSettingsNavigation({ sections, groups });
 
@@ -40,10 +42,10 @@ export function SettingsSidebar({ sections, groups }: SettingsSidebarProps) {
 
   return (
     <SettingsSidebarFrame
-      navLabel="Workspace settings"
-      heading="Workspace settings"
+      navLabel={t("workspace:settings.sidebar.navLabel")}
+      heading={t("workspace:settings.sidebar.heading")}
       backTo={workspacePath(workspace.slug)}
-      backLabel="Back to workspace"
+      backLabel={t("workspace:settings.sidebar.backLabel")}
       card={card}
       groups={nav.groups}
       activeKey={nav.activeKey}

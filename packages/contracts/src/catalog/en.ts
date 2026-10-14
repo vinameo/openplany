@@ -33,6 +33,14 @@ export const en = {
     "actions.tryAgain": "Try again",
     "actions.discard": "Discard",
     "actions.keepEditing": "Keep editing",
+    "actions.cancel": "Cancel",
+    "actions.clear": "Clear",
+    "actions.copied": "Copied",
+    "actions.copyUrl": "Copy URL",
+    "actions.createUser": "Create user",
+    warning: "Warning",
+    charactersLeft_one: "{{count}} character left",
+    charactersLeft_other: "{{count}} characters left",
     comingSoon: "Coming soon",
     error: "Error",
     "table.sortBy": "Sort by {{title}}",
@@ -225,6 +233,42 @@ export const en = {
     "home.verifyEmailTitle": "Verify your email",
     "home.verifyEmailBody":
       "Check your inbox for a verification link from OpenPlany.",
+    "settings.groups.administration": "Administration",
+    "settings.sections.general": "General",
+    "settings.sections.members": "Members",
+    "settings.sidebar.navLabel": "Workspace settings",
+    "settings.sidebar.heading": "Workspace settings",
+    "settings.sidebar.backLabel": "Back to workspace",
+    "settings.documentTitle":
+      "{{section}} · {{workspace}} · Settings · OpenPlany",
+    "settings.notFound.title": "Settings page not found",
+    "settings.notFound.description":
+      "This settings section doesn't exist or you don't have access to it.",
+    "settings.notFound.noAccess":
+      "You don't have access to workspace settings.",
+    "settings.general.nameLabel": "Workspace name",
+    "settings.general.companySizeLabel": "Company size",
+    "settings.general.timezoneLabel": "Workspace Timezone",
+    "settings.general.timezoneDescription":
+      "Set the timezone used for dates, times, and notifications in this workspace.",
+    "settings.general.timezoneNotFound": "No timezone found",
+    "settings.general.urlLabel": "Workspace URL",
+    "settings.general.urlDescription": "Workspace URLs can't be changed.",
+    "settings.general.urlCopied": "URL copied",
+    "settings.general.copyUrlAriaLabel": "Copy workspace URL",
+    "settings.general.submitButton": "Update workspace",
+    "settings.general.updatedNotification": "Workspace updated",
+    "settings.members.caption": "Workspace members",
+    "settings.members.noActiveAdmin":
+      "No active Admin. Ask your instance admin for help.",
+    "settings.members.forbiddenMessage":
+      "You no longer have permission to view members.",
+    "settings.members.loadError": "Couldn't load members.",
+    "settings.members.addMemberTitle": "Add member",
+    "settings.members.addMemberDescription":
+      "Add members to collaborate in your workspace.",
+    "settings.members.adminNotice":
+      "Admins can manage everyone in this workspace, including you.",
   },
   project: {
     title: "Project",
@@ -307,6 +351,82 @@ export const en = {
     "cell.deactivated": "Deactivated",
     "cell.andMore_one": "and {{count}} more",
     "cell.andMore_other": "and {{count}} more",
+    addedCount_one: "Added 1 member",
+    addedCount_other: "Added {{count}} members",
+    tooManyAttempts_one: "Too many attempts. Try again in {{count}} second.",
+    tooManyAttempts_other: "Too many attempts. Try again in {{count}} seconds.",
+    tooManyAttemptsLater: "Too many attempts. Try again later.",
+    tooManySearches_one: "Too many searches. Try again in {{count}} second.",
+    tooManySearches_other: "Too many searches. Try again in {{count}} seconds.",
+    tooManySearchesLater: "Too many searches. Try again later.",
+    changeRoleFailed: "Couldn't change the role. Try again.",
+    noMembersMatch: "No members match your search",
+    clearSearchAndFilters: "Clear search and filters",
+    "table.fullName": "Full name",
+    "table.displayName": "Display name",
+    "table.email": "Email",
+    "table.role": "Role",
+    "table.joiningDate": "Joining date",
+    "toolbar.searchPlaceholder": "Search…",
+    "toolbar.searchAriaLabel": "Search members",
+    "toolbar.addMember": "Add member",
+    "filter.filters": "Filters",
+    "filter.filterByRoleAriaLabel": "Filter by role",
+    "filter.roleHeading": "Role",
+    "modal.title": "Add member",
+    "modal.roleAriaLabel": "Role",
+    "modal.removeRowAriaLabel": "Remove row",
+    "modal.addMore": "+ Add more",
+    "modal.submit": "Add member",
+    "candidate.emailAriaLabel": "Email",
+    "candidate.emailPlaceholder": "Search by name or email…",
+    "candidate.clearSelectionAriaLabel": "Clear selection",
+    "candidate.alreadyMember": "Already a member",
+    "candidate.alreadySelected": "Already selected",
+    "candidate.couldntSearch": "Couldn't search. Try again.",
+    "candidate.noMembersFound": "No members found.",
+    "candidate.noUserWithEmail":
+      "No user with this email. Ask your instance admin to create the account.",
+    "cell.roleForMember": "Role for {{name}}",
+    "cell.notAddedToProject": "Not added to this project",
+    "cell.hiddenProjects_one": "and 1 project you can't see",
+    "cell.hiddenProjects_other": "and {{count}} projects you can't see",
+    "roleChange.confirmTitle": "Change {{name}}'s role to {{role}}?",
+    "roleChange.confirmButton": "Change to {{role}}",
+    "roleChange.gainImplicit":
+      "As a Workspace Admin, {{name}} will be a Project Admin in every project of this workspace, including private ones.",
+    "roleChange.rolesReplaced_one":
+      "Their roles in {{count}} project will be replaced.",
+    "roleChange.rolesReplaced_other":
+      "Their roles in {{count}} projects will be replaced.",
+    "roleChange.loseImplicit_one":
+      "{{name}} will lose access to all {{count}} project until someone adds them back.",
+    "roleChange.loseImplicit_other":
+      "{{name}} will lose access to all {{count}} projects until someone adds them back.",
+    "roleChange.inProjects_one": "{{name}} is in {{count}} project.",
+    "roleChange.inProjects_other": "{{name}} is in {{count}} projects.",
+    "roleChange.noProjects": "{{name}} isn't in any projects yet.",
+    "roleChange.projectRoleLabel": "Role in their projects",
+    "roleChange.onlyAdminsChoose":
+      "Only Workspace Admins can choose this. They'll be {{role}} in every project.",
+    "roleChange.losingAdminWarning":
+      "These projects will have no Project Admin other than Workspace Admins:",
+    "roleChange.previewFailed": "Couldn't check what this change affects.",
+    "roleChange.toastChanged_a": "{{name}} is now a {{role}}.",
+    "roleChange.toastChanged_an": "{{name}} is now an {{role}}.",
+    "roleChange.toastChanged": "{{name}} is now {{role}}.",
+    "roleChange.toastChangedWithProjects_a_one":
+      "{{name}} is now a {{role}}. Applied to {{count}} project.",
+    "roleChange.toastChangedWithProjects_a_other":
+      "{{name}} is now a {{role}}. Applied to {{count}} projects.",
+    "roleChange.toastChangedWithProjects_an_one":
+      "{{name}} is now an {{role}}. Applied to {{count}} project.",
+    "roleChange.toastChangedWithProjects_an_other":
+      "{{name}} is now an {{role}}. Applied to {{count}} projects.",
+    "roleChange.toastChangedWithProjects_one":
+      "{{name}} is now {{role}}. Applied to {{count}} project.",
+    "roleChange.toastChangedWithProjects_other":
+      "{{name}} is now {{role}}. Applied to {{count}} projects.",
   },
   users: {
     "errors.firstNameRequired": "Enter a first name",
@@ -356,5 +476,20 @@ export const en = {
   },
   permissionGroups: {
     "project.archive": "Project",
+  },
+  settings: {
+    title: "Settings",
+    "messages.readOnly":
+      "You don't have permission to change these settings.",
+    "messages.permissionLost":
+      "You no longer have permission to change these settings.",
+    "messages.tooManyChanges_one":
+      "Too many changes. Try again in {{count}} minute.",
+    "messages.tooManyChanges_other":
+      "Too many changes. Try again in {{count}} minutes.",
+    "nav.sectionAriaLabel": "Settings section",
+    "nav.chooseSectionPlaceholder": "Choose a section",
+    "section.accessDenied": "Access Denied",
+    "section.noAccess": "You don't have access to this page.",
   },
 } as const;

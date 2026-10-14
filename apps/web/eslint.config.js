@@ -90,12 +90,6 @@ export const ALL_RESTRICTED_SELECTORS = [
  * Note: URL template rules ALWAYS apply to exempt areas as well.
  */
 export const EXEMPT_AREAS = [
-  // Cài đặt workspace, thành viên (Ticket 07)
-  "src/features/settings/**",
-  "src/features/workspaces/settings/**",
-  "src/features/members/**",
-  "src/features/timezones/**",
-  "src/features/workspaces/currentWorkspace/**",
   // Dự án còn lại (Ticket 08)
   "src/features/projects/api/**",
   "src/features/projects/covers/**",

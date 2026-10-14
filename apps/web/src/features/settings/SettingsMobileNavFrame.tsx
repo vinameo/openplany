@@ -1,5 +1,6 @@
 import { ActionIcon, Box, Select, Text } from "@mantine/core";
 import { Link, useNavigate } from "react-router";
+import { useTranslation } from "react-i18next";
 import { ArrowLeftIcon } from "../workspaces/icons";
 import classes from "./SettingsSidebar.module.css";
 import type { SettingsNavigationGroup } from "./settingsNavigation";
@@ -22,17 +23,30 @@ export function SettingsMobileNavFrame({
   pathFor,
 }: SettingsMobileNavFrameProps) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
-  const selectData = groups.map((group) => ({
-    group: group.label,
-    items: group.sections.map((section) => ({
-      value: section.key,
-      label: section.comingSoon
-        ? `${section.label} (Coming soon)`
-        : section.label,
-      disabled: section.comingSoon === true,
-    })),
-  }));
+  const selectData = groups.map((group) => {
+    const groupLabel = group.labelKey
+      ? t(group.labelKey)
+      : (group.label ?? group.key);
+
+    return {
+      group: groupLabel,
+      items: group.sections.map((section) => {
+        const sectionLabel = section.labelKey
+          ? t(section.labelKey)
+          : (section.label ?? section.key);
+
+        return {
+          value: section.key,
+          label: section.comingSoon
+            ? `${sectionLabel} (${t("common:comingSoon")})`
+            : sectionLabel,
+          disabled: section.comingSoon === true,
+        };
+      }),
+    };
+  });
 
   return (
     <Box className={classes.mobileNav} hiddenFrom="sm">
@@ -53,10 +67,10 @@ export function SettingsMobileNavFrame({
       </div>
 
       <Select
-        aria-label="Settings section"
+        aria-label={t("settings:nav.sectionAriaLabel")}
         data={selectData}
         value={activeKey}
-        placeholder="Choose a section"
+        placeholder={t("settings:nav.chooseSectionPlaceholder")}
         allowDeselect={false}
         searchable={false}
         checkIconPosition="right"

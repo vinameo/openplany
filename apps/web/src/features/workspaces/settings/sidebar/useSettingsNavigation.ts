@@ -1,3 +1,4 @@
+import type { MessageKey } from "@repo/contracts";
 import { useCurrentWorkspace } from "../../currentWorkspace/useCurrentWorkspace";
 import {
   buildSettingsNavigation,
@@ -15,7 +16,7 @@ export type { SettingsNavigationGroup };
 
 export interface UseSettingsNavigationOptions {
   sections?: readonly WorkspaceSettingsSection[];
-  groups?: readonly { key: WorkspaceSettingsGroup; label: string }[];
+  groups?: readonly { key: WorkspaceSettingsGroup; label?: string; labelKey?: MessageKey }[];
 }
 
 export function useSettingsNavigation(options?: UseSettingsNavigationOptions): {

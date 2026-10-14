@@ -120,6 +120,11 @@ export function translate(key: MessageKey, params?: Record<string, string | numb
   });
 }
 
+export function formatNumber(value: number, lang?: Language): string {
+  const currentLang = lang ?? getLanguage();
+  return new Intl.NumberFormat(currentLang === "vi" ? "vi-VN" : "en-US").format(value);
+}
+
 export function resetLanguageModuleForTest(): void {
   currentLanguage = 'en';
   hasWarnedStorage = false;

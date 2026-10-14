@@ -1,3 +1,5 @@
+import { translate } from "../../i18n/language";
+
 /**
  * Formats rate limit countdown message.
  * n = max(1, ceil(seconds / 60))
@@ -6,10 +8,14 @@
 export function tooManyChangesMessage(retryAfterSeconds: number | null): string {
   const seconds = retryAfterSeconds ?? 60;
   const minutes = Math.max(1, Math.ceil(seconds / 60));
-  return `Too many changes. Try again in ${minutes} ${minutes === 1 ? "minute" : "minutes"}.`;
+  return translate("settings:messages.tooManyChanges", { count: minutes });
 }
 
 export const SETTINGS_MESSAGES = {
-  readOnly: "You don't have permission to change these settings.",
-  permissionLost: "You no longer have permission to change these settings.",
-} as const;
+  get readOnly(): string {
+    return translate("settings:messages.readOnly");
+  },
+  get permissionLost(): string {
+    return translate("settings:messages.permissionLost");
+  },
+};

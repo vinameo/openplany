@@ -1,4 +1,5 @@
 import { Button, Group, TextInput } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 import { SearchIcon } from '../workspaces/icons';
 import { RoleFilter } from './RoleFilter';
 import type { RoleScheme } from './roleScheme';
@@ -23,11 +24,13 @@ export function MembersToolbar<R extends string>({
   canAddMember = false,
   onAddMember,
 }: MembersToolbarProps<R>) {
+  const { t } = useTranslation();
+
   return (
     <Group wrap="wrap" gap="sm">
       <TextInput
-        placeholder="Search…"
-        aria-label="Search members"
+        placeholder={t("members:toolbar.searchPlaceholder")}
+        aria-label={t("members:toolbar.searchAriaLabel")}
         leftSection={<SearchIcon width={14} height={14} />}
         value={search}
         onChange={(e) => onSearchChange(e.currentTarget.value)}
@@ -38,7 +41,11 @@ export function MembersToolbar<R extends string>({
         selectedRoles={selectedRoles}
         onChange={onRolesChange}
       />
-      {canAddMember && <Button onClick={onAddMember}>Add member</Button>}
+      {canAddMember && (
+        <Button onClick={onAddMember}>
+          {t("members:toolbar.addMember")}
+        </Button>
+      )}
     </Group>
   );
 }
