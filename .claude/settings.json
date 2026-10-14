@@ -20,6 +20,12 @@
             "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/requireBranchReview.mjs\"",
             "timeout": 10,
             "statusMessage": "Checking branch review before merge"
+          },
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/requireTicketDesignNotes.mjs\"",
+            "timeout": 10,
+            "statusMessage": "Checking ticket design notes before commit"
           }
         ]
       }
