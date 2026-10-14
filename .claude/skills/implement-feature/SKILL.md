@@ -40,11 +40,10 @@ Give the user one line after each ticket: the ticket, the commit, any deviation.
 
 ## 5. Feature review
 
-After the last ticket, run "After the last ticket: feature review" from the `implement-ticket` skill: the spec, SOLID, OWASP Top 10 and extensibility checks, with `/code-review` and `/security-review`.
+After the last ticket, run "After the last ticket: feature review" from the `implement-ticket` skill, in its order: read the whole feature, test the feature, review (spec, SOLID, OWASP Top 10, extensibility, with `/code-review` and `/security-review`), fix, test the whole app, report and merge.
 
-1. Send the findings to `deep-coder` to fix, in batches grouped by area or file, and check its commits as in step 4.2. Record each finding you defer, with its reason.
-2. After the fixes, re-check the areas they touched. Repeat until no finding is open.
-3. Write the review report, re-run the checks, and merge as the skill says. Do not push.
+- Send the findings, and any failures from the feature or whole-app tests, to `deep-coder` to fix, in batches grouped by area or file. Check its commits as in step 4.2. Record each finding you defer, with its reason.
+- Repeat the feature tests after fixes, and the whole-app tests until every command is green in one pass. Do not push.
 
 ## Final report
 

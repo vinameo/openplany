@@ -14,7 +14,7 @@ You work on one OpenPlany feature branch. The caller gives you the feature direc
 
 **One ticket:** follow the preloaded `implement-ticket` skill, steps 1–9. That covers the database, backend and frontend skills (already preloaded here), the design pass, the review against the spec and the ticket, and the commit. Step 10 and "After the last ticket: feature review" belong to the caller: do not run them. In step 1 the caller has already switched to the branch. Check that you are on it with a clean tree, and stop and report if not.
 
-**Review findings:** fix each finding in a `review(<scope>)` commit, as described in the skill's "Then" list, step 1. Run step 7's checks before each commit.
+**Review findings:** fix each finding in a `review(<scope>)` commit, as described in the skill's feature review, section 4. Run step 7's checks before each commit.
 
 `CLAUDE.md` overrides the preloaded skills.
 

@@ -57,7 +57,19 @@ description: Implement one ticket of an OpenPlany feature (packages/docs/<n>-<fe
 
 ## After the last ticket: feature review
 
-Review the whole feature (`git diff develop...HEAD`) with the full spec set (`1-…` to `5-…`) and `tickets/README.md` open, not ticket by ticket. Run `/code-review` and `/security-review` on the branch, then check each area below yourself. Tickets built in separate contexts duplicate each other: look for two implementations of the same idea.
+Run these in order.
+
+### 1. Read the whole feature
+
+The full spec set (`1-…` to `5-…`), `tickets/README.md`, and every ticket file with its `.design.md`. Then read `git diff develop...HEAD` as one change, not ticket by ticket.
+
+### 2. Test the feature
+
+In each workspace the branch changed, run the tests the branch added or changed and `vitest related --run` on the files it changed (`git diff --name-only develop...HEAD`). Also run the API e2e files the branch touched. Fix the failures before reviewing.
+
+### 3. Review
+
+Run `/code-review` and `/security-review` on the branch, then check each area below yourself. Tickets built in separate contexts duplicate each other: look for two implementations of the same idea.
 
 1. **Spec complete.** Every AC and INV in `1-requirement-spec.md` has code and a test. Every ticket in `tickets/README.md` is done and has its `.design.md`. Every `deviate` row is written back into the spec.
 2. **SOLID.**
@@ -79,8 +91,14 @@ Review the whole feature (`git diff develop...HEAD`) with the full spec set (`1-
    - A10 SSRF: no server-side fetch of a user-supplied URL.
 4. **Extensibility.** Read the roadmap and the `FC-` constraints in `2-business-analytics-spec.md`. For each one, name the seam that the next feature will extend (guard and decorator, path helper, contracts helper, abstract repository, shared component or hook) and check it needs no rewrite. Every collection has a limit and a real count; every new WHERE, ORDER BY and FK column has an index; there are no N+1 queries and nothing is hardcoded that the roadmap will vary.
 
-Then:
+### 4. Fix the findings
 
-1. Fix each finding in a `review(<scope>)` commit and re-run step 7. After a fix, re-check the area it touched. Defer a finding only with a reason: it belongs to a feature the roadmap names, or it needs the user's decision.
-2. Write `.claude/reviews/<branch with "/" as "__">.md` after the final commit, with one section per area above: findings, what was fixed (commit), what was deferred and why. The merge hook refuses a branch whose report is missing or older than its last commit.
-3. Re-run step 7, then merge as in CLAUDE.md §8.
+Fix each finding in a `review(<scope>)` commit and rerun the feature tests (section 2) for what the fix touched. Defer a finding only with a reason: it belongs to a feature the roadmap names, or it needs the user's decision.
+
+### 5. Test the whole app
+
+Run every existing test, not only the feature's: `pnpm lint && pnpm typecheck && pnpm test && pnpm dup && pnpm --filter @repo/api test:e2e`, with e2e even when the feature changed only the web. Fix each failure in a `review(<scope>)` commit and rerun the command that failed; if the fix changed code, rerun them all. A failure unrelated to the branch is handled as in step 7. Done when every command is green in one pass.
+
+### 6. Report and merge
+
+Write `.claude/reviews/<branch with "/" as "__">.md` after the final commit: one section per review area (findings, what was fixed with its commit, what was deferred and why) and the results of sections 2 and 5. The merge hook refuses a branch whose report is missing or older than its last commit. Then merge as in CLAUDE.md §8.
