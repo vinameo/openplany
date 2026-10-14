@@ -496,7 +496,7 @@ export const en = {
     "modal.title": "Add member",
     "modal.roleAriaLabel": "Role",
     "modal.removeRowAriaLabel": "Remove row",
-    "modal.addMore": "+ Add more",
+    "modal.addMore": "Add more",
     "modal.submit": "Add member",
     "candidate.emailAriaLabel": "Email",
     "candidate.emailPlaceholder": "Search by name or email…",
