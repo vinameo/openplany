@@ -34,11 +34,15 @@ description: Implement one ticket of an OpenPlany feature (packages/docs/<n>-<fe
    A deviation that keeps every AC, permission and user-facing text is yours to build: build it, test it, name it in the commit body (step 9). Stop and ask the user only when the sound version changes what users see. Done when every sketch and rule the ticket cites has a row and every cell holds evidence. The `requireTicketDesignNotes` commit hook refuses a ticket commit without notes written since the last commit, or with an empty or placeholder cell.
 
 5. **Prefactor first.** If the change would copy existing code, extract the shared piece in its own commit with no behaviour change, and show existing tests green.
-6. **Build with tests.** Implement the ticket and test its ACs, plus:
-   - a new or changed JSON write endpoint gets a case in `apps/api/test/adversarialInputs.e2e-spec.ts`;
-   - a new migration is added to `MIGRATIONS` in `apps/api/test/e2eGlobalSetup.ts` (the migrations e2e suite then reverts it over realistic data);
-   - a new route under `/workspaces/:slug` or `/projects/:identifier` uses the existing guards (`apps/api/src/architecture.spec.ts` fails otherwise).
-7. **Check.** `pnpm lint && pnpm typecheck && pnpm test && pnpm dup`, plus `pnpm --filter @repo/api test:e2e` for API changes, and Prettier on the files you touched. Done when all are green.
+6. **Build with tests.** Implement the ticket and test its ACs. How you order code and tests is your call; keep the feedback loop short:
+   - While building, run the narrow command for what you are working on (`pnpm --filter <workspace> test <file>`, `pnpm --filter @repo/api test:e2e <file>`), not the whole suite. After changing `@repo/contracts`, run `pnpm --filter @repo/contracts build` first: the apps import its `dist/`.
+   - Read expected values (copy, codes, formats) from the source the code uses instead of writing them from memory, and reuse existing fakes and fixtures where they fit.
+   - Test what this ticket builds. Behaviour that a later ticket delivers is tested in that ticket.
+   - A new or changed JSON write endpoint gets a case in `apps/api/test/adversarialInputs.e2e-spec.ts`; a new migration is added to `MIGRATIONS` in `apps/api/test/e2eGlobalSetup.ts`; a new route under `/workspaces/:slug` or `/projects/:identifier` uses the existing guards (`apps/api/src/architecture.spec.ts` fails otherwise).
+
+   Before step 7, run typecheck, lint and `vitest related --run <changed files>` in each workspace you changed, so a regression in shared code shows up here rather than in the full run.
+
+7. **Check.** `pnpm lint && pnpm typecheck && pnpm test && pnpm dup`, plus `pnpm --filter @repo/api test:e2e` for API changes, and Prettier on the files you touched. If a test fails only in the full run, rerun once before debugging; if it keeps failing and is unrelated to this branch, note it in the report. Done when all are green, apart from such a noted failure.
 8. **Review against the spec and the ticket.** Read `git diff` (staged and unstaged) for this ticket next to the ticket file and the spec sections it cites:
    - Every checkbox in the ticket is done, or you note why not.
    - Every AC, INV and spec section the ticket cites has the code that implements it and a test that fails without it. Name them. A cited item with no test is a finding.
