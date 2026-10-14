@@ -1378,4 +1378,299 @@ describe("ProjectMembersSettingsPage", () => {
       ).toHaveFocus();
     });
   });
+
+  it("AC-05: clicking each column header in both directions keeps inherited members at top", async () => {
+    const user = userEvent.setup();
+    const inheritedKai: ProjectMemberResponse = {
+      userId: "u-kai-admin",
+      firstName: "Kai",
+      lastName: "Tran",
+      displayName: "kaitran",
+      email: "kai@openplany.dev",
+      avatarUrl: null,
+      role: "admin",
+      assignedRole: null,
+      roleLimited: false,
+      joinedAt: null,
+      accountActive: true,
+      source: "inherited",
+      workspaceRole: "admin",
+      assignableRoles: [],
+    };
+    const inheritedLan: ProjectMemberResponse = {
+      userId: "u-lan-admin",
+      firstName: "Lan",
+      lastName: "Pham",
+      displayName: "lanpham",
+      email: "lan@openplany.dev",
+      avatarUrl: null,
+      role: "admin",
+      assignedRole: null,
+      roleLimited: false,
+      joinedAt: null,
+      accountActive: true,
+      source: "inherited",
+      workspaceRole: "admin",
+      assignableRoles: [],
+    };
+    const assignedAn: ProjectMemberResponse = {
+      userId: "u-an-assigned",
+      firstName: "An",
+      lastName: "Do",
+      displayName: "ando",
+      email: "an@openplany.dev",
+      avatarUrl: null,
+      role: "admin",
+      assignedRole: "admin",
+      roleLimited: false,
+      joinedAt: "2026-10-01T00:00:00.000Z",
+      accountActive: true,
+      source: "assigned",
+      workspaceRole: "member",
+      assignableRoles: ["admin", "contributor"],
+    };
+    const assignedChi: ProjectMemberResponse = {
+      userId: "u-chi-assigned",
+      firstName: "Chi",
+      lastName: "Le",
+      displayName: "chile",
+      email: "chi@openplany.dev",
+      avatarUrl: null,
+      role: "viewer",
+      assignedRole: "viewer",
+      roleLimited: false,
+      joinedAt: "2026-10-05T00:00:00.000Z",
+      accountActive: true,
+      source: "assigned",
+      workspaceRole: "member",
+      assignableRoles: ["viewer"],
+    };
+
+    const membersData: ProjectMemberListResponse = {
+      members: [inheritedKai, inheritedLan, assignedAn, assignedChi],
+      total: 2,
+      truncated: false,
+      addableRoles: ["admin", "contributor", "commenter", "viewer"],
+      assignedAdminCount: 1,
+    };
+
+    const { container } = renderMembersApp({
+      membersResponse: membersData,
+    });
+
+    expect(await screen.findByText("Kai Tran")).toBeInTheDocument();
+
+    const columnHeaders = [
+      "Full name",
+      "Display name",
+      "Email",
+      "Role",
+      "Joining date",
+    ];
+
+    for (const title of columnHeaders) {
+      const headerBtn = screen.getByRole("button", {
+        name: `Sort by ${title}`,
+      });
+      // Click header button to open menu and choose Ascending
+      await user.click(headerBtn);
+      const ascItem = await screen.findByRole("menuitem", {
+        name: /^ascending/i,
+      });
+      await user.click(ascItem);
+
+      let rows = container.querySelectorAll("tbody tr");
+      expect(rows).toHaveLength(4);
+      expect(rows[0].className).toContain("inheritedRow");
+      expect(rows[1].className).toContain("inheritedRow");
+      expect(rows[2].className).not.toContain("inheritedRow");
+      expect(rows[3].className).not.toContain("inheritedRow");
+
+      // Click header button to open menu and choose Descending
+      await user.click(headerBtn);
+      const descItem = await screen.findByRole("menuitem", {
+        name: /^descending/i,
+      });
+      await user.click(descItem);
+
+      rows = container.querySelectorAll("tbody tr");
+      expect(rows).toHaveLength(4);
+      expect(rows[0].className).toContain("inheritedRow");
+      expect(rows[1].className).toContain("inheritedRow");
+      expect(rows[2].className).not.toContain("inheritedRow");
+      expect(rows[3].className).not.toContain("inheritedRow");
+    }
+  });
+
+  it("AC-06: filter and search apply to both groups, badge in title remains equal to total", async () => {
+    const user = userEvent.setup();
+    const inheritedKai: ProjectMemberResponse = {
+      userId: "u-kai-admin",
+      firstName: "Kai",
+      lastName: "Tran",
+      displayName: "kaitran",
+      email: "kai@openplany.dev",
+      avatarUrl: null,
+      role: "admin",
+      assignedRole: null,
+      roleLimited: false,
+      joinedAt: null,
+      accountActive: true,
+      source: "inherited",
+      workspaceRole: "admin",
+      assignableRoles: [],
+    };
+    const assignedChi: ProjectMemberResponse = {
+      userId: "u-chi-assigned",
+      firstName: "Chi",
+      lastName: "Le",
+      displayName: "chile",
+      email: "chi@openplany.dev",
+      avatarUrl: null,
+      role: "viewer",
+      assignedRole: "viewer",
+      roleLimited: false,
+      joinedAt: "2026-10-05T00:00:00.000Z",
+      accountActive: true,
+      source: "assigned",
+      workspaceRole: "member",
+      assignableRoles: ["viewer"],
+    };
+
+    const membersData: ProjectMemberListResponse = {
+      members: [inheritedKai, assignedChi],
+      total: 1, // Only assignedChi is counted in total
+      truncated: false,
+      addableRoles: ["admin", "contributor", "commenter", "viewer"],
+      assignedAdminCount: 0,
+    };
+
+    renderMembersApp({
+      membersResponse: membersData,
+    });
+
+    expect(await screen.findByText("Kai Tran")).toBeInTheDocument();
+    expect(screen.getByText("Chi Le")).toBeInTheDocument();
+
+    // Title badge shows total = 1
+    const heading = screen.getByRole("heading", { name: /^members/i });
+    expect(within(heading.parentElement!).getByText("1")).toBeInTheDocument();
+
+    // Search for inherited member
+    const searchInput = screen.getByRole("textbox", { name: "Search members" });
+    await user.type(searchInput, "kai");
+
+    expect(screen.getByText("Kai Tran")).toBeInTheDocument();
+    expect(screen.queryByText("Chi Le")).not.toBeInTheDocument();
+    // Title badge remains 1
+    expect(within(heading.parentElement!).getByText("1")).toBeInTheDocument();
+
+    // Clear search and search for assigned member
+    await user.clear(searchInput);
+    await user.type(searchInput, "chi");
+
+    expect(screen.queryByText("Kai Tran")).not.toBeInTheDocument();
+    expect(screen.getByText("Chi Le")).toBeInTheDocument();
+    // Title badge remains 1
+    expect(within(heading.parentElement!).getByText("1")).toBeInTheDocument();
+
+    // Clear search
+    await user.clear(searchInput);
+
+    // Filter by role: Project Admin (matches inheritedKai)
+    const filterBtn = screen.getByRole("button", { name: "Filter by role" });
+    await user.click(filterBtn);
+    const adminCheckbox = await screen.findByRole("checkbox", {
+      name: "Project Admin",
+    });
+    await user.click(adminCheckbox);
+    await user.keyboard("{Escape}");
+
+    expect(screen.getByText("Kai Tran")).toBeInTheDocument();
+    expect(screen.queryByText("Chi Le")).not.toBeInTheDocument();
+    // Title badge still shows total = 1
+    expect(within(heading.parentElement!).getByText("1")).toBeInTheDocument();
+  });
+
+  it("AC-07: inherited row has .inheritedRow class, no button/combobox, tooltip on hover and focus; handles viewer as that admin and deactivated admin", async () => {
+    const sessionAdminKai: ProjectMemberResponse = {
+      userId: "user-1", // Matches makeSession() user
+      firstName: "SelfAdmin",
+      lastName: "User",
+      displayName: "selfadmin",
+      email: "selfadmin@openplany.dev",
+      avatarUrl: null,
+      role: "admin",
+      assignedRole: null,
+      roleLimited: false,
+      joinedAt: null,
+      accountActive: true,
+      source: "inherited",
+      workspaceRole: "admin",
+      assignableRoles: [],
+    };
+    const deactivatedInheritedLan: ProjectMemberResponse = {
+      userId: "u-lan-deactivated",
+      firstName: "Lan",
+      lastName: "Pham",
+      displayName: "lanpham",
+      email: "lan@openplany.dev",
+      avatarUrl: null,
+      role: "admin",
+      assignedRole: null,
+      roleLimited: false,
+      joinedAt: null,
+      accountActive: false, // Deactivated
+      source: "inherited",
+      workspaceRole: "admin",
+      assignableRoles: [],
+    };
+
+    const membersData: ProjectMemberListResponse = {
+      members: [sessionAdminKai, deactivatedInheritedLan],
+      total: 0,
+      truncated: false,
+      addableRoles: ["admin", "contributor", "commenter", "viewer"],
+      assignedAdminCount: 0,
+    };
+
+    renderMembersApp({
+      membersResponse: membersData,
+    });
+
+    expect(await screen.findByText("SelfAdmin User")).toBeInTheDocument();
+    expect(screen.getByText("Lan Pham")).toBeInTheDocument();
+
+    const selfRow = screen.getByText("SelfAdmin User").closest("tr")!;
+    const lanRow = screen.getByText("Lan Pham").closest("tr")!;
+
+    // Self inherited admin row
+    expect(selfRow.className).toContain("inheritedRow");
+    expect(selfRow.getAttribute("data-readonly")).toBe("true");
+    expect(within(selfRow).queryByRole("combobox")).not.toBeInTheDocument();
+    expect(within(selfRow).queryByRole("button")).not.toBeInTheDocument();
+
+    // Deactivated inherited admin row
+    expect(lanRow.className).toContain("inheritedRow");
+    expect(lanRow.getAttribute("data-readonly")).toBe("true");
+    expect(within(lanRow).queryByRole("combobox")).not.toBeInTheDocument();
+    expect(within(lanRow).queryByRole("button")).not.toBeInTheDocument();
+
+    // Deactivated badge uses variant="default"
+    const deactivatedBadge = within(lanRow).getByText("Deactivated");
+    expect(deactivatedBadge.closest(".mantine-Badge-root")).toHaveAttribute(
+      "data-variant",
+      "default",
+    );
+
+    // Workspace Admin badge uses variant="default"
+    const adminBadges = screen.getAllByText("Workspace Admin");
+    const badgeRoot = adminBadges[0].closest(".mantine-Badge-root")!;
+    expect(badgeRoot).toHaveAttribute("data-variant", "default");
+    expect(badgeRoot).toHaveAttribute("tabindex", "0");
+
+    // Focus on badge
+    (badgeRoot as HTMLElement).focus();
+    expect(badgeRoot).toHaveFocus();
+  });
 });

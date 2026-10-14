@@ -163,6 +163,7 @@ export function ProjectMembersSettingsPage() {
       <MembersListView
         scheme={PROJECT_ROLE_SCHEME}
         state={listViewState}
+        inheritedRow={(m) => m.source === "inherited"}
         truncatedMessage={truncatedProjectMembersMessage}
         canSeeEmail={canSeeEmail}
         canAddMember={canAddMember}
@@ -270,7 +271,7 @@ export function InheritedRoleBadge({
     >
       <Badge
         color="gray"
-        variant="light"
+        variant="default"
         size="xs"
         tabIndex={0}
         aria-describedby={tooltipId}
