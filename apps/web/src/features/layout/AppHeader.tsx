@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button, Container, Group, Image } from "@mantine/core";
+import { useTranslation } from "react-i18next";
 import type { WorkspaceResponse } from "@repo/contracts";
 import { ColorSchemeToggle } from "@repo/ui";
 import markUrl from "../../assets/openplany-mark.png";
@@ -22,6 +23,7 @@ export function AppHeader({
   currentWorkspace,
   variant = "default",
 }: AppHeaderProps) {
+  const { t } = useTranslation();
   const { state: authState, signOut } = useAuth();
   const { state: wsState } = useWorkspaces();
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -69,7 +71,11 @@ export function AppHeader({
 
         <Group gap="xs" wrap="nowrap" className={classes.rightGroup}>
           {!isDesktop && currentWorkspace && <CommandSearchPlaceholder />}
-          <ColorSchemeToggle size="input-xs" />
+          <ColorSchemeToggle
+            size="input-xs"
+            labelLight={t("common:theme.switchToLight")}
+            labelDark={t("common:theme.switchToDark")}
+          />
           <UserButton user={authState.session.user} />
           {!currentWorkspace && (
             <Button

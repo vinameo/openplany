@@ -44,4 +44,27 @@ describe("ColorSchemeToggle", () => {
       screen.getByRole("button", { name: "Switch to light mode" }),
     ).toBeInTheDocument();
   });
+
+  it("uses labels passed via props (RQ INV-14)", () => {
+    render(
+      <AppUiProvider defaultColorScheme="light">
+        <ColorSchemeToggle
+          labelLight="Chuyển sang giao diện sáng"
+          labelDark="Chuyển sang giao diện tối"
+        />
+      </AppUiProvider>,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Chuyển sang giao diện tối" }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Chuyển sang giao diện tối" }),
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Chuyển sang giao diện sáng" }),
+    ).toBeInTheDocument();
+  });
 });

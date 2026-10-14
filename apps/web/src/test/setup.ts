@@ -1,9 +1,24 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import { afterEach, vi } from "vitest";
+import type { Language } from "@repo/contracts";
+import {
+  initLanguage,
+  resetLanguageModuleForTest,
+  setLanguage,
+} from "../i18n/index.js";
+
+// Initialize language synchronously in 'en' for all tests
+initLanguage();
+
+export function setTestLanguage(lang: Language): void {
+  setLanguage(lang);
+}
 
 afterEach(() => {
   cleanup();
+  resetLanguageModuleForTest();
+  window.localStorage.clear();
 });
 
 // jsdom lacks these browser APIs; Mantine components rely on them.

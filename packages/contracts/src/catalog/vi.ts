@@ -9,12 +9,16 @@ export const vi: ViCatalog = {
     "roles.project.contributor": "Contributor",
     "roles.project.commenter": "Commenter",
     "roles.project.viewer": "Viewer",
+    "theme.switchToLight": "Chuyển sang giao diện sáng",
+    "theme.switchToDark": "Chuyển sang giao diện tối",
     "test.minute_other": "{{count}} phút",
   },
   auth: {
     signIn: "Đăng nhập",
+    "errors.signInFailed": "Không thể đăng nhập. Vui lòng thử lại.",
   },
   errors: {
+    genericError: "Đã có lỗi xảy ra. Vui lòng thử lại.",
     invalidValue: "Dữ liệu gửi lên không hợp lệ",
     validationFailed: "Dữ liệu gửi lên không hợp lệ",
     checkHighlightedFields: "Kiểm tra các trường được đánh dấu",
@@ -35,9 +39,13 @@ export const vi: ViCatalog = {
   },
   admin: {
     title: "Quản trị",
+    "errors.createUserFailed": "Không thể tạo người dùng. Vui lòng thử lại.",
+    "errors.loadRolesFailed": "Không thể tải danh sách vai trò và quyền.",
+    "errors.updateRolesFailed": "Không thể lưu phân quyền. Vui lòng thử lại.",
   },
   profile: {
     title: "Hồ sơ",
+    "errors.saveFailed": "Không thể lưu hồ sơ. Vui lòng thử lại.",
   },
   permissions: {
     "project.archive": "Lưu trữ dự án",

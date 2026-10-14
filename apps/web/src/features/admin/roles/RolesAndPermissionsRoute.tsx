@@ -14,6 +14,7 @@ import {
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { Navigate, useNavigate, useSearchParams } from "react-router";
+import { useTranslation } from "react-i18next";
 import { ColorSchemeToggle } from "@repo/ui";
 import type { RoleRef } from "@repo/contracts";
 import { useAuth } from "../../auth/useAuth";
@@ -48,6 +49,7 @@ type SaveErrorState =
   | null;
 
 export function RolesAndPermissionsRoute() {
+  const { t } = useTranslation();
   useDocumentTitle("Roles & Permissions · OpenPlany");
   const { state: authState } = useAuth();
   const navigate = useNavigate();
@@ -195,7 +197,11 @@ export function RolesAndPermissionsRoute() {
   return (
     <div className={classes.page}>
       <div className={classes.topBar}>
-        <ColorSchemeToggle size="input-xs" />
+        <ColorSchemeToggle
+          size="input-xs"
+          labelLight={t("common:theme.switchToLight")}
+          labelDark={t("common:theme.switchToDark")}
+        />
       </div>
       <main className={classes.main}>
         <div className={classes.header}>
