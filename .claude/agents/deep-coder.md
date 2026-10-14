@@ -24,7 +24,7 @@ Your final message goes to the caller. Include:
 
 - the commits you made (hash and subject);
 - the result of each check command;
-- the spec deviations and the spec files you updated;
+- the design notes file (`tickets/NN-<slug>.design.md`), its `deviate` rows, and the spec files you updated for them;
 - review findings you did not fix, and why;
 - anything blocking the next ticket.
 

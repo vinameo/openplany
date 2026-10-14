@@ -19,7 +19,20 @@ description: Implement one ticket of an OpenPlany feature (packages/docs/<n>-<fe
 
    CLAUDE.md overrides these skills where they disagree. For example, the web app uses Mantine, react-router and TanStack Query, not MUI or TanStack Router. Before you write an entity, query or migration, inspect the real schema, indexes and rows with the read-only `open-plany-postgres` MCP tool (`mcp__open-plany-postgres__query`). Never write to the database through an MCP tool; change the schema only through migrations.
 
-4. **Design pass.** Hold the ticket and its spec sketches to the design pass in CLAUDE.md §8. Write down every point where the sound design differs from the spec. Done when each design-pass item is either satisfied or listed as a deviation.
+4. **Design pass: every sketch is a hypothesis.** The spec's code, queries, locks and algorithm steps, and the function names and step orders in the ticket, were written without running code. The requirement is the INVs, ACs and copy they serve. Test each hypothesis against the code at HEAD, the real schema and rows, and the design pass in CLAUDE.md §8. Then write `packages/docs/<n>-<feature>/tickets/NN-<slug>.design.md` with this table, one row per sketch or rule the ticket builds on:
+
+   | Sketch or rule (spec §) | Invariant (INV/AC) | Checked against (code/DB) | Changes between read and write | Deleted or inactive rows | Same rule elsewhere | Verdict |
+   | ----------------------- | ------------------ | ------------------------- | ------------------------------ | ------------------------ | ------------------- | ------- |
+   - **Sketch or rule:** where it is (`API B4.2`, `DB B5.1`) and what it says, in one line.
+   - **Invariant:** the INV or AC it serves. When the spec states none, write the one the sketch needs and mark it `(added)`.
+   - **Checked against:** the `file:line` or query you read at HEAD, in backticks. When the spec's "current state" names a commit older than HEAD, read `git diff <that commit>..HEAD` on the files it cites.
+   - **Changes between read and write:** what another request can commit between the read that decides and the write (a role change, a delete, the same write twice), and which read the decision uses: a row locked in the same transaction, or a value from the guard.
+   - **Deleted or inactive rows:** soft-deleted rows, deactivated accounts, ended memberships, and how each is excluded or answered.
+   - **Same rule elsewhere:** the existing helper, or the other place in the spec or code that states the same rule, and the one seam both will use.
+   - **Verdict:** `follow`, or `deviate: <the sound version>`.
+
+   A deviation that keeps every AC, permission and user-facing text is yours to build: build it, test it, name it in the commit body (step 9). Stop and ask the user only when the sound version changes what users see. Done when every sketch and rule the ticket cites has a row and every cell holds evidence. The `requireTicketDesignNotes` commit hook refuses a ticket commit without notes written since the last commit, or with an empty or placeholder cell.
+
 5. **Prefactor first.** If the change would copy existing code, extract the shared piece in its own commit with no behaviour change, and show existing tests green.
 6. **Build with tests.** Implement the ticket and test its ACs, plus:
    - a new or changed JSON write endpoint gets a case in `apps/api/test/adversarialInputs.e2e-spec.ts`;
@@ -31,18 +44,18 @@ description: Implement one ticket of an OpenPlany feature (packages/docs/<n>-<fe
    - Every AC, INV and spec section the ticket cites has the code that implements it and a test that fails without it. Name them. A cited item with no test is a finding.
    - Nothing beyond the ticket's scope slipped in. Work that belongs to a later ticket waits for it.
    - User-facing text comes from the spec or `@repo/contracts` constants (design pass item 7).
-   - Every departure from the spec's part B is a deviation from step 4.
+   - Every `deviate` row of the design notes (step 4) is built and has a test that fails on the spec's sketch.
 
    Fix each finding and re-run step 7. Done when the review finds nothing new.
 
-9. **Commit** one Conventional Commit per ticket; the body names every spec deviation. Update the spec files for each deviation.
+9. **Commit** one Conventional Commit per ticket; the body names every `deviate` row. Rewrite the spec's sketch for each deviation as the invariant it missed, so later tickets and features build on the sound version.
 10. **After the tracer-bullet ticket**, run `/code-review` on the branch and fix its findings before starting the next ticket: later tickets copy whatever the tracer establishes.
 
 ## After the last ticket: feature review
 
 Review the whole feature (`git diff develop...HEAD`) with the full spec set (`1-…` to `5-…`) and `tickets/README.md` open, not ticket by ticket. Run `/code-review` and `/security-review` on the branch, then check each area below yourself. Tickets built in separate contexts duplicate each other: look for two implementations of the same idea.
 
-1. **Spec complete.** Every AC and INV in `1-requirement-spec.md` has code and a test. Every ticket in `tickets/README.md` is done. Every deviation is written back into the spec.
+1. **Spec complete.** Every AC and INV in `1-requirement-spec.md` has code and a test. Every ticket in `tickets/README.md` is done and has its `.design.md`. Every `deviate` row is written back into the spec.
 2. **SOLID.**
    - S: controllers parse input and call one service method; each service and repository has one job; no god-service.
    - O: a new role, permission or option is added through data (`role_permissions`, `@repo/contracts` constants), not by editing branches in existing code.

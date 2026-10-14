@@ -295,11 +295,11 @@ chore/ | refactor/ | docs/ | test/
 4. On merge conflicts, or if any check fails, stop and report — never force, rebase shared history, or merge with failing checks.
 5. Never push, and never touch `main`, unless the user asks.
 
-### Design pass and self-review (lessons from the reviews of features 7, 9 and 10)
+### Design pass and self-review (lessons from the reviews of features 7, 9, 10 and 13–16)
 
 Each of those features passed every ticket's acceptance criteria and its checks, then needed a review-fix branch. Green tests prove the spec's happy paths; they do not prove the design. Run the design pass before coding each ticket and the self-review before step 3.
 
-**A spec's part B is a proposal, not a blueprint.** Its code sketches, algorithms and file lists were written without running code and have shipped flaws (a two-query lookup, URL parsing by string search, an access check that only one endpoint could use). Hold every sketch to the design pass. When the sound version differs, build it, and record the deviation in the commit message and in the spec.
+**Every sketch in a spec is a hypothesis.** Part B's code, queries, algorithms and file lists were written without running code, and copying them shipped flaws: a two-query lookup, URL parsing by string search, an access check only one endpoint could use (features 7–10); a decision taken from the guard's stale role, a lock that missed soft-deleted rows, a count compared to 1, one rule written in two sections, two messages under one error code (13–16). The requirement is the ACs, INVs, permissions and copy. Test every sketch against the code and data at HEAD in the ticket's design notes (`implement-ticket` step 4; the `requireTicketDesignNotes` hook refuses a ticket commit without them), build the sound version, and record the deviation in the commit message and in the spec.
 
 **Design pass** (per ticket, before writing code):
 
@@ -332,14 +332,19 @@ The `spec-review` skill (user-level, shared across projects) reads this section.
 - **P5 Web building blocks.** URLs come from `workspacePath`/`workspaceSettingsPath`/`projectPath`. Route meta uses `useRouteHandleMeta`. Sidebars use `SidebarNavItem`. Page headers use `pageHeader.module.css`. Server state uses TanStack Query, with keys in the feature's `api/*Queries.ts`.
 - **P6 Shared copy.** Validation and error messages are `@repo/contracts` constants, used by both the API DTO and the web form.
 - **P7 Glossary.** Terms follow `/CONTEXT.md`. The product the drafts imitate is never named.
+- **P8 Hypotheses.** Try to break every sketch and algorithm in part B: name a concrete scenario where it answers wrong (a change committed between the read and the write, a soft-deleted row, a deactivated account, an ended membership, the same write twice, someone wrongly in or out of a count). Each scenario is a finding whose fix is an invariant or edge case plus a test row. A sketch with no linked `INV-`, or a lock, query or `where` clause written as code, is a finding.
+- **P9 Decide on locked rows.** A value a write depends on (a role, a membership, a count) is read inside the write's transaction from a locked row, never taken from what the guard read.
+- **P10 Live rows.** Every read and lock on a soft-deletable table says how deleted rows are excluded or answered.
+- **P11 One rule, one section.** A rule (a check order, a count, a filter) is stated once; other sections and files point to it.
+- **P12 One code per message.** Each sentence the web shows for an error has its own `code` in the API error table, and the web error table maps codes, never messages.
 
 **Feature workflow skills** (`.claude/skills/`): `write-feature-spec` (grill → five spec files → `spec-reviewer` subagent, which runs the user-level `spec-review` skill with the checks above → tickets), `implement-ticket` (one ticket, and the final self-review and merge) and `implement-feature` (`/implement-feature <docs path>`: every ticket in order through the `deep-coder` subagent, then the branch review and merge).
 
-**Other coding agents (Codex, Antigravity).** `AGENTS.md` is a symlink to this file, and `.agents/skills` and `.agents/agents` are symlinks to `.claude/skills` and `.claude/agents`, so every agent reads the same rules, skills and subagents. In an agent's frontmatter, restrict tools with `disallowedTools`, never `tools:`: Antigravity drops an agent whose `tools:` names Claude Code tools (`agy agents` must list every file in `.claude/agents`). Antigravity gets the merge-gate hook from `.agents/hooks.json`, which runs the same `.claude/hooks/requireBranchReview.mjs`. When a skill names a Claude Code feature your agent lacks:
+**Other coding agents (Codex, Antigravity).** `AGENTS.md` is a symlink to this file, and `.agents/skills` and `.agents/agents` are symlinks to `.claude/skills` and `.claude/agents`, so every agent reads the same rules, skills and subagents. In an agent's frontmatter, restrict tools with `disallowedTools`, never `tools:`: Antigravity drops an agent whose `tools:` names Claude Code tools (`agy agents` must list every file in `.claude/agents`). Antigravity gets the hooks from `.agents/hooks.json`, which runs the same `.claude/hooks/requireBranchReview.mjs` (merge gate) and `requireTicketDesignNotes.mjs` (ticket commit gate). When a skill names a Claude Code feature your agent lacks:
 - A subagent (`deep-coder`, `spec-reviewer`) your agent cannot start (Codex): read `.claude/agents/<name>.md` and do its job yourself, one ticket at a time, with its preloaded skills as background where you have them.
 - `/code-review` or `/security-review`: review `git diff develop...HEAD` yourself with the feature-review checklist in `implement-ticket`.
 - `$ARGUMENTS`: the path or number the user gave with the request.
-- Codex has no merge-gate hook: write the review report before `git merge` anyway.
+- Codex has no hooks: write the ticket's design notes before each ticket commit and the review report before `git merge` anyway.
 
 Work that isn't tied to one `packages/docs/<n>-…` directory (cross-cutting fixes, review follow-ups) uses `fix/` / `refactor/` / `chore/` with a short description and the same flow.
 
