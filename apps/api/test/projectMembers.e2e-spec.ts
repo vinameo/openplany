@@ -1023,7 +1023,7 @@ describe('ProjectMembers (e2e)', () => {
         .expect(200);
 
       expect(listRes.body.total).toBe(3);
-      expect(res.body.project.memberCount).toBe(4);
+      expect(res.body.project.memberCount).toBe(3);
     });
 
     it('AC-16: reactivates inactive former member in the same row, updating role and joined_at while preserving created_at and adding one history row', async () => {
@@ -1875,7 +1875,8 @@ describe('ProjectMembers (e2e)', () => {
         (p: ProjectListItem) => p.identifier === 'PAC10',
       );
       expect(proj).toBeDefined();
-      expect(proj.memberCount).toBe(5);
+      expect(proj.memberCount).toBe(2);
+      expect(proj.members).toHaveLength(2);
     });
 
     it('AC-23: omits inherited members when viewer lacks workspace.members.view', async () => {
@@ -2177,6 +2178,19 @@ describe('ProjectMembers (e2e)', () => {
 
       // Total members returned: 2 inherited (owner + admin2) + 2 assigned (member1 + member2) = 4
       expect(res.body.members).toHaveLength(4);
+
+      // GET /projects returns memberCount = 2 matching total = 2 (neither counts corrupt admin2 row)
+      const projectsRes = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', cookie)
+        .expect(200);
+
+      const proj = projectsRes.body.projects.find(
+        (p: ProjectListItem) => p.identifier === 'PAC15',
+      );
+      expect(proj).toBeDefined();
+      expect(proj.memberCount).toBe(2);
+      expect(proj.members).toHaveLength(2);
     });
   });
 

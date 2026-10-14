@@ -716,11 +716,12 @@ describe('Projects (e2e)', () => {
       expect(res.body.total).toBe(1);
       expect(res.body.projects[0].name).toBe('Adminless Project');
       expect(res.body.projects[0].role).toBe('admin');
-      // Feature 13 Ticket 06: Active workspace admin is inherited into preview members
+      expect(res.body.projects[0].memberCount).toBe(1);
+      // Feature 16 Ticket 03: Workspace Admin is NOT in preview members or memberCount
       const memberUserIds = res.body.projects[0].members.map(
         (m: { userId: string }) => m.userId,
       );
-      expect(memberUserIds).toContain(ownerId);
+      expect(memberUserIds).not.toContain(ownerId);
       expect(memberUserIds).toContain(memberId);
     });
 
@@ -850,11 +851,12 @@ describe('Projects (e2e)', () => {
     it('returns at most PROJECT_MEMBER_PREVIEW_MAX members per project with the real memberCount', async () => {
       const {
         workspace,
-        ownerId,
         cookie: adminCookie,
       } = await seedWorkspace('owner-preview@openplany.dev', 'preview-ws');
       const projectId = await insertProject(workspace.id, 'Crowded', 'CROWD');
-      await insertProjectMember(projectId, workspace.id, ownerId, 'admin');
+      const leadId = await createUser('preview-lead@openplany.dev');
+      await addWorkspaceMember(workspace.id, leadId, 'member');
+      await insertProjectMember(projectId, workspace.id, leadId, 'admin');
       const extra = PROJECT_MEMBER_PREVIEW_MAX + 4;
       for (let i = 0; i < extra; i++) {
         const userId = await createUser(`preview-${i}@openplany.dev`);
@@ -875,13 +877,12 @@ describe('Projects (e2e)', () => {
       const project = res.body.projects[0];
       expect(project.members).toHaveLength(PROJECT_MEMBER_PREVIEW_MAX);
       expect(project.memberCount).toBe(extra + 1);
-      expect(project.members[0].userId).toBe(ownerId);
+      expect(project.members[0].userId).toBe(leadId);
     });
 
     it('excludes former workspace members from both members preview and memberCount (RQ AC-02, DB-04)', async () => {
       const {
         workspace,
-        ownerId,
         cookie: adminCookie,
       } = await seedWorkspace(
         'owner-former-mem@openplany.dev',
@@ -892,7 +893,9 @@ describe('Projects (e2e)', () => {
         'Former Member Project',
         'FMP',
       );
-      await insertProjectMember(projectId, workspace.id, ownerId, 'admin');
+      const stayingId = await createUser('staying-user@openplany.dev');
+      await addWorkspaceMember(workspace.id, stayingId, 'member', true);
+      await insertProjectMember(projectId, workspace.id, stayingId, 'admin');
 
       const leaverId = await createUser('former-user@openplany.dev');
       await addWorkspaceMember(workspace.id, leaverId, 'member', true);
@@ -1039,11 +1042,10 @@ describe('Projects (e2e)', () => {
 
   describe('POST /api/workspaces/:slug/projects', () => {
     it('AC-01 & AC-23: admin creates project -> 201; 1 member (creator, admin); 1 history row; response matches GET', async () => {
-      const {
-        workspace,
-        ownerId,
-        cookie: adminCookie,
-      } = await seedWorkspace('admin-create@openplany.dev', 'create-ws');
+      const { workspace, cookie: adminCookie } = await seedWorkspace(
+        'admin-create@openplany.dev',
+        'create-ws',
+      );
 
       const res = await http()
         .post(`/api/workspaces/${workspace.slug}/projects`)
@@ -1068,8 +1070,8 @@ describe('Projects (e2e)', () => {
       expect(proj.coverKey).toBe('cover-02');
       expect(proj.role).toBe('admin');
       expect(proj.permissions).toContain('project.members.view');
-      expect(proj.members).toHaveLength(1);
-      expect(proj.members[0].userId).toBe(ownerId);
+      expect(proj.members).toEqual([]);
+      expect(proj.memberCount).toBe(0);
       expect(proj.timezone).toBeNull();
       expect(proj.effectiveTimezone).toBe('UTC');
       expect(typeof proj.updatedAt).toBe('string');
@@ -1181,6 +1183,7 @@ describe('Projects (e2e)', () => {
           (m: { userId: string }) => m.userId === memberId,
         ),
       ).toBe(true);
+      expect(res.body.project.memberCount).toBe(1);
 
       // Verify DB tables (AC-09): Member has project_members and role history row
       const memberRows = await e2e.dataSource.query<

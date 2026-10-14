@@ -5,8 +5,6 @@ import type {
 } from '../dto/projectResponse.js';
 
 export interface MembersOfOpts {
-  workspaceId?: string;
-  showInherited?: boolean;
   implicitRoles: readonly WorkspaceRole[];
   includeEmail: boolean;
   limitPerProject: number;

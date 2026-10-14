@@ -114,6 +114,11 @@ describe('ProjectsService', () => {
       expect(res.projects[0]!.members).toHaveLength(1);
       expect(res.projects[0]!.members![0]!.email).toBe('an@example.com');
       expect(res.projects[0]!.permissions).toEqual(['project.members.view']);
+      expect(repository.lastMembersOfQuery?.opts).toEqual({
+        implicitRoles: ['admin'],
+        includeEmail: true,
+        limitPerProject: PROJECT_MEMBER_PREVIEW_MAX,
+      });
     });
 
     it('sets members: null and does not query members when lacking project.members.view (AC-14)', async () => {

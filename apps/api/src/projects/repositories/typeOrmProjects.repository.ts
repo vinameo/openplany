@@ -17,11 +17,7 @@ import {
   ProjectIdentifierTakenError,
   ProjectNameTakenError,
 } from '../projectErrors.js';
-import {
-  ACTIVE_PROJECT,
-  inheritedProjectMembersQuery,
-  projectMembersQuery,
-} from '../projectFilters.js';
+import { ACTIVE_PROJECT, projectMembersQuery } from '../projectFilters.js';
 import {
   ProjectsRepository,
   type CreateProjectInput,
@@ -112,80 +108,6 @@ export class TypeOrmProjectsRepository extends ProjectsRepository {
         member.email = row.email;
       }
       preview.members.push(member);
-    }
-
-    // Inherited members (Workspace Admins): query once for workspace if showInherited is true
-    if (
-      opts.showInherited &&
-      opts.workspaceId &&
-      opts.implicitRoles &&
-      opts.implicitRoles.length > 0
-    ) {
-      const inheritedQb = inheritedProjectMembersQuery(
-        this.dataSource.manager,
-        opts.workspaceId,
-        opts.implicitRoles,
-      );
-
-      const inheritedTotal = await inheritedQb.clone().getCount();
-
-      const inheritedSubQuery = inheritedQb
-        .select('wm.memberId', 'userId')
-        .addSelect('wm.joinedAt', 'addedAt')
-        .addSelect('u.firstName', 'firstName')
-        .addSelect('u.lastName', 'lastName')
-        .addSelect('u.displayName', 'displayName')
-        .addSelect('u.isActive', 'accountActive')
-        .orderBy('wm.joinedAt', 'ASC')
-        .addOrderBy('wm.memberId', 'ASC')
-        .limit(opts.limitPerProject);
-
-      if (opts.includeEmail) {
-        inheritedSubQuery.addSelect('u.email', 'email');
-      }
-
-      const inheritedRawRows = await inheritedSubQuery.getRawMany<{
-        userId: string;
-        addedAt: Date;
-        firstName: string | null;
-        lastName: string | null;
-        displayName: string | null;
-        email?: string | null;
-        accountActive: boolean;
-      }>();
-
-      const inheritedMembers: ProjectMemberRow[] = inheritedRawRows.map((r) => {
-        const m: ProjectMemberRow = {
-          projectId: '',
-          userId: r.userId,
-          addedAt: r.addedAt,
-          firstName: r.firstName ?? '',
-          lastName: r.lastName ?? '',
-          displayName: r.displayName ?? '',
-          accountActive: Boolean(r.accountActive),
-        };
-        if (opts.includeEmail && typeof r.email === 'string') {
-          m.email = r.email;
-        }
-        return m;
-      });
-
-      // Merge into every project preview (Ticket 06: giữ dòng kế thừa trước)
-      for (const projectId of projectIds) {
-        let preview = result.get(projectId);
-        if (preview === undefined) {
-          preview = { members: [], total: 0 };
-          result.set(projectId, preview);
-        }
-        if (inheritedTotal > 0) {
-          preview.total += inheritedTotal;
-          const assignedMembers = preview.members;
-          preview.members = [
-            ...inheritedMembers,
-            ...assignedMembers,
-          ].slice(0, opts.limitPerProject);
-        }
-      }
     }
 
     return result;
