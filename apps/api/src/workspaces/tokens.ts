@@ -5,3 +5,5 @@ export const MEMBER_CANDIDATE_ALERT_LIMITER = Symbol('MEMBER_CANDIDATE_ALERT_LIM
 export const ROLE_CHANGE_PREVIEW_LIMITER = Symbol('ROLE_CHANGE_PREVIEW_LIMITER');
 export const ROLE_CHANGE_PREVIEW_ALERT_LIMITER = Symbol('ROLE_CHANGE_PREVIEW_ALERT_LIMITER');
 
+/** Lets one `workspace.member.role.forbidden` line per actor and window reach the logs. */
+export const ROLE_FORBIDDEN_ALERT_LIMITER = Symbol('ROLE_FORBIDDEN_ALERT_LIMITER');

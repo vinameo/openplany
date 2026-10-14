@@ -21,6 +21,7 @@ import {
   MEMBER_CANDIDATE_LIMITER,
   ROLE_CHANGE_PREVIEW_ALERT_LIMITER,
   ROLE_CHANGE_PREVIEW_LIMITER,
+  ROLE_FORBIDDEN_ALERT_LIMITER,
   SLUG_CHECK_LIMITER,
   WORKSPACE_WRITE_LIMITER,
 } from './tokens.js';
@@ -108,6 +109,11 @@ import { ProjectMemberRoleHistory } from '../projects/entities/projectMemberRole
       provide: ROLE_CHANGE_PREVIEW_ALERT_LIMITER,
       useFactory: () =>
         new InMemorySlidingWindowLimiter({ limit: 1, windowMs: 60_000 }),
+    },
+    {
+      provide: ROLE_FORBIDDEN_ALERT_LIMITER,
+      useFactory: () =>
+        new InMemorySlidingWindowLimiter({ limit: 1, windowMs: 600_000 }),
     },
   ],
   exports: [
