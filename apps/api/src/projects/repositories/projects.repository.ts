@@ -21,8 +21,21 @@ export interface CreateProjectInput {
   iconName: string;
   iconColor: string;
   coverKey: string;
-  creatorRole?: ProjectRole | null;
+  /**
+   * The creator's project role, decided from their workspace role as read
+   * (and locked) inside the create transaction. null: implicit access, no row.
+   */
+  creatorRoleFor: (workspaceRole: WorkspaceRole) => ProjectRole | null;
 }
+
+export type CreateProjectResult =
+  | {
+      status: 'created';
+      projectId: string;
+      creatorWorkspaceRole: WorkspaceRole;
+    }
+  /** The creator's workspace membership ended before the transaction. */
+  | { status: 'creator_gone' };
 
 export interface UpdateProjectInput {
   projectId: string;
@@ -56,7 +69,7 @@ export abstract class ProjectsRepository {
     opts: MembersOfOpts,
   ): Promise<Map<string, ProjectMembersPreview>>;
 
-  abstract create(input: CreateProjectInput): Promise<{ projectId: string }>;
+  abstract create(input: CreateProjectInput): Promise<CreateProjectResult>;
 
   abstract update(input: UpdateProjectInput): Promise<ProjectRow | null>;
 

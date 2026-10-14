@@ -332,28 +332,49 @@ describe('ProjectsService', () => {
         projectId: 'project-new-id',
       });
       expect(repository.createdProjects).toHaveLength(1);
-      expect(repository.createdProjects[0]!.creatorRole).toBeNull();
+      expect(repository.createdCreatorRoles).toEqual([null]);
       expect(events.createdEvents).toHaveLength(1);
       expect(events.createdEvents[0]!.projectId).toBe('project-new-id');
     });
 
-    it('passes creatorRole null when creator is Workspace Admin and admin when creator is Member (AC-08, AC-09)', async () => {
+    it('decides creatorRole from the workspace role the transaction locked, not the guard (AC-08, AC-09)', async () => {
       const { service, repository, resolver } = makeSetup();
+      // The guard saw Admin; a demotion to Member committed before the lock.
+      repository.creatorWorkspaceRole = 'member';
 
       resolver.project = {
         project: makeProjectRow({ id: 'p-m', name: 'Member Project' }),
         access: { role: 'admin', permissions: ['project.members.view'] },
       };
 
-      const memberWs = makeMemberWorkspace({ role: 'member' });
-      await service.create(memberWs, 'u-member', {
+      const ws = makeMemberWorkspace({ role: 'admin' });
+      await service.create(ws, 'u-member', {
         name: 'Member Project',
         identifier: 'MP',
         icon: { name: DEFAULT_PROJECT_ICON, color: DEFAULT_PROJECT_ICON_COLOR },
         coverKey: DEFAULT_PROJECT_COVER,
       });
 
-      expect(repository.createdProjects[0]!.creatorRole).toBe('admin');
+      expect(repository.createdCreatorRoles).toEqual(['admin']);
+      expect(resolver.lastInput).toMatchObject({ workspaceRole: 'member' });
+    });
+
+    it('answers 404 when the creator left the workspace before the transaction', async () => {
+      const { service, repository, events } = makeSetup();
+      repository.creatorWorkspaceRole = null;
+
+      await expect(
+        service.create(makeMemberWorkspace(), 'u-gone', {
+          name: 'Gone',
+          identifier: 'GO',
+          icon: {
+            name: DEFAULT_PROJECT_ICON,
+            color: DEFAULT_PROJECT_ICON_COLOR,
+          },
+          coverKey: DEFAULT_PROJECT_COVER,
+        }),
+      ).rejects.toMatchObject({ status: 404 });
+      expect(events.createdEvents).toHaveLength(0);
     });
 
     it('defaults description to empty string when omitted', async () => {

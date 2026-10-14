@@ -10,6 +10,7 @@ import {
   type ProjectListResponse,
   type ProjectResponse,
   type UpdateProjectResponse,
+  type WorkspaceRole,
 } from '@repo/contracts';
 import { Clock } from '../auth/clock.js';
 import { ApiException } from '../common/apiException.js';
@@ -94,10 +95,10 @@ export class ProjectsService {
     requestId?: string,
   ): Promise<CreateProjectResponse> {
     const now = this.clock.now();
-    const policy = this.policyStore.policies()[workspace.role];
-    const creatorRole = projectCreatorMembershipRole(policy);
+    const policies = this.policyStore.policies();
 
     let createdId: string;
+    let creatorWorkspaceRole: WorkspaceRole;
     try {
       const res = await this.repository.create({
         workspaceId: workspace.id,
@@ -110,9 +111,17 @@ export class ProjectsService {
         iconName: dto.icon.name,
         iconColor: dto.icon.color,
         coverKey: dto.coverKey,
-        creatorRole,
+        creatorRoleFor: (role) => projectCreatorMembershipRole(policies[role]),
       });
+      if (res.status === 'creator_gone') {
+        throw new ApiException(
+          HttpStatus.NOT_FOUND,
+          'NOT_FOUND',
+          'Workspace not found',
+        );
+      }
       createdId = res.projectId;
+      creatorWorkspaceRole = res.creatorWorkspaceRole;
     } catch (err: unknown) {
       if (err instanceof ProjectNameTakenError) {
         throw new ApiException(
@@ -134,10 +143,11 @@ export class ProjectsService {
     }
 
     // Same access path as the list, so POST returns exactly the row GET would.
+    // The workspace role is the one the transaction locked, not the guard's.
     const created = await this.resolver.forProject({
       workspaceId: workspace.id,
       userId,
-      workspaceRole: workspace.role,
+      workspaceRole: creatorWorkspaceRole,
       projectId: createdId,
     });
     const [project] =

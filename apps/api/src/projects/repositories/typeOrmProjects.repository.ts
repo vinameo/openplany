@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
-import { PROJECT_CREATOR_ROLE } from '@repo/contracts';
 import { DataSource, In } from 'typeorm';
 import { isUniqueViolation } from '../../common/databaseErrors.js';
 import { runTransactionWithRetry } from '../../database/transactionRetry.js';
@@ -13,6 +12,7 @@ import {
 import { Project } from '../entities/project.entity.js';
 import { ProjectMember } from '../entities/projectMember.entity.js';
 import { ProjectMemberRoleHistory } from '../entities/projectMemberRoleHistory.entity.js';
+import { WorkspaceMember } from '../../workspaces/entities/workspaceMember.entity.js';
 import {
   ProjectIdentifierTakenError,
   ProjectNameTakenError,
@@ -21,6 +21,7 @@ import { ACTIVE_PROJECT, projectMembersQuery } from '../projectFilters.js';
 import {
   ProjectsRepository,
   type CreateProjectInput,
+  type CreateProjectResult,
   type MembersOfOpts,
   type SoftDeleteProjectInput,
   type UpdateProjectInput,
@@ -113,7 +114,7 @@ export class TypeOrmProjectsRepository extends ProjectsRepository {
     return result;
   }
 
-  async create(input: CreateProjectInput): Promise<{ projectId: string }> {
+  async create(input: CreateProjectInput): Promise<CreateProjectResult> {
     const {
       workspaceId,
       actorId,
@@ -132,7 +133,17 @@ export class TypeOrmProjectsRepository extends ProjectsRepository {
     try {
       return await runTransactionWithRetry(
         this.dataSource,
-        async (manager) => {
+        async (manager): Promise<CreateProjectResult> => {
+          // 0. FOR SHARE on the creator's membership: a concurrent workspace
+          //    role change (FOR NO KEY UPDATE) waits for this commit and then
+          //    sees the new project row, or commits first and we read its role.
+          const creator = await manager.findOne(WorkspaceMember, {
+            select: { id: true, role: true },
+            where: { workspaceId, memberId: actorId, isActive: true },
+            lock: { mode: 'pessimistic_read' },
+          });
+          if (creator === null) return { status: 'creator_gone' };
+
           // 1. insert Project
           await manager.insert(Project, {
             id: projectId,
@@ -151,10 +162,7 @@ export class TypeOrmProjectsRepository extends ProjectsRepository {
           });
 
           // 2. insert ProjectMember (only if creatorRole is not null; Workspace Admins have implicit access and no project_members row)
-          const creatorRole =
-            input.creatorRole !== undefined
-              ? input.creatorRole
-              : PROJECT_CREATOR_ROLE;
+          const creatorRole = input.creatorRoleFor(creator.role);
           if (creatorRole !== null) {
             await manager.insert(ProjectMember, {
               workspaceId,
@@ -184,7 +192,11 @@ export class TypeOrmProjectsRepository extends ProjectsRepository {
             });
           }
 
-          return { projectId };
+          return {
+            status: 'created',
+            projectId,
+            creatorWorkspaceRole: creator.role,
+          };
         },
         {
           maxAttempts: 2,
