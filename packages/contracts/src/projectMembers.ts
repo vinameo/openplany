@@ -52,8 +52,11 @@ export interface ProjectMemberResponse {
 }
 
 export interface ProjectMemberListResponse {
+  /** Inherited members (source 'inherited') first, then project members. */
   members: ProjectMemberResponse[];
+  /** Real number of project members (Workspace Admins and other implicit roles excluded). = ProjectListItem.memberCount. */
   total: number;
+  /** true when total > number of 'assigned' rows in members. */
   truncated: boolean;
   addableRoles: ProjectRole[];
   assignedAdminCount: number;
@@ -157,4 +160,3 @@ export const PROJECT_MEMBER_NOT_ADDABLE_FIELD: Record<
   already_member: "userId",
   role_not_allowed: "role",
 };
-

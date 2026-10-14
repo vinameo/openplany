@@ -161,48 +161,26 @@ export class ProjectMembersService {
       buildProjectMemberResponse(row, { actor, includeEmail, policies }),
     );
 
-    const total = assigned.total + inherited.total;
-
-    // When combined count exceeds PROJECT_MEMBER_LIST_MAX, keep inherited first
-    const remaining = Math.max(
-      0,
-      PROJECT_MEMBER_LIST_MAX - inheritedMembers.length,
-    );
-    const combined = [
-      ...inheritedMembers,
-      ...assignedMembers.slice(0, remaining),
-    ];
-
-    // Return order: role rank descending -> name -> memberId
-    combined.sort((a, b) => {
-      const rankDiff = PROJECT_ROLE_RANK[b.role] - PROJECT_ROLE_RANK[a.role];
-      if (rankDiff !== 0) return rankDiff;
-      const nameA = (
-        `${a.firstName} ${a.lastName}`.trim() || a.displayName
-      ).toLowerCase();
-      const nameB = (
-        `${b.firstName} ${b.lastName}`.trim() || b.displayName
-      ).toLowerCase();
-      const nameDiff = nameA.localeCompare(nameB);
-      if (nameDiff !== 0) return nameDiff;
-      return a.userId.localeCompare(b.userId);
-    });
-
-    const truncated = total > combined.length;
-    if (truncated) {
-      await this.events.membersListTruncated({
-        projectId: accessible.project.id,
-        total,
-        source: 'assigned',
-        requestId,
-      });
+    for (const [source, page] of [
+      ['assigned', assigned],
+      ['inherited', inherited],
+    ] as const) {
+      if (page.total > page.members.length) {
+        await this.events.membersListTruncated({
+          projectId: accessible.project.id,
+          total: page.total,
+          source,
+          requestId,
+        });
+      }
     }
 
+    const truncated = assigned.total > assigned.members.length;
     const addableRoles = canAdd ? addableProjectRoleRange(actor, policies) : [];
 
     return {
-      members: combined,
-      total,
+      members: [...inheritedMembers, ...assignedMembers],
+      total: assigned.total,
       truncated,
       addableRoles,
       assignedAdminCount,

@@ -375,8 +375,40 @@ describe("ProjectMembersSettingsPage", () => {
     });
 
     expect(
-      await screen.findByText("Showing the first 1,000 of 1,001 members."),
+      await screen.findByText(
+        "Showing the first 1,000 of 1,001 project members.",
+      ),
     ).toBeInTheDocument();
+  });
+
+  it("AC-04: payload with inherited and truncated assigned members renders total badge and project members truncation alert", async () => {
+    const inheritedAdmin1: ProjectMemberResponse = {
+      ...memberKai,
+      userId: "u-admin-1",
+      source: "inherited",
+      role: "admin",
+      workspaceRole: "admin",
+      assignedRole: null,
+      joinedAt: null,
+      assignableRoles: [],
+    };
+    renderMembersApp({
+      membersResponse: {
+        members: [inheritedAdmin1, memberNam],
+        total: 1005,
+        truncated: true,
+        addableRoles: [],
+        assignedAdminCount: 0,
+      },
+    });
+
+    expect(
+      await screen.findByText(
+        "Showing the first 1,000 of 1,005 project members.",
+      ),
+    ).toBeInTheDocument();
+    // Badge shows total (1005), not members.length (2)
+    expect(screen.getByText("1005")).toBeInTheDocument();
   });
 
   it("AC-39: displays No members yet and Add member button when total is 0 and canAddMember is true", async () => {
@@ -600,7 +632,9 @@ describe("ProjectMembersSettingsPage", () => {
         assignedAdminCount: 2,
       },
       extraRoutes: {
-        "PATCH /api/workspaces/the-firsts/projects/TFP11/members/u-an": (init) => {
+        "PATCH /api/workspaces/the-firsts/projects/TFP11/members/u-an": (
+          init,
+        ) => {
           patchPayload = JSON.parse(init?.body as string);
           return jsonResponse(200, {
             member: {
@@ -892,7 +926,9 @@ describe("ProjectMembersSettingsPage", () => {
         assignedAdminCount: 1,
       },
       extraRoutes: {
-        "PATCH /api/workspaces/the-firsts/projects/TFP11/members/u-an": (init) => {
+        "PATCH /api/workspaces/the-firsts/projects/TFP11/members/u-an": (
+          init,
+        ) => {
           patchCalled = true;
           patchPayload = JSON.parse(init?.body as string);
           return jsonResponse(200, {
@@ -1295,7 +1331,9 @@ describe("ProjectMembersSettingsPage", () => {
 
     // Wait for table to load
     expect(await screen.findByText("Binh Le")).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Role for An Nguyen" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("combobox", { name: "Role for An Nguyen" }),
+    ).toBeInTheDocument();
 
     // Click Filter by role button to open filter dropdown
     const filterBtn = screen.getByRole("button", { name: "Filter by role" });
@@ -1311,7 +1349,9 @@ describe("ProjectMembersSettingsPage", () => {
     await user.keyboard("{Escape}");
 
     // Now only An (Commenter) is in the table, Binh (Contributor) is filtered out
-    expect(screen.getByRole("combobox", { name: "Role for An Nguyen" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("combobox", { name: "Role for An Nguyen" }),
+    ).toBeInTheDocument();
     expect(screen.queryByText("Binh Le")).not.toBeInTheDocument();
 
     // Now change An's role to Contributor
@@ -1339,4 +1379,3 @@ describe("ProjectMembersSettingsPage", () => {
     });
   });
 });
-

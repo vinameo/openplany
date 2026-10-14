@@ -271,7 +271,7 @@ describe('ProjectMembers (e2e)', () => {
         .set('Cookie', cookie)
         .expect(200);
 
-      expect(res.body.total).toBe(2);
+      expect(res.body.total).toBe(1);
       expect(res.body.members).toHaveLength(2);
       const m1Member = res.body.members.find(
         (m: ProjectMemberResponse) => m.userId === m1,
@@ -374,7 +374,7 @@ describe('ProjectMembers (e2e)', () => {
         .set('Cookie', cookie)
         .expect(200);
 
-      expect(res.body.total).toBe(2);
+      expect(res.body.total).toBe(1);
       expect(res.body.members).toHaveLength(2);
       expect(
         res.body.members.some(
@@ -490,35 +490,52 @@ describe('ProjectMembers (e2e)', () => {
         .set('Cookie', cookie)
         .expect(200);
 
-      expect(res.body.total).toBe(1);
+      expect(res.body.total).toBe(0);
       expect(res.body.members).toHaveLength(1);
       expect(res.body.members[0].userId).toBe(ownerId);
     });
 
     it('returns assignableRoles and assignedAdminCount (excluding deactivated users)', async () => {
-      const { workspace, ownerId, cookie: wsAdminCookie } = await seedWorkspace(
-        'owner-roles@openplany.dev',
-        'ws-roles',
+      const {
+        workspace,
+        ownerId,
+        cookie: wsAdminCookie,
+      } = await seedWorkspace('owner-roles@openplany.dev', 'ws-roles');
+      const projId = await createProject(
+        workspace.id,
+        'Project Roles',
+        'PROLE',
       );
-      const projId = await createProject(workspace.id, 'Project Roles', 'PROLE');
 
       // Member 1: Active Project Admin
-      const m1 = await createUser('m1-admin@openplany.dev', { is_superuser: false, is_active: true });
+      const m1 = await createUser('m1-admin@openplany.dev', {
+        is_superuser: false,
+        is_active: true,
+      });
       await addWorkspaceMember(workspace.id, m1, 'member');
       await addProjectMember(projId, workspace.id, m1, 'admin');
 
       // Member 2: Deactivated Project Admin (should NOT count in assignedAdminCount)
-      const m2 = await createUser('m2-deact@openplany.dev', { is_superuser: false, is_active: false });
+      const m2 = await createUser('m2-deact@openplany.dev', {
+        is_superuser: false,
+        is_active: false,
+      });
       await addWorkspaceMember(workspace.id, m2, 'member');
       await addProjectMember(projId, workspace.id, m2, 'admin');
 
       // Member 3: Contributor
-      const m3 = await createUser('m3-contrib@openplany.dev', { is_superuser: false, is_active: true });
+      const m3 = await createUser('m3-contrib@openplany.dev', {
+        is_superuser: false,
+        is_active: true,
+      });
       await addWorkspaceMember(workspace.id, m3, 'member');
       await addProjectMember(projId, workspace.id, m3, 'contributor');
 
       // Member 4: Another Project Admin (actor)
-      const m4 = await createUser('m4-actor@openplany.dev', { is_superuser: false, is_active: true });
+      const m4 = await createUser('m4-actor@openplany.dev', {
+        is_superuser: false,
+        is_active: true,
+      });
       await addWorkspaceMember(workspace.id, m4, 'member');
       await addProjectMember(projId, workspace.id, m4, 'admin');
       const m4Cookie = await signInCookie('m4-actor@openplany.dev');
@@ -532,17 +549,29 @@ describe('ProjectMembers (e2e)', () => {
       // assignedAdminCount: m1 and m4 are active assigned admins -> count = 2 (m2 deactivated, owner is inherited)
       expect(resM4.body.assignedAdminCount).toBe(2);
 
-      const m4Self = resM4.body.members.find((m: ProjectMemberResponse) => m.userId === m4);
-      const m1Peer = resM4.body.members.find((m: ProjectMemberResponse) => m.userId === m1);
-      const m3Sub = resM4.body.members.find((m: ProjectMemberResponse) => m.userId === m3);
-      const ownerInherited = resM4.body.members.find((m: ProjectMemberResponse) => m.userId === ownerId);
+      const m4Self = resM4.body.members.find(
+        (m: ProjectMemberResponse) => m.userId === m4,
+      );
+      const m1Peer = resM4.body.members.find(
+        (m: ProjectMemberResponse) => m.userId === m1,
+      );
+      const m3Sub = resM4.body.members.find(
+        (m: ProjectMemberResponse) => m.userId === m3,
+      );
+      const ownerInherited = resM4.body.members.find(
+        (m: ProjectMemberResponse) => m.userId === ownerId,
+      );
 
       // Self row has []
       expect(m4Self.assignableRoles).toEqual([]);
       // Peer Project Admin has [] (actor is member workspace, target rank >= actor rank)
       expect(m1Peer.assignableRoles).toEqual([]);
       // Contributor has ['admin', 'contributor', 'commenter']
-      expect(m3Sub.assignableRoles).toEqual(['admin', 'contributor', 'commenter']);
+      expect(m3Sub.assignableRoles).toEqual([
+        'admin',
+        'contributor',
+        'commenter',
+      ]);
       // Inherited has []
       expect(ownerInherited.assignableRoles).toEqual([]);
 
@@ -553,8 +582,14 @@ describe('ProjectMembers (e2e)', () => {
         .expect(200);
 
       expect(resOwner.body.assignedAdminCount).toBe(2);
-      const m1AsWsAdmin = resOwner.body.members.find((m: ProjectMemberResponse) => m.userId === m1);
-      expect(m1AsWsAdmin.assignableRoles).toEqual(['admin', 'contributor', 'commenter']);
+      const m1AsWsAdmin = resOwner.body.members.find(
+        (m: ProjectMemberResponse) => m.userId === m1,
+      );
+      expect(m1AsWsAdmin.assignableRoles).toEqual([
+        'admin',
+        'contributor',
+        'commenter',
+      ]);
     });
   });
 
@@ -987,7 +1022,7 @@ describe('ProjectMembers (e2e)', () => {
         .set('Cookie', namCookie)
         .expect(200);
 
-      expect(res.body.project.memberCount).toBe(listRes.body.total);
+      expect(listRes.body.total).toBe(3);
       expect(res.body.project.memberCount).toBe(4);
     });
 
@@ -1797,8 +1832,17 @@ describe('ProjectMembers (e2e)', () => {
         .set('Cookie', cookie)
         .expect(200);
 
-      expect(res.body.total).toBe(5);
+      expect(res.body.total).toBe(2);
+      expect(res.body.truncated).toBe(false);
       expect(res.body.members).toHaveLength(5);
+      expect(
+        res.body.members
+          .slice(0, 3)
+          .map((m: ProjectMemberResponse) => m.source),
+      ).toEqual(['inherited', 'inherited', 'inherited']);
+      expect(
+        res.body.members.slice(3).map((m: ProjectMemberResponse) => m.source),
+      ).toEqual(['assigned', 'assigned']);
 
       const inherited = res.body.members.filter(
         (m: ProjectMemberResponse) => m.source === 'inherited',
@@ -1892,6 +1936,250 @@ describe('ProjectMembers (e2e)', () => {
     });
   });
 
+  describe('Feature 16: Inherited workspace admins in project (AC-01, AC-03, AC-04, AC-15)', () => {
+    it('AC-01 & AC-03: returns total=2, truncated=false with inherited first when viewer can view ws members; same total=2 without inherited when viewer lacks ws members view', async () => {
+      const {
+        workspace,
+        ownerId,
+        cookie: adminCookie,
+      } = await seedWorkspace('owner-ac01@openplany.dev', 'ws-ac01');
+
+      const admin2Id = await createUser('admin2-ac01@openplany.dev');
+      await addWorkspaceMember(workspace.id, admin2Id, 'admin', true);
+
+      const adminDeactivatedId = await createUser(
+        'admin-deactivated-ac01@openplany.dev',
+        { is_active: false },
+      );
+      await addWorkspaceMember(workspace.id, adminDeactivatedId, 'admin', true);
+
+      const adminLeftId = await createUser('admin-left-ac01@openplany.dev');
+      await addWorkspaceMember(workspace.id, adminLeftId, 'admin', false);
+
+      const projectId = await createProject(
+        workspace.id,
+        'Project AC01',
+        'PAC01',
+      );
+
+      const member1Id = await createUser('member1-ac01@openplany.dev');
+      await addWorkspaceMember(workspace.id, member1Id, 'member', true);
+      const member2Id = await createUser('member2-ac01@openplany.dev');
+      await addWorkspaceMember(workspace.id, member2Id, 'member', true);
+
+      await e2e.dataSource.query(
+        `INSERT INTO project_members (workspace_id, project_id, member_id, role, is_active, created_by_id, joined_at, created_at, updated_at)
+         VALUES ($1, $2, $3, 'contributor', true, $4, now(), now(), now()),
+                ($1, $2, $5, 'commenter', true, $4, now(), now(), now())`,
+        [workspace.id, projectId, member1Id, ownerId, member2Id],
+      );
+
+      // Viewer with workspace.members.view (adminCookie) -> AC-01
+      const resWithWsView = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/PAC01/members`)
+        .set('Cookie', adminCookie)
+        .expect(200);
+
+      expect(resWithWsView.body.total).toBe(2);
+      expect(resWithWsView.body.truncated).toBe(false);
+      expect(resWithWsView.body.members).toHaveLength(5);
+      expect(
+        resWithWsView.body.members
+          .slice(0, 3)
+          .map((m: ProjectMemberResponse) => m.source),
+      ).toEqual(['inherited', 'inherited', 'inherited']);
+      expect(
+        resWithWsView.body.members
+          .slice(3)
+          .map((m: ProjectMemberResponse) => m.source),
+      ).toEqual(['assigned', 'assigned']);
+
+      // Viewer without workspace.members.view (guest with project.members.view granted) -> AC-03
+      const guestId = await createUser('guest-ac03@openplany.dev');
+      await addWorkspaceMember(workspace.id, guestId, 'guest', true);
+      await e2e.dataSource.query(
+        `INSERT INTO project_members (workspace_id, project_id, member_id, role, is_active, created_by_id, joined_at, created_at, updated_at)
+         VALUES ($1, $2, $3, 'viewer', true, $4, now(), now(), now())`,
+        [workspace.id, projectId, guestId, ownerId],
+      );
+      await e2e.dataSource.query(
+        `INSERT INTO role_permissions (scope, role_key, permission_key)
+         VALUES ('project', 'viewer', 'project.members.view')
+         ON CONFLICT DO NOTHING`,
+      );
+
+      try {
+        const guestCookie = await signInCookie('guest-ac03@openplany.dev');
+        const resWithoutWsView = await http()
+          .get(`/api/workspaces/${workspace.slug}/projects/PAC01/members`)
+          .set('Cookie', guestCookie)
+          .expect(200);
+
+        expect(resWithoutWsView.body.total).toBe(3);
+        expect(resWithoutWsView.body.truncated).toBe(false);
+        expect(
+          resWithoutWsView.body.members.filter(
+            (m: ProjectMemberResponse) => m.source === 'inherited',
+          ),
+        ).toHaveLength(0);
+        expect(resWithoutWsView.body.members).toHaveLength(3);
+
+        // And verify viewer with workspace.members.view also sees total = 3
+        const resAdminCheck = await http()
+          .get(`/api/workspaces/${workspace.slug}/projects/PAC01/members`)
+          .set('Cookie', adminCookie)
+          .expect(200);
+        expect(resAdminCheck.body.total).toBe(resWithoutWsView.body.total);
+        expect(resAdminCheck.body.total).toBe(3);
+        expect(resAdminCheck.body.members).toHaveLength(6); // 3 inherited + 3 assigned
+      } finally {
+        await e2e.dataSource.query(
+          `DELETE FROM role_permissions WHERE scope = 'project' AND role_key = 'viewer' AND permission_key = 'project.members.view'`,
+        );
+      }
+    });
+
+    it('AC-04: project with PROJECT_MEMBER_LIST_MAX + 5 members and 3 workspace admins -> total=1005, truncated=true, 3 inherited + 1000 assigned', async () => {
+      const { workspace, ownerId, cookie } = await seedWorkspace(
+        'owner-ac04@openplany.dev',
+        'ws-ac04',
+      );
+
+      const admin2Id = await createUser('admin2-ac04@openplany.dev');
+      await addWorkspaceMember(workspace.id, admin2Id, 'admin', true);
+      const admin3Id = await createUser('admin3-ac04@openplany.dev');
+      await addWorkspaceMember(workspace.id, admin3Id, 'admin', true);
+
+      const projectId = await createProject(
+        workspace.id,
+        'Project AC04',
+        'PAC04',
+      );
+
+      // Fast bulk insert of 1005 members using Postgres generate_series
+      await e2e.dataSource.query(
+        `INSERT INTO users (id, email, username, password, first_name, last_name, display_name, user_timezone, is_superuser, is_active, is_bot, created_at, updated_at, date_joined)
+         SELECT
+           ('a0000000-0000-0000-0000-' || lpad(i::text, 12, '0'))::uuid,
+           'ac04-bulk-' || i || '@openplany.dev',
+           'ac04-bulk-' || i,
+           'hash',
+           'First' || i,
+           'Last' || i,
+           'User ' || i,
+           'UTC',
+           false,
+           true,
+           false,
+           now(),
+           now(),
+           now()
+         FROM generate_series(1, 1005) AS s(i)`,
+      );
+
+      await e2e.dataSource.query(
+        `INSERT INTO workspace_members (workspace_id, member_id, role, is_active, joined_at, created_at, updated_at)
+         SELECT
+           $1,
+           ('a0000000-0000-0000-0000-' || lpad(i::text, 12, '0'))::uuid,
+           'member',
+           true,
+           now(),
+           now(),
+           now()
+         FROM generate_series(1, 1005) AS s(i)`,
+        [workspace.id],
+      );
+
+      await e2e.dataSource.query(
+        `INSERT INTO project_members (workspace_id, project_id, member_id, role, is_active, created_by_id, joined_at, created_at, updated_at)
+         SELECT
+           $1,
+           $2,
+           ('a0000000-0000-0000-0000-' || lpad(i::text, 12, '0'))::uuid,
+           'contributor',
+           true,
+           $3,
+           now(),
+           now(),
+           now()
+         FROM generate_series(1, 1005) AS s(i)`,
+        [workspace.id, projectId, ownerId],
+      );
+
+      const res = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/PAC04/members`)
+        .set('Cookie', cookie)
+        .expect(200);
+
+      expect(res.body.total).toBe(1005);
+      expect(res.body.truncated).toBe(true);
+      expect(res.body.members).toHaveLength(1003); // 3 inherited + 1000 assigned
+      expect(
+        res.body.members
+          .slice(0, 3)
+          .map((m: ProjectMemberResponse) => m.source),
+      ).toEqual(['inherited', 'inherited', 'inherited']);
+      expect(
+        res.body.members
+          .slice(3)
+          .map((m: ProjectMemberResponse) => m.source)
+          .every((s: string) => s === 'assigned'),
+      ).toBe(true);
+    });
+
+    it('AC-15: corrupted data with active project_members row for workspace admin -> total=2, appears only once as inherited', async () => {
+      const { workspace, ownerId, cookie } = await seedWorkspace(
+        'owner-ac15@openplany.dev',
+        'ws-ac15',
+      );
+
+      // Create a second workspace admin
+      const admin2Id = await createUser('admin2-ac15@openplany.dev');
+      await addWorkspaceMember(workspace.id, admin2Id, 'admin', true);
+
+      const projectId = await createProject(
+        workspace.id,
+        'Project AC15',
+        'PAC15',
+      );
+
+      // Create 2 normal project members
+      const member1Id = await createUser('member1-ac15@openplany.dev');
+      await addWorkspaceMember(workspace.id, member1Id, 'member', true);
+      const member2Id = await createUser('member2-ac15@openplany.dev');
+      await addWorkspaceMember(workspace.id, member2Id, 'member', true);
+
+      // Insert corrupt row: admin2Id ALSO has an active row in project_members!
+      await e2e.dataSource.query(
+        `INSERT INTO project_members (workspace_id, project_id, member_id, role, is_active, created_by_id, joined_at, created_at, updated_at)
+         VALUES ($1, $2, $3, 'contributor', true, $4, now(), now(), now()),
+                ($1, $2, $5, 'commenter', true, $4, now(), now(), now()),
+                ($1, $2, $6, 'admin', true, $4, now(), now(), now())`,
+        [workspace.id, projectId, member1Id, ownerId, member2Id, admin2Id],
+      );
+
+      const res = await http()
+        .get(`/api/workspaces/${workspace.slug}/projects/PAC15/members`)
+        .set('Cookie', cookie)
+        .expect(200);
+
+      // Total must only count the 2 legitimate project members
+      expect(res.body.total).toBe(2);
+      expect(res.body.truncated).toBe(false);
+
+      // admin2Id must only appear ONCE in the list, and as inherited
+      const admin2Occurrences = res.body.members.filter(
+        (m: ProjectMemberResponse) => m.userId === admin2Id,
+      );
+      expect(admin2Occurrences).toHaveLength(1);
+      expect(admin2Occurrences[0].source).toBe('inherited');
+
+      // Total members returned: 2 inherited (owner + admin2) + 2 assigned (member1 + member2) = 4
+      expect(res.body.members).toHaveLength(4);
+    });
+  });
+
   describe('PATCH /api/workspaces/:slug/projects/:identifier/members/:userId', () => {
     it('AC-01: Nam changes An role from commenter to contributor with history and audit log', async () => {
       const { workspace, projId, namId, namCookie, anId } =
@@ -1937,9 +2225,7 @@ describe('ProjectMembers (e2e)', () => {
         });
 
         expect(
-          loggedMessages.some((m) =>
-            m.includes('project.member.role.changed'),
-          ),
+          loggedMessages.some((m) => m.includes('project.member.role.changed')),
         ).toBe(true);
         for (const msg of loggedMessages) {
           expect(msg).not.toContain('an-b63@openplany.dev');
@@ -2112,7 +2398,9 @@ describe('ProjectMembers (e2e)', () => {
         .send({ fromRole: 'commenter', role: 'contributor' })
         .expect(404);
       expect(resDung.body.code).toBe('NOT_FOUND');
-      expect(resDung.body.message).toBe(PROJECT_ROLE_CHANGE_MESSAGES.memberGone);
+      expect(resDung.body.message).toBe(
+        PROJECT_ROLE_CHANGE_MESSAGES.memberGone,
+      );
     });
 
     it('AC-13 & AC-18: two identical concurrent requests -> one 200, one 409 ROLE_CHANGED, 1 history row', async () => {
@@ -2258,4 +2546,3 @@ describe('ProjectMembers (e2e)', () => {
     });
   });
 });
-

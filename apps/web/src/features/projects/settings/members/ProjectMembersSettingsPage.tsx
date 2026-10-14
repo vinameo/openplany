@@ -5,6 +5,7 @@ import {
   PROJECT_MEMBER_LIST_MAX,
   PROJECT_ROLE_SUMMARIES,
   projectRoleChangeKind,
+  truncatedProjectMembersMessage,
   WORKSPACE_ROLE_QUALIFIED_LABELS,
   type ProjectMemberResponse,
   type ProjectRole,
@@ -119,10 +120,7 @@ export function ProjectMembersSettingsPage() {
     [pendingUserIds],
   );
 
-  const query = useProjectMembers(
-    workspace.slug,
-    project?.identifier ?? "",
-  );
+  const query = useProjectMembers(workspace.slug, project?.identifier ?? "");
 
   const canSeeEmail = workspace.permissions.includes(
     "workspace.members.email.view",
@@ -165,6 +163,7 @@ export function ProjectMembersSettingsPage() {
       <MembersListView
         scheme={PROJECT_ROLE_SCHEME}
         state={listViewState}
+        truncatedMessage={truncatedProjectMembersMessage}
         canSeeEmail={canSeeEmail}
         canAddMember={canAddMember}
         onAddMember={() => setModalOpened(true)}
@@ -214,14 +213,14 @@ export function ProjectMembersSettingsPage() {
           );
         }}
         roleBadge={(m) =>
-          m.source === 'inherited' ? (
+          m.source === "inherited" ? (
             <InheritedRoleBadge
               workspaceRole={m.workspaceRole}
               implicitRole={m.role}
             />
           ) : null
         }
-        isReadOnly={(m) => m.source === 'inherited'}
+        isReadOnly={(m) => m.source === "inherited"}
         emptyState={emptyState}
       />
       {canAddMember && (
@@ -233,7 +232,7 @@ export function ProjectMembersSettingsPage() {
           addableRoles={query.data?.addableRoles ?? []}
           canSeeEmail={canSeeEmail}
           canAddWorkspaceMember={workspace.permissions.includes(
-            'workspace.members.add',
+            "workspace.members.add",
           )}
         />
       )}
@@ -275,7 +274,7 @@ export function InheritedRoleBadge({
         size="xs"
         tabIndex={0}
         aria-describedby={tooltipId}
-        style={{ cursor: 'default' }}
+        style={{ cursor: "default" }}
       >
         {label}
       </Badge>
