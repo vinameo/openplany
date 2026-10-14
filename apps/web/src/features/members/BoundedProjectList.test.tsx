@@ -1,7 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import { AppUiProvider } from "@repo/ui";
 import { describe, expect, it } from "vitest";
-import { BoundedProjectList, type ProjectRef } from "./BoundedProjectList";
+import type { ProjectRef } from "@repo/contracts";
+import { BoundedProjectList } from "./BoundedProjectList";
 
 describe("BoundedProjectList", () => {
   const sampleProjects: ProjectRef[] = [
