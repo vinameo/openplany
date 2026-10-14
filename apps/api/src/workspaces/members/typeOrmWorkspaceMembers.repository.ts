@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import {
   DataSource,
   In,
@@ -8,23 +8,21 @@ import {
 import {
   escapeLikePattern,
   parseWorkspacePermissions,
-  assignableWorkspaceRoles,
+  checkWorkspaceRoleChange,
+  mayRemoveAssignedProjectAdmin,
   planWorkspaceRoleChange,
   resolveAppliedProjectRole,
   isProjectAdminRole,
   isWorkspaceAdminRole,
+  workspaceRolesWithImplicitProjectAccess,
   ROLE_CHANGE_PREVIEW_PROJECTS_MAX,
-  WORKSPACE_ROLE_CHANGE_MESSAGES,
-  MEMBER_MESSAGES,
   type MemberNotAddableReason,
   type WorkspacePermission,
   type WorkspaceRole,
   type BoundedProjectList,
-  type WorkspaceRoleChangePreview,
 } from '@repo/contracts';
 import { User } from '../../auth/entities/user.entity.js';
 import { ADDABLE_USER } from '../../auth/addableUser.js';
-import { ApiException } from '../../common/apiException.js';
 import { isForeignKeyViolation } from '../../common/databaseErrors.js';
 import { runTransactionWithRetry } from '../../database/transactionRetry.js';
 import {
@@ -54,6 +52,7 @@ import {
   type ChangeRoleInput,
   type ChangeRoleResult,
   type PreviewRoleChangeInput,
+  type PreviewRoleChangeResult,
 } from './workspaceMembers.repository.js';
 import type { WorkspaceMemberRow } from './dto/workspaceMemberResponse.dto.js';
 
@@ -208,47 +207,22 @@ export class TypeOrmWorkspaceMembersRepository extends WorkspaceMembersRepositor
 
   async previewRoleChange(
     input: PreviewRoleChangeInput,
-  ): Promise<WorkspaceRoleChangePreview> {
+  ): Promise<PreviewRoleChangeResult> {
     const { workspaceId, actor, targetUserId, targetRole } = input;
     const manager = this.dataSource.manager;
 
     const target = await manager.findOne(WorkspaceMember, {
       where: { workspaceId, memberId: targetUserId, isActive: true },
     });
-    if (!target) {
-      throw new ApiException(
-        HttpStatus.NOT_FOUND,
-        'NOT_FOUND',
-        WORKSPACE_ROLE_CHANGE_MESSAGES.memberGone,
-      );
-    }
+    if (!target) return { status: 'member_gone' };
 
-    if (actor.userId === targetUserId) {
-      throw new ApiException(
-        HttpStatus.FORBIDDEN,
-        'FORBIDDEN',
-        MEMBER_MESSAGES.roleNotAllowed,
-      );
-    }
-
-    const assignable = assignableWorkspaceRoles(actor, {
-      userId: targetUserId,
-      role: target.role,
+    const rejection = checkWorkspaceRoleChange({
+      actor,
+      target: { userId: targetUserId, role: target.role },
+      toRole: targetRole,
     });
-    if (!assignable.includes(targetRole)) {
-      throw new ApiException(
-        HttpStatus.FORBIDDEN,
-        'FORBIDDEN',
-        MEMBER_MESSAGES.roleNotAllowed,
-      );
-    }
-
-    if (targetRole === target.role) {
-      throw new ApiException(
-        HttpStatus.BAD_REQUEST,
-        'ROLE_UNCHANGED',
-        MEMBER_MESSAGES.sameRole,
-      );
+    if (rejection === 'actor_forbidden' || rejection === 'same_role') {
+      return { status: rejection };
     }
 
     const { live } = await liveProjectRowsOf(
@@ -283,17 +257,24 @@ export class TypeOrmWorkspaceMembersRepository extends WorkspaceMembersRepositor
       affectedProjectIds = [];
     }
 
+    // Projects where the target is an assigned Project Admin and nobody else
+    // is. Whether the chosen project role keeps them Admin is the dialog's
+    // call (projectRoleAppliedBy); here only "can this change remove it".
     let losingAdminProjectIds: string[] = [];
-    const targetAssignedAdminLiveProjects = live.filter((pm) =>
-      isProjectAdminRole(pm.role),
-    );
-    if (targetAssignedAdminLiveProjects.length > 0) {
-      const candidateIds = targetAssignedAdminLiveProjects.map(
-        (pm) => pm.projectId,
+    const candidateIds = mayRemoveAssignedProjectAdmin(plan)
+      ? live
+          .filter((pm) => isProjectAdminRole(pm.role))
+          .map((pm) => pm.projectId)
+      : [];
+    if (candidateIds.length > 0) {
+      const othersByProject = await assignedProjectAdmins(
+        manager,
+        candidateIds,
+        workspaceRolesWithImplicitProjectAccess(policies),
+        { excludeMemberId: targetUserId },
       );
-      const adminCounts = await assignedProjectAdmins(manager, candidateIds);
       losingAdminProjectIds = candidateIds.filter(
-        (pid) => adminCounts.get(pid) === 1,
+        (pid) => (othersByProject.get(pid) ?? 0) === 0,
       );
     }
 
@@ -318,15 +299,18 @@ export class TypeOrmWorkspaceMembersRepository extends WorkspaceMembersRepositor
     );
 
     return {
-      userId: targetUserId,
-      fromRole: target.role,
-      toRole: targetRole,
-      effect: plan.effect,
-      affectedProjects,
-      projectsLosingAssignedAdmin,
-      projectRoleChoices: plan.projectRoleChoices,
-      defaultProjectRole: plan.defaultProjectRole,
-      actorCanChooseProjectRole: plan.actorCanChooseProjectRole,
+      status: 'preview',
+      preview: {
+        userId: targetUserId,
+        fromRole: target.role,
+        toRole: targetRole,
+        effect: plan.effect,
+        affectedProjects,
+        projectsLosingAssignedAdmin,
+        projectRoleChoices: plan.projectRoleChoices,
+        defaultProjectRole: plan.defaultProjectRole,
+        actorCanChooseProjectRole: plan.actorCanChooseProjectRole,
+      },
     };
   }
 
@@ -345,13 +329,14 @@ export class TypeOrmWorkspaceMembersRepository extends WorkspaceMembersRepositor
     return await runTransactionWithRetry(
       this.dataSource,
       async (manager) => {
-        // 1. Lock workspace
+        // 1. Lock workspace; a soft-deleted one is gone, as in addMembers.
         const ws = await manager.findOne(Workspace, {
-          where: { id: workspaceId },
+          select: { id: true },
+          where: { id: workspaceId, deletedAt: IsNull() },
           lock: { mode: 'for_no_key_update' },
         });
         if (!ws) {
-          return { status: 'member_gone' };
+          return { status: 'workspace_gone' };
         }
 
         // 2. Lock members in deterministic order
@@ -385,34 +370,26 @@ export class TypeOrmWorkspaceMembersRepository extends WorkspaceMembersRepositor
           return { status: 'actor_forbidden' };
         }
 
-        // 3. Self-change forbidden
-        if (actorId === targetUserId) {
-          return { status: 'actor_forbidden' };
-        }
-
-        // 4. Actor permissions & rank
+        // 3–6. Self-change, actor permissions & rank, fromRole, same role:
+        //      the same check, in the same order, as the preview.
         const granted = await loadRolePermissions(manager, [
           { scope: 'workspace', key: actor.role },
         ]);
         const actorPermissions = parseWorkspacePermissions(
           granted.get(rolePermissionsKey('workspace', actor.role)) ?? [],
         );
-        const assignable = assignableWorkspaceRoles(
-          { userId: actorId, role: actor.role, permissions: actorPermissions },
-          { userId: targetUserId, role: target.role },
-        );
-        if (!assignable.includes(toRole)) {
-          return { status: 'actor_forbidden' };
-        }
-
-        // 5. fromRole matches target.role
-        if (fromRole !== target.role) {
-          return { status: 'role_changed' };
-        }
-
-        // 6. role is not the same role
-        if (toRole === target.role) {
-          return { status: 'same_role' };
+        const rejection = checkWorkspaceRoleChange({
+          actor: {
+            userId: actorId,
+            role: actor.role,
+            permissions: actorPermissions,
+          },
+          target: { userId: targetUserId, role: target.role },
+          toRole,
+          fromRole,
+        });
+        if (rejection !== null) {
+          return { status: rejection };
         }
 
         // 7. Plan and resolve project role

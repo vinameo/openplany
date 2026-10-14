@@ -14,6 +14,7 @@ import {
   type WorkspaceMemberListResponse,
   type WorkspaceRole,
   type WorkspaceRoleChangePreview,
+  type WorkspaceRoleChangeRejection,
 } from '@repo/contracts';
 import { ApiException } from '../../common/apiException.js';
 import {
@@ -245,12 +246,16 @@ export class WorkspaceMembersService {
       role: ws.role,
       permissions: ws.permissions,
     };
-    return this.repository.previewRoleChange({
+    const result = await this.repository.previewRoleChange({
       workspaceId: ws.id,
       actor,
       targetUserId,
       targetRole: query.role,
     });
+    if (result.status !== 'preview') {
+      throw roleChangeRejected(result.status);
+    }
+    return result.preview;
   }
 
   async changeRole(
@@ -272,56 +277,33 @@ export class WorkspaceMembersService {
       now,
     });
 
-    if (result.status === 'member_gone') {
+    if (result.status === 'workspace_gone') {
       throw new ApiException(
         HttpStatus.NOT_FOUND,
         'NOT_FOUND',
-        WORKSPACE_ROLE_CHANGE_MESSAGES.memberGone,
+        'Workspace not found',
       );
     }
 
-    if (result.status === 'actor_forbidden') {
+    if (
+      result.status === 'actor_forbidden' ||
+      result.status === 'actor_cannot_choose'
+    ) {
       await this.events.memberRoleForbidden({
         workspaceId: ws.id,
         actorId,
         targetId: targetUserId,
         requestId,
       });
-      throw new ApiException(
-        HttpStatus.FORBIDDEN,
-        'FORBIDDEN',
-        MEMBER_MESSAGES.roleNotAllowed,
-      );
+      throw roleChangeRejected('actor_forbidden');
     }
 
-    if (result.status === 'role_changed') {
-      throw new ApiException(
-        HttpStatus.CONFLICT,
-        'ROLE_CHANGED',
-        MEMBER_MESSAGES.roleChanged,
-      );
-    }
-
-    if (result.status === 'same_role') {
-      throw new ApiException(
-        HttpStatus.BAD_REQUEST,
-        'ROLE_UNCHANGED',
-        MEMBER_MESSAGES.sameRole,
-      );
-    }
-
-    if (result.status === 'actor_cannot_choose') {
-      await this.events.memberRoleForbidden({
-        workspaceId: ws.id,
-        actorId,
-        targetId: targetUserId,
-        requestId,
-      });
-      throw new ApiException(
-        HttpStatus.FORBIDDEN,
-        'FORBIDDEN',
-        MEMBER_MESSAGES.roleNotAllowed,
-      );
+    if (
+      result.status === 'member_gone' ||
+      result.status === 'role_changed' ||
+      result.status === 'same_role'
+    ) {
+      throw roleChangeRejected(result.status);
     }
 
     if (result.status === 'project_role_out_of_range') {
@@ -379,3 +361,34 @@ export class WorkspaceMembersService {
   }
 }
 
+/** One HTTP answer per outcome shared by the preview and the change (API B6). */
+function roleChangeRejected(
+  status: 'member_gone' | WorkspaceRoleChangeRejection,
+): ApiException {
+  switch (status) {
+    case 'member_gone':
+      return new ApiException(
+        HttpStatus.NOT_FOUND,
+        'NOT_FOUND',
+        WORKSPACE_ROLE_CHANGE_MESSAGES.memberGone,
+      );
+    case 'actor_forbidden':
+      return new ApiException(
+        HttpStatus.FORBIDDEN,
+        'FORBIDDEN',
+        MEMBER_MESSAGES.roleNotAllowed,
+      );
+    case 'role_changed':
+      return new ApiException(
+        HttpStatus.CONFLICT,
+        'ROLE_CHANGED',
+        MEMBER_MESSAGES.roleChanged,
+      );
+    case 'same_role':
+      return new ApiException(
+        HttpStatus.BAD_REQUEST,
+        'ROLE_UNCHANGED',
+        MEMBER_MESSAGES.sameRole,
+      );
+  }
+}

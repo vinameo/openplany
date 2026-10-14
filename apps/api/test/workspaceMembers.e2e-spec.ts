@@ -1821,6 +1821,39 @@ describe('WorkspaceMembers (e2e)', () => {
       expect(previewRes.body.projectsLosingAssignedAdmin.projects[0]!.id).toBe(pB);
     });
 
+    it('31b. AC-15: Target with a locked account and an active co-admin -> project not listed (count excludes the target, not 1)', async () => {
+      const { workspace, cookie: adminCookie } = await seedWorkspace(
+        'admin-ac15b@openplany.dev',
+        'wm-ac15b',
+      );
+      const pB = await createProject(workspace.id, 'Project Beta', 'PB15B');
+
+      const lockedTargetId = await createUser('target-locked@openplany.dev', {
+        is_superuser: false,
+        is_active: false,
+      });
+      const coAdminId = await createUser('co-admin-ac15b@openplany.dev', {
+        is_superuser: false,
+      });
+      for (const id of [lockedTargetId, coAdminId]) {
+        await e2e.dataSource.query(
+          `INSERT INTO workspace_members (workspace_id, member_id, role, is_active, created_at, updated_at, joined_at)
+           VALUES ($1, $2, 'member', true, now(), now(), now())`,
+          [workspace.id, id],
+        );
+        await addProjectMember(pB, workspace.id, id, 'admin');
+      }
+
+      const previewRes = await http()
+        .get(
+          `/api/workspaces/${workspace.slug}/members/${lockedTargetId}/role-change-preview?role=guest`,
+        )
+        .set('Cookie', adminCookie)
+        .expect(200);
+
+      expect(previewRes.body.projectsLosingAssignedAdmin.total).toBe(0);
+    });
+
     it('32. AC-26: Target in 2 projects, 1 soft-deleted -> preview total=1, save updates both, appliedProjectCount=1, 1 history record', async () => {
       const { workspace, cookie: adminCookie } = await seedWorkspace(
         'admin-ac26@openplany.dev',

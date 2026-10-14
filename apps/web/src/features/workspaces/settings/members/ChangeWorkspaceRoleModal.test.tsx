@@ -653,6 +653,49 @@ describe("ChangeWorkspaceRoleModal", () => {
     ).toBeInTheDocument();
   });
 
+  it("AC-15: hides the warning while the chosen project role keeps them Project Admin", async () => {
+    const user = userEvent.setup();
+    renderModal({
+      previewResponse: {
+        userId: "u-guest",
+        effect: "apply_project_role",
+        fromRole: "guest",
+        toRole: "member",
+        actorCanChooseProjectRole: true,
+        projectRoleChoices: ["admin", "contributor", "commenter"],
+        defaultProjectRole: "commenter",
+        affectedProjects: {
+          total: 1,
+          hiddenCount: 0,
+          projects: [{ id: "p-1", name: "Alpha", identifier: "ALP" }],
+        },
+        projectsLosingAssignedAdmin: {
+          total: 1,
+          hiddenCount: 0,
+          projects: [{ id: "p-1", name: "Alpha", identifier: "ALP" }],
+        },
+      },
+    });
+
+    const warning =
+      "These projects will have no Project Admin other than Workspace Admins:";
+    expect(await screen.findByText(warning)).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("combobox", { name: "Role in their projects" }),
+    );
+    await user.click(
+      await screen.findByRole("option", {
+        name: /^Project Admin/,
+        hidden: true,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText(warning)).not.toBeInTheDocument();
+    });
+  });
+
   it("AC-28: renders 429 error message without Try again button", async () => {
     renderModal({
       previewResponse: () =>
