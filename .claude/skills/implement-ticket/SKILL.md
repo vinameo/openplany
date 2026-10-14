@@ -34,11 +34,15 @@ description: Implement one ticket of an OpenPlany feature (packages/docs/<n>-<fe
    A deviation that keeps every AC, permission and user-facing text is yours to build: build it, test it, name it in the commit body (step 9). Stop and ask the user only when the sound version changes what users see. Done when every sketch and rule the ticket cites has a row and every cell holds evidence. The `requireTicketDesignNotes` commit hook refuses a ticket commit without notes written since the last commit, or with an empty or placeholder cell.
 
 5. **Prefactor first.** If the change would copy existing code, extract the shared piece in its own commit with no behaviour change, and show existing tests green.
-6. **Build with tests.** Implement the ticket and test its ACs, plus:
-   - a new or changed JSON write endpoint gets a case in `apps/api/test/adversarialInputs.e2e-spec.ts`;
-   - a new migration is added to `MIGRATIONS` in `apps/api/test/e2eGlobalSetup.ts` (the migrations e2e suite then reverts it over realistic data);
-   - a new route under `/workspaces/:slug` or `/projects/:identifier` uses the existing guards (`apps/api/src/architecture.spec.ts` fails otherwise).
-7. **Check.** `pnpm lint && pnpm typecheck && pnpm test && pnpm dup`, plus `pnpm --filter @repo/api test:e2e` for API changes, and Prettier on the files you touched. Done when all are green.
+6. **Build with tests.** Implement the ticket and test its ACs. How you order code and tests is your call; keep the feedback loop short:
+   - While building, run the narrow command for what you are working on (`pnpm --filter <workspace> test <file>`, `pnpm --filter @repo/api test:e2e <file>`), not the whole suite. After changing `@repo/contracts`, run `pnpm --filter @repo/contracts build` first: the apps import its `dist/`.
+   - Read expected values (copy, codes, formats) from the source the code uses instead of writing them from memory, and reuse existing fakes and fixtures where they fit.
+   - Test what this ticket builds. Behaviour that a later ticket delivers is tested in that ticket.
+   - A new or changed JSON write endpoint gets a case in `apps/api/test/adversarialInputs.e2e-spec.ts`; a new migration is added to `MIGRATIONS` in `apps/api/test/e2eGlobalSetup.ts`; a new route under `/workspaces/:slug` or `/projects/:identifier` uses the existing guards (`apps/api/src/architecture.spec.ts` fails otherwise).
+
+   Before step 7, run typecheck, lint and `vitest related --run <changed files>` in each workspace you changed, so a regression in shared code shows up here rather than in the full run.
+
+7. **Check.** `pnpm lint && pnpm typecheck && pnpm test && pnpm dup`, plus `pnpm --filter @repo/api test:e2e` for API changes, and Prettier on the files you touched. If a test fails only in the full run, rerun once before debugging; if it keeps failing and is unrelated to this branch, note it in the report. Done when all are green, apart from such a noted failure.
 8. **Review against the spec and the ticket.** Read `git diff` (staged and unstaged) for this ticket next to the ticket file and the spec sections it cites:
    - Every checkbox in the ticket is done, or you note why not.
    - Every AC, INV and spec section the ticket cites has the code that implements it and a test that fails without it. Name them. A cited item with no test is a finding.
@@ -53,7 +57,19 @@ description: Implement one ticket of an OpenPlany feature (packages/docs/<n>-<fe
 
 ## After the last ticket: feature review
 
-Review the whole feature (`git diff develop...HEAD`) with the full spec set (`1-…` to `5-…`) and `tickets/README.md` open, not ticket by ticket. Run `/code-review` and `/security-review` on the branch, then check each area below yourself. Tickets built in separate contexts duplicate each other: look for two implementations of the same idea.
+Run these in order.
+
+### 1. Read the whole feature
+
+The full spec set (`1-…` to `5-…`), `tickets/README.md`, and every ticket file with its `.design.md`. Then read `git diff develop...HEAD` as one change, not ticket by ticket.
+
+### 2. Test the feature
+
+In each workspace the branch changed, run the tests the branch added or changed and `vitest related --run` on the files it changed (`git diff --name-only develop...HEAD`). Also run the API e2e files the branch touched. Fix the failures before reviewing.
+
+### 3. Review
+
+Run `/code-review` and `/security-review` on the branch, then check each area below yourself. Tickets built in separate contexts duplicate each other: look for two implementations of the same idea.
 
 1. **Spec complete.** Every AC and INV in `1-requirement-spec.md` has code and a test. Every ticket in `tickets/README.md` is done and has its `.design.md`. Every `deviate` row is written back into the spec.
 2. **SOLID.**
@@ -75,8 +91,14 @@ Review the whole feature (`git diff develop...HEAD`) with the full spec set (`1-
    - A10 SSRF: no server-side fetch of a user-supplied URL.
 4. **Extensibility.** Read the roadmap and the `FC-` constraints in `2-business-analytics-spec.md`. For each one, name the seam that the next feature will extend (guard and decorator, path helper, contracts helper, abstract repository, shared component or hook) and check it needs no rewrite. Every collection has a limit and a real count; every new WHERE, ORDER BY and FK column has an index; there are no N+1 queries and nothing is hardcoded that the roadmap will vary.
 
-Then:
+### 4. Fix the findings
 
-1. Fix each finding in a `review(<scope>)` commit and re-run step 7. After a fix, re-check the area it touched. Defer a finding only with a reason: it belongs to a feature the roadmap names, or it needs the user's decision.
-2. Write `.claude/reviews/<branch with "/" as "__">.md` after the final commit, with one section per area above: findings, what was fixed (commit), what was deferred and why. The merge hook refuses a branch whose report is missing or older than its last commit.
-3. Re-run step 7, then merge as in CLAUDE.md §8.
+Fix each finding in a `review(<scope>)` commit and rerun the feature tests (section 2) for what the fix touched. Defer a finding only with a reason: it belongs to a feature the roadmap names, or it needs the user's decision.
+
+### 5. Test the whole app
+
+Run every existing test, not only the feature's: `pnpm lint && pnpm typecheck && pnpm test && pnpm dup && pnpm --filter @repo/api test:e2e`, with e2e even when the feature changed only the web. Fix each failure in a `review(<scope>)` commit and rerun the command that failed; if the fix changed code, rerun them all. A failure unrelated to the branch is handled as in step 7. Done when every command is green in one pass.
+
+### 6. Report and merge
+
+Write `.claude/reviews/<branch with "/" as "__">.md` after the final commit: one section per review area (findings, what was fixed with its commit, what was deferred and why) and the results of sections 2 and 5. The merge hook refuses a branch whose report is missing or older than its last commit. Then merge as in CLAUDE.md §8.
