@@ -1,11 +1,11 @@
 // PreToolUse hook (Bash): a feature/fix/refactor/chore/review branch can be
 // merged only after its whole-branch self-review (CLAUDE.md §8) is written to
 // .claude/reviews/<branch with "/" as "__">.md, newer than the branch tip.
-// Claude Code runs it from .claude/settings.json, Antigravity from .agents/hooks.json;
-// each sends its own payload and expects its own answer.
+// Claude Code runs it from .claude/settings.json, Antigravity from .agents/hooks.json.
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { deny as denyFor, readHookInput } from "./hookIo.mjs";
 
 const GUARDED = /^(feature|fix|refactor|chore|review)\//;
 const OPTIONS_WITH_VALUE = new Set([
@@ -38,29 +38,10 @@ function mergedBranches(command) {
   return branches;
 }
 
-const input = JSON.parse(readFileSync(0, "utf8"));
-const antigravity = input?.toolCall !== undefined;
+const { antigravity, command, root } = readHookInput();
+const deny = (reason) => denyFor(antigravity, reason);
 
-function deny(reason) {
-  const answer = antigravity
-    ? { decision: "deny", reason }
-    : {
-        hookSpecificOutput: {
-          hookEventName: "PreToolUse",
-          permissionDecision: "deny",
-          permissionDecisionReason: reason,
-        },
-      };
-  process.stdout.write(JSON.stringify(answer));
-}
-
-const command = antigravity
-  ? input.toolCall.args?.CommandLine
-  : input?.tool_input?.command;
-if (typeof command === "string") {
-  const root = antigravity
-    ? (input.workspacePaths?.[0] ?? process.cwd())
-    : (process.env.CLAUDE_PROJECT_DIR ?? input.cwd ?? process.cwd());
+if (command !== null) {
   for (const branch of mergedBranches(command).filter((b) => GUARDED.test(b))) {
     const report = join(
       root,
