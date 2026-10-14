@@ -1,5 +1,5 @@
 import type { TransformFnParams } from 'class-transformer';
-import { MEMBER_MESSAGES } from '@repo/contracts';
+import { MEMBER_MESSAGE_REFS, type MessageRef } from '@repo/contracts';
 
 /**
  * `@Transform` for a member row's `userId`. Postgres returns UUIDs in
@@ -11,19 +11,19 @@ export function toCanonicalUserId({ value }: TransformFnParams): unknown {
 }
 
 /**
- * Returns a fields map containing `members.<i>.userId` mapped to MEMBER_MESSAGES.rowDuplicate
+ * Returns a fields map containing `members.<i>.userId` mapped to MEMBER_MESSAGE_REFS.rowDuplicate
  * for every member row whose userId was already seen in a prior row.
  * Returns an empty object when there are no duplicates.
  */
 export function duplicateMemberRowFields(
   members: readonly { userId: string }[],
-): Record<string, string> {
+): Record<string, MessageRef> {
   const seenUserIds = new Set<string>();
-  const duplicateFields: Record<string, string> = {};
+  const duplicateFields: Record<string, MessageRef> = {};
 
   members.forEach((m, index) => {
     if (seenUserIds.has(m.userId)) {
-      duplicateFields[`members.${index}.userId`] = MEMBER_MESSAGES.rowDuplicate;
+      duplicateFields[`members.${index}.userId`] = MEMBER_MESSAGE_REFS.rowDuplicate;
     } else {
       seenUserIds.add(m.userId);
     }
@@ -33,16 +33,16 @@ export function duplicateMemberRowFields(
 }
 
 /**
- * `members.<i>.role` mapped to MEMBER_MESSAGES.chooseRole for every row. Used
+ * `members.<i>.role` mapped to MEMBER_MESSAGE_REFS.chooseRole for every row. Used
  * when the database rejects the batch's roles (foreign key on `roles`), which
  * cannot be pinned to one row.
  */
 export function unknownRoleFields(
   members: readonly unknown[],
-): Record<string, string> {
-  const fields: Record<string, string> = {};
+): Record<string, MessageRef> {
+  const fields: Record<string, MessageRef> = {};
   members.forEach((_, index) => {
-    fields[`members.${index}.role`] = MEMBER_MESSAGES.chooseRole;
+    fields[`members.${index}.role`] = MEMBER_MESSAGE_REFS.chooseRole;
   });
   return fields;
 }

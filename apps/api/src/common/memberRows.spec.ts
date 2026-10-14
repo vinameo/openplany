@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { TransformFnParams } from 'class-transformer';
-import { MEMBER_MESSAGES } from '@repo/contracts';
+import { MEMBER_MESSAGE_REFS } from '@repo/contracts';
 import {
   duplicateMemberRowFields,
   toCanonicalUserId,
@@ -22,8 +22,8 @@ describe('duplicateMemberRowFields', () => {
       { userId: 'user-1' },
     ];
     expect(duplicateMemberRowFields(members)).toEqual({
-      'members.2.userId': MEMBER_MESSAGES.rowDuplicate,
-      'members.4.userId': MEMBER_MESSAGES.rowDuplicate,
+      'members.2.userId': MEMBER_MESSAGE_REFS.rowDuplicate,
+      'members.4.userId': MEMBER_MESSAGE_REFS.rowDuplicate,
     });
   });
 
@@ -50,8 +50,8 @@ describe('toCanonicalUserId', () => {
 describe('unknownRoleFields', () => {
   it('marks the role of every row', () => {
     expect(unknownRoleFields([{}, {}])).toEqual({
-      'members.0.role': MEMBER_MESSAGES.chooseRole,
-      'members.1.role': MEMBER_MESSAGES.chooseRole,
+      'members.0.role': MEMBER_MESSAGE_REFS.chooseRole,
+      'members.1.role': MEMBER_MESSAGE_REFS.chooseRole,
     });
   });
 });

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { PERMISSION_GRANT_PROBLEM_REFS } from '@repo/contracts';
 import {
   planRolePermissionChanges,
   type StoredRolePermissions,
@@ -90,8 +91,8 @@ describe('planRolePermissionChanges', () => {
     expect(unknownRolePlan).toEqual({
       status: 'invalid',
       fields: {
-        'workspace.superadmin': 'Unknown role',
-        'project.manager': 'Unknown role',
+        'workspace.superadmin': { key: 'admin:errors.unknownRole' },
+        'project.manager': { key: 'admin:errors.unknownRole' },
       },
     });
 
@@ -113,7 +114,7 @@ describe('planRolePermissionChanges', () => {
     expect(duplicatePlan).toEqual({
       status: 'invalid',
       fields: {
-        'workspace.member': 'Listed more than once',
+        'workspace.member': { key: 'admin:errors.listedMoreThanOnce' },
       },
     });
   });
@@ -135,8 +136,8 @@ describe('planRolePermissionChanges', () => {
     expect(plan).toEqual({
       status: 'invalid',
       fields: {
-        'workspace.member:workspace.invalid_perm': 'Unknown permission',
-        'workspace.member:random.nonsense': 'Unknown permission',
+        'workspace.member:workspace.invalid_perm': PERMISSION_GRANT_PROBLEM_REFS.UNKNOWN_PERMISSION,
+        'workspace.member:random.nonsense': PERMISSION_GRANT_PROBLEM_REFS.UNKNOWN_PERMISSION,
       },
     });
   });
@@ -167,8 +168,8 @@ describe('planRolePermissionChanges', () => {
 
     expect(revokeAdminPlan.status).toBe('invalid');
     if (revokeAdminPlan.status === 'invalid') {
-      expect(revokeAdminPlan.fields['workspace.admin:workspace.delete']).toBe(
-        "This role always has its default permissions and can't be changed",
+      expect(revokeAdminPlan.fields['workspace.admin:workspace.delete']).toEqual(
+        PERMISSION_GRANT_PROBLEM_REFS.ROLE_LOCKED,
       );
     }
 
@@ -186,8 +187,8 @@ describe('planRolePermissionChanges', () => {
     if (revokeProjAdminPlan.status === 'invalid') {
       expect(
         revokeProjAdminPlan.fields['project.admin:project.settings.view'],
-      ).toBe(
-        "This role always has its default permissions and can't be changed",
+      ).toEqual(
+        PERMISSION_GRANT_PROBLEM_REFS.ROLE_LOCKED,
       );
     }
   });
@@ -212,9 +213,9 @@ describe('planRolePermissionChanges', () => {
       status: 'invalid',
       fields: {
         'workspace.member:workspace.delete':
-          'Only Admins can have this permission',
+          PERMISSION_GRANT_PROBLEM_REFS.ADMIN_ONLY,
         'workspace.member:workspace.members.add':
-          'Only Admins can have this permission',
+          PERMISSION_GRANT_PROBLEM_REFS.ADMIN_ONLY,
       },
     });
   });
@@ -239,9 +240,9 @@ describe('planRolePermissionChanges', () => {
       status: 'invalid',
       fields: {
         'workspace.guest:workspace.projects.browse':
-          'Guests and Viewers can only view',
+          PERMISSION_GRANT_PROBLEM_REFS.GUEST_VIEW_ONLY,
         'project.viewer:project.workitems.create':
-          'Guests and Viewers can only view',
+          PERMISSION_GRANT_PROBLEM_REFS.GUEST_VIEW_ONLY,
       },
     });
   });
@@ -259,7 +260,7 @@ describe('planRolePermissionChanges', () => {
     expect(plan).toEqual({
       status: 'invalid',
       fields: {
-        'workspace.member:project.workitems.view': 'Scope mismatch',
+        'workspace.member:project.workitems.view': PERMISSION_GRANT_PROBLEM_REFS.SCOPE_MISMATCH,
       },
     });
   });
@@ -291,7 +292,7 @@ describe('planRolePermissionChanges', () => {
       status: 'invalid',
       fields: {
         'workspace.guest:workspace.projects.browse':
-          'Guests and Viewers can only view',
+          PERMISSION_GRANT_PROBLEM_REFS.GUEST_VIEW_ONLY,
       },
     });
   });

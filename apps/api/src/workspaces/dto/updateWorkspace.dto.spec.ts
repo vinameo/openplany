@@ -1,5 +1,6 @@
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
+import { englishConstraintMessage } from '../../common/validationTesting.js';
 import { describe, expect, it } from 'vitest';
 import { UpdateWorkspaceDto } from './updateWorkspace.dto.js';
 
@@ -26,15 +27,13 @@ describe('UpdateWorkspaceDto', () => {
   it('fails when name is whitespace only or null', async () => {
     const errorsWhitespace = await validateDto({ name: '   ' });
     expect(errorsWhitespace).toHaveLength(1);
-    expect(errorsWhitespace[0]?.constraints).toHaveProperty(
-      'minLength',
+    expect(englishConstraintMessage(errorsWhitespace[0]?.constraints?.minLength)).toBe(
       'Enter a workspace name',
     );
 
     const errorsNull = await validateDto({ name: null });
     expect(errorsNull).toHaveLength(1);
-    expect(errorsNull[0]?.constraints).toHaveProperty(
-      'isString',
+    expect(englishConstraintMessage(errorsNull[0]?.constraints?.isString)).toBe(
       'Enter a workspace name',
     );
   });
@@ -42,8 +41,7 @@ describe('UpdateWorkspaceDto', () => {
   it('fails when timezone is not in WORKSPACE_TIMEZONES', async () => {
     const errors = await validateDto({ timezone: 'Mars/Base' });
     expect(errors).toHaveLength(1);
-    expect(errors[0]?.constraints).toHaveProperty(
-      'isIn',
+    expect(englishConstraintMessage(errors[0]?.constraints?.isIn)).toBe(
       'Select a valid timezone',
     );
   });

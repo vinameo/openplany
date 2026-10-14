@@ -1,5 +1,6 @@
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
+import { englishConstraintMessage } from '../../common/validationTesting.js';
 import { describe, expect, it } from 'vitest';
 import { CreateUserDto } from './createUser.dto.js';
 
@@ -9,7 +10,7 @@ async function check(plain: Record<string, unknown>) {
   const messages = Object.fromEntries(
     errors.map((error) => [
       error.property,
-      Object.values(error.constraints ?? {})[0],
+      englishConstraintMessage(Object.values(error.constraints ?? {})[0]),
     ]),
   );
   return { dto, messages, errors };
