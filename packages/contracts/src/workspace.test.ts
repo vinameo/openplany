@@ -96,7 +96,7 @@ describe('contracts workspace helpers', () => {
       WORKSPACE_CREATOR_ROLE,
       WORKSPACE_ROLE_RANK,
       WORKSPACE_ROLE_LABELS,
-      WORKSPACE_ROLE_SUMMARIES,
+      WORKSPACE_ROLE_SUMMARY_KEYS,
     } = await import('./workspace.js');
     expect(WORKSPACE_ROLES).toEqual(['admin', 'member', 'guest']);
     expect(WORKSPACE_CREATOR_ROLE).toBe('admin');
@@ -107,7 +107,7 @@ describe('contracts workspace helpers', () => {
 
     for (const role of WORKSPACE_ROLES) {
       expect(WORKSPACE_ROLE_LABELS[role]).toBeTruthy();
-      expect(WORKSPACE_ROLE_SUMMARIES[role]).toBeTruthy();
+      expect(WORKSPACE_ROLE_SUMMARY_KEYS[role]).toBeTruthy();
     }
 
     for (let i = 0; i < WORKSPACE_ROLES.length - 1; i++) {

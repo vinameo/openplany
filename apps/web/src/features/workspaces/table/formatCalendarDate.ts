@@ -1,5 +1,5 @@
 import type { Language } from "@repo/contracts";
-import { getLanguage } from "../../../i18n";
+import { getLanguage, languageLocale } from "../../../i18n";
 
 const formatterCache = new Map<string, Intl.DateTimeFormat>();
 
@@ -10,11 +10,10 @@ export function formatCalendarDate(
   lang?: Language,
 ): string {
   const currentLang = lang ?? getLanguage();
-  const locale = currentLang === "vi" ? "vi-VN" : "en-US";
   const key = `${currentLang}:${timeZone ?? "default"}`;
   let formatter = formatterCache.get(key);
   if (!formatter) {
-    formatter = new Intl.DateTimeFormat(locale, {
+    formatter = new Intl.DateTimeFormat(languageLocale(currentLang), {
       month: "short",
       day: "2-digit",
       year: "numeric",

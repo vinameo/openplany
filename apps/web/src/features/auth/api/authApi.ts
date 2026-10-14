@@ -1,10 +1,8 @@
 import type { MessageKey } from "@repo/contracts";
-import { translate } from "../../../i18n/language";
 import { ApiRequestError, request } from "../../../lib/apiClient";
 import type { AuthSession, SignInRequest } from "./authTypes";
 
 export const GENERIC_SIGN_IN_ERROR_KEY: MessageKey = "auth:errors.signInFailed";
-export const GENERIC_SIGN_IN_ERROR = translate(GENERIC_SIGN_IN_ERROR_KEY);
 
 export const authApi = {
   signIn(values: SignInRequest): Promise<AuthSession> {

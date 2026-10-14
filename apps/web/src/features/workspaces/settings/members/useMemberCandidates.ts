@@ -1,6 +1,6 @@
+import { useTranslation } from "react-i18next";
 import {
   MEMBER_CANDIDATE_QUERY_MIN,
-  MEMBER_MESSAGES,
   type MemberCandidate,
 } from "@repo/contracts";
 import {
@@ -16,11 +16,12 @@ export function useMemberCandidates(
   slug: string,
   query: string,
 ): MemberCandidateState<MemberCandidate> {
+  const { t } = useTranslation();
   return useMemberCandidateSearch<MemberCandidate>({
     queryKey: (q) => workspaceMemberKeys.candidates(slug, q),
     fetcher: (q, signal) => membersApi.searchCandidates(slug, q, signal),
     query,
     isReady: (trimmed) => trimmed.length >= MEMBER_CANDIDATE_QUERY_MIN,
-    notReadyHint: MEMBER_MESSAGES.candidateQueryTooShort,
+    notReadyHint: t("members:errors.candidateQueryTooShort"),
   });
 }

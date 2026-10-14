@@ -9,8 +9,8 @@ import {
   Text,
   Title,
 } from "@mantine/core";
-import { t } from "i18next";
-import { getLanguage } from "../../i18n";
+import { useTranslation } from "react-i18next";
+import { formatNumber } from "../../i18n";
 import { useCurrentWorkspace } from "../workspaces/currentWorkspace/useCurrentWorkspace";
 import { CreateProjectModal } from "./create/CreateProjectModal";
 import {
@@ -24,6 +24,7 @@ import { useProjects } from "./useProjects";
 import type { SortState } from "../workspaces/table/SortableHeader";
 
 export function ProjectsHome() {
+  const { t } = useTranslation();
   const { workspace } = useCurrentWorkspace();
   const { state, reload, addProject } = useProjects(workspace.slug);
   const [createModalOpened, setCreateModalOpened] = useState(false);
@@ -75,10 +76,6 @@ export function ProjectsHome() {
   }
 
   const { data } = state;
-  const currentLang = getLanguage();
-  const numberFormat = new Intl.NumberFormat(
-    currentLang === "vi" ? "vi-VN" : "en-US",
-  );
   const displayedProjects = applyProjectListQuery(data.projects, {
     search,
     sort,
@@ -97,8 +94,8 @@ export function ProjectsHome() {
         {data.truncated && (
           <Alert color="yellow" role="alert">
             {t("project:list.showingTruncated", {
-              shown: numberFormat.format(data.projects.length),
-              total: numberFormat.format(data.total),
+              shown: formatNumber(data.projects.length),
+              total: formatNumber(data.total),
             })}
           </Alert>
         )}

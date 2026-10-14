@@ -1,11 +1,12 @@
 import {
+  type MessageKey,
   type PermissionItem,
   type RoleRef,
   type RoleResponse,
   type RoleScope,
   type UpdateRolePermissionsRequest,
   isRoleLocked,
-  PERMISSION_GRANT_PROBLEM_MESSAGES,
+  PERMISSION_GRANT_PROBLEM_REFS,
   permissionGrantProblem,
   PROJECT_ROLE_LABELS,
   PROJECT_ROLES,
@@ -23,7 +24,8 @@ export interface MatrixCell {
   role: RoleRef;
   checked: boolean;
   changed: boolean;
-  disabledReason: string | null;
+  /** Why the box can't be ticked, as a catalog key; null when it can. */
+  disabledReasonKey: MessageKey | null;
 }
 
 export interface MatrixRow {
@@ -142,13 +144,13 @@ export function buildPermissionMatrix(
       const checked = effectivePerms.includes(perm);
       const changed = checked !== serverChecked;
 
-      let disabledReason: string | null = null;
+      let disabledReasonKey: MessageKey | null = null;
       if (role.locked) {
-        disabledReason = PERMISSION_GRANT_PROBLEM_MESSAGES.ROLE_LOCKED;
+        disabledReasonKey = PERMISSION_GRANT_PROBLEM_REFS.ROLE_LOCKED.key;
       } else if (!checked) {
         const problem = permissionGrantProblem(role.ref, perm);
         if (problem !== null) {
-          disabledReason = PERMISSION_GRANT_PROBLEM_MESSAGES[problem];
+          disabledReasonKey = PERMISSION_GRANT_PROBLEM_REFS[problem].key;
         }
       }
 
@@ -156,7 +158,7 @@ export function buildPermissionMatrix(
         role: role.ref,
         checked,
         changed,
-        disabledReason,
+        disabledReasonKey,
       };
     });
 

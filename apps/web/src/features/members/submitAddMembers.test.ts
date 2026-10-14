@@ -2,8 +2,10 @@ import { notifications } from "@mantine/notifications";
 import { MEMBER_MESSAGES } from "@repo/contracts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiRequestError } from "../../lib/apiClient";
-import { SOMETHING_WENT_WRONG } from "./membersMessages";
 import { submitAddMembers } from "./submitAddMembers";
+import { translate } from "../../i18n/language";
+
+const SOMETHING_WENT_WRONG = translate("errors:genericError");
 
 vi.mock("@mantine/notifications", () => ({
   notifications: { show: vi.fn() },

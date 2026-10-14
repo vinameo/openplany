@@ -16,11 +16,11 @@ describe("buildRolesOverview", () => {
 
     for (const r of overview.workspaceRoles) {
       expect(r.label).toBeTruthy();
-      expect(r.summary).toBeTruthy();
+      expect(r.summaryKey).toBeTruthy();
     }
     for (const r of overview.projectRoles) {
       expect(r.label).toBeTruthy();
-      expect(r.summary).toBeTruthy();
+      expect(r.summaryKey).toBeTruthy();
     }
   });
 });

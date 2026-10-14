@@ -116,9 +116,9 @@ describe("RoleSelectCell", () => {
           value="member"
           options={["admin", "member"]}
           labels={defaultLabels}
-          descriptions={{
-            admin: "Full access",
-            member: "Standard member",
+          descriptionKeys={{
+            admin: "common:roles.workspace.summary.admin",
+            member: "common:roles.workspace.summary.member",
           }}
           memberName="Alice"
           onRequestChange={vi.fn()}
@@ -129,8 +129,14 @@ describe("RoleSelectCell", () => {
     const input = screen.getByRole("combobox", { name: "Role for Alice" });
     await user.click(input);
 
-    expect(await screen.findByText("Full access")).toBeInTheDocument();
-    expect(screen.getByText("Standard member")).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        "Everything: settings, members, projects and deleting the workspace; access to every project",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Work in the projects they join; join public projects"),
+    ).toBeInTheDocument();
   });
 
   it("renders description helper text below the input", () => {

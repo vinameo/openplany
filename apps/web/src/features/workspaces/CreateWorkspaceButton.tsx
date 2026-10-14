@@ -1,9 +1,10 @@
 import { ActionIcon, Button } from "@mantine/core";
 import { Link } from "react-router";
-import { t } from "i18next";
+import { useTranslation } from "react-i18next";
 import { PlusIcon } from "./icons";
 
 export function CreateWorkspaceButton() {
+  const { t } = useTranslation();
   const label = t("workspace:createButton.label");
 
   return (

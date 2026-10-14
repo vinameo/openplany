@@ -1,7 +1,10 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { ApiRequestError, GENERIC_ERROR } from "../../lib/apiClient";
+import { ApiRequestError, GENERIC_ERROR_KEY } from "../../lib/apiClient";
 import { useSettingsForm } from "./useSettingsForm";
+import { translate } from "../../i18n/language";
+
+const GENERIC_ERROR = translate(GENERIC_ERROR_KEY);
 
 const expireSessionMock = vi.fn();
 vi.mock("../auth/useAuth", () => ({

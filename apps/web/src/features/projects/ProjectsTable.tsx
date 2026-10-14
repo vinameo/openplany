@@ -1,6 +1,6 @@
 import { Anchor, Group, Table, Text, VisuallyHidden } from "@mantine/core";
 import { Link } from "react-router";
-import { t } from "i18next";
+import { useTranslation } from "react-i18next";
 import type { ProjectListItem } from "@repo/contracts";
 import { formatCalendarDate } from "../workspaces/table/formatCalendarDate";
 import {
@@ -27,6 +27,7 @@ export function ProjectsTable({
   sort,
   onSortChange,
 }: ProjectsTableProps) {
+  const { t } = useTranslation();
   const tableAriaLabel = t("project:list.tableAriaLabel");
 
   return (

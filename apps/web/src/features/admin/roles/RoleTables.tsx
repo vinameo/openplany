@@ -40,9 +40,7 @@ export function WorkspaceRolesTable({ rows }: WorkspaceRolesTableProps) {
                 {row.label}
               </Table.Th>
               <Table.Td className={classes.descCell}>
-                {t(`common:roles.workspace.summary.${row.role}`, {
-                  defaultValue: row.summary,
-                })}
+                {t(row.summaryKey)}
               </Table.Td>
             </Table.Tr>
           ))}
@@ -84,9 +82,7 @@ export function ProjectRolesTable({ rows }: ProjectRolesTableProps) {
                 {row.label}
               </Table.Th>
               <Table.Td className={classes.descCell}>
-                {t(`common:roles.project.summary.${row.role}`, {
-                  defaultValue: row.summary,
-                })}
+                {t(row.summaryKey)}
               </Table.Td>
             </Table.Tr>
           ))}

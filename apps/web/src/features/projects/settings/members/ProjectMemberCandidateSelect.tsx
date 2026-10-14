@@ -1,8 +1,8 @@
 import { useContext, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Anchor, Text } from '@mantine/core';
 import {
   MEMBER_CANDIDATE_QUERY_MIN,
-  MEMBER_MESSAGES,
   looksLikeFullEmail,
   type ProjectMemberCandidate,
 } from '@repo/contracts';
@@ -12,13 +12,6 @@ import { CurrentWorkspaceContext } from '../../../workspaces/currentWorkspace/cu
 import { workspaceSettingsPath } from '../../../workspaces/workspacePaths';
 import { projectMembersApi } from '../../api/projectMembersApi';
 import { projectKeys } from '../../api/projectQueries';
-import {
-  ADD_TO_WORKSPACE_LINK,
-  ALREADY_IN_PROJECT_LABEL,
-  NO_WORKSPACE_MEMBER_FOUND,
-  TYPE_FULL_EMAIL,
-  WORKSPACE_ADMIN_CANDIDATE_LABEL,
-} from './projectMembersMessages';
 
 export interface ProjectMemberCandidateSelectProps {
   slug: string;
@@ -45,6 +38,7 @@ export function ProjectMemberCandidateSelect({
   errorId,
   disabled = false,
 }: ProjectMemberCandidateSelectProps) {
+  const { t } = useTranslation();
   const [search, setSearch] = useState('');
   const currentWorkspace = useContext(CurrentWorkspaceContext);
 
@@ -60,8 +54,8 @@ export function ProjectMemberCandidateSelect({
       : looksLikeFullEmail(trimmed);
 
   const notReadyHint = canSeeEmail
-    ? MEMBER_MESSAGES.candidateQueryTooShort
-    : TYPE_FULL_EMAIL;
+    ? t('members:errors.candidateQueryTooShort')
+    : t('project:members.typeFullEmail');
 
   const candidateState = useMemberCandidateSearch<ProjectMemberCandidate>({
     queryKey: (q) => projectKeys.memberCandidates(slug, identifier, q),
@@ -74,7 +68,7 @@ export function ProjectMemberCandidateSelect({
 
   const emptyContent = (
     <Text size="sm">
-      {NO_WORKSPACE_MEMBER_FOUND}
+      {t('project:members.noWorkspaceMemberFound')}
       {canAddWorkspace && (
         <>
           {' '}
@@ -84,7 +78,7 @@ export function ProjectMemberCandidateSelect({
             rel="noopener noreferrer"
             size="sm"
           >
-            {ADD_TO_WORKSPACE_LINK}
+            {t('project:members.addToWorkspaceLink')}
           </Anchor>
         </>
       )}
@@ -100,10 +94,10 @@ export function ProjectMemberCandidateSelect({
       state={candidateState}
       disabledLabel={(c) => {
         if (c.status === 'already_member') {
-          return ALREADY_IN_PROJECT_LABEL;
+          return t('project:members.alreadyInProject');
         }
         if (c.status === 'workspace_admin') {
-          return WORKSPACE_ADMIN_CANDIDATE_LABEL;
+          return t('project:members.workspaceAdminCandidate');
         }
         return null;
       }}

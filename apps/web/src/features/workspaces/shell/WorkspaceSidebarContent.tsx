@@ -1,6 +1,6 @@
 import { ScrollArea, Text } from "@mantine/core";
 import { useLocation } from "react-router";
-import { t } from "i18next";
+import { useTranslation } from "react-i18next";
 import { useCurrentWorkspace } from "../currentWorkspace/useCurrentWorkspace";
 import { HomeIcon, SettingsIcon } from "../icons";
 import { workspacePath, workspaceSettingsPath } from "../workspacePaths";
@@ -10,6 +10,7 @@ import { SidebarNavItem } from "./SidebarNavItem";
 import classes from "./sidebarContent.module.css";
 
 export function WorkspaceSidebarContent() {
+  const { t } = useTranslation();
   const { workspace } = useCurrentWorkspace();
   const { pathname } = useLocation();
 

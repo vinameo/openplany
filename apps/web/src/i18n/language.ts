@@ -1,15 +1,18 @@
-import i18next, { type Resource } from 'i18next';
+import i18next, { type Resource, type TFunction } from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import {
+  DEFAULT_LANGUAGE,
+  LANGUAGE_LOCALES,
   LANGUAGE_RESOURCES,
   storedLanguage,
   type Language,
   type MessageKey,
+  type MessageRef,
 } from '@repo/contracts';
 
 export const LANGUAGE_STORAGE_KEY = 'openplany.language';
 
-let currentLanguage: Language = 'en';
+let currentLanguage: Language = DEFAULT_LANGUAGE;
 let hasWarnedStorage = false;
 let isInitialized = false;
 
@@ -29,7 +32,7 @@ function readStoredLanguage(): Language {
     return storedLanguage(raw);
   } catch (error) {
     warnStorageUnavailable('read', error);
-    return 'en';
+    return DEFAULT_LANGUAGE;
   }
 }
 
@@ -43,14 +46,14 @@ function writeStoredLanguage(lang: Language): void {
 
 function handleStorageEvent(event: StorageEvent): void {
   if (event.key === LANGUAGE_STORAGE_KEY) {
-    const newLang = event.newValue === null ? 'en' : storedLanguage(event.newValue);
+    const newLang = event.newValue === null ? DEFAULT_LANGUAGE : storedLanguage(event.newValue);
     if (newLang !== currentLanguage) {
       applyLanguage(newLang, false);
     }
   } else if (event.key === null) {
     // localStorage.clear() in another tab
-    if (currentLanguage !== 'en') {
-      applyLanguage('en', false);
+    if (currentLanguage !== DEFAULT_LANGUAGE) {
+      applyLanguage(DEFAULT_LANGUAGE, false);
     }
   }
 }
@@ -68,7 +71,7 @@ function applyLanguage(lang: Language, persist: boolean): void {
 
 export function initLanguage(): void {
   if (isInitialized) return;
-  const initialLang = typeof window !== 'undefined' ? readStoredLanguage() : 'en';
+  const initialLang = typeof window !== 'undefined' ? readStoredLanguage() : DEFAULT_LANGUAGE;
   currentLanguage = initialLang;
 
   if (typeof document !== 'undefined' && document.documentElement) {
@@ -78,7 +81,7 @@ export function initLanguage(): void {
   void i18next.use(initReactI18next).init({
     resources: LANGUAGE_RESOURCES as unknown as Resource,
     lng: initialLang,
-    fallbackLng: 'en',
+    fallbackLng: DEFAULT_LANGUAGE,
     keySeparator: false,
     nsSeparator: ':',
     interpolation: {
@@ -110,29 +113,45 @@ export function setLanguage(newLang: Language): void {
   applyLanguage(newLang, true);
 }
 
+/**
+ * `t` for a key chosen at runtime. The typed overloads check a literal key's
+ * own interpolation params; a key from a variable (a MessageRef) would have to
+ * satisfy the params of every key at once.
+ */
+type RuntimeKeyT = (key: MessageKey, options?: Record<string, string | number>) => string;
+
+/** Translates a MessageRef with a component's `t`, so it re-renders on a language change. */
+export function translateRef(t: TFunction, ref: MessageRef): string {
+  return (t as unknown as RuntimeKeyT)(ref.key, ref.params);
+}
+
 export function translate(key: MessageKey, params?: Record<string, string | number>): string {
   if (!isInitialized) {
     initLanguage();
   }
-  return i18next.t(key, {
+  return (i18next.t as unknown as RuntimeKeyT)(key, {
     lng: currentLanguage,
     ...params,
   });
 }
 
+/** Intl locale of a language (current language by default). */
+export function languageLocale(lang: Language = getLanguage()): string {
+  return LANGUAGE_LOCALES[lang];
+}
+
 export function formatNumber(value: number, lang?: Language): string {
-  const currentLang = lang ?? getLanguage();
-  return new Intl.NumberFormat(currentLang === "vi" ? "vi-VN" : "en-US").format(value);
+  return new Intl.NumberFormat(languageLocale(lang)).format(value);
 }
 
 export function resetLanguageModuleForTest(): void {
-  currentLanguage = 'en';
+  currentLanguage = DEFAULT_LANGUAGE;
   hasWarnedStorage = false;
   isInitialized = false;
   if (typeof document !== 'undefined' && document.documentElement) {
-    document.documentElement.lang = 'en';
+    document.documentElement.lang = DEFAULT_LANGUAGE;
   }
-  void i18next.changeLanguage('en');
+  void i18next.changeLanguage(DEFAULT_LANGUAGE);
 }
 
 export { i18next };

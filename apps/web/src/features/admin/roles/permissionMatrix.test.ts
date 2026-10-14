@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  PERMISSION_GRANT_PROBLEM_MESSAGES,
+  PERMISSION_GRANT_PROBLEM_REFS,
   PROJECT_ROLES,
   WORKSPACE_ROLES,
 } from "@repo/contracts";
@@ -128,8 +128,8 @@ describe("permissionMatrix", () => {
       for (const group of wsMatrix.groups) {
         for (const row of group.rows) {
           const adminCell = row.cells.find((c) => c.role.key === "admin");
-          expect(adminCell?.disabledReason).toBe(
-            PERMISSION_GRANT_PROBLEM_MESSAGES.ROLE_LOCKED,
+          expect(adminCell?.disabledReasonKey).toBe(
+            PERMISSION_GRANT_PROBLEM_REFS.ROLE_LOCKED.key,
           );
         }
       }
@@ -140,8 +140,8 @@ describe("permissionMatrix", () => {
       for (const group of projMatrix.groups) {
         for (const row of group.rows) {
           const adminCell = row.cells.find((c) => c.role.key === "admin");
-          expect(adminCell?.disabledReason).toBe(
-            PERMISSION_GRANT_PROBLEM_MESSAGES.ROLE_LOCKED,
+          expect(adminCell?.disabledReasonKey).toBe(
+            PERMISSION_GRANT_PROBLEM_REFS.ROLE_LOCKED.key,
           );
         }
       }
@@ -159,8 +159,8 @@ describe("permissionMatrix", () => {
         (c) => c.role.key === "guest",
       )!;
       expect(guestCell.checked).toBe(false);
-      expect(guestCell.disabledReason).toBe(
-        PERMISSION_GRANT_PROBLEM_MESSAGES.GUEST_VIEW_ONLY,
+      expect(guestCell.disabledReasonKey).toBe(
+        PERMISSION_GRANT_PROBLEM_REFS.GUEST_VIEW_ONLY.key,
       );
 
       // Member: workspace.delete is empty -> G3: ADMIN_ONLY
@@ -171,8 +171,8 @@ describe("permissionMatrix", () => {
         (c) => c.role.key === "member",
       )!;
       expect(memberDeleteCell.checked).toBe(false);
-      expect(memberDeleteCell.disabledReason).toBe(
-        PERMISSION_GRANT_PROBLEM_MESSAGES.ADMIN_ONLY,
+      expect(memberDeleteCell.disabledReasonKey).toBe(
+        PERMISSION_GRANT_PROBLEM_REFS.ADMIN_ONLY.key,
       );
 
       // Member: workspace.settings.view is checked -> can be toggled off, so disabledReason is null
@@ -183,7 +183,7 @@ describe("permissionMatrix", () => {
         (c) => c.role.key === "member",
       )!;
       expect(memberViewCell.checked).toBe(true);
-      expect(memberViewCell.disabledReason).toBeNull();
+      expect(memberViewCell.disabledReasonKey).toBeNull();
     });
 
     it("enforces GUEST_VIEW_ONLY for project Viewer role when granting non-view permissions (AC-21)", () => {
@@ -196,8 +196,8 @@ describe("permissionMatrix", () => {
       )!;
       const viewerCell = createRow.cells.find((c) => c.role.key === "viewer")!;
       expect(viewerCell.checked).toBe(false);
-      expect(viewerCell.disabledReason).toBe(
-        PERMISSION_GRANT_PROBLEM_MESSAGES.GUEST_VIEW_ONLY,
+      expect(viewerCell.disabledReasonKey).toBe(
+        PERMISSION_GRANT_PROBLEM_REFS.GUEST_VIEW_ONLY.key,
       );
     });
 

@@ -1,11 +1,12 @@
 import { Button } from "@mantine/core";
-import { t } from "i18next";
+import { useTranslation } from "react-i18next";
 import { ComingSoonHint } from "../../layout/ComingSoonHint";
 import { SquarePenIcon } from "../icons";
 import classes from "./sidebarContent.module.css";
 
 /** "New work item" at the top of every sidebar; not built yet. */
 export function NewWorkItemButton() {
+  const { t } = useTranslation();
   return (
     <ComingSoonHint>
       {(trigger) => (

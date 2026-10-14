@@ -10,8 +10,10 @@ import { AddProjectMembersModal } from "./AddProjectMembersModal";
 
 import { CurrentProjectContext } from "../../detail/currentProjectContext";
 import type { SubmitOutcome } from "../../../members/AddMembersModalFrame";
-import { SOMETHING_WENT_WRONG } from "../../../members/membersMessages";
 import { projectKeys } from "../../api/projectQueries";
+import { translate } from "../../../../i18n/language";
+
+const SOMETHING_WENT_WRONG = translate("errors:genericError");
 
 function renderModal({
   opened = true,

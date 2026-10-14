@@ -2,7 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { makeSession } from "../../../test/authFixtures";
 import { apiError, jsonResponse, mockFetch } from "../../../test/fetchMock";
 import { ApiRequestError } from "../../../lib/apiClient";
-import { authApi, GENERIC_SIGN_IN_ERROR } from "./authApi";
+import { authApi, GENERIC_SIGN_IN_ERROR_KEY } from "./authApi";
+import { translate } from "../../../i18n/language";
+
+const GENERIC_SIGN_IN_ERROR = translate(GENERIC_SIGN_IN_ERROR_KEY);
 
 afterEach(() => {
   vi.unstubAllGlobals();

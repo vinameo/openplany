@@ -1,6 +1,6 @@
 import { useContext } from "react";
 import { Avatar, Text, UnstyledButton } from "@mantine/core";
-import { t } from "i18next";
+import { useTranslation } from "react-i18next";
 import {
   PROJECT_MEMBER_AVATAR_LIMIT,
   type ProjectMemberSummary,
@@ -24,6 +24,7 @@ export function ProjectMembersCell({
   memberCount,
   currentUserId,
 }: ProjectMembersCellProps) {
+  const { t } = useTranslation();
   const auth = useContext(AuthContext);
   const activeUserId =
     currentUserId ??

@@ -34,15 +34,6 @@ export const PERMISSION_GRANT_PROBLEMS = [
 ] as const;
 export type PermissionGrantProblem = (typeof PERMISSION_GRANT_PROBLEMS)[number];
 
-export const PERMISSION_GRANT_PROBLEM_MESSAGES = {
-  UNKNOWN_PERMISSION: "Unknown permission",
-  SCOPE_MISMATCH: "Scope mismatch",
-  ROLE_LOCKED:
-    "This role always has its default permissions and can't be changed",
-  ADMIN_ONLY: "Only Admins can have this permission",
-  GUEST_VIEW_ONLY: "Guests and Viewers can only view",
-} as const satisfies Record<PermissionGrantProblem, string>;
-
 export const PERMISSION_GRANT_PROBLEM_REFS = {
   UNKNOWN_PERMISSION: { key: "admin:errors.unknownPermission" },
   SCOPE_MISMATCH: { key: "admin:errors.scopeMismatch" },

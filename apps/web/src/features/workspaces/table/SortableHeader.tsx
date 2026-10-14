@@ -1,5 +1,5 @@
 import { ActionIcon, Group, Menu, Table, Text } from "@mantine/core";
-import { t } from "i18next";
+import { useTranslation } from "react-i18next";
 import {
   ArrowDownIcon,
   ArrowUpDownIcon,
@@ -27,6 +27,7 @@ export function SortableHeader<K extends string>({
   onSortChange,
   className,
 }: SortableHeaderProps<K>) {
+  const { t } = useTranslation();
   const isCurrent = currentSort.key === sortKey;
   const ariaSort = isCurrent
     ? currentSort.direction === "asc"

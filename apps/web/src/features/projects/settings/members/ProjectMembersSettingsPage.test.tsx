@@ -24,12 +24,12 @@ import { apiError, jsonResponse, mockFetch } from "../../../../test/fetchMock";
 import { AuthProvider } from "../../../auth/AuthProvider";
 import { makeWorkspace } from "../../../workspaces/test/workspaceFixtures";
 import { tooManyAttemptsMessage } from "../../../members/membersMessages";
-import {
-  NO_MEMBERS_YET,
-  NONE_ADDED_TO_PROJECT,
-  ROLE_LIMITED_TOOLTIP,
-  WORKSPACE_ADMINS_NOTE,
-} from "./projectMembersMessages";
+import { translate } from "../../../../i18n/language";
+
+const NO_MEMBERS_YET = translate("project:members.emptyTitle");
+const NONE_ADDED_TO_PROJECT = translate("project:members.noneAddedNote");
+const ROLE_LIMITED_TOOLTIP = translate("project:members.roleLimitedTooltip");
+const WORKSPACE_ADMINS_NOTE = translate("project:members.workspaceAdminsNote");
 
 const baseWorkspace = makeWorkspace({
   id: "ws-1",

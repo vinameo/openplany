@@ -3,7 +3,11 @@ import userEvent from "@testing-library/user-event";
 import { AppUiProvider } from "@repo/ui";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiRequestError } from "../../lib/apiClient";
-import { resetLanguageModuleForTest, setLanguage } from "../../i18n/language";
+import {
+  resetLanguageModuleForTest,
+  setLanguage,
+  translate,
+} from "../../i18n/language";
 import { LoginPage } from "./LoginPage";
 
 type Submit = (values: { email: string; password: string }) => Promise<void>;
@@ -68,16 +72,24 @@ describe("LoginPage", () => {
     });
   });
 
-  it("shows the error message when sign in fails", async () => {
+  it("shows the generic sentence, not the internal text, when sign in throws a non-API error", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
     const { user } = renderLoginPage(
-      vi.fn<Submit>().mockRejectedValue(new Error("Something broke")),
+      vi
+        .fn<Submit>()
+        .mockRejectedValue(
+          new TypeError("Cannot read properties of undefined (reading 'user')"),
+        ),
     );
 
     await fillAndSubmit(user);
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Something broke",
-    );
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(translate("auth:errors.signInFailed"));
+    expect(alert).not.toHaveTextContent("Cannot read properties");
+    consoleError.mockRestore();
   });
 
   it("keeps the email, clears the password and focuses it after a 401", async () => {

@@ -17,7 +17,7 @@ import {
   workspaceMemberKeys,
 } from "./api/workspaceMemberQueries";
 import {
-  changeRoleFailed,
+  changeRoleFailedMessage,
   tooManyAttemptsMessage,
 } from "../../../members/membersMessages";
 import { toastChanged } from "./workspaceRoleChangeMessages";
@@ -109,7 +109,7 @@ export function useChangeWorkspaceRole({
           return;
         }
       }
-      setErrorMessage(changeRoleFailed);
+      setErrorMessage(changeRoleFailedMessage());
     },
   });
 

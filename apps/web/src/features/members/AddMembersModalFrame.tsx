@@ -24,7 +24,6 @@ import {
   type RowsContext,
 } from './addMembersRows';
 import type { CandidateBase } from './MemberCandidateCombobox';
-import { SOMETHING_WENT_WRONG } from './membersMessages';
 import type { RoleScheme } from './roleScheme';
 import classes from './AddMembersModalFrame.module.css';
 
@@ -125,7 +124,7 @@ export function AddMembersModalFrame<
       }
     } catch (err: unknown) {
       console.error('members.add.submit_failed', err);
-      setGlobalAlert(SOMETHING_WENT_WRONG);
+      setGlobalAlert(t('errors:genericError'));
     } finally {
       setIsSubmitting(false);
     }

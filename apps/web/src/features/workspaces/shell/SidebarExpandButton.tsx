@@ -1,9 +1,10 @@
 import { ActionIcon, Tooltip } from "@mantine/core";
-import { t } from "i18next";
+import { useTranslation } from "react-i18next";
 import { PanelLeftIcon } from "../icons";
 import { useWorkspaceSidebar } from "./useWorkspaceSidebar";
 
 export function SidebarExpandButton() {
+  const { t } = useTranslation();
   const { mode, isOpen, open, sidebarId, expandButtonRef } =
     useWorkspaceSidebar();
 

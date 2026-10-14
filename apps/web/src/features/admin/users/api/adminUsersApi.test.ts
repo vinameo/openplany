@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CreatedUserResponse, CreateUserRequest } from "@repo/contracts";
 import { apiError, jsonResponse, mockFetch } from "../../../../test/fetchMock";
-import { adminUsersApi, GENERIC_CREATE_USER_ERROR } from "./adminUsersApi";
+import { adminUsersApi, GENERIC_CREATE_USER_ERROR_KEY } from "./adminUsersApi";
+import { translate } from "../../../../i18n/language";
+
+const GENERIC_CREATE_USER_ERROR = translate(GENERIC_CREATE_USER_ERROR_KEY);
 
 afterEach(() => {
   vi.unstubAllGlobals();

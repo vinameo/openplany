@@ -13,7 +13,7 @@ import {
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import type { ProjectListItem } from "@repo/contracts";
-import { ApiRequestError, GENERIC_ERROR } from "../../../../lib/apiClient";
+import { ApiRequestError, GENERIC_ERROR_KEY } from "../../../../lib/apiClient";
 import { useIsDesktop } from "../../../layout/useIsDesktop";
 import { useAuth } from "../../../auth/useAuth";
 import { useCurrentWorkspace } from "../../../workspaces/currentWorkspace/useCurrentWorkspace";
@@ -114,7 +114,7 @@ export function DeleteProjectModal({
           return;
         }
       }
-      setErrorAlert(GENERIC_ERROR);
+      setErrorAlert(t(GENERIC_ERROR_KEY));
     }
   };
 

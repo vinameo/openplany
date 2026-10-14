@@ -1,7 +1,7 @@
 import { useCallback, useState, type MouseEvent, type ReactElement } from "react";
 import { Popover, Text, Tooltip } from "@mantine/core";
 import { useTimeout } from "@mantine/hooks";
-import { t } from "i18next";
+import { useTranslation } from "react-i18next";
 import { useIsDesktop } from "./useIsDesktop";
 import classes from "./ComingSoonHint.module.css";
 
@@ -15,6 +15,7 @@ export interface ComingSoonHintProps {
 }
 
 export function ComingSoonHint({ children }: ComingSoonHintProps) {
+  const { t } = useTranslation();
   const isDesktop = useIsDesktop();
   const [opened, setOpened] = useState(false);
 

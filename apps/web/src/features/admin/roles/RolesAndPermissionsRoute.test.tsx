@@ -11,7 +11,9 @@ import { makeSession } from "../../../test/authFixtures";
 import { apiError, jsonResponse, mockFetch } from "../../../test/fetchMock";
 import { makeDefaultRolesResponse } from "./test/rolesFixtures";
 import { ROLES_AND_PERMISSIONS_PATH } from "./rolesOverview";
-import { rolesLoadError } from "./api/adminRoleQueries";
+import { translate } from "../../../i18n/language";
+
+const rolesLoadError = translate("admin:roles.errors.loadFailed");
 
 function renderRoute(options?: {
   isInstanceAdmin?: boolean;

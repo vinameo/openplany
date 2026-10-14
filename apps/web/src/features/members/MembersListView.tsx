@@ -51,7 +51,8 @@ export interface MembersListViewProps<
   emptyState?: ReactNode;
   inheritedRow?: (m: M) => boolean;
   noneAddedNote?: ReactNode;
-  truncatedMessage?: (shown: number, total: number) => string;
+  /** Sentence for a list cut at its maximum; it takes `shown` and `total`. */
+  truncatedMessageKey?: "members:truncated" | "members:projectTruncated";
 }
 
 export function MembersListView<R extends string, M extends MemberRowView<R>>({
@@ -70,7 +71,7 @@ export function MembersListView<R extends string, M extends MemberRowView<R>>({
   emptyState,
   inheritedRow,
   noneAddedNote,
-  truncatedMessage,
+  truncatedMessageKey = "members:truncated",
 }: MembersListViewProps<R, M>) {
   const { t } = useTranslation();
   const [search, setSearch] = useState("");
@@ -147,12 +148,10 @@ export function MembersListView<R extends string, M extends MemberRowView<R>>({
 
       {state.truncated && (
         <Alert color="yellow" role="alert">
-          {truncatedMessage
-            ? truncatedMessage(state.listMax, state.total)
-            : t("members:truncated", {
-                shown: formatNumber(state.listMax),
-                total: formatNumber(state.total),
-              })}
+          {t(truncatedMessageKey, {
+            shown: formatNumber(state.listMax),
+            total: formatNumber(state.total),
+          })}
         </Alert>
       )}
 

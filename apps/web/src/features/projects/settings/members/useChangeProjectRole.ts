@@ -13,7 +13,7 @@ import {
 import { ApiRequestError } from "../../../../lib/apiClient";
 import { translate } from "../../../../i18n/language";
 import {
-  changeRoleFailed,
+  changeRoleFailedMessage,
   tooManyAttemptsMessage,
 } from "../../../members/membersMessages";
 import { projectMembersApi } from "../../api/projectMembersApi";
@@ -100,7 +100,7 @@ export function getProjectRoleChangeErrorMessage(err: unknown): {
     }
   }
   return {
-    message: changeRoleFailed,
+    message: changeRoleFailedMessage(),
     shouldReload: false,
   };
 }

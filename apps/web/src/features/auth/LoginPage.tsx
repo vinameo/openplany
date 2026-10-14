@@ -54,11 +54,9 @@ export function LoginPage({
 
   function showError(error: unknown) {
     if (!(error instanceof ApiRequestError)) {
-      setFormError(
-        error instanceof Error && error.message !== ""
-          ? error.message
-          : t("auth:errors.signInFailed"),
-      );
+      // A bug, not an API answer: its text is not for the user (WEB B7, INV-03).
+      console.error("Sign-in failed unexpectedly", error);
+      setFormError(t("auth:errors.signInFailed"));
       return;
     }
 
