@@ -30,6 +30,7 @@ export type ChangeRoleResult =
       effect: WorkspaceRoleChangeEffect;
       appliedProjectCount: number;
     }
+  | { status: 'workspace_gone' }
   | { status: 'member_gone' }
   | { status: 'actor_forbidden' }
   | { status: 'role_changed' }
@@ -48,6 +49,13 @@ export interface ChangeRoleInput {
   requestId: string;
   now: Date;
 }
+
+/** Same outcomes, same order (RQ INV-11) as `changeRole`; mapped to HTTP in the service. */
+export type PreviewRoleChangeResult =
+  | { status: 'preview'; preview: WorkspaceRoleChangePreview }
+  | { status: 'member_gone' }
+  | { status: 'actor_forbidden' }
+  | { status: 'same_role' };
 
 export interface PreviewRoleChangeInput {
   workspaceId: string;
@@ -90,7 +98,7 @@ export abstract class WorkspaceMembersRepository {
 
   abstract previewRoleChange(
     input: PreviewRoleChangeInput,
-  ): Promise<WorkspaceRoleChangePreview>;
+  ): Promise<PreviewRoleChangeResult>;
 
   abstract changeRole(input: ChangeRoleInput): Promise<ChangeRoleResult>;
 }

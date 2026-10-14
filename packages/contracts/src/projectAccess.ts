@@ -57,15 +57,6 @@ export function isProjectRoleLimited(
   );
 }
 
-/** @deprecated Use isProjectRoleLimited instead */
-export function isProjectRoleClamped(
-  input: ProjectAccessInput,
-  policies?: ProjectAccessPolicies,
-): boolean {
-  if (!policies) return false;
-  return isProjectRoleLimited(input, policies);
-}
-
 export interface ProjectAccess {
   role: ProjectRole;
   permissions: readonly ProjectPermission[];

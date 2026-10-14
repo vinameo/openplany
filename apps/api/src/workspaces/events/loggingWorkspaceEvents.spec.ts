@@ -1,6 +1,15 @@
 import { Logger } from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { FakeClock } from '../../../test/fakes/authFakes.js';
+import { InMemorySlidingWindowLimiter } from '../../common/slidingWindowLimiter.js';
 import { LoggingWorkspaceEvents } from './loggingWorkspaceEvents.js';
+
+function makeEvents(clock = new FakeClock()): LoggingWorkspaceEvents {
+  return new LoggingWorkspaceEvents(
+    new InMemorySlidingWindowLimiter({ limit: 1, windowMs: 600_000 }),
+    clock,
+  );
+}
 
 describe('LoggingWorkspaceEvents', () => {
   beforeEach(() => {
@@ -8,7 +17,7 @@ describe('LoggingWorkspaceEvents', () => {
   });
 
   it('formats structured log without leaking workspace name', async () => {
-    const events = new LoggingWorkspaceEvents();
+    const events = makeEvents();
     const logSpy = vi.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
 
     await events.updated({
@@ -43,7 +52,7 @@ describe('LoggingWorkspaceEvents', () => {
   });
 
   it('AC-15: formats memberCandidatesSearched at debug level without leaking query, email, or names', async () => {
-    const events = new LoggingWorkspaceEvents();
+    const events = makeEvents();
     const debugSpy = vi.spyOn(Logger.prototype, 'debug').mockImplementation(() => {});
 
     await events.memberCandidatesSearched({
@@ -63,7 +72,7 @@ describe('LoggingWorkspaceEvents', () => {
   });
 
   it('AC-15: formats membersAdded at log level without leaking recipient details', async () => {
-    const events = new LoggingWorkspaceEvents();
+    const events = makeEvents();
     const logSpy = vi.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
 
     await events.membersAdded({
@@ -83,6 +92,29 @@ describe('LoggingWorkspaceEvents', () => {
       'workspace.members.added requestId=req-add userId=usr-actor workspaceId=ws-123 role=admin count=3 reactivated=1 roles=admin:1,member:1,guest:1',
     );
     expect(msg).not.toContain('@');
+  });
+
+  it('logs workspace.member.role.forbidden once per actor and window', async () => {
+    const clock = new FakeClock();
+    const events = makeEvents(clock);
+    const warnSpy = vi
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => {});
+    const event = {
+      workspaceId: 'ws-123',
+      actorId: 'usr-actor',
+      targetId: 'usr-target',
+      requestId: 'req-1',
+    };
+
+    await events.memberRoleForbidden(event);
+    await events.memberRoleForbidden(event);
+    await events.memberRoleForbidden({ ...event, actorId: 'usr-other' });
+    expect(warnSpy).toHaveBeenCalledTimes(2);
+
+    clock.current = new Date(clock.current.getTime() + 600_001);
+    await events.memberRoleForbidden(event);
+    expect(warnSpy).toHaveBeenCalledTimes(3);
   });
 });
 

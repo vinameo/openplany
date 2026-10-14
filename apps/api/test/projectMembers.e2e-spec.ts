@@ -2365,7 +2365,7 @@ describe('ProjectMembers (e2e)', () => {
       expect(res.body.message).toBe(PROJECT_ROLE_CHANGE_MESSAGES.cantChange);
     });
 
-    it('AC-07: Contributor with project.members.manage cannot assign admin (returns 403 FORBIDDEN roleNotAllowed)', async () => {
+    it('AC-07: Contributor with project.members.manage cannot assign admin (returns 403 ROLE_NOT_ALLOWED roleNotAllowed)', async () => {
       const { workspace, anId, projId } = await seedB63Fixture();
       await addProjectMember(projId, workspace.id, anId, 'commenter');
       await e2e.dataSource.query(
@@ -2383,7 +2383,7 @@ describe('ProjectMembers (e2e)', () => {
         .send({ fromRole: 'commenter', role: 'admin' })
         .expect(403);
 
-      expect(res.body.code).toBe('FORBIDDEN');
+      expect(res.body.code).toBe('ROLE_NOT_ALLOWED');
       expect(res.body.message).toBe(MEMBER_MESSAGES.roleNotAllowed);
     });
 

@@ -29,6 +29,7 @@ import { TypeOrmProjectMembersRepository } from './members/typeOrmProjectMembers
 import {
   PROJECT_LOOKUP_ALERT_LIMITER,
   PROJECT_LOOKUP_LIMITER,
+  PROJECT_ROLE_FORBIDDEN_ALERT_LIMITER,
 } from './tokens.js';
 
 import { RolesModule } from '../roles/roles.module.js';
@@ -71,6 +72,11 @@ import { RolesModule } from '../roles/roles.module.js';
     },
     {
       provide: PROJECT_LOOKUP_ALERT_LIMITER,
+      useFactory: () =>
+        new InMemorySlidingWindowLimiter({ limit: 1, windowMs: 600_000 }),
+    },
+    {
+      provide: PROJECT_ROLE_FORBIDDEN_ALERT_LIMITER,
       useFactory: () =>
         new InMemorySlidingWindowLimiter({ limit: 1, windowMs: 600_000 }),
     },

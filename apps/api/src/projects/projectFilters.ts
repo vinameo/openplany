@@ -1,16 +1,12 @@
 import {
   In,
+  Not,
   type EntityManager,
   type FindOptionsWhere,
   IsNull,
   type SelectQueryBuilder,
 } from 'typeorm';
-import {
-  PROJECT_ROLES,
-  WORKSPACE_ROLES,
-  isProjectAdminRole,
-  isWorkspaceAdminRole,
-} from '@repo/contracts';
+import { PROJECT_ROLES, isProjectAdminRole } from '@repo/contracts';
 import { User } from '../auth/entities/user.entity.js';
 import { WorkspaceMember } from '../workspaces/entities/workspaceMember.entity.js';
 import type { Project } from './entities/project.entity.js';
@@ -79,14 +75,15 @@ function isQueryBuilder(
 /**
  * Counts assigned Project Admins grouped by project for a set of projectIds (DB B3.2, DB-04).
  * Uses the project member filter (active membership, active user, non-implicit workspace role)
- * and groups by pm.projectId in a single query.
+ * and groups by pm.projectId in a single query. `implicitRoles` comes from
+ * `workspaceRolesWithImplicitProjectAccess(policies)`, never from role names.
+ * `excludeMemberId` counts everyone else, e.g. "who is left besides the target".
  */
 export async function assignedProjectAdmins(
   managerOrQb: EntityManager | SelectQueryBuilder<ProjectMember>,
   projectIds: readonly string[],
-  implicitRoles: readonly string[] = WORKSPACE_ROLES.filter(
-    isWorkspaceAdminRole,
-  ),
+  implicitRoles: readonly string[],
+  opts: { excludeMemberId?: string } = {},
 ): Promise<Map<string, number>> {
   if (projectIds.length === 0) {
     return new Map();
@@ -101,11 +98,15 @@ export async function assignedProjectAdmins(
         implicitRoles,
       );
 
-  const rows = await qb
-    .select('pm.projectId', 'projectId')
+  qb.select('pm.projectId', 'projectId')
     .addSelect('count(*)', 'count')
     .andWhere('u.isActive = :userActive', { userActive: true })
-    .andWhere('pm.role IN (:...projectAdminRoles)', { projectAdminRoles })
+    .andWhere('pm.role IN (:...projectAdminRoles)', { projectAdminRoles });
+  if (opts.excludeMemberId !== undefined) {
+    qb.andWhere({ memberId: Not(opts.excludeMemberId) });
+  }
+
+  const rows = await qb
     .groupBy('pm.projectId')
     .getRawMany<{ projectId: string; count: string | number }>();
 

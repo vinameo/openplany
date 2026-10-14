@@ -39,7 +39,7 @@ describe('projectFilters - assignedProjectAdmins', () => {
 
   it('returns empty map when projectIds is empty without querying', async () => {
     const { qb, getRawMany } = makeMockQb([]);
-    const result = await assignedProjectAdmins(qb, []);
+    const result = await assignedProjectAdmins(qb, [], ['admin']);
 
     expect(result.size).toBe(0);
     expect(getRawMany).not.toHaveBeenCalled();
@@ -51,7 +51,7 @@ describe('projectFilters - assignedProjectAdmins', () => {
       { projectId: 'p-2', count: 1 },
     ]);
 
-    const result = await assignedProjectAdmins(qb, ['p-1', 'p-2']);
+    const result = await assignedProjectAdmins(qb, ['p-1', 'p-2'], ['admin']);
 
     expect(result.get('p-1')).toBe(2);
     expect(result.get('p-2')).toBe(1);
@@ -69,6 +69,18 @@ describe('projectFilters - assignedProjectAdmins', () => {
     expect(groupBy).toHaveBeenCalledWith('pm.projectId');
   });
 
+  it('leaves out the excluded member when asked, so the count is "everyone else"', async () => {
+    const { qb, andWhere } = makeMockQb([]);
+
+    await assignedProjectAdmins(qb, ['p-1'], ['admin'], {
+      excludeMemberId: 'u-target',
+    });
+
+    expect(andWhere).toHaveBeenCalledWith({
+      memberId: expect.objectContaining({ _type: 'not', _value: 'u-target' }),
+    });
+  });
+
   it('builds query when manager is passed', async () => {
     const { qb } = makeMockQb([{ projectId: 'p-1', count: '1' }]);
     const createQueryBuilder = vi.fn().mockReturnValue(qb);
@@ -76,7 +88,7 @@ describe('projectFilters - assignedProjectAdmins', () => {
       createQueryBuilder,
     } as unknown as EntityManager;
 
-    const result = await assignedProjectAdmins(manager, ['p-1']);
+    const result = await assignedProjectAdmins(manager, ['p-1'], ['admin']);
 
     expect(result.get('p-1')).toBe(1);
     expect(createQueryBuilder).toHaveBeenCalledWith(ProjectMember, 'pm');

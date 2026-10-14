@@ -123,8 +123,7 @@ export class TypeOrmProjectMembersRepository implements ProjectMembersRepository
       opts.implicitRoles,
     );
 
-    const total = await qb.clone().getCount();
-
+    // One snapshot: the real total rides along with the rows (as in `list`).
     qb.select('wm.memberId', 'userId')
       .addSelect('u.firstName', 'firstName')
       .addSelect('u.lastName', 'lastName')
@@ -132,6 +131,7 @@ export class TypeOrmProjectMembersRepository implements ProjectMembersRepository
       .addSelect('u.avatar', 'avatarUrl')
       .addSelect('wm.role', 'workspaceRole')
       .addSelect('u.isActive', 'accountActive')
+      .addSelect('count(*) OVER ()', 'total')
       .orderBy(
         `lower(COALESCE(NULLIF(btrim(u.firstName || ' ' || u.lastName), ''), u.displayName))`,
       )
@@ -145,6 +145,7 @@ export class TypeOrmProjectMembersRepository implements ProjectMembersRepository
     const rows = await qb.getRawMany<
       InheritedMemberDbRow & { total: string | number }
     >();
+    const total = rows.length > 0 ? Number(rows[0]!.total) : 0;
     const members: InheritedMemberDbRow[] = rows.map((row) => ({
       userId: row.userId,
       firstName: row.firstName ?? '',

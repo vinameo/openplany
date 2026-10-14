@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_PROJECT_ACCESS_POLICIES } from './testing.js';
 import {
+  checkWorkspaceRoleChange,
+  mayRemoveAssignedProjectAdmin,
   planWorkspaceRoleChange,
+  projectRoleAppliedBy,
   resolveAppliedProjectRole,
   type WorkspaceRoleChangePlan,
 } from './workspaceRoleChange.js';
@@ -217,6 +220,118 @@ describe('workspaceRoleChange', () => {
         'contributor',
       );
       expect(result).toEqual({ ok: true, role: 'contributor' });
+    });
+  });
+
+  describe('checkWorkspaceRoleChange', () => {
+    const admin = {
+      userId: 'u-admin',
+      role: 'admin' as const,
+      permissions: ['workspace.members.role.update' as const],
+    };
+    const memberActor = {
+      userId: 'u-member',
+      role: 'member' as const,
+      permissions: ['workspace.members.role.update' as const],
+    };
+
+    it('rejects a self-change before any other check', () => {
+      expect(
+        checkWorkspaceRoleChange({
+          actor: admin,
+          target: { userId: 'u-admin', role: 'admin' },
+          toRole: 'admin',
+          fromRole: 'member',
+        }),
+      ).toBe('actor_forbidden');
+    });
+
+    it('rejects a role the actor cannot assign before a stale fromRole', () => {
+      expect(
+        checkWorkspaceRoleChange({
+          actor: memberActor,
+          target: { userId: 'u-x', role: 'guest' },
+          toRole: 'admin',
+          fromRole: 'member',
+        }),
+      ).toBe('actor_forbidden');
+    });
+
+    it('rejects a stale fromRole before an unchanged role', () => {
+      expect(
+        checkWorkspaceRoleChange({
+          actor: admin,
+          target: { userId: 'u-x', role: 'guest' },
+          toRole: 'guest',
+          fromRole: 'member',
+        }),
+      ).toBe('role_changed');
+    });
+
+    it('rejects the current role', () => {
+      expect(
+        checkWorkspaceRoleChange({
+          actor: admin,
+          target: { userId: 'u-x', role: 'member' },
+          toRole: 'member',
+        }),
+      ).toBe('same_role');
+    });
+
+    it('accepts an allowed change, with or without fromRole', () => {
+      const input = {
+        actor: admin,
+        target: { userId: 'u-x', role: 'member' as const },
+        toRole: 'guest' as const,
+      };
+      expect(checkWorkspaceRoleChange(input)).toBeNull();
+      expect(
+        checkWorkspaceRoleChange({ ...input, fromRole: 'member' }),
+      ).toBeNull();
+    });
+  });
+
+  describe('projectRoleAppliedBy / mayRemoveAssignedProjectAdmin', () => {
+    const choosable: WorkspaceRoleChangePlan = {
+      effect: 'apply_project_role',
+      projectRoleChoices: ['admin', 'contributor', 'commenter'],
+      defaultProjectRole: 'commenter',
+      actorCanChooseProjectRole: true,
+    };
+
+    it('applies the chosen role only when the actor can choose', () => {
+      expect(projectRoleAppliedBy(choosable, 'admin')).toBe('admin');
+      expect(projectRoleAppliedBy(choosable)).toBe('commenter');
+      expect(
+        projectRoleAppliedBy(
+          { ...choosable, actorCanChooseProjectRole: false },
+          'admin',
+        ),
+      ).toBe('commenter');
+      expect(
+        projectRoleAppliedBy({ ...choosable, effect: 'gain_implicit' }),
+      ).toBeNull();
+    });
+
+    it('flags changes that turn rows off or offer a non-admin project role', () => {
+      expect(
+        mayRemoveAssignedProjectAdmin({
+          ...choosable,
+          effect: 'gain_implicit',
+        }),
+      ).toBe(true);
+      expect(mayRemoveAssignedProjectAdmin(choosable)).toBe(true);
+      expect(
+        mayRemoveAssignedProjectAdmin({
+          ...choosable,
+          projectRoleChoices: ['admin'],
+          defaultProjectRole: 'admin',
+          actorCanChooseProjectRole: false,
+        }),
+      ).toBe(false);
+      expect(
+        mayRemoveAssignedProjectAdmin({ ...choosable, effect: 'no_projects' }),
+      ).toBe(false);
     });
   });
 });

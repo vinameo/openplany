@@ -8,6 +8,8 @@ import {
   assignableRangeOf,
   hasImplicitProjectAccess,
 } from './projectAccessPolicy.js';
+import { assignableWorkspaceRoles, type WorkspaceActor } from './roleAssignment.js';
+import { isProjectAdminRole } from './rolePermissionRules.js';
 import type { WorkspaceMemberResponse } from './workspaceMembers.js';
 
 export type WorkspaceRoleChangeEffect =
@@ -69,6 +71,57 @@ export interface ChangeWorkspaceRoleResponse {
 }
 
 export const ROLE_CHANGE_PREVIEW_PROJECTS_MAX = 10;
+
+export type WorkspaceRoleChangeRejection =
+  | 'actor_forbidden'
+  | 'role_changed'
+  | 'same_role';
+
+/**
+ * Kiểm thân request theo thứ tự RQ INV-11 (bước 3–6), dùng chung cho xem trước
+ * và lưu. `fromRole` chỉ có ở lưu; xem trước bỏ qua bước 5. null: hợp lệ.
+ */
+export function checkWorkspaceRoleChange(input: {
+  actor: WorkspaceActor;
+  target: { userId: string; role: WorkspaceRole };
+  toRole: WorkspaceRole;
+  fromRole?: WorkspaceRole;
+}): WorkspaceRoleChangeRejection | null {
+  const { actor, target, toRole, fromRole } = input;
+  if (actor.userId === target.userId) return 'actor_forbidden';
+  if (!assignableWorkspaceRoles(actor, target).includes(toRole)) {
+    return 'actor_forbidden';
+  }
+  if (fromRole !== undefined && fromRole !== target.role) return 'role_changed';
+  if (toRole === target.role) return 'same_role';
+  return null;
+}
+
+/**
+ * Vai trò project mà các dòng của target nhận khi lưu với lựa chọn `chosen`
+ * (undefined: không chọn). null: dòng bị tắt hoặc không có dòng nào đổi.
+ */
+export function projectRoleAppliedBy(
+  plan: WorkspaceRoleChangePlan,
+  chosen?: ProjectRole | null,
+): ProjectRole | null {
+  if (plan.effect !== 'apply_project_role') return null;
+  if (plan.actorCanChooseProjectRole && chosen != null) return chosen;
+  return plan.defaultProjectRole;
+}
+
+/**
+ * true khi đổi vai trò có thể lấy mất vai trò Project Admin được gán của target:
+ * dòng bị tắt (vai trò mới ngầm định) hoặc có lựa chọn vai trò project không
+ * phải Project Admin. Hộp xác nhận hiện cảnh báo theo vai trò thật sự được chọn.
+ */
+export function mayRemoveAssignedProjectAdmin(
+  plan: WorkspaceRoleChangePlan,
+): boolean {
+  if (plan.effect === 'gain_implicit') return true;
+  if (plan.effect !== 'apply_project_role') return false;
+  return plan.projectRoleChoices.some((role) => !isProjectAdminRole(role));
+}
 
 export function planWorkspaceRoleChange(
   input: WorkspaceRoleChangePlanInput,

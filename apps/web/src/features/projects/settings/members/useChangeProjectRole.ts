@@ -67,12 +67,15 @@ export function getProjectRoleChangeErrorMessage(err: unknown): {
         shouldReload: true,
       };
     }
+    if (err.code === "ROLE_NOT_ALLOWED") {
+      return {
+        message: MEMBER_MESSAGES.roleNotAllowed,
+        shouldReload: true,
+      };
+    }
     if (err.status === 403 || err.code === "FORBIDDEN") {
       return {
-        message:
-          err.message === MEMBER_MESSAGES.roleNotAllowed
-            ? MEMBER_MESSAGES.roleNotAllowed
-            : PROJECT_ROLE_CHANGE_MESSAGES.cantChange,
+        message: PROJECT_ROLE_CHANGE_MESSAGES.cantChange,
         shouldReload: true,
       };
     }
@@ -183,7 +186,12 @@ export function useChangeProjectRole({
 
   return {
     mutate: (vars: ChangeProjectRoleVariables) => {
-      void changeRole(vars).catch(() => {});
+      // API errors were already shown by onError; anything else is a bug.
+      void changeRole(vars).catch((err: unknown) => {
+        if (!(err instanceof ApiRequestError)) {
+          console.error("project.member.role_change_failed", err);
+        }
+      });
     },
     mutateAsync: changeRole,
   };

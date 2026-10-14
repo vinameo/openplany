@@ -422,5 +422,54 @@ describe('WorkspaceMembersService', () => {
       expect('email' in result.members[0]!).toBe(false);
     });
   });
+
+  describe('role change outcomes (one mapping for preview and change)', () => {
+    const cases = [
+      { status: 'member_gone', http: 404, code: 'NOT_FOUND' },
+      { status: 'actor_forbidden', http: 403, code: 'FORBIDDEN' },
+      { status: 'same_role', http: 400, code: 'ROLE_UNCHANGED' },
+    ] as const;
+
+    for (const c of cases) {
+      it(`answers ${c.http} ${c.code} to ${c.status} on both preview and change`, async () => {
+        repo.previewRoleChangeResult = { status: c.status };
+        repo.changeRoleResult = { status: c.status };
+
+        await expect(
+          service.previewRoleChange(
+            baseWorkspace,
+            'u-actor',
+            'u-target',
+            { role: 'guest' },
+            'req-p',
+          ),
+        ).rejects.toMatchObject({ status: c.http, code: c.code });
+        await expect(
+          service.changeRole(
+            baseWorkspace,
+            'u-actor',
+            'u-target',
+            { fromRole: 'member', role: 'guest' },
+            'req-c',
+          ),
+        ).rejects.toMatchObject({ status: c.http, code: c.code });
+      });
+    }
+
+    it('answers 404 when the workspace was deleted before the change locked it', async () => {
+      repo.changeRoleResult = { status: 'workspace_gone' };
+
+      await expect(
+        service.changeRole(
+          baseWorkspace,
+          'u-actor',
+          'u-target',
+          { fromRole: 'member', role: 'guest' },
+          'req-gone',
+        ),
+      ).rejects.toMatchObject({ status: 404, code: 'NOT_FOUND' });
+      expect(events.memberRoleChangedEvents).toHaveLength(0);
+    });
+  });
 });
 

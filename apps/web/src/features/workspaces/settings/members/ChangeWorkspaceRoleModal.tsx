@@ -10,10 +10,12 @@ import {
 } from "@mantine/core";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  isProjectAdminRole,
   isViewOnlyRole,
   MEMBER_MESSAGES,
   PROJECT_ROLE_LABELS,
   PROJECT_ROLE_SUMMARIES,
+  projectRoleAppliedBy,
   WORKSPACE_ROLE_CHANGE_MESSAGES,
   WORKSPACE_ROLE_QUALIFIED_LABELS,
   type ProjectRole,
@@ -85,6 +87,14 @@ export function ChangeWorkspaceRoleModal({
   const preview = previewQuery.data;
   const selectedProjectRole =
     customProjectRole ?? preview?.defaultProjectRole ?? null;
+  // The server lists projects this change *can* leave without an assigned
+  // Project Admin; warn unless the role actually picked keeps them Admin.
+  const appliedProjectRole =
+    preview && projectRoleAppliedBy(preview, selectedProjectRole);
+  const showLosingAdminWarning =
+    !!preview &&
+    preview.projectsLosingAssignedAdmin.total > 0 &&
+    !(appliedProjectRole && isProjectAdminRole(appliedProjectRole));
 
   // Handle preview error cache invalidation
   useEffect(() => {
@@ -306,7 +316,7 @@ export function ChangeWorkspaceRoleModal({
             <Text size="sm">{noProjects(displayName)}</Text>
           )}
 
-          {preview.projectsLosingAssignedAdmin.total > 0 && (
+          {showLosingAdminWarning && (
             <Alert color="yellow" title="Warning">
               <Stack gap="xs">
                 <Text size="sm">{losingAdminWarning}</Text>

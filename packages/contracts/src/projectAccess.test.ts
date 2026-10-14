@@ -4,7 +4,6 @@ import { PROJECT_ROLES, type ProjectRole } from "./projectRoles.js";
 import type { ProjectRolePermissions } from "./projectPermissions.js";
 import {
   effectiveProjectRole,
-  isProjectRoleClamped,
   isProjectRoleLimited,
   isProjectRoleOutOfRange,
   resolveProjectAccess,
@@ -67,16 +66,9 @@ describe("projectAccess", () => {
     }
   });
 
-  it("AC-03: isProjectRoleClamped is true exactly for the ✖ cells of table RQ A5", () => {
+  it("AC-03: isProjectRoleLimited is true exactly for the ✖ cells of table RQ A5", () => {
     for (const wsRole of allWorkspaceRoles) {
       for (const prRole of allProjectRoles) {
-        const clamped = isProjectRoleClamped(
-          {
-            workspaceRole: wsRole,
-            assignedRole: prRole,
-          },
-          DEFAULT_PROJECT_ACCESS_POLICIES,
-        );
         const limited = isProjectRoleLimited(
           {
             workspaceRole: wsRole,
@@ -90,9 +82,6 @@ describe("projectAccess", () => {
             prRole === "contributor" ||
             prRole === "commenter");
 
-        expect(clamped, `Clamp check failed for ${wsRole}:${prRole}`).toBe(
-          isExpectedClamped,
-        );
         expect(limited, `Limited check failed for ${wsRole}:${prRole}`).toBe(
           isExpectedClamped,
         );

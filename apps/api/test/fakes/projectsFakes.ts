@@ -2,6 +2,8 @@ import {
   PROJECT_LIST_MAX,
   type ProjectAccess,
   type ProjectAccessInput,
+  type ProjectRole,
+  type WorkspaceRole,
 } from '@repo/contracts';
 import type { EntityManager } from 'typeorm';
 import {
@@ -34,6 +36,7 @@ import {
 import {
   ProjectsRepository,
   type CreateProjectInput,
+  type CreateProjectResult,
   type MembersOfOpts,
   type SoftDeleteProjectInput,
   type UpdateProjectInput,
@@ -139,9 +142,21 @@ export class FakeProjectsRepository extends ProjectsRepository {
     return res;
   }
 
-  async create(input: CreateProjectInput): Promise<{ projectId: string }> {
+  /** The creator's workspace role as the create transaction reads it; null: membership gone. */
+  public creatorWorkspaceRole: WorkspaceRole | null = 'admin';
+  public createdCreatorRoles: (ProjectRole | null)[] = [];
+
+  async create(input: CreateProjectInput): Promise<CreateProjectResult> {
     this.createdProjects.push(input);
-    return { projectId: 'project-new-id' };
+    if (this.creatorWorkspaceRole === null) return { status: 'creator_gone' };
+    this.createdCreatorRoles.push(
+      input.creatorRoleFor(this.creatorWorkspaceRole),
+    );
+    return {
+      status: 'created',
+      projectId: 'project-new-id',
+      creatorWorkspaceRole: this.creatorWorkspaceRole,
+    };
   }
 
   async update(input: UpdateProjectInput): Promise<ProjectRow | null> {

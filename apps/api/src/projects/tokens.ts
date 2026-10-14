@@ -4,3 +4,7 @@ export const PROJECT_LOOKUP_LIMITER = Symbol('PROJECT_LOOKUP_LIMITER');
 export const PROJECT_LOOKUP_ALERT_LIMITER = Symbol(
   'PROJECT_LOOKUP_ALERT_LIMITER',
 );
+/** Lets one `project.member.role.forbidden` line per actor and window reach the logs. */
+export const PROJECT_ROLE_FORBIDDEN_ALERT_LIMITER = Symbol(
+  'PROJECT_ROLE_FORBIDDEN_ALERT_LIMITER',
+);

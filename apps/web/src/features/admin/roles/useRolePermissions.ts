@@ -8,7 +8,11 @@ import type {
 } from "@repo/contracts";
 import { ApiRequestError } from "../../../lib/apiClient";
 import { adminRolesApi } from "./api/adminRolesApi";
-import { adminRoleKeys, rolesLoadError } from "./api/adminRoleQueries";
+import {
+  adminRoleKeys,
+  rolesLoadError,
+  rolesQueryOptions,
+} from "./api/adminRoleQueries";
 
 export type RolePermissionsState =
   | { status: "loading" }
@@ -34,8 +38,7 @@ export function useRolePermissions(): {
   const queryClient = useQueryClient();
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: adminRoleKeys.roles,
-    queryFn: () => adminRolesApi.list(),
+    ...rolesQueryOptions,
     retry: false,
   });
 

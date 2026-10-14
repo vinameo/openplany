@@ -1,11 +1,6 @@
 import { Group, Text } from "@mantine/core";
+import type { ProjectRef } from "@repo/contracts";
 import { andMore, hiddenProjects } from "./membersMessages";
-
-export interface ProjectRef {
-  id: string;
-  name: string;
-  identifier: string;
-}
 
 export interface BoundedProjectListProps {
   projects: readonly ProjectRef[];

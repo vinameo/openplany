@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
   EDITABLE_WORKSPACE_FIELDS,
   WORKSPACE_ROLES,
@@ -13,10 +13,21 @@ import {
   type WorkspaceMembersAddedEvent,
   type WorkspaceUpdatedEvent,
 } from './workspaceEvents.js';
+import { Clock } from '../../auth/clock.js';
+import { SlidingWindowLimiter } from '../../common/slidingWindowLimiter.js';
+import { ROLE_FORBIDDEN_ALERT_LIMITER } from '../tokens.js';
 
 @Injectable()
 export class LoggingWorkspaceEvents extends WorkspaceEvents {
   private readonly logger = new Logger(LoggingWorkspaceEvents.name);
+
+  constructor(
+    @Inject(ROLE_FORBIDDEN_ALERT_LIMITER)
+    private readonly forbiddenAlertLimiter: SlidingWindowLimiter,
+    private readonly clock: Clock,
+  ) {
+    super();
+  }
 
   async updated(event: WorkspaceUpdatedEvent): Promise<void> {
     const changedFields = EDITABLE_WORKSPACE_FIELDS.filter(
@@ -77,6 +88,12 @@ export class LoggingWorkspaceEvents extends WorkspaceEvents {
   async memberRoleForbidden(
     event: WorkspaceMemberRoleForbiddenEvent,
   ): Promise<void> {
+    // Any member can trigger this; one line per actor and window (API B7).
+    if (
+      !this.forbiddenAlertLimiter.hit(event.actorId, this.clock.now()).allowed
+    ) {
+      return;
+    }
     this.logger.warn(
       `workspace.member.role.forbidden requestId=${event.requestId ?? ''} workspaceId=${event.workspaceId} actorId=${event.actorId} targetId=${event.targetId}`,
     );

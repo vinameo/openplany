@@ -1,4 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Clock } from '../../auth/clock.js';
+import { SlidingWindowLimiter } from '../../common/slidingWindowLimiter.js';
+import { PROJECT_ROLE_FORBIDDEN_ALERT_LIMITER } from '../tokens.js';
 import {
   ProjectEvents,
   type ProjectAccessDeniedEvent,
@@ -18,6 +21,14 @@ import {
 @Injectable()
 export class LoggingProjectEvents extends ProjectEvents {
   private readonly logger = new Logger(LoggingProjectEvents.name);
+
+  constructor(
+    @Inject(PROJECT_ROLE_FORBIDDEN_ALERT_LIMITER)
+    private readonly forbiddenAlertLimiter: SlidingWindowLimiter,
+    private readonly clock: Clock,
+  ) {
+    super();
+  }
 
   async created(event: ProjectCreatedEvent): Promise<void> {
     this.logger.log(
@@ -90,6 +101,12 @@ export class LoggingProjectEvents extends ProjectEvents {
   }
 
   async roleForbidden(event: ProjectMemberRoleForbiddenEvent): Promise<void> {
+    // Any project member can trigger this; one line per actor and window (API B6).
+    if (
+      !this.forbiddenAlertLimiter.hit(event.actorId, this.clock.now()).allowed
+    ) {
+      return;
+    }
     this.logger.warn(
       `project.member.role.forbidden projectId=${event.projectId} actorId=${event.actorId} targetId=${event.targetId} requestId=${event.requestId ?? ''}`,
     );
