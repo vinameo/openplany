@@ -14,7 +14,7 @@ import {
   isProjectAdminRole,
   isViewOnlyRole,
   PROJECT_ROLE_LABELS,
-  PROJECT_ROLE_SUMMARIES,
+  PROJECT_ROLE_SUMMARY_KEYS,
   projectRoleAppliedBy,
   WORKSPACE_ROLE_QUALIFIED_LABELS,
   type ProjectRole,
@@ -289,8 +289,9 @@ export function ChangeWorkspaceRoleModal({
                   setCustomProjectRole(val as ProjectRole | null)
                 }
                 renderOption={({ option }) => {
-                  const desc =
-                    PROJECT_ROLE_SUMMARIES[option.value as ProjectRole];
+                  const desc = t(
+                    PROJECT_ROLE_SUMMARY_KEYS[option.value as ProjectRole],
+                  );
                   return (
                     <Stack gap={2}>
                       <Text size="sm">{option.label}</Text>

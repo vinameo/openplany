@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppUiProvider } from "@repo/ui";
@@ -11,13 +11,17 @@ import { apiError, jsonResponse, mockFetch } from "../../../../test/fetchMock";
 import { CurrentWorkspaceContext } from "../../../workspaces/currentWorkspace/currentWorkspaceContext";
 import { makeWorkspace } from "../../../workspaces/test/workspaceFixtures";
 import { ProjectMemberCandidateSelect } from "./ProjectMemberCandidateSelect";
-import {
-  ADD_TO_WORKSPACE_LINK,
-  ALREADY_IN_PROJECT_LABEL,
-  NO_WORKSPACE_MEMBER_FOUND,
-  TYPE_FULL_EMAIL,
-  WORKSPACE_ADMIN_CANDIDATE_LABEL,
-} from "./projectMembersMessages";
+import { setLanguage, translate } from "../../../../i18n/language";
+
+const ADD_TO_WORKSPACE_LINK = translate("project:members.addToWorkspaceLink");
+const ALREADY_IN_PROJECT_LABEL = translate("project:members.alreadyInProject");
+const NO_WORKSPACE_MEMBER_FOUND = translate(
+  "project:members.noWorkspaceMemberFound",
+);
+const TYPE_FULL_EMAIL = translate("project:members.typeFullEmail");
+const WORKSPACE_ADMIN_CANDIDATE_LABEL = translate(
+  "project:members.workspaceAdminCandidate",
+);
 
 function renderSelect({
   slug = "ws-1",
@@ -140,6 +144,33 @@ describe("ProjectMemberCandidateSelect", () => {
 
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it.each([
+    { canSeeEmail: false, typed: "an@", key: "project:members.typeFullEmail" },
+    {
+      canSeeEmail: true,
+      typed: "an",
+      key: "members:errors.candidateQueryTooShort",
+    },
+  ] as const)(
+    "INV-10: the hint for canSeeEmail=$canSeeEmail follows a language switch",
+    async ({ canSeeEmail, typed, key }) => {
+      mockFetch({});
+      const user = userEvent.setup();
+      renderSelect({ canSeeEmail });
+
+      await user.type(screen.getByRole("textbox", { name: "Email" }), typed);
+      const english = translate(key);
+      expect(await screen.findByText(english)).toBeInTheDocument();
+
+      act(() => setLanguage("vi"));
+
+      const vietnamese = translate(key);
+      expect(vietnamese).not.toBe(english);
+      expect(await screen.findByText(vietnamese)).toBeInTheDocument();
+      expect(screen.queryByText(english)).not.toBeInTheDocument();
+    },
+  );
 
   it("AC-08: in exact mode, calls API and displays candidate when input looks like a full email", async () => {
     const fetchMock = mockFetch({

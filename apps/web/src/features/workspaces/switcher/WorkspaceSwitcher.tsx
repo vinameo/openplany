@@ -1,6 +1,6 @@
 import { Menu, ScrollArea, Text, UnstyledButton } from "@mantine/core";
 import { Link, useNavigate } from "react-router";
-import { t } from "i18next";
+import { useTranslation } from "react-i18next";
 import { WORKSPACE_ROLE_LABELS, type WorkspaceResponse } from "@repo/contracts";
 import { useAuth } from "../../auth/useAuth";
 import { ROLES_AND_PERMISSIONS_PATH } from "../../admin/roles/rolesOverview";
@@ -25,6 +25,7 @@ interface WorkspaceSwitcherProps {
 export function WorkspaceSwitcher({
   currentWorkspace,
 }: WorkspaceSwitcherProps) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { state: authState, signOut } = useAuth();
   const { state: wsState } = useWorkspaces();

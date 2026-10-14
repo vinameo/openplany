@@ -256,15 +256,13 @@ describe("MembersListView", () => {
           canSeeEmail={true}
           canAddMember={false}
           onAddMember={vi.fn()}
-          truncatedMessage={(shown, total) =>
-            `Showing the first ${shown} of ${total} project members.`
-          }
+          truncatedMessageKey="members:projectTruncated"
         />
       </AppUiProvider>,
     );
 
     expect(
-      screen.getByText("Showing the first 1000 of 2500 project members."),
+      screen.getByText("Showing the first 1,000 of 2,500 project members."),
     ).toBeInTheDocument();
   });
 

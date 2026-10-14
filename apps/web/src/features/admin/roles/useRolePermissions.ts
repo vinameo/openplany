@@ -6,17 +6,17 @@ import type {
   RoleResponse,
   UpdateRolePermissionsRequest,
 } from "@repo/contracts";
+import { translate } from "../../../i18n/language";
 import { ApiRequestError } from "../../../lib/apiClient";
-import { adminRolesApi } from "./api/adminRolesApi";
 import {
-  adminRoleKeys,
-  rolesLoadError,
-  rolesQueryOptions,
-} from "./api/adminRoleQueries";
+  adminRolesApi,
+  GENERIC_UPDATE_ROLES_ERROR_KEY,
+} from "./api/adminRolesApi";
+import { adminRoleKeys, rolesQueryOptions } from "./api/adminRoleQueries";
 
 export type RolePermissionsState =
   | { status: "loading" }
-  | { status: "error"; message: string }
+  | { status: "error" }
   | {
       status: "ready";
       roles: RoleResponse[];
@@ -47,7 +47,7 @@ export function useRolePermissions(): {
       return { status: "loading" };
     }
     if (isError || !data) {
-      return { status: "error", message: rolesLoadError };
+      return { status: "error" };
     }
     return {
       status: "ready",
@@ -81,12 +81,11 @@ export function useRolePermissions(): {
           }
           return { status: "failed", message: err.message };
         }
+        // Not an API error: a bug, whose text is not for the user (INV-03).
+        console.error("Saving role permissions failed", err);
         return {
           status: "failed",
-          message:
-            err instanceof Error
-              ? err.message
-              : "Couldn't update permissions. Please try again.",
+          message: translate(GENERIC_UPDATE_ROLES_ERROR_KEY),
         };
       }
     },

@@ -3,66 +3,37 @@ import {
   ValidationPipe,
   type ValidationError,
 } from '@nestjs/common';
-import { getMetadataStorage } from 'class-validator';
 import type { MessageKey, MessageRef } from '@repo/contracts';
-import { translateMessageRef } from '../i18n/i18n.js';
 import { ApiException, type ApiFieldError } from './apiException.js';
 
-export interface ValidationMessageFunction {
-  (): string;
-  messageRef: MessageRef;
-  key: MessageKey;
-  params?: Record<string, string | number>;
-}
+const MESSAGE_REF_PREFIX = 'messageRef:';
 
-const REGISTRY_BY_TEXT = new Map<string, MessageRef>();
+/** Encoded constraint message → the MessageRef it stands for. */
+const MESSAGE_REFS_BY_TOKEN = new Map<string, MessageRef>();
 
-/** Encodes a MessageRef into a constraint message function for DTOs. */
+/**
+ * Encodes a MessageRef as a DTO constraint's `message` (API B5.2). The token is
+ * unique per key and params, so the pipe decodes the message of the exact
+ * constraint that failed, even when a property has two decorators of one type.
+ */
 export function validationMessage(
   key: MessageKey,
   params?: Record<string, string | number>,
-): ValidationMessageFunction {
-  const ref: MessageRef = { key, params };
-  const english = translateMessageRef(ref, 'en');
-  REGISTRY_BY_TEXT.set(english, ref);
-
-  const fn = (() => english) as ValidationMessageFunction;
-  fn.messageRef = ref;
-  fn.key = key;
-  fn.params = params;
-  fn.toString = () => JSON.stringify(ref);
-  return fn;
+): string {
+  const ref: MessageRef = params === undefined ? { key } : { key, params };
+  const token = `${MESSAGE_REF_PREFIX}${JSON.stringify(ref)}`;
+  MESSAGE_REFS_BY_TOKEN.set(token, ref);
+  return token;
 }
 
-/** Decodes a constraint message string or function into a MessageRef if it was encoded. */
+/** The MessageRef a constraint message encodes, or null for class-validator's own text. */
 export function decodeValidationMessage(raw: unknown): MessageRef | null {
-  if (
-    typeof raw === 'function' &&
-    'messageRef' in raw &&
-    typeof (raw as Record<string, unknown>).messageRef === 'object' &&
-    (raw as Record<string, unknown>).messageRef !== null
-  ) {
-    return (raw as { messageRef: MessageRef }).messageRef;
-  }
-  if (typeof raw === 'string') {
-    if (raw.startsWith('{') && raw.endsWith('}')) {
-      try {
-        const parsed = JSON.parse(raw) as unknown;
-        if (
-          typeof parsed === 'object' &&
-          parsed !== null &&
-          'key' in parsed &&
-          typeof (parsed as Record<string, unknown>).key === 'string'
-        ) {
-          return parsed as MessageRef;
-        }
-      } catch {
-        // not JSON
-      }
-    }
-    return REGISTRY_BY_TEXT.get(raw) ?? null;
-  }
-  return null;
+  return typeof raw === 'string' ? (MESSAGE_REFS_BY_TOKEN.get(raw) ?? null) : null;
+}
+
+/** The field error for a failed constraint: its MessageRef, or class-validator's sentence. */
+export function constraintFieldError(message: string): ApiFieldError {
+  return decodeValidationMessage(message) ?? { libraryText: message };
 }
 
 function collectFieldErrors(
@@ -72,34 +43,10 @@ function collectFieldErrors(
   const fields: Record<string, ApiFieldError> = {};
   for (const error of errors) {
     const path = prefix === '' ? error.property : `${prefix}.${error.property}`;
-    const constraintType = Object.keys(error.constraints ?? {})[0];
-    const firstConstraint = Object.values(error.constraints ?? {})[0];
-    if (firstConstraint !== undefined) {
-      let ref: MessageRef | null = null;
-      if (error.target?.constructor && constraintType) {
-        try {
-          const metadatas = getMetadataStorage().getTargetValidationMetadatas(
-            error.target.constructor,
-            '',
-            true,
-            false,
-          );
-          const found = metadatas.find(
-            (m) =>
-              m.propertyName === error.property &&
-              (m.name === constraintType || m.type === constraintType),
-          );
-          if (found) {
-            ref = decodeValidationMessage(found.message);
-          }
-        } catch {
-          // ignore
-        }
-      }
-      if (!ref) {
-        ref = decodeValidationMessage(firstConstraint);
-      }
-      fields[path] = ref ?? { libraryText: firstConstraint };
+    // stopAtFirstError leaves one constraint: the rule that failed.
+    const message = Object.values(error.constraints ?? {})[0];
+    if (message !== undefined) {
+      fields[path] = constraintFieldError(message);
     }
     Object.assign(fields, collectFieldErrors(error.children ?? [], path));
   }

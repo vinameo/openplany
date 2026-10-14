@@ -1,6 +1,6 @@
-import type { ViCatalog } from "./types.js";
+import type { TranslatedCatalog } from "./types.js";
 
-export const vi: ViCatalog = {
+export const vi: TranslatedCatalog = {
   common: {
     "roles.workspace.admin": "Admin",
     "roles.workspace.member": "Member",

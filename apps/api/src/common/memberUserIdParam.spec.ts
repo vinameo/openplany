@@ -27,10 +27,12 @@ describe('MemberUserIdParam', () => {
           { key: 'errors:checkHighlightedFields' },
           {
             fields: {
-              userId:
-                typeof error === 'string'
-                  ? error
-                  : 'Validation failed (uuid v4 is expected)',
+              userId: {
+                libraryText:
+                  typeof error === 'string'
+                    ? error
+                    : 'Validation failed (uuid v4 is expected)',
+              },
             },
           },
         ),

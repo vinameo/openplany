@@ -3,6 +3,7 @@ import { ESLint } from "eslint";
 import tseslint from "typescript-eslint";
 import {
   ALL_RESTRICTED_SELECTORS,
+  I18N_RESTRICTED_IMPORTS,
   URL_SELECTORS,
 } from "../../eslint.config.js";
 
@@ -78,6 +79,69 @@ describe("ESLint hardcoded string rules and URL rule fixture (WEB B9)", () => {
     it("flags URL template literal", async () => {
       const messages = await lintSnippet("const url = `/${slug}`;");
       expect(messages.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe("Module-level translation (INV-10, INV-15)", () => {
+    it.each([
+      'const A = translate("errors:genericError");',
+      'export const A = translate("errors:genericError");',
+      'const A = { title: translate("errors:genericError") };',
+      'export const A = { title: translate("errors:genericError") };',
+    ])("flags %s", async (code) => {
+      const messages = await lintSnippet(code);
+      expect(messages).toContain(
+        "Don't translate at module level: keep the key and translate where the text is shown.",
+      );
+    });
+
+    it.each([
+      'export function a() { return translate("errors:genericError"); }',
+      'const a = () => translate("errors:genericError");',
+      'const A = { get title() { return translate("errors:genericError"); } };',
+    ])("allows %s", async (code) => {
+      expect(await lintSnippet(code)).toEqual([]);
+    });
+  });
+
+  describe("Restricted i18n imports", () => {
+    const importLinter = new ESLint({
+      overrideConfigFile: true,
+      overrideConfig: [
+        {
+          files: ["**/*.{ts,tsx}"],
+          languageOptions: { parser: tseslint.parser },
+          plugins: { "@typescript-eslint": tseslint.plugin },
+          rules: {
+            "@typescript-eslint/no-restricted-imports": [
+              "error",
+              I18N_RESTRICTED_IMPORTS,
+            ],
+          },
+        },
+      ],
+    });
+
+    async function lintImport(code: string): Promise<number> {
+      const results = await importLinter.lintText(code, {
+        filePath: "src/features/fixture.ts",
+      });
+      return results[0]?.messages.length ?? 0;
+    }
+
+    it.each([
+      'import { t } from "i18next";',
+      'import i18next from "i18next";',
+      'import { MEMBER_MESSAGES } from "@repo/contracts";',
+    ])("flags %s", async (code) => {
+      expect(await lintImport(code)).toBe(1);
+    });
+
+    it.each([
+      'import type { TFunction } from "i18next";',
+      'import { MEMBER_MESSAGE_REFS } from "@repo/contracts";',
+    ])("allows %s", async (code) => {
+      expect(await lintImport(code)).toBe(0);
     });
   });
 

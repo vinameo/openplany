@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { makeSession } from "../../../test/authFixtures";
 import { apiError, jsonResponse, mockFetch } from "../../../test/fetchMock";
-import { GENERIC_PROFILE_ERROR, profileApi } from "./profileApi";
+import { GENERIC_PROFILE_ERROR_KEY, profileApi } from "./profileApi";
+import { translate } from "../../../i18n/language";
+
+const GENERIC_PROFILE_ERROR = translate(GENERIC_PROFILE_ERROR_KEY);
 
 afterEach(() => {
   vi.unstubAllGlobals();

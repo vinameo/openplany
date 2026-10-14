@@ -41,17 +41,6 @@ export const MEMBER_MESSAGE_REFS = {
   tooManySearches: { key: "members:errors.tooManySearches" },
 } as const satisfies Record<keyof typeof MEMBER_MESSAGES, MessageRef>;
 
-export function truncatedMembersMessage(shown: number, total: number): string {
-  return `Showing the first ${shown.toLocaleString("en-US")} of ${total.toLocaleString("en-US")} members.`;
-}
-
-export function truncatedProjectMembersMessage(
-  shown: number,
-  total: number,
-): string {
-  return `Showing the first ${shown.toLocaleString("en-US")} of ${total.toLocaleString("en-US")} project members.`;
-}
-
 /** Không ký tự điều khiển (kể cả NUL). Dùng ở DTO tìm ứng viên chung (SR-4). */
 export const MEMBER_CANDIDATE_QUERY_ALLOWED = /^[^\p{Cc}]*$/u;
 

@@ -7,6 +7,12 @@ export const NATIVE_LANGUAGE_NAMES: Record<Language, string> = {
   vi: "Tiếng Việt",
 } as const;
 
+/** BCP 47 locale for formatting dates and numbers (Intl) in each language. */
+export const LANGUAGE_LOCALES: Record<Language, string> = {
+  en: "en-US",
+  vi: "vi-VN",
+} as const;
+
 /**
  * Normalizes a raw value retrieved from browser storage (e.g. localStorage['openplany.language']).
  * Per RQ B4.1 / INV-01:

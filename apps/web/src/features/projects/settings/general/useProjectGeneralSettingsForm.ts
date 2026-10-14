@@ -3,13 +3,14 @@ import { useNavigate } from "react-router";
 import { notifications } from "@mantine/notifications";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { translateRef } from "../../../../i18n/language";
 import {
   normalizeProjectName,
   projectNameProblem,
   projectDescriptionProblem,
   type ProjectListItem,
 } from "@repo/contracts";
-import { GENERIC_ERROR } from "../../../../lib/apiClient";
+import { GENERIC_ERROR_KEY } from "../../../../lib/apiClient";
 import {
   SETTINGS_MESSAGES,
   tooManyChangesMessage,
@@ -85,7 +86,7 @@ export function useProjectGeneralSettingsForm(project: ProjectListItem) {
       if (error.status === 429) {
         return tooManyChangesMessage(error.retryAfterSeconds ?? null);
       }
-      return GENERIC_ERROR;
+      return t(GENERIC_ERROR_KEY);
     },
     [reload, navigate, workspace.slug, queryClient, project.identifier, t],
   );
@@ -109,12 +110,12 @@ export function useProjectGeneralSettingsForm(project: ProjectListItem) {
       name: (val) => {
         if (val === undefined) return null;
         const problem = projectNameProblem(String(val));
-        return problem ? t(problem.key, problem.params) : null;
+        return problem ? translateRef(t, problem) : null;
       },
       description: (val) => {
         if (val === undefined) return null;
         const problem = projectDescriptionProblem(String(val));
-        return problem ? t(problem.key, problem.params) : null;
+        return problem ? translateRef(t, problem) : null;
       },
     },
     submit,

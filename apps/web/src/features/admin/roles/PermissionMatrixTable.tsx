@@ -90,7 +90,10 @@ export function PermissionMatrixTable({
                         </div>
                       </Table.Th>
                       {row.cells.map((cell) => {
-                        const cellReasonId = cell.disabledReason
+                        const disabledReason = cell.disabledReasonKey
+                          ? t(cell.disabledReasonKey)
+                          : null;
+                        const cellReasonId = disabledReason
                           ? `reason-${cell.role.scope}-${cell.role.key}-${row.permission.replace(/\./g, "-")}`
                           : undefined;
                         const roleLabel =
@@ -103,16 +106,14 @@ export function PermissionMatrixTable({
                               aria-label={`${roleLabel}: ${rowLabel}`}
                               aria-describedby={cellReasonId}
                               checked={cell.checked}
-                              disabled={
-                                readOnly || cell.disabledReason !== null
-                              }
+                              disabled={readOnly || disabledReason !== null}
                               onChange={() =>
                                 onToggle(cell.role, row.permission)
                               }
                             />
-                            {cell.disabledReason && (
+                            {disabledReason && (
                               <VisuallyHidden id={cellReasonId}>
-                                {cell.disabledReason}
+                                {disabledReason}
                               </VisuallyHidden>
                             )}
                             {cell.changed && (
@@ -134,9 +135,9 @@ export function PermissionMatrixTable({
                             key={cell.role.key}
                             className={classes.checkCell}
                           >
-                            {cell.disabledReason ? (
+                            {disabledReason ? (
                               <Tooltip
-                                label={cell.disabledReason}
+                                label={disabledReason}
                                 withArrow
                                 position="top"
                               >

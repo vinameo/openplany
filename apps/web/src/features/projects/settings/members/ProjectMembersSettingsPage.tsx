@@ -4,9 +4,8 @@ import { Badge, Button, Stack, Text, Tooltip } from "@mantine/core";
 import { useMutationState } from "@tanstack/react-query";
 import {
   PROJECT_MEMBER_LIST_MAX,
-  PROJECT_ROLE_SUMMARIES,
+  PROJECT_ROLE_SUMMARY_KEYS,
   projectRoleChangeKind,
-  truncatedProjectMembersMessage,
   WORKSPACE_ROLE_QUALIFIED_LABELS,
   type ProjectMemberResponse,
   type ProjectRole,
@@ -163,7 +162,7 @@ export function ProjectMembersSettingsPage() {
         state={listViewState}
         inheritedRow={(m) => m.source === "inherited"}
         noneAddedNote={t("project:members.noneAddedNote")}
-        truncatedMessage={truncatedProjectMembersMessage}
+        truncatedMessageKey="members:projectTruncated"
         canSeeEmail={canSeeEmail}
         canAddMember={canAddMember}
         onAddMember={() => setModalOpened(true)}
@@ -187,7 +186,7 @@ export function ProjectMembersSettingsPage() {
               value={m.role}
               options={m.assignableRoles}
               labels={PROJECT_ROLE_SCHEME.labels}
-              descriptions={PROJECT_ROLE_SUMMARIES}
+              descriptionKeys={PROJECT_ROLE_SUMMARY_KEYS}
               description={roleHint}
               memberName={memberDisplayName(m)}
               disabled={savingUserIds.has(m.userId)}

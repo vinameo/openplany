@@ -1,10 +1,11 @@
 import {
-  PERMISSION_GRANT_PROBLEM_MESSAGES,
+  PERMISSION_GRANT_PROBLEM_REFS,
   PROJECT_ROLES,
   WORKSPACE_ROLES,
   permissionGrantProblem,
   permissionRevokeProblem,
   scopeOfPermission,
+  type MessageRef,
   type ProjectRole,
   type RolePermissionsChange,
   type RoleRef,
@@ -32,7 +33,7 @@ export type RolePermissionsPlan =
       revokes: RolePermissionsEntry[];
       changedRoles: RoleRef[];
     }
-  | { status: 'invalid'; fields: Record<string, string> }
+  | { status: 'invalid'; fields: Record<string, MessageRef> }
   | { status: 'conflict' };
 
 function isValidRole(scope: RoleScope, key: string): boolean {
@@ -58,15 +59,15 @@ export function planRolePermissionChanges(
   }
 
   // 1. Validate roles: key must belong to scope, no duplicate (scope, key)
-  const roleFields: Record<string, string> = {};
+  const roleFields: Record<string, MessageRef> = {};
   const seenRoleKeys = new Set<string>();
 
   for (const change of changes) {
     const roleId = `${change.scope}.${change.key}`;
     if (!isValidRole(change.scope, change.key)) {
-      roleFields[roleId] = 'Unknown role';
+      roleFields[roleId] = { key: 'admin:errors.unknownRole' };
     } else if (seenRoleKeys.has(roleId)) {
-      roleFields[roleId] = 'Listed more than once';
+      roleFields[roleId] = { key: 'admin:errors.listedMoreThanOnce' };
     } else {
       seenRoleKeys.add(roleId);
     }
@@ -81,11 +82,12 @@ export function planRolePermissionChanges(
     : new Set(current.flatMap((c) => c.permissions));
 
   // 2. Validate permission names: must exist in catalog
-  const permFields: Record<string, string> = {};
+  const permFields: Record<string, MessageRef> = {};
   for (const change of changes) {
     for (const perm of change.permissions) {
       if (scopeOfPermission(perm) === null || !validSet.has(perm)) {
-        permFields[`${change.scope}.${change.key}:${perm}`] = 'Unknown permission';
+        permFields[`${change.scope}.${change.key}:${perm}`] =
+          PERMISSION_GRANT_PROBLEM_REFS.UNKNOWN_PERMISSION;
       }
     }
   }
@@ -104,7 +106,7 @@ export function planRolePermissionChanges(
   }
 
   // 4. Guardrails on delta (added / removed permissions)
-  const guardrailFields: Record<string, string> = {};
+  const guardrailFields: Record<string, MessageRef> = {};
   const grants: RolePermissionsEntry[] = [];
   const revokes: RolePermissionsEntry[] = [];
   const changedRoles: RoleRef[] = [];
@@ -138,7 +140,7 @@ export function planRolePermissionChanges(
       const problem = permissionGrantProblem(roleRef, perm);
       if (problem !== null) {
         guardrailFields[`${change.scope}.${change.key}:${perm}`] =
-          PERMISSION_GRANT_PROBLEM_MESSAGES[problem];
+          PERMISSION_GRANT_PROBLEM_REFS[problem];
       } else {
         grants.push({
           scope: change.scope,
@@ -152,7 +154,7 @@ export function planRolePermissionChanges(
       const problem = permissionRevokeProblem(roleRef);
       if (problem !== null) {
         guardrailFields[`${change.scope}.${change.key}:${perm}`] =
-          PERMISSION_GRANT_PROBLEM_MESSAGES[problem];
+          PERMISSION_GRANT_PROBLEM_REFS[problem];
       } else {
         revokes.push({
           scope: change.scope,

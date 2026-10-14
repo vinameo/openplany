@@ -5,7 +5,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { apiError, jsonResponse, mockFetch } from "../../../test/fetchMock";
 import { makeDefaultRolesResponse } from "./test/rolesFixtures";
 import { useRolePermissions } from "./useRolePermissions";
-import { rolesLoadError } from "./api/adminRoleQueries";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -68,10 +67,6 @@ describe("useRolePermissions", () => {
     await waitFor(() => {
       expect(result.current.state.status).toBe("error");
     });
-
-    if (result.current.state.status === "error") {
-      expect(result.current.state.message).toBe(rolesLoadError);
-    }
 
     // Trigger reload
     shouldFail = false;

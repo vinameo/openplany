@@ -7,6 +7,7 @@ import {
 import { useForm } from "@mantine/form";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
+import { translateRef } from "../../../i18n/language";
 import {
   extractSlugFromUrl,
   normalizeSlugInput,
@@ -49,7 +50,7 @@ export function useCreateWorkspaceForm() {
     validate: {
       name: (value) => {
         const problem = workspaceNameProblem(value);
-        return problem ? t(problem.key, problem.params) : null;
+        return problem ? translateRef(t, problem) : null;
       },
       slug: (value) => {
         if (!value) return t("workspace:create.errors.slugRequired");

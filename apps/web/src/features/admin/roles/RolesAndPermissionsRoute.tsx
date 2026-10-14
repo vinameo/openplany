@@ -39,7 +39,6 @@ import { PermissionMatrixTable } from "./PermissionMatrixTable";
 import { SaveChangesBar } from "./SaveChangesBar";
 import { ConfirmPermissionChangesModal } from "./ConfirmPermissionChangesModal";
 import { useRolePermissions } from "./useRolePermissions";
-import { rolesLoadError } from "./api/adminRoleQueries";
 import classes from "./RolesAndPermissionsRoute.module.css";
 
 type SaveErrorState =
@@ -314,11 +313,7 @@ export function RolesAndPermissionsRoute() {
                 )}
                 {roleState.status === "error" && (
                   <Alert color="red">
-                    <Text mb="xs">
-                      {t("admin:roles.errors.loadFailed", {
-                        defaultValue: rolesLoadError,
-                      })}
-                    </Text>
+                    <Text mb="xs">{t("admin:roles.errors.loadFailed")}</Text>
                     <Button size="xs" variant="default" onClick={reload}>
                       {t("common:actions.tryAgain")}
                     </Button>
@@ -358,11 +353,7 @@ export function RolesAndPermissionsRoute() {
                 )}
                 {roleState.status === "error" && (
                   <Alert color="red">
-                    <Text mb="xs">
-                      {t("admin:roles.errors.loadFailed", {
-                        defaultValue: rolesLoadError,
-                      })}
-                    </Text>
+                    <Text mb="xs">{t("admin:roles.errors.loadFailed")}</Text>
                     <Button size="xs" variant="default" onClick={reload}>
                       {t("common:actions.tryAgain")}
                     </Button>

@@ -1,6 +1,7 @@
 import { notifications } from "@mantine/notifications";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
+import { translateRef } from "../../../../i18n/language";
 import {
   EDITABLE_WORKSPACE_FIELDS,
   normalizeWorkspaceName,
@@ -52,7 +53,7 @@ export function useGeneralSettingsForm(workspace: WorkspaceResponse) {
     validate: {
       name: (val) => {
         const problem = workspaceNameProblem(val);
-        return problem ? t(problem.key, problem.params) : null;
+        return problem ? translateRef(t, problem) : null;
       },
     },
     submit: async (changes) => {

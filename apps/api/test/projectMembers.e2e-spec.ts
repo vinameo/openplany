@@ -16,6 +16,7 @@ import {
   PROJECT_ROLE_CHANGE_MESSAGES,
   type ProjectListItem,
   type ProjectMemberResponse,
+  vi as viCatalog,
 } from '@repo/contracts';
 import { createE2eApp, type E2eApp } from './createE2eApp.js';
 import {
@@ -1510,7 +1511,18 @@ describe('ProjectMembers (e2e)', () => {
           .set('Origin', ORIGIN)
           .send({ members: [{ userId: anId, role: 'admin' }] })
           .expect(403);
-        expect(res.body.message).toContain(MEMBER_MESSAGES.roleNotAllowed);
+        expect(res.body.code).toBe('ROLE_NOT_ALLOWED');
+        expect(res.body.message).toBe(MEMBER_MESSAGES.roleNotAllowed);
+
+        const resVi = await http()
+          .post(`/api/workspaces/${workspace.slug}/projects/PB63/members`)
+          .set('Cookie', hoaCookie)
+          .set('Origin', ORIGIN)
+          .set('Accept-Language', 'vi')
+          .send({ members: [{ userId: anId, role: 'admin' }] })
+          .expect(403);
+        expect(resVi.body.code).toBe('ROLE_NOT_ALLOWED');
+        expect(resVi.body.message).toBe(viCatalog.members['errors.roleNotAllowed']);
       });
 
       it('Row 19 & 20: default contributor and project viewer return 403 (guard)', async () => {

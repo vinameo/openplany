@@ -51,12 +51,12 @@ export const WORKSPACE_ROLE_QUALIFIED_LABELS = {
   guest: "Guest",
 } as const satisfies Record<WorkspaceRole, string>;
 
-export const WORKSPACE_ROLE_SUMMARIES = {
-  admin:
-    "Everything: settings, members, projects and deleting the workspace; access to every project",
-  member: "Work in the projects they join; join public projects",
-  guest: "View-only access",
-} as const satisfies Record<WorkspaceRole, string>;
+/** One-line description of each workspace role, translated where it is shown. */
+export const WORKSPACE_ROLE_SUMMARY_KEYS = {
+  admin: "common:roles.workspace.summary.admin",
+  member: "common:roles.workspace.summary.member",
+  guest: "common:roles.workspace.summary.guest",
+} as const satisfies Record<WorkspaceRole, MessageKey>;
 
 export const WORKSPACE_COLORS = [
   "#0F172A",

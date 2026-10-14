@@ -44,7 +44,6 @@ export {
   VIEW_ONLY_ROLES,
   PERMISSION_GRANT_PROBLEMS,
   type PermissionGrantProblem,
-  PERMISSION_GRANT_PROBLEM_MESSAGES,
   PERMISSION_GRANT_PROBLEM_REFS,
   permissionGrantProblem,
   permissionRevokeProblem,

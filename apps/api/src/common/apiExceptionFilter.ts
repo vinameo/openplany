@@ -7,7 +7,11 @@ import {
   Logger,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import type { Language } from '@repo/contracts';
+import {
+  DEFAULT_LANGUAGE,
+  type Language,
+  type MessageKey,
+} from '@repo/contracts';
 import {
   ApiException,
   type ApiErrorBody,
@@ -23,12 +27,13 @@ const DEFAULT_CODES: Partial<Record<number, ApiErrorCode>> = {
   [HttpStatus.NOT_FOUND]: 'NOT_FOUND',
 };
 
-const HTTP_ERROR_VI_MESSAGES: Record<string, string> = {
-  VALIDATION_ERROR: 'Dữ liệu gửi lên không hợp lệ',
-  UNAUTHENTICATED: 'Đăng nhập để tiếp tục',
-  NOT_FOUND: 'Không tìm thấy nội dung bạn cần',
-  INTERNAL_ERROR: 'Đã có lỗi xảy ra',
+/** Sentence for a Nest HttpException outside the default language (API B5.3). */
+const HTTP_ERROR_KEYS: Partial<Record<ApiErrorCode, MessageKey>> = {
+  VALIDATION_ERROR: 'errors:http.validationError',
+  UNAUTHENTICATED: 'errors:http.unauthenticated',
+  NOT_FOUND: 'errors:http.notFound',
 };
+const INTERNAL_ERROR_KEY: MessageKey = 'errors:http.internalError';
 
 /**
  * Renders every error in the api-spec 2.1 shape.
@@ -68,14 +73,8 @@ export class ApiExceptionFilter implements ExceptionFilter {
     lang: Language,
   ): ApiErrorBody {
     if (exception instanceof ApiException) {
-      const message = exception.messageRef
-        ? translateMessageRef(exception.messageRef, lang)
-        : exception.message;
-
-      const fields = resolveApiFields(
-        exception.fieldErrors ?? exception.fields,
-        lang,
-      );
+      const message = translateMessageRef(exception.messageRef, lang);
+      const fields = resolveApiFields(exception.fieldErrors, lang);
 
       return {
         statusCode: exception.getStatus(),
@@ -92,11 +91,15 @@ export class ApiExceptionFilter implements ExceptionFilter {
       const statusCode = exception.getStatus();
       const code = DEFAULT_CODES[statusCode] ?? 'INTERNAL_ERROR';
       let message: string;
-      if (lang === 'vi') {
-        message = HTTP_ERROR_VI_MESSAGES[code] ?? 'Đã có lỗi xảy ra';
+      if (statusCode >= 500) {
+        message = translateMessageRef({ key: INTERNAL_ERROR_KEY }, lang);
+      } else if (lang === DEFAULT_LANGUAGE) {
+        message = exception.message;
       } else {
-        message =
-          statusCode >= 500 ? 'Something went wrong' : exception.message;
+        message = translateMessageRef(
+          { key: HTTP_ERROR_KEYS[code] ?? INTERNAL_ERROR_KEY },
+          lang,
+        );
       }
       return {
         statusCode,
@@ -108,7 +111,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
     return {
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
       code: 'INTERNAL_ERROR',
-      message: lang === 'vi' ? 'Đã có lỗi xảy ra' : 'Something went wrong',
+      message: translateMessageRef({ key: INTERNAL_ERROR_KEY }, lang),
       requestId,
     };
   }

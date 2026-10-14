@@ -1,3 +1,5 @@
+import type { MessageKey } from "./catalog/types.js";
+
 export const PROJECT_ROLES = [
   "admin",
   "contributor",
@@ -20,12 +22,13 @@ export const PROJECT_ROLE_LABELS = {
   viewer: "Viewer",
 } as const satisfies Record<ProjectRole, string>;
 
-export const PROJECT_ROLE_SUMMARIES = {
-  admin: "Everything in the project, including settings and members",
-  contributor: "Create and edit work; delete what they created",
-  commenter: "View everything, comment and react",
-  viewer: "View-only access",
-} as const satisfies Record<ProjectRole, string>;
+/** One-line description of each project role, translated where it is shown. */
+export const PROJECT_ROLE_SUMMARY_KEYS = {
+  admin: "common:roles.project.summary.admin",
+  contributor: "common:roles.project.summary.contributor",
+  commenter: "common:roles.project.summary.commenter",
+  viewer: "common:roles.project.summary.viewer",
+} as const satisfies Record<ProjectRole, MessageKey>;
 
 /** Vai trò ghi cho người tạo project (Q-R11). */
 export const PROJECT_CREATOR_ROLE = "admin" as const satisfies ProjectRole;

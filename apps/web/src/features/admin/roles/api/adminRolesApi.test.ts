@@ -7,9 +7,13 @@ import { apiError, jsonResponse, mockFetch } from "../../../../test/fetchMock";
 import { makeDefaultRolesResponse } from "../test/rolesFixtures";
 import {
   adminRolesApi,
-  GENERIC_LOAD_ROLES_ERROR,
-  GENERIC_UPDATE_ROLES_ERROR,
+  GENERIC_LOAD_ROLES_ERROR_KEY,
+  GENERIC_UPDATE_ROLES_ERROR_KEY,
 } from "./adminRolesApi";
+import { translate } from "../../../../i18n/language";
+
+const GENERIC_LOAD_ROLES_ERROR = translate(GENERIC_LOAD_ROLES_ERROR_KEY);
+const GENERIC_UPDATE_ROLES_ERROR = translate(GENERIC_UPDATE_ROLES_ERROR_KEY);
 
 afterEach(() => {
   vi.unstubAllGlobals();

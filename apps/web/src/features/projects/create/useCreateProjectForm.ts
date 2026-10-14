@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { useForm } from "@mantine/form";
 import { useTranslation } from "react-i18next";
+import { translateRef } from "../../../i18n/language";
 import {
   DEFAULT_PROJECT_ICON,
   DEFAULT_PROJECT_ICON_COLOR,
@@ -42,7 +43,7 @@ export function useCreateProjectForm() {
     validate: {
       name: (val) => {
         const problem = projectNameProblem(val);
-        return problem ? t(problem.key, problem.params) : null;
+        return problem ? translateRef(t, problem) : null;
       },
       identifier: (val) => {
         const trimmed = val.trim();
@@ -56,7 +57,7 @@ export function useCreateProjectForm() {
       },
       description: (val) => {
         const problem = projectDescriptionProblem(val);
-        return problem ? t(problem.key, problem.params) : null;
+        return problem ? translateRef(t, problem) : null;
       },
     },
   });

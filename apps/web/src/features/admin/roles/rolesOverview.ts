@@ -1,12 +1,13 @@
 import {
+  type MessageKey,
   type ProjectAccessPolicyResponse,
   type ProjectRole,
   PROJECT_ROLE_LABELS,
-  PROJECT_ROLE_SUMMARIES,
+  PROJECT_ROLE_SUMMARY_KEYS,
   PROJECT_ROLES,
   type WorkspaceRole,
   WORKSPACE_ROLE_QUALIFIED_LABELS,
-  WORKSPACE_ROLE_SUMMARIES,
+  WORKSPACE_ROLE_SUMMARY_KEYS,
   WORKSPACE_ROLES,
 } from "@repo/contracts";
 
@@ -21,8 +22,12 @@ export interface ProjectAccessRow {
 }
 
 export interface RolesOverview {
-  workspaceRoles: { role: WorkspaceRole; label: string; summary: string }[];
-  projectRoles: { role: ProjectRole; label: string; summary: string }[];
+  workspaceRoles: {
+    role: WorkspaceRole;
+    label: string;
+    summaryKey: MessageKey;
+  }[];
+  projectRoles: { role: ProjectRole; label: string; summaryKey: MessageKey }[];
 }
 
 /** Không nhận tham số: bộ luật giống nhau ở mọi workspace (WEB-F7). */
@@ -30,13 +35,13 @@ export function buildRolesOverview(): RolesOverview {
   const workspaceRoles = WORKSPACE_ROLES.map((role) => ({
     role,
     label: WORKSPACE_ROLE_QUALIFIED_LABELS[role],
-    summary: WORKSPACE_ROLE_SUMMARIES[role],
+    summaryKey: WORKSPACE_ROLE_SUMMARY_KEYS[role],
   }));
 
   const projectRoles = PROJECT_ROLES.map((role) => ({
     role,
     label: PROJECT_ROLE_LABELS[role],
-    summary: PROJECT_ROLE_SUMMARIES[role],
+    summaryKey: PROJECT_ROLE_SUMMARY_KEYS[role],
   }));
 
   return {

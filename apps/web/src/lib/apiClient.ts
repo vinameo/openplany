@@ -12,14 +12,6 @@ export interface ApiErrorBody {
 }
 
 export const GENERIC_ERROR_KEY: MessageKey = "errors:genericError";
-export const GENERIC_ERROR = translate(GENERIC_ERROR_KEY);
-
-function resolveFallbackMessage(fallback: MessageKey | string): string {
-  if (typeof fallback === "string" && fallback.includes(":")) {
-    return translate(fallback as MessageKey);
-  }
-  return fallback;
-}
 
 /** A failed API call, carrying the machine-readable parts of the error body. */
 export class ApiRequestError extends Error {
@@ -55,11 +47,14 @@ function isApiErrorBody(value: unknown): value is ApiErrorBody {
   );
 }
 
-/** `fallbackMessage` is shown when the failure carries no readable API message. */
+/**
+ * `fallbackMessage` is shown when the failure carries no readable API message;
+ * it is translated when the error is thrown, in the language of that moment.
+ */
 export async function request<T>(
   path: string,
   init: RequestInit = {},
-  fallbackMessage: MessageKey | string = GENERIC_ERROR_KEY,
+  fallbackMessage: MessageKey = GENERIC_ERROR_KEY,
 ): Promise<T> {
   const lang = getLanguage();
   const headers = {
@@ -67,7 +62,6 @@ export async function request<T>(
     ...init.headers,
     "Accept-Language": lang,
   };
-  const resolvedFallback = resolveFallbackMessage(fallbackMessage);
 
   let response: Response;
   try {
@@ -79,7 +73,7 @@ export async function request<T>(
   } catch (cause: unknown) {
     throw new ApiRequestError(
       0,
-      { code: "NETWORK_ERROR", message: resolvedFallback },
+      { code: "NETWORK_ERROR", message: translate(fallbackMessage) },
       { cause },
     );
   }
@@ -92,7 +86,7 @@ export async function request<T>(
   } catch (cause: unknown) {
     throw new ApiRequestError(
       response.status,
-      { code: "INVALID_RESPONSE", message: resolvedFallback },
+      { code: "INVALID_RESPONSE", message: translate(fallbackMessage) },
       { cause },
     );
   }
@@ -102,6 +96,6 @@ export async function request<T>(
     response.status,
     isApiErrorBody(body)
       ? body
-      : { code: "UNKNOWN_ERROR", message: resolvedFallback },
+      : { code: "UNKNOWN_ERROR", message: translate(fallbackMessage) },
   );
 }

@@ -76,8 +76,46 @@ export const I18N_RESTRICTED_SELECTORS = [
       "LogicalExpression[operator=/^(\\|\\||\\?\\?)$/] > Literal.right[value=/^[^(].*(\\s.*[a-zA-Z]|[a-zA-Z].*\\s)/]:not([value=/OpenPlany/])",
     message:
       "Use t() from react-i18next instead of hardcoded fallback with spaces.",
-  },
+  }, // A sentence translated when the module loads keeps that language (INV-10, INV-15).
+  ...[
+    "VariableDeclarator > CallExpression[callee.name='translate']",
+    "VariableDeclarator > ObjectExpression > Property > CallExpression[callee.name='translate']",
+  ].flatMap((declarator) =>
+    ["Program", "Program > ExportNamedDeclaration"].map((scope) => ({
+      selector: `${scope} > VariableDeclaration > ${declarator}`,
+      message:
+        "Don't translate at module level: keep the key and translate where the text is shown.",
+    })),
+  ),
 ];
+
+/** Translation entry points and English-only copy that web code must not use (INV-10, A8). */
+export const I18N_RESTRICTED_IMPORTS = {
+  paths: [
+    {
+      name: "i18next",
+      allowTypeImports: true,
+      message:
+        "Use useTranslation() in components, or translate()/translateRef() from src/i18n; the global t() doesn't re-render on a language change.",
+    },
+    {
+      name: "@repo/contracts",
+      importNames: [
+        "MEMBER_MESSAGES",
+        "MEMBER_NOT_ADDABLE_MESSAGES",
+        "PROJECT_ERROR_MESSAGES",
+        "PROJECT_FIELD_MESSAGES",
+        "PROJECT_MEMBER_NOT_ADDABLE_MESSAGES",
+        "PROJECT_ROLE_CHANGE_MESSAGES",
+        "TIMEZONE_MESSAGES",
+        "WORKSPACE_NAME_MESSAGES",
+        "WORKSPACE_ROLE_CHANGE_MESSAGES",
+      ],
+      message:
+        "English-only text: use the matching *_MESSAGE_REFS key with t().",
+    },
+  ],
+};
 
 export const ALL_RESTRICTED_SELECTORS = [
   ...URL_SELECTORS,
@@ -119,6 +157,21 @@ export default defineConfig([
     ],
     rules: {
       "no-restricted-syntax": ["error", ...ALL_RESTRICTED_SELECTORS],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: [
+      "src/i18n/**",
+      "src/**/*.test.{ts,tsx}",
+      "src/test/**",
+      "src/**/test/**",
+    ],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": [
+        "error",
+        I18N_RESTRICTED_IMPORTS,
+      ],
     },
   },
   ...(EXEMPT_AREAS.length > 0

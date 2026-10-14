@@ -1,6 +1,17 @@
 import request from 'supertest';
-import { describe, expect, it, beforeAll, afterAll } from 'vitest';
+import { describe, expect, it, beforeAll, beforeEach, afterAll } from 'vitest';
+import { PROJECT_NAME_MAX, en as enCatalog, vi as viCatalog } from '@repo/contracts';
 import { createE2eApp, type E2eApp } from './createE2eApp.js';
+import {
+  DEFAULT_E2E_ORIGIN as ORIGIN,
+  createUser,
+  signInCookie,
+} from './helpers/e2eUsers.js';
+
+/** Interpolates a catalog sentence the way the API's i18next instance does. */
+function interpolate(text: string, params: Record<string, string | number>): string {
+  return text.replace(/\{\{(\w+)\}\}/g, (_, name: string) => String(params[name]));
+}
 
 describe('i18n Accept-Language & error responses (e2e)', () => {
   let e2e: E2eApp;
@@ -107,5 +118,149 @@ describe('i18n Accept-Language & error responses (e2e)', () => {
     expect(resVi.headers['content-language']).toBe('vi');
     expect(resVi.body.code).toBe('VALIDATION_ERROR');
     expect(resVi.body.message).toBe('Kiểm tra các trường được đánh dấu');
+  });
+
+  describe('translated validation and domain errors (API B9)', () => {
+    const http = () => request(e2e.app.getHttpServer());
+    const LANGUAGES = [
+      { lang: 'en', catalog: enCatalog },
+      { lang: 'vi', catalog: viCatalog },
+    ] as const;
+
+    beforeEach(async () => {
+      await e2e.reset();
+    });
+
+    async function seedWorkspace(slug: string) {
+      const email = `${slug}@openplany.dev`;
+      const ownerId = await createUser(e2e, email, { is_superuser: true });
+      const cookie = await signInCookie(e2e, email);
+      const res = await http()
+        .post('/api/workspaces')
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({ name: 'Acme', slug, organizationSize: '2-10' })
+        .expect(201);
+      return { workspace: res.body as { id: string; slug: string }, ownerId, cookie };
+    }
+
+    // Two @Matches on one property: each failure reports its own sentence (INV-06).
+    for (const { lang, catalog } of LANGUAGES) {
+      it.each([
+        { name: 'see http://x.com', key: 'errors.nameUrl' },
+        { name: 'Acme\u200B', key: 'errors.nameHiddenChars' },
+      ] as const)(`workspace name $name reports $key in ${lang}`, async ({ name, key }) => {
+        const { cookie } = await seedWorkspace(`i18n-ws-${lang}`);
+        const res = await http()
+          .post('/api/workspaces')
+          .set('Cookie', cookie)
+          .set('Origin', ORIGIN)
+          .set('Accept-Language', lang)
+          .send({ name, slug: `i18n-other-${lang}`, organizationSize: '2-10' })
+          .expect(400);
+
+        expect(res.body.code).toBe('VALIDATION_ERROR');
+        expect(res.body.fields).toEqual({ name: catalog.workspace[key] });
+      });
+
+      it(`project name over PROJECT_NAME_MAX reports the max in ${lang}`, async () => {
+        const { workspace, cookie } = await seedWorkspace(`i18n-pn-${lang}`);
+        const res = await http()
+          .post(`/api/workspaces/${workspace.slug}/projects`)
+          .set('Cookie', cookie)
+          .set('Origin', ORIGIN)
+          .set('Accept-Language', lang)
+          .send({
+            name: 'x'.repeat(PROJECT_NAME_MAX + 1),
+            identifier: 'LONG',
+            icon: { name: 'rocket', color: '#15AABF' },
+            coverKey: 'cover-01',
+          })
+          .expect(400);
+
+        expect(res.body.fields).toEqual({
+          name: interpolate(catalog.project['errors.nameTooLong'], {
+            max: PROJECT_NAME_MAX,
+          }),
+        });
+      });
+
+      it(`adding a member above the actor's role returns ROLE_NOT_ALLOWED in ${lang} (AC-21)`, async () => {
+        const { workspace } = await seedWorkspace(`i18n-add-${lang}`);
+        const memberEmail = `member-${lang}@openplany.dev`;
+        const memberId = await createUser(e2e, memberEmail);
+        const targetId = await createUser(e2e, `target-${lang}@openplany.dev`);
+        await e2e.dataSource.query(
+          `INSERT INTO workspace_members (workspace_id, member_id, role, created_at, updated_at, joined_at)
+           VALUES ($1, $2, 'member', now(), now(), now())`,
+          [workspace.id, memberId],
+        );
+        await e2e.dataSource.query(
+          `INSERT INTO role_permissions (scope, role_key, permission_key, created_at)
+           VALUES ('workspace', 'member', 'workspace.members.add', now())`,
+        );
+
+        const res = await http()
+          .post(`/api/workspaces/${workspace.slug}/members`)
+          .set('Cookie', await signInCookie(e2e, memberEmail))
+          .set('Origin', ORIGIN)
+          .set('Accept-Language', lang)
+          .send({ members: [{ userId: targetId, role: 'admin' }] })
+          .expect(403);
+
+        expect(res.body.code).toBe('ROLE_NOT_ALLOWED');
+        expect(res.body.message).toBe(catalog.members['errors.roleNotAllowed']);
+      });
+    }
+
+    it('an undeclared body property keeps the class-validator sentence in en and errors:invalidValue in vi', async () => {
+      const payload = { email: 'an@openplany.dev', password: 'Secret123!', extra: 1 };
+      const resEn = await http()
+        .post('/api/auth/sign-in')
+        .set('Origin', ORIGIN)
+        .send(payload)
+        .expect(400);
+      expect(resEn.body.fields).toEqual({ extra: 'property extra should not exist' });
+
+      const resVi = await http()
+        .post('/api/auth/sign-in')
+        .set('Origin', ORIGIN)
+        .set('Accept-Language', 'vi')
+        .send(payload)
+        .expect(400);
+      expect(resVi.body.fields).toEqual({ extra: viCatalog.errors.invalidValue });
+    });
+
+    it('a constraint without a declared message keeps its sentence in en and errors:invalidValue in vi', async () => {
+      const { workspace, ownerId, cookie } = await seedWorkspace('i18n-role');
+      await http()
+        .post(`/api/workspaces/${workspace.slug}/projects`)
+        .set('Cookie', cookie)
+        .set('Origin', ORIGIN)
+        .send({
+          name: 'Roles',
+          identifier: 'ROLE',
+          icon: { name: 'rocket', color: '#15AABF' },
+          coverKey: 'cover-01',
+        })
+        .expect(201);
+
+      const changeRole = (lang?: string) => {
+        const req = http()
+          .patch(`/api/workspaces/${workspace.slug}/projects/ROLE/members/${ownerId}`)
+          .set('Cookie', cookie)
+          .set('Origin', ORIGIN);
+        return (lang === undefined ? req : req.set('Accept-Language', lang))
+          .send({ fromRole: 'admin', role: 'boss' })
+          .expect(400);
+      };
+
+      expect((await changeRole()).body.fields).toEqual({
+        role: 'role must be one of the following values: admin, contributor, commenter, viewer',
+      });
+      expect((await changeRole('vi')).body.fields).toEqual({
+        role: viCatalog.errors.invalidValue,
+      });
+    });
   });
 });

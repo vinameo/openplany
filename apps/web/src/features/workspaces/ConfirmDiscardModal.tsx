@@ -1,5 +1,5 @@
 import { Button, Group, Modal, Stack, Text } from "@mantine/core";
-import { t } from "i18next";
+import { useTranslation } from "react-i18next";
 
 export interface ConfirmDiscardModalProps {
   opened: boolean;
@@ -12,6 +12,7 @@ export function ConfirmDiscardModal({
   onClose,
   onDiscard,
 }: ConfirmDiscardModalProps) {
+  const { t } = useTranslation();
   return (
     <Modal
       opened={opened}

@@ -1,24 +1,10 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import {
-  MEMBER_MESSAGES,
-  MEMBER_MESSAGE_REFS,
+  DEFAULT_LANGUAGE,
   type Language,
   type MessageRef,
 } from '@repo/contracts';
 import { translateMessageRef } from '../i18n/i18n.js';
-
-const KNOWN_STRING_MESSAGE_REFS: Record<string, MessageRef> = {
-  [MEMBER_MESSAGES.rowDuplicate]: MEMBER_MESSAGE_REFS.rowDuplicate,
-  [MEMBER_MESSAGES.chooseRole]: MEMBER_MESSAGE_REFS.chooseRole,
-  [MEMBER_MESSAGES.choosePerson]: MEMBER_MESSAGE_REFS.choosePerson,
-  [MEMBER_MESSAGES.addAtLeastOne]: MEMBER_MESSAGE_REFS.addAtLeastOne,
-  [MEMBER_MESSAGES.checkFields]: MEMBER_MESSAGE_REFS.checkFields,
-  [MEMBER_MESSAGES.notAllowed]: MEMBER_MESSAGE_REFS.notAllowed,
-  [MEMBER_MESSAGES.roleNotAllowed]: MEMBER_MESSAGE_REFS.roleNotAllowed,
-  [MEMBER_MESSAGES.sameRole]: MEMBER_MESSAGE_REFS.sameRole,
-  [MEMBER_MESSAGES.roleOutOfRange]: MEMBER_MESSAGE_REFS.roleOutOfRange,
-  [MEMBER_MESSAGES.someNotAdded]: MEMBER_MESSAGE_REFS.someNotAdded,
-};
 
 export const API_ERROR_CODES = [
   'VALIDATION_ERROR',
@@ -58,23 +44,25 @@ export interface ApiErrorBody {
   retryAfterSeconds?: number;
 }
 
-export type ApiFieldError = MessageRef | { libraryText: string } | string;
+/**
+ * A field error: a MessageRef, or class-validator's own sentence for a
+ * constraint that declares no message (only the validation pipes build these).
+ */
+export type ApiFieldError = MessageRef | { libraryText: string };
 
+/** Renders field errors in `lang`; library sentences exist only in the default language. */
 export function resolveApiFields(
-  fields?: Record<string, ApiFieldError>,
-  lang: Language = 'en',
+  fields: Record<string, ApiFieldError> | undefined,
+  lang: Language,
 ): Record<string, string> | undefined {
   if (!fields) return undefined;
   const result: Record<string, string> = {};
   for (const [key, val] of Object.entries(fields)) {
-    if (typeof val === 'string') {
-      const knownRef = KNOWN_STRING_MESSAGE_REFS[val];
-      result[key] = knownRef ? translateMessageRef(knownRef, lang) : val;
-    } else if ('libraryText' in val) {
+    if ('libraryText' in val) {
       result[key] =
-        lang === 'vi'
-          ? translateMessageRef({ key: 'errors:invalidValue' }, 'vi')
-          : val.libraryText;
+        lang === DEFAULT_LANGUAGE
+          ? val.libraryText
+          : translateMessageRef({ key: 'errors:invalidValue' }, lang);
     } else {
       result[key] = translateMessageRef(val, lang);
     }
@@ -104,7 +92,7 @@ export class ApiException extends HttpException {
     super(enMessage, status);
     this.messageRef = message;
     this.fieldErrors = options.fields;
-    this.fields = resolveApiFields(options.fields, 'en');
+    this.fields = resolveApiFields(options.fields, DEFAULT_LANGUAGE);
     this.retryAfterSeconds = options.retryAfterSeconds;
   }
 

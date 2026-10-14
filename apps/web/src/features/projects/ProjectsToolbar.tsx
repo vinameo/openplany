@@ -1,6 +1,6 @@
 import { forwardRef } from "react";
 import { Button, Group, TextInput } from "@mantine/core";
-import { t } from "i18next";
+import { useTranslation } from "react-i18next";
 import { SearchIcon } from "../workspaces/icons";
 import classes from "./ProjectsToolbar.module.css";
 
@@ -16,6 +16,7 @@ export const ProjectsToolbar = forwardRef<HTMLInputElement, ProjectsToolbarProps
     { search, onSearchChange, canCreate = false, onAddProject },
     ref,
   ) {
+    const { t } = useTranslation();
     return (
       <Group wrap="wrap" gap="sm">
         <TextInput
