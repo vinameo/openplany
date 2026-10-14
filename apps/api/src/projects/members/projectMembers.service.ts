@@ -6,12 +6,12 @@ import {
   hasImplicitProjectAccess,
   isProjectRoleOutOfRange,
   MEMBER_CANDIDATE_LIMIT,
-  MEMBER_MESSAGES,
-  PROJECT_ERROR_MESSAGES,
+  MEMBER_MESSAGE_REFS,
+  PROJECT_ERROR_MESSAGE_REFS,
   PROJECT_MEMBER_LIST_MAX,
   PROJECT_MEMBER_NOT_ADDABLE_FIELD,
-  PROJECT_MEMBER_NOT_ADDABLE_MESSAGES,
-  PROJECT_ROLE_CHANGE_MESSAGES,
+  PROJECT_MEMBER_NOT_ADDABLE_MESSAGE_REFS,
+  PROJECT_ROLE_CHANGE_MESSAGE_REFS,
   PROJECT_ROLE_RANK,
   PROJECT_ROLES,
   workspaceRolesWithImplicitProjectAccess,
@@ -28,7 +28,7 @@ import {
   type WorkspaceRole,
 } from '@repo/contracts';
 import { Clock } from '../../auth/clock.js';
-import { ApiException } from '../../common/apiException.js';
+import { ApiException, type ApiFieldError } from '../../common/apiException.js';
 import {
   duplicateMemberRowFields,
   unknownRoleFields,
@@ -272,7 +272,7 @@ export class ProjectMembersService {
       throw new ApiException(
         HttpStatus.FORBIDDEN,
         'FORBIDDEN',
-        MEMBER_MESSAGES.notAllowed,
+        MEMBER_MESSAGE_REFS.notAllowed,
       );
     }
 
@@ -282,7 +282,7 @@ export class ProjectMembersService {
       throw new ApiException(
         HttpStatus.BAD_REQUEST,
         'VALIDATION_ERROR',
-        MEMBER_MESSAGES.checkFields,
+        MEMBER_MESSAGE_REFS.checkFields,
         { fields: dup },
       );
     }
@@ -298,8 +298,8 @@ export class ProjectMembersService {
       });
       throw new ApiException(
         HttpStatus.FORBIDDEN,
-        'FORBIDDEN',
-        MEMBER_MESSAGES.roleNotAllowed,
+        'ROLE_NOT_ALLOWED',
+        MEMBER_MESSAGE_REFS.roleNotAllowed,
       );
     }
 
@@ -324,7 +324,7 @@ export class ProjectMembersService {
       throw new ApiException(
         HttpStatus.NOT_FOUND,
         'PROJECT_NOT_FOUND',
-        PROJECT_ERROR_MESSAGES.notFound,
+        PROJECT_ERROR_MESSAGE_REFS.notFound,
       );
     }
 
@@ -332,7 +332,7 @@ export class ProjectMembersService {
       throw new ApiException(
         HttpStatus.FORBIDDEN,
         'FORBIDDEN',
-        MEMBER_MESSAGES.notAllowed,
+        MEMBER_MESSAGE_REFS.notAllowed,
       );
     }
 
@@ -344,8 +344,8 @@ export class ProjectMembersService {
       });
       throw new ApiException(
         HttpStatus.FORBIDDEN,
-        'FORBIDDEN',
-        MEMBER_MESSAGES.roleNotAllowed,
+        'ROLE_NOT_ALLOWED',
+        MEMBER_MESSAGE_REFS.roleNotAllowed,
       );
     }
 
@@ -353,22 +353,22 @@ export class ProjectMembersService {
       throw new ApiException(
         HttpStatus.BAD_REQUEST,
         'VALIDATION_ERROR',
-        MEMBER_MESSAGES.checkFields,
+        MEMBER_MESSAGE_REFS.checkFields,
         { fields: unknownRoleFields(dto.members) },
       );
     }
 
     if (result.status === 'rejected') {
-      const fields: Record<string, string> = {};
+      const fields: Record<string, ApiFieldError> = {};
       for (const r of result.rows) {
         const fieldName = PROJECT_MEMBER_NOT_ADDABLE_FIELD[r.reason];
         fields[`members.${r.index}.${fieldName}`] =
-          PROJECT_MEMBER_NOT_ADDABLE_MESSAGES[r.reason];
+          PROJECT_MEMBER_NOT_ADDABLE_MESSAGE_REFS[r.reason];
       }
       throw new ApiException(
         HttpStatus.CONFLICT,
         'MEMBERS_NOT_ADDABLE',
-        MEMBER_MESSAGES.someNotAdded,
+        MEMBER_MESSAGE_REFS.someNotAdded,
         { fields },
       );
     }
@@ -423,7 +423,7 @@ export class ProjectMembersService {
       throw new ApiException(
         HttpStatus.NOT_FOUND,
         'PROJECT_NOT_FOUND',
-        PROJECT_ERROR_MESSAGES.notFound,
+        PROJECT_ERROR_MESSAGE_REFS.notFound,
       );
     }
 
@@ -431,7 +431,7 @@ export class ProjectMembersService {
       throw new ApiException(
         HttpStatus.NOT_FOUND,
         'NOT_FOUND',
-        PROJECT_ROLE_CHANGE_MESSAGES.memberGone,
+        PROJECT_ROLE_CHANGE_MESSAGE_REFS.memberGone,
       );
     }
 
@@ -448,7 +448,7 @@ export class ProjectMembersService {
       throw new ApiException(
         HttpStatus.FORBIDDEN,
         'FORBIDDEN',
-        PROJECT_ROLE_CHANGE_MESSAGES.cantChange,
+        PROJECT_ROLE_CHANGE_MESSAGE_REFS.cantChange,
       );
     }
 
@@ -456,7 +456,7 @@ export class ProjectMembersService {
       throw new ApiException(
         HttpStatus.CONFLICT,
         'ROLE_INHERITED',
-        PROJECT_ROLE_CHANGE_MESSAGES.inherited,
+        PROJECT_ROLE_CHANGE_MESSAGE_REFS.inherited,
       );
     }
 
@@ -464,7 +464,7 @@ export class ProjectMembersService {
       throw new ApiException(
         HttpStatus.CONFLICT,
         'ROLE_CHANGED',
-        MEMBER_MESSAGES.roleChanged,
+        MEMBER_MESSAGE_REFS.roleChanged,
       );
     }
 
@@ -472,7 +472,7 @@ export class ProjectMembersService {
       throw new ApiException(
         HttpStatus.BAD_REQUEST,
         'ROLE_UNCHANGED',
-        MEMBER_MESSAGES.sameRole,
+        MEMBER_MESSAGE_REFS.sameRole,
       );
     }
 
@@ -480,8 +480,8 @@ export class ProjectMembersService {
       throw new ApiException(
         HttpStatus.BAD_REQUEST,
         'PROJECT_ROLE_NOT_ALLOWED',
-        MEMBER_MESSAGES.roleOutOfRange,
-        { fields: { role: MEMBER_MESSAGES.roleOutOfRange } },
+        MEMBER_MESSAGE_REFS.roleOutOfRange,
+        { fields: { role: MEMBER_MESSAGE_REFS.roleOutOfRange } },
       );
     }
 
@@ -496,7 +496,7 @@ export class ProjectMembersService {
       throw new ApiException(
         HttpStatus.FORBIDDEN,
         'ROLE_NOT_ALLOWED',
-        MEMBER_MESSAGES.roleNotAllowed,
+        MEMBER_MESSAGE_REFS.roleNotAllowed,
       );
     }
 

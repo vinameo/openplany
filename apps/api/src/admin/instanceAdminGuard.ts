@@ -9,10 +9,11 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
+import type { MessageRef } from '@repo/contracts';
 import { ApiException } from '../common/apiException.js';
 
 export const INSTANCE_ADMIN_DENIED_MESSAGE = 'instanceAdminDeniedMessage';
-export const InstanceAdminDeniedMessage = (message: string) =>
+export const InstanceAdminDeniedMessage = (message: MessageRef) =>
   SetMetadata(INSTANCE_ADMIN_DENIED_MESSAGE, message);
 
 @Injectable()
@@ -28,7 +29,7 @@ export class InstanceAdminGuard implements CanActivate {
       throw new ApiException(
         HttpStatus.UNAUTHORIZED,
         'UNAUTHENTICATED',
-        'Sign in to continue',
+        { key: 'errors:http.unauthenticated' },
       );
     }
     if (!auth.isInstanceAdmin) {
@@ -36,10 +37,10 @@ export class InstanceAdminGuard implements CanActivate {
         `admin.forbidden userId=${auth.userId} requestId=${request.requestId}`,
       );
       const message =
-        this.reflector?.getAllAndOverride<string>(
+        this.reflector?.getAllAndOverride<MessageRef>(
           INSTANCE_ADMIN_DENIED_MESSAGE,
           [context.getHandler(), context.getClass()],
-        ) ?? "You don't have permission to do this";
+        ) ?? { key: 'errors:forbidden' };
 
       throw new ApiException(
         HttpStatus.FORBIDDEN,

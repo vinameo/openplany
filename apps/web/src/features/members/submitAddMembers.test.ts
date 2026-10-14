@@ -97,7 +97,10 @@ describe("submitAddMembers", () => {
 
   it("keeps the roleNotAllowed message on 403", async () => {
     await submitAddMembers({
-      send: rejectWith(403, { message: MEMBER_MESSAGES.roleNotAllowed }),
+      send: rejectWith(403, {
+        code: "ROLE_NOT_ALLOWED",
+        message: MEMBER_MESSAGES.roleNotAllowed,
+      }),
       rowIdByIndex: ROW_IDS,
       refreshAfterLostAccess: vi.fn(),
       logContext: "test.add",

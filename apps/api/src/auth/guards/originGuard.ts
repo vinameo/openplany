@@ -33,7 +33,7 @@ export class OriginGuard implements CanActivate {
     throw new ApiException(
       HttpStatus.FORBIDDEN,
       'ORIGIN_NOT_ALLOWED',
-      'Request blocked',
+      { key: 'errors:originNotAllowed' },
     );
   }
 }

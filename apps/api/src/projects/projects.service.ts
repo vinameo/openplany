@@ -2,7 +2,7 @@ import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import {
   pickChangedFields,
   projectCreatorMembershipRole,
-  PROJECT_ERROR_MESSAGES,
+  PROJECT_ERROR_MESSAGE_REFS,
   PROJECT_MEMBER_PREVIEW_MAX,
   workspaceRolesWithImplicitProjectAccess,
   type CreateProjectResponse,
@@ -117,7 +117,7 @@ export class ProjectsService {
         throw new ApiException(
           HttpStatus.NOT_FOUND,
           'NOT_FOUND',
-          'Workspace not found',
+          { key: 'workspace:errors.notFound' },
         );
       }
       createdId = res.projectId;
@@ -127,16 +127,16 @@ export class ProjectsService {
         throw new ApiException(
           HttpStatus.CONFLICT,
           'PROJECT_NAME_TAKEN',
-          PROJECT_ERROR_MESSAGES.nameTaken,
-          { fields: { name: PROJECT_ERROR_MESSAGES.nameTaken } },
+          PROJECT_ERROR_MESSAGE_REFS.nameTaken,
+          { fields: { name: PROJECT_ERROR_MESSAGE_REFS.nameTaken } },
         );
       }
       if (err instanceof ProjectIdentifierTakenError) {
         throw new ApiException(
           HttpStatus.CONFLICT,
           'PROJECT_IDENTIFIER_TAKEN',
-          PROJECT_ERROR_MESSAGES.identifierTaken,
-          { fields: { identifier: PROJECT_ERROR_MESSAGES.identifierTaken } },
+          PROJECT_ERROR_MESSAGE_REFS.identifierTaken,
+          { fields: { identifier: PROJECT_ERROR_MESSAGE_REFS.identifierTaken } },
         );
       }
       throw err;
@@ -211,7 +211,7 @@ export class ProjectsService {
       throw new ApiException(
         HttpStatus.BAD_REQUEST,
         'VALIDATION_ERROR',
-        'Nothing to update',
+        { key: 'errors:nothingToUpdate' },
       );
     }
 
@@ -254,8 +254,8 @@ export class ProjectsService {
         throw new ApiException(
           HttpStatus.CONFLICT,
           'PROJECT_NAME_TAKEN',
-          PROJECT_ERROR_MESSAGES.nameTaken,
-          { fields: { name: PROJECT_ERROR_MESSAGES.nameTaken } },
+          PROJECT_ERROR_MESSAGE_REFS.nameTaken,
+          { fields: { name: PROJECT_ERROR_MESSAGE_REFS.nameTaken } },
         );
       }
       throw err;
@@ -265,7 +265,7 @@ export class ProjectsService {
       throw new ApiException(
         HttpStatus.NOT_FOUND,
         'PROJECT_NOT_FOUND',
-        PROJECT_ERROR_MESSAGES.notFound,
+        PROJECT_ERROR_MESSAGE_REFS.notFound,
       );
     }
 
@@ -323,7 +323,7 @@ export class ProjectsService {
       throw new ApiException(
         HttpStatus.NOT_FOUND,
         'PROJECT_NOT_FOUND',
-        PROJECT_ERROR_MESSAGES.notFound,
+        PROJECT_ERROR_MESSAGE_REFS.notFound,
       );
     }
 

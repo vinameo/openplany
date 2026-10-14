@@ -272,7 +272,7 @@ describe('WorkspaceMembersService', () => {
         ),
       ).rejects.toMatchObject({
         status: 403,
-        code: 'FORBIDDEN',
+        code: 'ROLE_NOT_ALLOWED',
         message: "You can't assign this role",
       });
 

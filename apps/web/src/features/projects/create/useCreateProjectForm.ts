@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { useForm } from "@mantine/form";
+import { useTranslation } from "react-i18next";
 import {
   DEFAULT_PROJECT_ICON,
   DEFAULT_PROJECT_ICON_COLOR,
@@ -24,6 +25,7 @@ export interface CreateProjectFormValues {
 }
 
 export function useCreateProjectForm() {
+  const { t } = useTranslation();
   const [identifierTouched, setIdentifierTouched] = useState(false);
 
   const form = useForm<CreateProjectFormValues>({
@@ -38,7 +40,10 @@ export function useCreateProjectForm() {
       coverKey: pickRandomCover(),
     },
     validate: {
-      name: (val) => projectNameProblem(val),
+      name: (val) => {
+        const problem = projectNameProblem(val);
+        return problem ? t(problem.key, problem.params) : null;
+      },
       identifier: (val) => {
         const trimmed = val.trim();
         if (!trimmed) {
@@ -49,7 +54,10 @@ export function useCreateProjectForm() {
         }
         return null;
       },
-      description: (val) => projectDescriptionProblem(val),
+      description: (val) => {
+        const problem = projectDescriptionProblem(val);
+        return problem ? t(problem.key, problem.params) : null;
+      },
     },
   });
 

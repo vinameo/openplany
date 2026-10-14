@@ -16,7 +16,6 @@ import {
   PROJECT_COVER_KEYS,
   PROJECT_DESCRIPTION_ALLOWED_CHARS,
   PROJECT_DESCRIPTION_MAX,
-  PROJECT_FIELD_MESSAGES,
   PROJECT_ICON_COLOR_PATTERN,
   PROJECT_ICON_NAMES,
   PROJECT_IDENTIFIER_PATTERN,
@@ -26,13 +25,16 @@ import {
   type ProjectIcon,
   type ProjectIconName,
 } from '@repo/contracts';
+import { validationMessage } from '../../common/validation.js';
 
 export class ProjectIconDto implements ProjectIcon {
-  @IsIn(PROJECT_ICON_NAMES, { message: PROJECT_FIELD_MESSAGES.iconRequired })
+  @IsIn(PROJECT_ICON_NAMES, {
+    message: validationMessage('project:errors.iconRequired'),
+  })
   name!: ProjectIconName;
 
   @Matches(PROJECT_ICON_COLOR_PATTERN, {
-    message: PROJECT_FIELD_MESSAGES.iconColorInvalid,
+    message: validationMessage('project:errors.iconColorInvalid'),
   })
   @Transform(({ value }) =>
     typeof value === 'string' ? value.toUpperCase() : value,
@@ -48,17 +50,19 @@ export class CreateProjectDto implements CreateProjectRequest {
     typeof value === 'string' ? normalizeProjectName(value) : value,
   )
   @Matches(NO_HIDDEN_CHARS, {
-    message: PROJECT_FIELD_MESSAGES.hiddenChars,
+    message: validationMessage('project:errors.hiddenChars'),
   })
   @MaxLength(PROJECT_NAME_MAX, {
-    message: PROJECT_FIELD_MESSAGES.nameTooLong,
+    message: validationMessage('project:errors.nameTooLong', {
+      max: PROJECT_NAME_MAX,
+    }),
   })
-  @MinLength(1, { message: PROJECT_FIELD_MESSAGES.nameRequired })
-  @IsString({ message: PROJECT_FIELD_MESSAGES.nameRequired })
+  @MinLength(1, { message: validationMessage('project:errors.nameRequired') })
+  @IsString({ message: validationMessage('project:errors.nameRequired') })
   name!: string;
 
   @Matches(PROJECT_IDENTIFIER_PATTERN, {
-    message: 'Use 1–5 capital letters or digits, starting with a letter',
+    message: validationMessage('project:errors.identifierPattern'),
   })
   @IsString()
   identifier!: string;
@@ -66,22 +70,30 @@ export class CreateProjectDto implements CreateProjectRequest {
   @ValidateIf(isProvided)
   // NUL and other control characters would fail the INSERT (text columns reject 0x00).
   @Matches(PROJECT_DESCRIPTION_ALLOWED_CHARS, {
-    message: PROJECT_FIELD_MESSAGES.hiddenChars,
+    message: validationMessage('project:errors.hiddenChars'),
   })
   @MaxLength(PROJECT_DESCRIPTION_MAX, {
-    message: PROJECT_FIELD_MESSAGES.descriptionTooLong,
+    message: validationMessage('project:errors.descriptionTooLong', {
+      max: PROJECT_DESCRIPTION_MAX,
+    }),
   })
-  @IsString({ message: PROJECT_FIELD_MESSAGES.descriptionTooLong })
+  @IsString({
+    message: validationMessage('project:errors.descriptionTooLong', {
+      max: PROJECT_DESCRIPTION_MAX,
+    }),
+  })
   description?: string;
 
   // @ValidateNested skips undefined and walks arrays element by element, so the
   // shape itself must be checked: a missing icon or `icon: []` is a 400, not a 500.
   @ValidateNested()
   @Type(() => ProjectIconDto)
-  @IsObject({ message: PROJECT_FIELD_MESSAGES.iconRequired })
-  @IsDefined({ message: PROJECT_FIELD_MESSAGES.iconRequired })
+  @IsObject({ message: validationMessage('project:errors.iconRequired') })
+  @IsDefined({ message: validationMessage('project:errors.iconRequired') })
   icon!: ProjectIconDto;
 
-  @IsIn(PROJECT_COVER_KEYS, { message: PROJECT_FIELD_MESSAGES.coverRequired })
+  @IsIn(PROJECT_COVER_KEYS, {
+    message: validationMessage('project:errors.coverRequired'),
+  })
   coverKey!: ProjectCoverKey;
 }

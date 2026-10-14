@@ -1,6 +1,24 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
-import type { Language, MessageRef } from '@repo/contracts';
+import {
+  MEMBER_MESSAGES,
+  MEMBER_MESSAGE_REFS,
+  type Language,
+  type MessageRef,
+} from '@repo/contracts';
 import { translateMessageRef } from '../i18n/i18n.js';
+
+const KNOWN_STRING_MESSAGE_REFS: Record<string, MessageRef> = {
+  [MEMBER_MESSAGES.rowDuplicate]: MEMBER_MESSAGE_REFS.rowDuplicate,
+  [MEMBER_MESSAGES.chooseRole]: MEMBER_MESSAGE_REFS.chooseRole,
+  [MEMBER_MESSAGES.choosePerson]: MEMBER_MESSAGE_REFS.choosePerson,
+  [MEMBER_MESSAGES.addAtLeastOne]: MEMBER_MESSAGE_REFS.addAtLeastOne,
+  [MEMBER_MESSAGES.checkFields]: MEMBER_MESSAGE_REFS.checkFields,
+  [MEMBER_MESSAGES.notAllowed]: MEMBER_MESSAGE_REFS.notAllowed,
+  [MEMBER_MESSAGES.roleNotAllowed]: MEMBER_MESSAGE_REFS.roleNotAllowed,
+  [MEMBER_MESSAGES.sameRole]: MEMBER_MESSAGE_REFS.sameRole,
+  [MEMBER_MESSAGES.roleOutOfRange]: MEMBER_MESSAGE_REFS.roleOutOfRange,
+  [MEMBER_MESSAGES.someNotAdded]: MEMBER_MESSAGE_REFS.someNotAdded,
+};
 
 export const API_ERROR_CODES = [
   'VALIDATION_ERROR',
@@ -50,10 +68,8 @@ export function resolveApiFields(
   const result: Record<string, string> = {};
   for (const [key, val] of Object.entries(fields)) {
     if (typeof val === 'string') {
-      result[key] =
-        lang === 'vi'
-          ? translateMessageRef({ key: 'errors:invalidValue' }, 'vi')
-          : val;
+      const knownRef = KNOWN_STRING_MESSAGE_REFS[val];
+      result[key] = knownRef ? translateMessageRef(knownRef, lang) : val;
     } else if ('libraryText' in val) {
       result[key] =
         lang === 'vi'
@@ -73,29 +89,26 @@ export interface ApiExceptionOptions {
 
 /** An HttpException that carries a machine-readable `code` for the client. */
 export class ApiException extends HttpException {
-  readonly messageRef?: MessageRef;
-  readonly fields?: Record<string, ApiFieldError>;
+  readonly messageRef: MessageRef;
+  readonly fieldErrors?: Record<string, ApiFieldError>;
+  readonly fields?: Record<string, string>;
   readonly retryAfterSeconds?: number;
 
   constructor(
     status: HttpStatus,
     readonly code: ApiErrorCode,
-    message: MessageRef | string,
+    message: MessageRef,
     options: ApiExceptionOptions = {},
   ) {
-    const enMessage =
-      typeof message === 'string'
-        ? message
-        : translateMessageRef(message, 'en');
+    const enMessage = translateMessageRef(message, 'en');
     super(enMessage, status);
-    if (typeof message !== 'string') {
-      this.messageRef = message;
-    }
-    this.fields = options.fields;
+    this.messageRef = message;
+    this.fieldErrors = options.fields;
+    this.fields = resolveApiFields(options.fields, 'en');
     this.retryAfterSeconds = options.retryAfterSeconds;
   }
 
   getEnglishFields(): Record<string, string> | undefined {
-    return resolveApiFields(this.fields, 'en');
+    return this.fields;
   }
 }

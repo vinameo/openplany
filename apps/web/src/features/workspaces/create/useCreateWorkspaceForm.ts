@@ -6,6 +6,7 @@ import {
 } from "react";
 import { useForm } from "@mantine/form";
 import { useNavigate } from "react-router";
+import { useTranslation } from "react-i18next";
 import {
   extractSlugFromUrl,
   normalizeSlugInput,
@@ -28,6 +29,7 @@ import { useSlugAvailability } from "./useSlugAvailability";
 import { workspacePath } from "../workspacePaths";
 
 export function useCreateWorkspaceForm() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { expireSession } = useAuth();
   const { add } = useWorkspaces();
@@ -45,7 +47,10 @@ export function useCreateWorkspaceForm() {
     },
     validateInputOnBlur: true,
     validate: {
-      name: (value) => workspaceNameProblem(value),
+      name: (value) => {
+        const problem = workspaceNameProblem(value);
+        return problem ? t(problem.key, problem.params) : null;
+      },
       slug: (value) => {
         if (!value) return "Enter a workspace URL";
         if (

@@ -30,7 +30,7 @@ export class RolePermissionsWriteRateLimitGuard implements CanActivate {
       throw new ApiException(
         HttpStatus.UNAUTHORIZED,
         'UNAUTHENTICATED',
-        'Sign in to continue',
+        { key: 'errors:http.unauthenticated' },
       );
     }
 
@@ -42,7 +42,7 @@ export class RolePermissionsWriteRateLimitGuard implements CanActivate {
       throw new ApiException(
         HttpStatus.TOO_MANY_REQUESTS,
         'TOO_MANY_ATTEMPTS',
-        'Too many role permission updates. Try again later.',
+        { key: 'errors:tooManyRolePermissionUpdates' },
         { retryAfterSeconds: decision.retryAfterSeconds },
       );
     }

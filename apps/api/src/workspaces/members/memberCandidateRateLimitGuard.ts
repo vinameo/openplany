@@ -7,7 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { MEMBER_MESSAGES } from '@repo/contracts';
+import { MEMBER_MESSAGE_REFS } from '@repo/contracts';
 import { Clock } from '../../auth/clock.js';
 import { ApiException } from '../../common/apiException.js';
 import { SlidingWindowLimiter } from '../../common/slidingWindowLimiter.js';
@@ -36,7 +36,7 @@ export class MemberCandidateRateLimitGuard implements CanActivate {
       throw new ApiException(
         HttpStatus.UNAUTHORIZED,
         'UNAUTHENTICATED',
-        'Sign in to continue',
+        { key: 'errors:http.unauthenticated' },
       );
     }
 
@@ -51,7 +51,7 @@ export class MemberCandidateRateLimitGuard implements CanActivate {
       throw new ApiException(
         HttpStatus.TOO_MANY_REQUESTS,
         'TOO_MANY_ATTEMPTS',
-        MEMBER_MESSAGES.tooManySearches,
+        MEMBER_MESSAGE_REFS.tooManySearches,
         { retryAfterSeconds: decision.retryAfterSeconds },
       );
     }

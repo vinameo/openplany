@@ -5,10 +5,24 @@ export const vi: ViCatalog = {
     "roles.workspace.admin": "Admin",
     "roles.workspace.member": "Member",
     "roles.workspace.guest": "Guest",
+    "roles.workspace.qualified.admin": "Workspace Admin",
+    "roles.workspace.qualified.member": "Member",
+    "roles.workspace.qualified.guest": "Guest",
+    "roles.workspace.summary.admin":
+      "Mọi thứ: cài đặt, thành viên, dự án và xoá Workspace; quyền truy cập mọi dự án",
+    "roles.workspace.summary.member":
+      "Làm việc trong các dự án tham gia; tham gia các dự án công khai",
+    "roles.workspace.summary.guest": "Chỉ xem",
     "roles.project.admin": "Project Admin",
     "roles.project.contributor": "Contributor",
     "roles.project.commenter": "Commenter",
     "roles.project.viewer": "Viewer",
+    "roles.project.summary.admin":
+      "Mọi thứ trong dự án, bao gồm cài đặt và thành viên",
+    "roles.project.summary.contributor":
+      "Tạo và sửa việc; xoá những gì họ đã tạo",
+    "roles.project.summary.commenter": "Xem mọi thứ, bình luận và thả cảm xúc",
+    "roles.project.summary.viewer": "Chỉ xem",
     "theme.switchToLight": "Chuyển sang giao diện sáng",
     "theme.switchToDark": "Chuyển sang giao diện tối",
     "language.buttonAriaLabel": "Ngôn ngữ: Tiếng Việt (VI)",
@@ -55,7 +69,32 @@ export const vi: ViCatalog = {
     invalidValue: "Dữ liệu gửi lên không hợp lệ",
     validationFailed: "Dữ liệu gửi lên không hợp lệ",
     checkHighlightedFields: "Kiểm tra các trường được đánh dấu",
+    nothingToUpdate: "Không có gì để cập nhật",
     foreignKeyViolation: "Dữ liệu liên kết không hợp lệ",
+    invalidTimezone: "Chọn một múi giờ hợp lệ",
+    forbidden: "Bạn không có quyền thực hiện việc này",
+    notFound: "Không tìm thấy",
+    userNotFound: "Không tìm thấy người dùng",
+    originNotAllowed: "Origin không được phép",
+    passwordResetRequired: "Yêu cầu đặt lại mật khẩu",
+    sessionExpired: "Phiên đăng nhập đã hết hạn",
+    slugAlreadyExists: "Một Workspace với URL này đã tồn tại",
+    emailAlreadyExists: "Một người dùng có email này đã tồn tại.",
+    rolePermissionsChanged:
+      "Quyền đã được cập nhật. Tải lại trang để xem cài đặt mới nhất.",
+    roleUnchanged: "Vai trò không thay đổi",
+    lastAdmin:
+      "Workspace cần có ít nhất một Admin. Hãy chỉ định người khác làm Admin trước.",
+    roleInherited:
+      "Workspace Admin là Project Admin trong mọi dự án.",
+    tooManyAttempts: "Quá nhiều lần thử. Vui lòng thử lại sau.",
+    tooManyUsersCreated_other:
+      "Quá nhiều người dùng được tạo. Thử lại sau {{count}} phút.",
+    tooManyUsersCreatedLater: "Quá nhiều người dùng được tạo. Thử lại sau.",
+    tooManyRolePermissionUpdates:
+      "Quá nhiều lượt cập nhật quyền vai trò. Thử lại sau.",
+    tooManyWorkspaceWrites: "Quá nhiều thay đổi. Thử lại sau.",
+    memberUserIdParam: "Nhập một ID thành viên hợp lệ",
     "http.validationError": "Dữ liệu gửi lên không hợp lệ",
     "http.unauthenticated": "Đăng nhập để tiếp tục",
     "http.notFound": "Không tìm thấy nội dung bạn cần",
@@ -63,18 +102,124 @@ export const vi: ViCatalog = {
   },
   workspace: {
     title: "Workspace",
+    "errors.nameRequired": "Nhập tên Workspace",
+    "errors.nameTooLong":
+      "Tên Workspace phải có {{max}} ký tự trở xuống",
+    "errors.nameHiddenChars": "Chứa ký tự không được phép",
+    "errors.nameUrl": "Tên Workspace không thể chứa liên kết URL",
+    "errors.slugRequired": "Nhập URL cho Workspace",
+    "errors.slugReserved": "URL này đã được đặt trước. Hãy chọn URL khác.",
+    "errors.slugPattern":
+      "URL chỉ có thể dùng chữ thường, số và dấu gạch ngang đơn, và không được bắt đầu hoặc kết thúc bằng dấu gạch ngang",
+    "errors.slugLength": "URL phải từ {{min}} đến {{max}} ký tự",
+    "errors.orgSizeRequired":
+      "Chọn số lượng người sẽ sử dụng Workspace này",
+    "errors.orgSizeSelect": "Chọn quy mô công ty",
+    "errors.slugTaken": "Một Workspace với URL này đã tồn tại",
+    "errors.notFound": "Không tìm thấy Workspace",
+    "errors.notAllowed": "Bạn không có quyền thực hiện việc này",
+    "errors.cannotCheckSlug":
+      "Bạn không có quyền kiểm tra đường dẫn không gian làm việc",
+    "errors.cannotCreate": "Bạn không có quyền tạo không gian làm việc",
+    "errors.rateLimitSlugCheck":
+      "Bạn đã kiểm tra quá nhiều URL gần đây. Thử lại sau.",
+    "errors.rateLimitCreate":
+      "Bạn đã tạo quá nhiều không gian làm việc gần đây. Thử lại sau.",
+    "errors.slugTakenAnother":
+      "URL này đã được sử dụng. Hãy chọn URL khác.",
+    "errors.lastAdmin":
+      "Workspace cần có ít nhất một Admin. Hãy chỉ định người khác làm Admin trước.",
+    "errors.memberGone": "Người này không còn trong Workspace này nữa.",
   },
   project: {
     title: "Dự án",
+    "errors.nameRequired": "Nhập tên dự án",
+    "errors.nameTooLong": "Nhập tên dự án (tối đa {{max}} ký tự)",
+    "errors.hiddenChars": "Chứa ký tự không được phép",
+    "errors.descriptionTooLong": "Giữ phần mô tả dưới {{max}} ký tự",
+    "errors.iconRequired": "Chọn một biểu tượng",
+    "errors.iconColorInvalid": "Sử dụng màu như #1A2B3C",
+    "errors.coverRequired": "Chọn một ảnh bìa",
+    "errors.identifierPattern":
+      "Sử dụng 1–5 chữ in hoa hoặc chữ số, bắt đầu bằng một chữ cái",
+    "errors.nameTaken": "Một dự án có tên này đã tồn tại",
+    "errors.identifierTaken": "Project ID này đã được sử dụng",
+    "errors.notFound": "Dự án này không tồn tại.",
+    "errors.forbidden": "Bạn không có quyền truy cập dự án này.",
+    "errors.cantChangeRole": "Bạn không thể thay đổi vai trò của người này",
+    "errors.inheritedRole":
+      "Workspace Admin là Project Admin trong mọi dự án.",
+    "errors.memberGone": "Người này không còn trong dự án này nữa.",
+    "errors.alreadyMember": "Đã là thành viên của dự án này",
+    "errors.notInWorkspace": "Người này không còn trong Workspace này nữa.",
+    "errors.unavailable":
+      "Không thể thêm người này. Tài khoản có thể đã bị vô hiệu hoá.",
+    "errors.roleOutOfRange":
+      "Vai trò này không được phép với vai trò Workspace của họ.",
+    "errors.workspaceAdmin":
+      "Workspace Admin đã có quyền truy cập vào mọi dự án.",
+    "errors.timezoneInvalid": "Chọn một múi giờ hợp lệ",
   },
   members: {
     title: "Thành viên",
+    "errors.rowDuplicate": "Người này đã có ở một dòng khác",
+    "errors.candidateQueryTooShort": "Nhập ít nhất 3 ký tự",
+    "errors.candidateQueryInvalid": "Xoá ký tự đặc biệt khỏi email",
+    "errors.choosePerson": "Chọn một người",
+    "errors.chooseRole": "Chọn một vai trò",
+    "errors.addAtLeastOne": "Thêm ít nhất một người",
+    "errors.addAtMost": "Thêm tối đa {{max}} người một lần",
+    "errors.checkFields": "Kiểm tra các trường được đánh dấu",
+    "errors.notAllowed": "Bạn không có quyền thực hiện việc này",
+    "errors.roleNotAllowed": "Bạn không thể gán vai trò này",
+    "errors.roleChanged":
+      "Vai trò của họ vừa được người khác thay đổi. Hãy xem lại và thử lại.",
+    "errors.sameRole": "Chọn một vai trò khác",
+    "errors.roleOutOfRange":
+      "Vai trò này không được phép với vai trò Workspace của họ.",
+    "errors.someNotAdded": "Một số người không thể thêm được",
+    "errors.tooManySearches": "Quá nhiều lượt tìm kiếm. Vui lòng thử lại sau.",
+    "errors.alreadyMember": "Đã là thành viên của Workspace này",
+    "errors.unavailable":
+      "Không thể thêm người này. Tài khoản có thể đã bị vô hiệu hoá.",
+    truncated: "Đang hiện {{shown}} trên tổng số {{total}} thành viên.",
+    projectTruncated:
+      "Đang hiện {{shown}} trên tổng số {{total}} thành viên dự án.",
+  },
+  users: {
+    "errors.firstNameRequired": "Nhập tên",
+    "errors.firstNameTooLong": "Tên phải có {{max}} ký tự trở xuống",
+    "errors.lastNameTooLong": "Họ phải có {{max}} ký tự trở xuống",
+    "errors.lastNameText": "Họ phải là văn bản",
+    "errors.displayNameRequired": "Nhập tên hiển thị",
+    "errors.displayNameTooLong":
+      "Tên hiển thị phải có {{max}} ký tự trở xuống",
+    "errors.passwordLength": "Sử dụng từ {{min}} đến {{max}} ký tự",
+    "errors.emailValid": "Nhập một email hợp lệ",
+    "errors.emailTaken": "Một người dùng có email này đã tồn tại",
+    "errors.enterYourFirstName": "Nhập tên của bạn",
+    "errors.passwordSameAsEmail": "Mật khẩu không được trùng với email",
+    "errors.hiddenChars": "Chứa ký tự không được phép",
   },
   admin: {
     title: "Quản trị",
+    "errors.cannotCreateUsers": "Bạn không có quyền tạo người dùng",
     "errors.createUserFailed": "Không thể tạo người dùng. Vui lòng thử lại.",
-    "errors.loadRolesFailed": "Không thể tải danh sách vai trò và quyền.",
-    "errors.updateRolesFailed": "Không thể lưu phân quyền. Vui lòng thử lại.",
+    "errors.loadRolesFailed": "Không thể tải vai trò và quyền.",
+    "errors.updateRolesFailed": "Không thể lưu quyền. Vui lòng thử lại.",
+    "errors.roleLocked":
+      "Vai trò này luôn giữ các quyền mặc định và không thể thay đổi",
+    "errors.adminOnly": "Chỉ Admin mới có thể có quyền này",
+    "errors.guestViewOnly": "Guest và Viewer chỉ có thể xem",
+    "errors.unknownPermission": "Quyền không xác định",
+    "errors.scopeMismatch": "Phạm vi không khớp",
+    "errors.unknownRole": "Vai trò không xác định",
+    "errors.listedMoreThanOnce": "Được liệt kê nhiều hơn một lần",
+    "errors.conflictReload":
+      "Ai đó đã thay đổi các quyền này. Hãy tải lại trang để xem cập nhật mới nhất.",
+    "errors.tooManyUpdates": "Quá nhiều lượt cập nhật. Thử lại sau.",
+    "errors.tooManyUsers_other":
+      "Quá nhiều người dùng được tạo. Thử lại sau {{count}} phút.",
   },
   profile: {
     title: "Hồ sơ",
@@ -86,4 +231,4 @@ export const vi: ViCatalog = {
   permissionGroups: {
     "project.archive": "Dự án",
   },
-} as const;
+};

@@ -498,7 +498,7 @@ describe("AddProjectMembersModal", () => {
       "GET /api/workspaces/ws-1/projects/P1/member-candidates": () =>
         jsonResponse(200, { candidates }),
       "POST /api/workspaces/ws-1/projects/P1/members": () =>
-        apiError(403, "FORBIDDEN", "You can't assign this role"),
+        apiError(403, "ROLE_NOT_ALLOWED", "You can't assign this role"),
     });
 
     const user = userEvent.setup();

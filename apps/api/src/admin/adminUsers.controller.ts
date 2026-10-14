@@ -17,7 +17,7 @@ import { InstanceAdminDeniedMessage, InstanceAdminGuard } from './instanceAdminG
 import { UserCreateRateLimitGuard } from './userCreateRateLimitGuard.js';
 
 @Controller('admin/users')
-@InstanceAdminDeniedMessage("You don't have permission to create users")
+@InstanceAdminDeniedMessage({ key: 'admin:errors.cannotCreateUsers' })
 @UseGuards(SessionGuard, UserCreateRateLimitGuard, InstanceAdminGuard)
 export class AdminUsersController {
   constructor(private readonly adminUsersService: AdminUsersService) {}

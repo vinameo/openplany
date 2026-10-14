@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { useNavigate } from "react-router";
 import { notifications } from "@mantine/notifications";
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import {
   normalizeProjectName,
   projectNameProblem,
@@ -28,6 +29,7 @@ import {
 } from "../projectSettingsValues";
 
 export function useProjectGeneralSettingsForm(project: ProjectListItem) {
+  const { t } = useTranslation();
   const { workspace } = useCurrentWorkspace();
   const { reload, applyProjectUpdate } = useCurrentProject();
   const queryClient = useQueryClient();
@@ -105,10 +107,16 @@ export function useProjectGeneralSettingsForm(project: ProjectListItem) {
       name: normalizeProjectName,
     },
     validate: {
-      name: (val) =>
-        val !== undefined ? projectNameProblem(String(val)) : null,
-      description: (val) =>
-        val !== undefined ? projectDescriptionProblem(String(val)) : null,
+      name: (val) => {
+        if (val === undefined) return null;
+        const problem = projectNameProblem(String(val));
+        return problem ? t(problem.key, problem.params) : null;
+      },
+      description: (val) => {
+        if (val === undefined) return null;
+        const problem = projectDescriptionProblem(String(val));
+        return problem ? t(problem.key, problem.params) : null;
+      },
     },
     submit,
     onApiError,

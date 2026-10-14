@@ -76,7 +76,7 @@ async function failureOutcome(
       notifications.show({
         color: "red",
         message:
-          err.message === MEMBER_MESSAGES.roleNotAllowed
+          err.code === "ROLE_NOT_ALLOWED"
             ? MEMBER_MESSAGES.roleNotAllowed
             : MEMBER_MESSAGES.notAllowed,
       });

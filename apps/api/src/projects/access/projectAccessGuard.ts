@@ -6,7 +6,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 import {
-  PROJECT_ERROR_MESSAGES,
+  PROJECT_ERROR_MESSAGE_REFS,
   PROJECT_IDENTIFIER_PATTERN,
 } from '@repo/contracts';
 import type { Request } from 'express';
@@ -92,13 +92,13 @@ export class ProjectAccessGuard implements CanActivate {
       throw new ApiException(
         HttpStatus.FORBIDDEN,
         'FORBIDDEN',
-        PROJECT_ERROR_MESSAGES.forbidden,
+        PROJECT_ERROR_MESSAGE_REFS.forbidden,
       );
     }
     throw new ApiException(
       HttpStatus.NOT_FOUND,
       'PROJECT_NOT_FOUND',
-      PROJECT_ERROR_MESSAGES.notFound,
+      PROJECT_ERROR_MESSAGE_REFS.notFound,
     );
   }
 
@@ -117,7 +117,7 @@ export class ProjectAccessGuard implements CanActivate {
     throw new ApiException(
       HttpStatus.TOO_MANY_REQUESTS,
       'TOO_MANY_ATTEMPTS',
-      'Too many attempts. Try again later.',
+      { key: 'errors:tooManyAttempts' },
       { retryAfterSeconds: decision.retryAfterSeconds },
     );
   }

@@ -1,12 +1,12 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import {
   MEMBER_CANDIDATE_LIMIT,
-  MEMBER_MESSAGES,
-  MEMBER_NOT_ADDABLE_MESSAGES,
+  MEMBER_MESSAGE_REFS,
+  MEMBER_NOT_ADDABLE_MESSAGE_REFS,
   WORKSPACE_ROLES,
   WORKSPACE_ROLE_RANK,
   WORKSPACE_MEMBER_LIST_MAX,
-  WORKSPACE_ROLE_CHANGE_MESSAGES,
+  WORKSPACE_ROLE_CHANGE_MESSAGE_REFS,
   addableWorkspaceRoles,
   type AddWorkspaceMembersResponse,
   type ChangeWorkspaceRoleResponse,
@@ -16,7 +16,10 @@ import {
   type WorkspaceRoleChangePreview,
   type WorkspaceRoleChangeRejection,
 } from '@repo/contracts';
-import { ApiException } from '../../common/apiException.js';
+import {
+  ApiException,
+  type ApiFieldError,
+} from '../../common/apiException.js';
 import {
   duplicateMemberRowFields,
   unknownRoleFields,
@@ -121,7 +124,7 @@ export class WorkspaceMembersService {
       throw new ApiException(
         HttpStatus.BAD_REQUEST,
         'VALIDATION_ERROR',
-        MEMBER_MESSAGES.checkFields,
+        MEMBER_MESSAGE_REFS.checkFields,
         { fields: duplicateFields },
       );
     }
@@ -139,8 +142,8 @@ export class WorkspaceMembersService {
       );
       throw new ApiException(
         HttpStatus.FORBIDDEN,
-        'FORBIDDEN',
-        MEMBER_MESSAGES.roleNotAllowed,
+        'ROLE_NOT_ALLOWED',
+        MEMBER_MESSAGE_REFS.roleNotAllowed,
       );
     }
 
@@ -166,7 +169,7 @@ export class WorkspaceMembersService {
       throw new ApiException(
         HttpStatus.FORBIDDEN,
         'FORBIDDEN',
-        MEMBER_MESSAGES.notAllowed,
+        MEMBER_MESSAGE_REFS.notAllowed,
       );
     }
 
@@ -175,7 +178,7 @@ export class WorkspaceMembersService {
       throw new ApiException(
         HttpStatus.NOT_FOUND,
         'NOT_FOUND',
-        'Workspace not found',
+        { key: 'workspace:errors.notFound' },
       );
     }
 
@@ -183,22 +186,22 @@ export class WorkspaceMembersService {
       throw new ApiException(
         HttpStatus.BAD_REQUEST,
         'VALIDATION_ERROR',
-        MEMBER_MESSAGES.checkFields,
+        MEMBER_MESSAGE_REFS.checkFields,
         { fields: unknownRoleFields(dto.members) },
       );
     }
 
     // 6. Map rejected
     if (result.status === 'rejected') {
-      const fields: Record<string, string> = {};
+      const fields: Record<string, ApiFieldError> = {};
       for (const r of result.rows) {
         fields[`members.${r.index}.userId`] =
-          MEMBER_NOT_ADDABLE_MESSAGES[r.reason];
+          MEMBER_NOT_ADDABLE_MESSAGE_REFS[r.reason];
       }
       throw new ApiException(
         HttpStatus.CONFLICT,
         'MEMBERS_NOT_ADDABLE',
-        MEMBER_MESSAGES.someNotAdded,
+        MEMBER_MESSAGE_REFS.someNotAdded,
         { fields },
       );
     }
@@ -281,7 +284,7 @@ export class WorkspaceMembersService {
       throw new ApiException(
         HttpStatus.NOT_FOUND,
         'NOT_FOUND',
-        'Workspace not found',
+        { key: 'workspace:errors.notFound' },
       );
     }
 
@@ -310,8 +313,8 @@ export class WorkspaceMembersService {
       throw new ApiException(
         HttpStatus.BAD_REQUEST,
         'PROJECT_ROLE_NOT_ALLOWED',
-        MEMBER_MESSAGES.roleOutOfRange,
-        { fields: { projectRole: MEMBER_MESSAGES.roleOutOfRange } },
+        MEMBER_MESSAGE_REFS.roleOutOfRange,
+        { fields: { projectRole: MEMBER_MESSAGE_REFS.roleOutOfRange } },
       );
     }
 
@@ -325,7 +328,7 @@ export class WorkspaceMembersService {
       throw new ApiException(
         HttpStatus.CONFLICT,
         'LAST_ADMIN',
-        WORKSPACE_ROLE_CHANGE_MESSAGES.lastAdmin,
+        WORKSPACE_ROLE_CHANGE_MESSAGE_REFS.lastAdmin,
       );
     }
 
@@ -370,25 +373,25 @@ function roleChangeRejected(
       return new ApiException(
         HttpStatus.NOT_FOUND,
         'NOT_FOUND',
-        WORKSPACE_ROLE_CHANGE_MESSAGES.memberGone,
+        WORKSPACE_ROLE_CHANGE_MESSAGE_REFS.memberGone,
       );
     case 'actor_forbidden':
       return new ApiException(
         HttpStatus.FORBIDDEN,
         'FORBIDDEN',
-        MEMBER_MESSAGES.roleNotAllowed,
+        MEMBER_MESSAGE_REFS.roleNotAllowed,
       );
     case 'role_changed':
       return new ApiException(
         HttpStatus.CONFLICT,
         'ROLE_CHANGED',
-        MEMBER_MESSAGES.roleChanged,
+        MEMBER_MESSAGE_REFS.roleChanged,
       );
     case 'same_role':
       return new ApiException(
         HttpStatus.BAD_REQUEST,
         'ROLE_UNCHANGED',
-        MEMBER_MESSAGES.sameRole,
+        MEMBER_MESSAGE_REFS.sameRole,
       );
   }
 }

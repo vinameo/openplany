@@ -1,3 +1,4 @@
+import type { MessageRef } from './catalog/index.js';
 import {
   NO_HIDDEN_CHARS,
   NO_URL,
@@ -28,20 +29,30 @@ export const WORKSPACE_NAME_MESSAGES = {
   url: 'Workspace name cannot contain a URL',
 } as const;
 
+export const WORKSPACE_NAME_MESSAGE_REFS = {
+  required: { key: 'workspace:errors.nameRequired' },
+  tooLong: {
+    key: 'workspace:errors.nameTooLong',
+    params: { max: WORKSPACE_NAME_MAX },
+  },
+  hiddenChars: { key: 'workspace:errors.nameHiddenChars' },
+  url: { key: 'workspace:errors.nameUrl' },
+} as const satisfies Record<keyof typeof WORKSPACE_NAME_MESSAGES, MessageRef>;
+
 /** The first problem with a (normalized) name, or null. Web uses it; API uses the decorators + same messages. */
-export function workspaceNameProblem(name: string): string | null {
+export function workspaceNameProblem(name: string): MessageRef | null {
   const normalized = normalizeWorkspaceName(name);
   if (normalized.length === 0) {
-    return WORKSPACE_NAME_MESSAGES.required;
+    return WORKSPACE_NAME_MESSAGE_REFS.required;
   }
   if (normalized.length > WORKSPACE_NAME_MAX) {
-    return WORKSPACE_NAME_MESSAGES.tooLong;
+    return WORKSPACE_NAME_MESSAGE_REFS.tooLong;
   }
   if (!NO_HIDDEN_CHARS.test(normalized)) {
-    return WORKSPACE_NAME_MESSAGES.hiddenChars;
+    return WORKSPACE_NAME_MESSAGE_REFS.hiddenChars;
   }
   if (!NO_URL.test(normalized)) {
-    return WORKSPACE_NAME_MESSAGES.url;
+    return WORKSPACE_NAME_MESSAGE_REFS.url;
   }
   return null;
 }

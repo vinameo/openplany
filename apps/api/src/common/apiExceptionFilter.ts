@@ -72,7 +72,10 @@ export class ApiExceptionFilter implements ExceptionFilter {
         ? translateMessageRef(exception.messageRef, lang)
         : exception.message;
 
-      const fields = resolveApiFields(exception.fields, lang);
+      const fields = resolveApiFields(
+        exception.fieldErrors ?? exception.fields,
+        lang,
+      );
 
       return {
         statusCode: exception.getStatus(),
