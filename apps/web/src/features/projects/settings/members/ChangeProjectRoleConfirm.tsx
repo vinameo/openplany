@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Alert, Stack, Text } from "@mantine/core";
 import {
   PROJECT_ROLE_LABELS,
@@ -40,6 +41,8 @@ export function ChangeProjectRoleConfirm({
   onConfirm,
   onCancel,
 }: ChangeProjectRoleConfirmProps) {
+  const { t } = useTranslation();
+
   if (!state) {
     return null;
   }
@@ -53,8 +56,8 @@ export function ChangeProjectRoleConfirm({
     : changeRoleTitle(displayName, nextRoleLabel);
 
   const confirmLabel = isGainAdmin
-    ? "Make Project Admin"
-    : `Change to ${nextRoleLabel}`;
+    ? t("project:members.makeProjectAdminButton")
+    : t("project:members.changeToRoleButton", { role: nextRoleLabel });
 
   return (
     <RoleChangeConfirmModal

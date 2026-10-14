@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ProjectListItem, ProjectListResponse } from "@repo/contracts";
+import { translate } from "../../i18n/language";
 import { ApiRequestError } from "../../lib/apiClient";
 import { useAuth } from "../auth/useAuth";
 import { useCurrentWorkspace } from "../workspaces/currentWorkspace/useCurrentWorkspace";
@@ -11,8 +12,6 @@ export type ProjectsState =
   | { status: "loading" }
   | { status: "error"; message: string }
   | { status: "ready"; data: ProjectListResponse };
-
-const LOAD_ERROR = "Couldn't load projects.";
 
 export function useProjects(slug: string): {
   state: ProjectsState;
@@ -52,7 +51,7 @@ export function useProjects(slug: string): {
   const state: ProjectsState = query.isSuccess
     ? { status: "ready", data: query.data }
     : query.isError
-      ? { status: "error", message: LOAD_ERROR }
+      ? { status: "error", message: translate("project:list.loadError") }
       : { status: "loading" };
 
   return { state, reload, addProject };

@@ -47,10 +47,10 @@ export function useCreateProjectForm() {
       identifier: (val) => {
         const trimmed = val.trim();
         if (!trimmed) {
-          return "Project ID is required";
+          return t("project:errors.identifierRequired");
         }
         if (!PROJECT_IDENTIFIER_PATTERN.test(trimmed)) {
-          return "Use 1–5 capital letters or digits, starting with a letter";
+          return t("project:errors.identifierPattern");
         }
         return null;
       },

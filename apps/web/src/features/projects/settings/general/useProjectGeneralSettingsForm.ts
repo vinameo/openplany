@@ -7,7 +7,6 @@ import {
   normalizeProjectName,
   projectNameProblem,
   projectDescriptionProblem,
-  PROJECT_ERROR_MESSAGES,
   type ProjectListItem,
 } from "@repo/contracts";
 import { GENERIC_ERROR } from "../../../../lib/apiClient";
@@ -48,12 +47,12 @@ export function useProjectGeneralSettingsForm(project: ProjectListItem) {
       );
       applyProjectUpdate(res.project);
       notifications.show({
-        message: "Project updated",
+        message: t("project:settings.general.successNotification"),
         color: "teal",
       });
       return toProjectSettingsValues(res.project);
     },
-    [workspace.slug, project, applyProjectUpdate],
+    [workspace.slug, project, applyProjectUpdate, t],
   );
 
   const onApiError = useCallback(
@@ -64,7 +63,7 @@ export function useProjectGeneralSettingsForm(project: ProjectListItem) {
       }
       if (error.status === 404) {
         notifications.show({
-          message: PROJECT_ERROR_MESSAGES.notFound,
+          message: t("project:errors.notFound"),
           color: "red",
         });
         void Promise.resolve(
@@ -88,7 +87,7 @@ export function useProjectGeneralSettingsForm(project: ProjectListItem) {
       }
       return GENERIC_ERROR;
     },
-    [reload, navigate, workspace.slug, queryClient, project.identifier],
+    [reload, navigate, workspace.slug, queryClient, project.identifier, t],
   );
 
   const {

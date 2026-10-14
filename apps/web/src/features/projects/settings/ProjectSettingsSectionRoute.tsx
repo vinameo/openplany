@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { SettingsSectionFrame } from "../../settings/SettingsSectionFrame";
 import { useSettingsSectionKey } from "../../settings/settingsSectionHandle";
 import { useCurrentProject } from "../detail/currentProjectContext";
@@ -17,6 +18,7 @@ export function ProjectSettingsSectionRoute({
   children,
   sections = PROJECT_SETTINGS_SECTIONS,
 }: ProjectSettingsSectionRouteProps) {
+  const { t } = useTranslation();
   const { project } = useCurrentProject();
   const sectionKey = useSettingsSectionKey();
 
@@ -31,6 +33,10 @@ export function ProjectSettingsSectionRoute({
     throw new Error(`Unknown project settings section key "${sectionKey}"`);
   }
 
+  const sectionLabel = section.labelKey
+    ? t(section.labelKey)
+    : (section.label ?? section.key);
+
   const hasPermission =
     project === null ||
     !section.viewPermission ||
@@ -38,10 +44,10 @@ export function ProjectSettingsSectionRoute({
 
   return (
     <>
-      <ProjectSettingsTitle title={section.label} />
+      <ProjectSettingsTitle title={sectionLabel} />
       <SettingsSectionFrame
         icon={section.icon}
-        label={section.label}
+        label={sectionLabel}
         allowed={hasPermission}
       >
         {children}

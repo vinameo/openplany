@@ -1,4 +1,5 @@
 import { useContext, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   DEFAULT_ADDED_PROJECT_ROLE,
   PROJECT_ROLE_LABELS,
@@ -18,9 +19,7 @@ import {
 import { submitAddMembers } from '../../../members/submitAddMembers';
 import { ProjectMemberCandidateSelect } from './ProjectMemberCandidateSelect';
 import {
-  ADD_PROJECT_MEMBERS_DESCRIPTION,
   limitedToRoleMessage,
-  PROJECT_ADMIN_NOTICE,
   roleRaisedHint,
 } from './projectMembersMessages';
 import { useAddProjectMembers } from './useAddProjectMembers';
@@ -49,6 +48,7 @@ export function AddProjectMembersModal({
   canAddWorkspaceMember,
   onSubmit,
 }: AddProjectMembersModalProps) {
+  const { t } = useTranslation();
   const currentProject = useContext(CurrentProjectContext);
   const addMutation = useAddProjectMembers(slug, identifier);
 
@@ -107,8 +107,8 @@ export function AddProjectMembersModal({
     <AddMembersModalFrame<ProjectRole, ProjectMemberCandidate>
       opened={opened}
       onClose={onClose}
-      title="Add member"
-      description={ADD_PROJECT_MEMBERS_DESCRIPTION}
+      title={t('project:members.addMemberTitle')}
+      description={t('project:members.addProjectMembersDescription')}
       scheme={PROJECT_ROLE_SCHEME}
       defaultRole={defaultRole}
       rowsContext={rowsContext}
@@ -129,7 +129,9 @@ export function AddProjectMembersModal({
         />
       )}
       notice={(row) =>
-        isTopRole(PROJECT_ROLE_SCHEME, row.role) ? PROJECT_ADMIN_NOTICE : null
+        isTopRole(PROJECT_ROLE_SCHEME, row.role)
+          ? t('project:members.projectAdminNotice')
+          : null
       }
       onSubmit={handleSubmit}
     />

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Alert,
   Button,
@@ -36,6 +37,7 @@ export function CreateProjectModal({
   onCreated,
   slug,
 }: CreateProjectModalProps) {
+  const { t } = useTranslation();
   const isDesktop = useIsDesktop();
   const { reload: reloadWorkspace } = useCurrentWorkspace();
   const [submitting, setSubmitting] = useState(false);
@@ -95,7 +97,7 @@ export function CreateProjectModal({
 
     try {
       const res = await projectsApi.create(slug, toRequest(form.values));
-      notifications.show({ message: "Project created" });
+      notifications.show({ message: t("project:create.successNotification") });
       onCreated(res.project);
       resetForm();
       onClose();
@@ -113,24 +115,24 @@ export function CreateProjectModal({
           if (hasHiddenErrors || Object.keys(fieldErrors).length === 0) {
             setErrorAlert(
               hasHiddenErrors
-                ? "Check the icon and cover, then try again."
-                : err.message || "Check the highlighted fields",
+                ? t("project:create.checkIconCover")
+                : err.message || t("project:create.checkFields"),
             );
           }
           return;
         }
         if (err.status === 403) {
-          setErrorAlert("You no longer have permission to create projects");
+          setErrorAlert(t("project:create.forbidden"));
           setForbidden(true);
           void reloadWorkspace();
           return;
         }
         if (err.status === 429) {
-          setRateLimitAlert("Too many attempts. Try again later.");
+          setRateLimitAlert(t("project:create.tooManyAttempts"));
           return;
         }
       }
-      setErrorAlert("Couldn't create the project. Try again.");
+      setErrorAlert(t("project:create.genericError"));
     } finally {
       setSubmitting(false);
     }
@@ -156,10 +158,10 @@ export function CreateProjectModal({
             variant="modal"
           >
             <VisuallyHidden>
-              <h2 id="create-project-title">Create project</h2>
+              <h2 id="create-project-title">{t("project:create.title")}</h2>
             </VisuallyHidden>
             <CloseButton
-              aria-label="Close"
+              aria-label={t("common:actions.close")}
               onClick={handleRequestClose}
               className={classes.closeButton}
             />
@@ -181,16 +183,16 @@ export function CreateProjectModal({
               <div className={classes.nameRow}>
                 <TextInput
                   data-autofocus
-                  aria-label="Project name"
-                  placeholder="Project name"
+                  aria-label={t("project:create.nameLabel")}
+                  placeholder={t("project:create.namePlaceholder")}
                   className={classes.nameInput}
                   value={form.values.name}
                   onChange={handleNameChange}
                   error={form.errors.name}
                 />
                 <TextInput
-                  aria-label="Project ID"
-                  placeholder="ID"
+                  aria-label={t("project:create.identifierLabel")}
+                  placeholder={t("project:create.identifierPlaceholder")}
                   className={classes.idInput}
                   value={form.values.identifier}
                   onChange={handleIdentifierChange}
@@ -201,8 +203,8 @@ export function CreateProjectModal({
               <Textarea
                 minRows={4}
                 maxRows={10}
-                aria-label="Description"
-                placeholder="Description"
+                aria-label={t("project:create.descriptionLabel")}
+                placeholder={t("project:create.descriptionPlaceholder")}
                 value={form.values.description}
                 onChange={(e) =>
                   form.setFieldValue("description", e.currentTarget.value)
@@ -216,10 +218,10 @@ export function CreateProjectModal({
 
           <Group justify="flex-end" className={classes.footer} gap="xs">
             <Button variant="default" onClick={handleRequestClose}>
-              Cancel
+              {t("common:actions.cancel")}
             </Button>
             <Button type="submit" loading={submitting} disabled={forbidden}>
-              Create project
+              {t("project:create.submitButton")}
             </Button>
           </Group>
         </form>

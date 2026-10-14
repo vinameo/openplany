@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
 import { useCurrentProject } from "../detail/currentProjectContext";
 
@@ -8,10 +9,14 @@ function ProjectSettingsTitleContent({
   projectName: string;
   title?: string;
 }) {
+  const { t } = useTranslation();
   const fullTitle =
     title !== undefined && title !== ""
-      ? `${title} · ${projectName} settings`
-      : `${projectName} settings`;
+      ? t("project:settings.documentTitleWithSection", {
+          section: title,
+          project: projectName,
+        })
+      : t("project:settings.documentTitle", { project: projectName });
   useDocumentTitle(fullTitle);
   return null;
 }

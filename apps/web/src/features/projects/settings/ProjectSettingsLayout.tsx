@@ -1,5 +1,6 @@
 import { Outlet, useParams } from "react-router";
 import { Skeleton, Stack } from "@mantine/core";
+import { useTranslation } from "react-i18next";
 import { buildSettingsNavigation } from "../../settings/settingsNavigation";
 import { SettingsLayoutFrame } from "../../settings/SettingsLayoutFrame";
 import { SettingsMobileNavFrame } from "../../settings/SettingsMobileNavFrame";
@@ -27,6 +28,7 @@ function ProjectSettingsLoadingSkeleton() {
 }
 
 export function ProjectSettingsLayout() {
+  const { t } = useTranslation();
   const { workspace } = useCurrentWorkspace();
   const { projectIdentifier = "" } = useParams();
   const { project, status, retry } = useCurrentProject();
@@ -42,10 +44,10 @@ export function ProjectSettingsLayout() {
 
   const sidebar = (
     <SettingsSidebarFrame
-      navLabel="Project settings"
-      heading="Project settings"
+      navLabel={t("project:settings.navLabel")}
+      heading={t("project:settings.heading")}
       backTo={projectPath(workspace.slug, projectIdentifier)}
-      backLabel="Back to project"
+      backLabel={t("project:settings.backLabel")}
       card={<ProjectSettingsCard />}
       groups={nav.groups}
       activeKey={nav.activeKey}
@@ -57,9 +59,9 @@ export function ProjectSettingsLayout() {
 
   const mobileNav = (
     <SettingsMobileNavFrame
-      heading="Project settings"
+      heading={t("project:settings.heading")}
       backTo={projectPath(workspace.slug, projectIdentifier)}
-      backLabel="Back to project"
+      backLabel={t("project:settings.backLabel")}
       groups={nav.groups}
       activeKey={nav.activeKey}
       pathFor={(key) =>

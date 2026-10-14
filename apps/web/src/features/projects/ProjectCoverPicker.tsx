@@ -5,6 +5,7 @@ import {
   type ReactElement,
 } from "react";
 import { Popover } from "@mantine/core";
+import { useTranslation } from "react-i18next";
 import {
   PROJECT_COVER_KEYS,
   type ProjectCoverKey,
@@ -28,6 +29,7 @@ export function ProjectCoverPicker({
   onChange,
   children,
 }: ProjectCoverPickerProps) {
+  const { t } = useTranslation();
   const [opened, setOpened] = useState(false);
   const isDesktop = useIsDesktop();
   const columns = isDesktop ? 4 : 2;
@@ -81,7 +83,11 @@ export function ProjectCoverPicker({
         className={classes.dropdown}
         onKeyDown={handlePopoverKeyDown}
       >
-        <div role="radiogroup" aria-label="Cover" className={classes.grid}>
+        <div
+          role="radiogroup"
+          aria-label={t("project:covers.ariaLabel")}
+          className={classes.grid}
+        >
           {PROJECT_COVER_KEYS.map((key, index) => {
             const isSelected = key === value;
             const cover = PROJECT_COVERS[key];

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import {
   Alert,
   Button,
@@ -11,7 +12,7 @@ import {
   TextInput,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { PROJECT_ERROR_MESSAGES, type ProjectListItem } from "@repo/contracts";
+import type { ProjectListItem } from "@repo/contracts";
 import { ApiRequestError, GENERIC_ERROR } from "../../../../lib/apiClient";
 import { useIsDesktop } from "../../../layout/useIsDesktop";
 import { useAuth } from "../../../auth/useAuth";
@@ -36,6 +37,7 @@ export function DeleteProjectModal({
   project,
   slug,
 }: DeleteProjectModalProps) {
+  const { t } = useTranslation();
   const isDesktop = useIsDesktop();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -67,7 +69,7 @@ export function DeleteProjectModal({
       await deleteMutation.mutateAsync(project.identifier);
       handleClose();
       notifications.show({
-        message: "Project deleted",
+        message: t("project:settings.delete.successNotification"),
         color: "teal",
       });
       await Promise.resolve(
@@ -89,7 +91,7 @@ export function DeleteProjectModal({
         if (err.status === 404) {
           handleClose();
           notifications.show({
-            message: PROJECT_ERROR_MESSAGES.notFound,
+            message: t("project:errors.notFound"),
             color: "red",
           });
           await Promise.resolve(
@@ -120,7 +122,7 @@ export function DeleteProjectModal({
     <Modal
       opened={opened}
       onClose={handleClose}
-      title="Delete project"
+      title={t("project:settings.delete.modalTitle")}
       size="md"
       fullScreen={!isDesktop}
     >
@@ -138,12 +140,13 @@ export function DeleteProjectModal({
           )}
 
           <Text size="sm">
-            {project.name} and everything in it will be removed for everyone.
-            This can&apos;t be undone.
+            {t("project:settings.delete.warning", { name: project.name })}
           </Text>
 
           <TextInput
-            label={`Type ${project.identifier} to confirm`}
+            label={t("project:settings.delete.confirmLabel", {
+              identifier: project.identifier,
+            })}
             value={confirmationInput}
             onChange={(e) => setConfirmationInput(e.currentTarget.value)}
             data-autofocus
@@ -156,7 +159,7 @@ export function DeleteProjectModal({
               onClick={handleClose}
               disabled={deleteMutation.isPending}
             >
-              Cancel
+              {t("common:actions.cancel")}
             </Button>
             <Button
               color="red"
@@ -164,7 +167,7 @@ export function DeleteProjectModal({
               disabled={!isMatching}
               loading={deleteMutation.isPending}
             >
-              Delete project
+              {t("project:settings.delete.confirmButton")}
             </Button>
           </Group>
         </Stack>

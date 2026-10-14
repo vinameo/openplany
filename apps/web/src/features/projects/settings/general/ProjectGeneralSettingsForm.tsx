@@ -11,6 +11,7 @@ import {
   TextInput,
   Tooltip,
 } from "@mantine/core";
+import { useTranslation } from "react-i18next";
 import {
   PROJECT_NAME_MAX,
   type ProjectListItem,
@@ -35,6 +36,7 @@ interface ProjectGeneralSettingsFormProps {
 export function ProjectGeneralSettingsForm({
   project,
 }: ProjectGeneralSettingsFormProps) {
+  const { t } = useTranslation();
   const { workspace } = useCurrentWorkspace();
   const {
     form,
@@ -45,11 +47,12 @@ export function ProjectGeneralSettingsForm({
     canEdit,
   } = useProjectGeneralSettingsForm(project);
 
-
   const nameLength = form.values.name ? form.values.name.length : 0;
   const remaining = PROJECT_NAME_MAX - nameLength;
   const nameDescription =
-    remaining <= 10 ? `${remaining} characters left` : undefined;
+    remaining <= 10
+      ? t("common:charactersLeft", { count: remaining })
+      : undefined;
 
   return (
     <div style={{ maxWidth: 880 }}>
@@ -89,7 +92,7 @@ export function ProjectGeneralSettingsForm({
 
         <Stack gap="lg">
           <TextInput
-            label="Project name"
+            label={t("project:settings.general.nameLabel")}
             required
             readOnly={!canEdit}
             description={nameDescription}
@@ -98,8 +101,8 @@ export function ProjectGeneralSettingsForm({
           />
 
           <Textarea
-            label="Description"
-            placeholder="Enter project description"
+            label={t("project:settings.general.descriptionLabel")}
+            placeholder={t("project:settings.general.descriptionPlaceholder")}
             minRows={4}
             maxRows={10}
             readOnly={!canEdit}
@@ -109,7 +112,7 @@ export function ProjectGeneralSettingsForm({
 
           <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="lg">
             <TextInput
-              label="Project ID"
+              label={t("project:settings.general.identifierLabel")}
               value={project.identifier}
               readOnly
               rightSection={
@@ -123,7 +126,7 @@ export function ProjectGeneralSettingsForm({
                     variant="subtle"
                     color="gray"
                     size="sm"
-                    aria-label="About project ID"
+                    aria-label={t("project:settings.general.aboutIdentifierAriaLabel")}
                   >
                     <InfoIcon width={16} height={16} />
                   </ActionIcon>
@@ -132,8 +135,8 @@ export function ProjectGeneralSettingsForm({
             />
 
             <TimezoneSelect
-              label="Project Timezone"
-              description="Dates in this project, such as due dates, are read in this time zone."
+              label={t("project:settings.general.timezoneLabel")}
+              description={t("project:settings.general.timezoneDescription")}
               inputWrapperOrder={["label", "input", "description", "error"]}
               value={form.values.timezone}
               onChange={(val) => form.setFieldValue("timezone", val)}
@@ -142,7 +145,9 @@ export function ProjectGeneralSettingsForm({
               error={form.errors.timezone}
               followOption={{
                 value: FOLLOW_WORKSPACE_TIMEZONE,
-                label: `Workspace timezone · ${timezoneOptionLabel(workspace.timezone)}`,
+                label: t("project:settings.general.workspaceTimezoneFollow", {
+                  timezone: timezoneOptionLabel(workspace.timezone),
+                }),
               }}
             />
           </SimpleGrid>
@@ -160,14 +165,18 @@ export function ProjectGeneralSettingsForm({
                 loading={isSaving}
                 disabled={!hasChanges || !form.isValid()}
               >
-                Update project
+                {t("project:settings.general.submitButton")}
               </Button>
             ) : (
               <div />
             )}
             <Text c="dimmed" fs="italic" size="sm">
-              {"Created on " +
-                formatCalendarDate(project.createdAt, project.effectiveTimezone)}
+              {t("project:settings.general.createdOn", {
+                date: formatCalendarDate(
+                  project.createdAt,
+                  project.effectiveTimezone,
+                ),
+              })}
             </Text>
           </Group>
         </Stack>

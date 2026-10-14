@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button, Group } from "@mantine/core";
+import { useTranslation } from "react-i18next";
 import type { ProjectListItem } from "@repo/contracts";
 import { SettingsSection } from "../../../settings/SettingsSection";
 import { useCurrentWorkspace } from "../../../workspaces/currentWorkspace/useCurrentWorkspace";
@@ -10,6 +11,7 @@ export interface DeleteProjectSectionProps {
 }
 
 export function DeleteProjectSection({ project }: DeleteProjectSectionProps) {
+  const { t } = useTranslation();
   const { workspace } = useCurrentWorkspace();
   const [modalOpened, setModalOpened] = useState(false);
 
@@ -22,8 +24,8 @@ export function DeleteProjectSection({ project }: DeleteProjectSectionProps) {
     <>
       <SettingsSection
         variant="danger"
-        title="Delete"
-        description="When deleting a project, all of the data and resources within that project will be permanently removed and cannot be recovered."
+        title={t("project:settings.delete.title")}
+        description={t("project:settings.delete.description")}
       >
         <Group justify="flex-start" mt="md">
           <Button
@@ -31,7 +33,7 @@ export function DeleteProjectSection({ project }: DeleteProjectSectionProps) {
             color="red"
             onClick={() => setModalOpened(true)}
           >
-            Delete
+            {t("project:settings.delete.button")}
           </Button>
         </Group>
       </SettingsSection>

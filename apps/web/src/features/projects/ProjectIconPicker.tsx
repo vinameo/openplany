@@ -5,6 +5,7 @@ import {
   type KeyboardEvent,
   type ReactElement,
 } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ActionIcon,
   ColorSwatch,
@@ -19,6 +20,7 @@ import {
 import {
   PROJECT_ICON_COLOR_PATTERN,
   PROJECT_ICON_NAMES,
+  type MessageKey,
   type ProjectIconName,
 } from "@repo/contracts";
 import { SearchIcon } from "../workspaces/icons";
@@ -27,15 +29,15 @@ import { PROJECT_ICON_COMPONENTS } from "./projectIcons";
 import { useGridNavigation } from "./useGridNavigation";
 import classes from "./ProjectIconPicker.module.css";
 
-const COLOR_PRESETS = [
-  { color: "#868E96", label: "Gray" },
-  { color: "#5C6B7A", label: "Slate" },
-  { color: "#5C5FD6", label: "Indigo" },
-  { color: "#15AABF", label: "Cyan" },
-  { color: "#2F9E44", label: "Green" },
-  { color: "#FAB005", label: "Yellow" },
-  { color: "#F76707", label: "Orange" },
-  { color: "#FF8787", label: "Pink" },
+const COLOR_PRESETS: readonly { color: string; labelKey: MessageKey }[] = [
+  { color: "#868E96", labelKey: "project:icons.colors.gray" },
+  { color: "#5C6B7A", labelKey: "project:icons.colors.slate" },
+  { color: "#5C5FD6", labelKey: "project:icons.colors.indigo" },
+  { color: "#15AABF", labelKey: "project:icons.colors.cyan" },
+  { color: "#2F9E44", labelKey: "project:icons.colors.green" },
+  { color: "#FAB005", labelKey: "project:icons.colors.yellow" },
+  { color: "#F76707", labelKey: "project:icons.colors.orange" },
+  { color: "#FF8787", labelKey: "project:icons.colors.pink" },
 ] as const;
 
 export interface ProjectIconPickerProps {
@@ -51,6 +53,7 @@ export function ProjectIconPicker({
   onChange,
   children,
 }: ProjectIconPickerProps) {
+  const { t } = useTranslation();
   const [opened, setOpened] = useState(false);
   const [search, setSearch] = useState("");
   const [showCustomInput, setShowCustomInput] = useState(false);
@@ -131,8 +134,8 @@ export function ProjectIconPicker({
         <Stack gap="xs">
           {/* 1. Search icons */}
           <TextInput
-            placeholder="Search icons…"
-            aria-label="Search icons"
+            placeholder={t("project:icons.searchPlaceholder")}
+            aria-label={t("project:icons.searchAriaLabel")}
             size="xs"
             leftSection={<SearchIcon width={14} height={14} />}
             value={search}
@@ -140,7 +143,11 @@ export function ProjectIconPicker({
           />
 
           {/* 2. Color swatches */}
-          <div role="radiogroup" aria-label="Icon color" className={classes.colorRow}>
+          <div
+            role="radiogroup"
+            aria-label={t("project:icons.colorGroupAriaLabel")}
+            className={classes.colorRow}
+          >
             {COLOR_PRESETS.map((preset) => {
               const isSelected =
                 value.color.toUpperCase() === preset.color.toUpperCase();
@@ -150,7 +157,7 @@ export function ProjectIconPicker({
                   key={preset.color}
                   role="radio"
                   aria-checked={isSelected}
-                  aria-label={preset.label}
+                  aria-label={t(preset.labelKey)}
                   className={`${classes.swatchButton} ${isSelected ? classes.swatchSelected : ""}`}
                   onClick={() => onChange({ ...value, color: preset.color })}
                 >
@@ -160,7 +167,7 @@ export function ProjectIconPicker({
             })}
             <button
               type="button"
-              aria-label="Custom color picker"
+              aria-label={t("project:icons.customColorPickerAriaLabel")}
               className={classes.hashButton}
               onClick={() => setShowCustomInput((prev) => !prev)}
             >
@@ -171,8 +178,8 @@ export function ProjectIconPicker({
           {/* 3. Custom color input */}
           {showCustomInput && (
             <TextInput
-              placeholder="#RRGGBB"
-              aria-label="Custom color"
+              placeholder={t("project:icons.hexPlaceholder")}
+              aria-label={t("project:icons.customColorAriaLabel")}
               size="xs"
               value={customHex}
               onChange={(e) => handleCustomHexChange(e.currentTarget.value)}
@@ -182,13 +189,17 @@ export function ProjectIconPicker({
           {/* 4. Contrast disclaimer note */}
           <div className={classes.noteRow}>
             <Text size="xs" c="dimmed">
-              ⓘ Colors will be adjusted to ensure sufficient contrast.
+              {t("project:icons.contrastDisclaimer")}
             </Text>
           </div>
 
           {/* 5. Icon grid */}
           <ScrollArea h={240} type="auto">
-            <div role="radiogroup" aria-label="Icon" className={classes.iconGrid}>
+            <div
+              role="radiogroup"
+              aria-label={t("project:icons.iconGroupAriaLabel")}
+              className={classes.iconGrid}
+            >
               {filteredIcons.map((iconName, index) => {
                 const IconComponent = PROJECT_ICON_COMPONENTS[iconName];
                 const isSelected = value.name === iconName;
