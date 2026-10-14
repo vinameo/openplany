@@ -1,4 +1,6 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
+import type { Language, MessageRef } from '@repo/contracts';
+import { translateMessageRef } from '../i18n/i18n.js';
 
 export const API_ERROR_CODES = [
   'VALIDATION_ERROR',
@@ -38,24 +40,62 @@ export interface ApiErrorBody {
   retryAfterSeconds?: number;
 }
 
-interface ApiExceptionOptions {
-  fields?: Record<string, string>;
+export type ApiFieldError = MessageRef | { libraryText: string } | string;
+
+export function resolveApiFields(
+  fields?: Record<string, ApiFieldError>,
+  lang: Language = 'en',
+): Record<string, string> | undefined {
+  if (!fields) return undefined;
+  const result: Record<string, string> = {};
+  for (const [key, val] of Object.entries(fields)) {
+    if (typeof val === 'string') {
+      result[key] =
+        lang === 'vi'
+          ? translateMessageRef({ key: 'errors:invalidValue' }, 'vi')
+          : val;
+    } else if ('libraryText' in val) {
+      result[key] =
+        lang === 'vi'
+          ? translateMessageRef({ key: 'errors:invalidValue' }, 'vi')
+          : val.libraryText;
+    } else {
+      result[key] = translateMessageRef(val, lang);
+    }
+  }
+  return result;
+}
+
+export interface ApiExceptionOptions {
+  fields?: Record<string, ApiFieldError>;
   retryAfterSeconds?: number;
 }
 
 /** An HttpException that carries a machine-readable `code` for the client. */
 export class ApiException extends HttpException {
-  readonly fields?: Record<string, string>;
+  readonly messageRef?: MessageRef;
+  readonly fields?: Record<string, ApiFieldError>;
   readonly retryAfterSeconds?: number;
 
   constructor(
     status: HttpStatus,
     readonly code: ApiErrorCode,
-    message: string,
+    message: MessageRef | string,
     options: ApiExceptionOptions = {},
   ) {
-    super(message, status);
+    const enMessage =
+      typeof message === 'string'
+        ? message
+        : translateMessageRef(message, 'en');
+    super(enMessage, status);
+    if (typeof message !== 'string') {
+      this.messageRef = message;
+    }
     this.fields = options.fields;
     this.retryAfterSeconds = options.retryAfterSeconds;
+  }
+
+  getEnglishFields(): Record<string, string> | undefined {
+    return resolveApiFields(this.fields, 'en');
   }
 }

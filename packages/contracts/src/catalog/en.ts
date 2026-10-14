@@ -16,6 +16,12 @@ export const en = {
   errors: {
     invalidValue: "Check the highlighted fields",
     validationFailed: "Validation failed",
+    checkHighlightedFields: "Check the highlighted fields",
+    foreignKeyViolation: "Foreign key violation",
+    "http.validationError": "Validation failed",
+    "http.unauthenticated": "Sign in to continue",
+    "http.notFound": "Not found",
+    "http.internalError": "Something went wrong",
   },
   workspace: {
     title: "Workspace",

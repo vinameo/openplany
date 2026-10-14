@@ -17,6 +17,12 @@ export const vi: ViCatalog = {
   errors: {
     invalidValue: "Dữ liệu gửi lên không hợp lệ",
     validationFailed: "Dữ liệu gửi lên không hợp lệ",
+    checkHighlightedFields: "Kiểm tra các trường được đánh dấu",
+    foreignKeyViolation: "Dữ liệu liên kết không hợp lệ",
+    "http.validationError": "Dữ liệu gửi lên không hợp lệ",
+    "http.unauthenticated": "Đăng nhập để tiếp tục",
+    "http.notFound": "Không tìm thấy nội dung bạn cần",
+    "http.internalError": "Đã có lỗi xảy ra",
   },
   workspace: {
     title: "Workspace",

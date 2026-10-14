@@ -21,7 +21,7 @@ describe('Project field messages and validation consistency (API B6, B11.1)', ()
       return {};
     } catch (err) {
       if (err instanceof ApiException) {
-        return err.fields ?? {};
+        return err.getEnglishFields() ?? {};
       }
       throw err;
     }
@@ -35,7 +35,7 @@ describe('Project field messages and validation consistency (API B6, B11.1)', ()
       return {};
     } catch (err) {
       if (err instanceof ApiException) {
-        return err.fields ?? {};
+        return err.getEnglishFields() ?? {};
       }
       throw err;
     }
