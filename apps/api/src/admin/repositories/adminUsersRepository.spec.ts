@@ -1,11 +1,20 @@
-import { describe, expect, it, vi } from 'vitest';
-import { QueryFailedError, type Repository } from 'typeorm';
+import { IsNull, QueryFailedError, type Repository } from 'typeorm';
 import type { User } from '../../auth/entities/user.entity.js';
 import {
   EmailAlreadyExistsError,
+  LISTED_USER,
   type NewUser,
   TypeOrmAdminUsersRepository,
 } from './adminUsersRepository.js';
+
+describe('LISTED_USER (INV-02)', () => {
+  it('excludes bots and masked/anonymized users', () => {
+    expect(LISTED_USER).toEqual({
+      isBot: false,
+      maskedAt: IsNull(),
+    });
+  });
+});
 
 describe('TypeOrmAdminUsersRepository', () => {
   const sampleUser: NewUser = {

@@ -10,12 +10,12 @@ describe('InMemorySlidingWindowLimiter', () => {
     const now = new Date('2026-10-08T12:00:00.000Z');
 
     expect(limiter.hit('user-1', now).allowed).toBe(true);
-    expect(limiter.hit('user-1', new Date(now.getTime() + 10_000)).allowed).toBe(
-      true,
-    );
-    expect(limiter.hit('user-1', new Date(now.getTime() + 20_000)).allowed).toBe(
-      true,
-    );
+    expect(
+      limiter.hit('user-1', new Date(now.getTime() + 10_000)).allowed,
+    ).toBe(true);
+    expect(
+      limiter.hit('user-1', new Date(now.getTime() + 20_000)).allowed,
+    ).toBe(true);
 
     const fourth = limiter.hit('user-1', new Date(now.getTime() + 30_000));
     expect(fourth.allowed).toBe(false);
@@ -63,5 +63,47 @@ describe('InMemorySlidingWindowLimiter', () => {
     const result = limiter.hit('user-stale', tLater);
     expect(result.allowed).toBe(true);
   });
-});
 
+  it('reports firstBlockInWindow: true on the first block since the most recent allowed hit, and false on subsequent blocks', () => {
+    const limiter = new InMemorySlidingWindowLimiter({
+      limit: 2,
+      windowMs: 10_000,
+    });
+    const t0 = new Date('2026-10-08T12:00:00.000Z');
+
+    expect(limiter.hit('user-1', t0).allowed).toBe(true);
+    expect(limiter.hit('user-1', new Date(t0.getTime() + 1_000)).allowed).toBe(
+      true,
+    );
+
+    // 1st block: firstBlockInWindow must be true
+    const block1 = limiter.hit('user-1', new Date(t0.getTime() + 2_000));
+    expect(block1.allowed).toBe(false);
+    expect(block1.firstBlockInWindow).toBe(true);
+
+    // 2nd block: firstBlockInWindow must be false
+    const block2 = limiter.hit('user-1', new Date(t0.getTime() + 3_000));
+    expect(block2.allowed).toBe(false);
+    expect(block2.firstBlockInWindow).toBe(false);
+
+    // Window slides past all previous hits: now hits are allowed again
+    const tAfter = new Date(t0.getTime() + 12_000);
+    const allowedAfter = limiter.hit('user-1', tAfter);
+    expect(allowedAfter.allowed).toBe(true);
+
+    // Hit once more to reach limit (2 hits in window: tAfter, and tAfter + 100)
+    expect(
+      limiter.hit('user-1', new Date(tAfter.getTime() + 100)).allowed,
+    ).toBe(true);
+
+    // Next block after being allowed again: firstBlockInWindow resets to true
+    const block3 = limiter.hit('user-1', new Date(tAfter.getTime() + 200));
+    expect(block3.allowed).toBe(false);
+    expect(block3.firstBlockInWindow).toBe(true);
+
+    // Subsequent block is false
+    const block4 = limiter.hit('user-1', new Date(tAfter.getTime() + 300));
+    expect(block4.allowed).toBe(false);
+    expect(block4.firstBlockInWindow).toBe(false);
+  });
+});

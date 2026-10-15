@@ -30,6 +30,9 @@ export const API_ERROR_CODES = [
   'ROLE_CHANGED',
   'ROLE_INHERITED',
   'LAST_ADMIN',
+  'USER_NOT_FOUND',
+  'USER_CHANGED_SINCE_LOADED',
+  'CANNOT_CHANGE_OWN_PASSWORD',
   'INTERNAL_ERROR',
 ] as const;
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number];

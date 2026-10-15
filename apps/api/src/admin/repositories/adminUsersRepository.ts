@@ -1,8 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { Repository } from 'typeorm';
+import { type FindOptionsWhere, IsNull, type Repository } from 'typeorm';
 import { User } from '../../auth/entities/user.entity.js';
 import { isUniqueViolation } from '../../common/databaseErrors.js';
+
+/**
+ * INV-02: Single source of truth for "who appears in the Users page":
+ * not a bot and not anonymized/masked.
+ */
+export const LISTED_USER: FindOptionsWhere<User> = {
+  isBot: false,
+  maskedAt: IsNull(),
+};
 
 export interface NewUser {
   email: string;
