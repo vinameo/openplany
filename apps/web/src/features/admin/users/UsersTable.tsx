@@ -1,4 +1,4 @@
-import { Badge, Group, Table, Text, VisuallyHidden } from '@mantine/core';
+import { Badge, Button, Group, Table, Text, VisuallyHidden } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
 import type { AdminUserResponse, AdminUserSortKey } from '@repo/contracts';
 import dataTableClasses from '../../workspaces/table/dataTable.module.css';
@@ -13,6 +13,7 @@ export interface UsersTableProps {
   currentSort?: SortState<AdminUserSortKey>;
   onSortChange?: (sort: SortState<AdminUserSortKey>) => void;
   isPlaceholderData?: boolean;
+  onClearFilters?: () => void;
   onEdit?: (user: AdminUserResponse) => void;
   onChangePassword?: (user: AdminUserResponse) => void;
 }
@@ -22,6 +23,7 @@ export function UsersTable({
   currentSort = { key: 'createdAt', direction: 'desc' },
   onSortChange = () => {},
   isPlaceholderData = false,
+  onClearFilters,
   onEdit,
   onChangePassword,
 }: UsersTableProps) {
@@ -42,21 +44,26 @@ export function UsersTable({
         </Table.Caption>
         <Table.Thead>
           <Table.Tr>
-            <Table.Th className={dataTableClasses.stickyHeader}>
-              <Text size="sm" fw={600}>
-                {t('admin:users.table.fullName')}
-              </Text>
-            </Table.Th>
-            <Table.Th className={classes.colDisplayName}>
-              <Text size="sm" fw={600}>
-                {t('admin:users.table.displayName')}
-              </Text>
-            </Table.Th>
-            <Table.Th>
-              <Text size="sm" fw={600}>
-                {t('admin:users.table.email')}
-              </Text>
-            </Table.Th>
+            <SortableHeader<AdminUserSortKey>
+              title={t('admin:users.table.fullName')}
+              sortKey="fullName"
+              currentSort={currentSort}
+              onSortChange={onSortChange}
+              className={dataTableClasses.stickyHeader}
+            />
+            <SortableHeader<AdminUserSortKey>
+              title={t('admin:users.table.displayName')}
+              sortKey="displayName"
+              currentSort={currentSort}
+              onSortChange={onSortChange}
+              className={classes.colDisplayName}
+            />
+            <SortableHeader<AdminUserSortKey>
+              title={t('admin:users.table.email')}
+              sortKey="email"
+              currentSort={currentSort}
+              onSortChange={onSortChange}
+            />
             <SortableHeader<AdminUserSortKey>
               title={t('admin:users.table.accountCreated')}
               sortKey="createdAt"
@@ -77,6 +84,11 @@ export function UsersTable({
                   <Text size="sm" c="dimmed">
                     {t('admin:users.table.empty')}
                   </Text>
+                  {onClearFilters && (
+                    <Button variant="subtle" size="xs" onClick={onClearFilters}>
+                      {t('admin:users.table.clearAll')}
+                    </Button>
+                  )}
                 </div>
               </Table.Td>
             </Table.Tr>

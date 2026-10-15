@@ -42,9 +42,20 @@ export type AdminUserAction =
       message: string;
     };
 
-function fallbackMessageForContext(): string {
-  // Currently covers 'create'; other contexts will provide specific keys in tickets 03-06.
-  return translate("admin:users.errors.createFailed");
+function fallbackMessageForContext(context: AdminUserErrorContext): string {
+  switch (context) {
+    case "list":
+      return translate("admin:users.errors.loadFailed");
+    case "detail":
+      return translate("admin:users.errors.loadUserFailed");
+    case "update":
+      return translate("admin:users.errors.updateFailed");
+    case "password":
+      return translate("admin:users.errors.passwordFailed");
+    case "create":
+    default:
+      return translate("admin:users.errors.createFailed");
+  }
 }
 
 /**
@@ -68,13 +79,13 @@ export function parseAdminUserError(
       if (error.code === "CANNOT_CHANGE_OWN_PASSWORD") {
         return {
           type: "cannotChangeOwnPassword",
-          message: translate("admin:users.errors.noPermission"),
+          message: translate("admin:users.errors.noPermissionManage"),
         };
       }
       const message =
         context === "create"
           ? translate("admin:users.errors.noPermission")
-          : translate("admin:users.errors.noPermission");
+          : translate("admin:users.errors.noPermissionManage");
       return {
         type: "forbidden",
         message,
@@ -85,11 +96,21 @@ export function parseAdminUserError(
     if (error.code === "TOO_MANY_ATTEMPTS" || error.status === 429) {
       const retryAfterSeconds = error.retryAfterSeconds ?? 60;
       const minutes = Math.ceil(retryAfterSeconds / 60);
+
+      let message: string;
+      if (context === "create") {
+        message = translate("admin:users.errors.tooManyUsers", {
+          count: minutes,
+        });
+      } else if (context === "list" || context === "detail") {
+        message = translate("admin:errors.tooManyRequests");
+      } else {
+        message = translate("admin:errors.tooManyUserChanges");
+      }
+
       return {
         type: "rateLimit",
-        message: translate("admin:users.errors.tooManyUsers", {
-          count: minutes,
-        }),
+        message,
         retryAfterSeconds,
       };
     }
@@ -116,7 +137,7 @@ export function parseAdminUserError(
     if (error.code === "USER_NOT_FOUND" || error.status === 404) {
       return {
         type: "userNotFound",
-        message: translate("admin:users.errors.createFailed"),
+        message: translate("admin:users.errors.userNotFound"),
       };
     }
 
@@ -128,12 +149,12 @@ export function parseAdminUserError(
 
     return {
       type: "general",
-      message: fallbackMessageForContext(),
+      message: fallbackMessageForContext(context),
     };
   }
 
   return {
     type: "general",
-    message: fallbackMessageForContext(),
+    message: fallbackMessageForContext(context),
   };
 }

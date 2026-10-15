@@ -177,9 +177,9 @@ describe('UsersRoute', { timeout: 15000 }, () => {
     const modalTitle = await screen.findByRole('heading', { name: 'Create user' });
     expect(modalTitle).toBeInTheDocument();
 
-    // Has inputs
-    expect(screen.getByLabelText(/first name/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
+    // Has inputs inside modal
+    expect(screen.getByRole('textbox', { name: /^first name/i })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: /^email$/i })).toBeInTheDocument();
   });
 
   it('B2.1: handles 403 on users query by refreshing session', async () => {
@@ -202,6 +202,150 @@ describe('UsersRoute', { timeout: 15000 }, () => {
 
     await waitFor(() => {
       expect(sessionCalls).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  it('AC-06 & AC-30: debounces search input and synchronizes URL with replace', async () => {
+    const { router, user } = renderRoute();
+
+    const searchInput = await screen.findByPlaceholderText(/search by name or email/i);
+    await user.type(searchInput, 'nguyen');
+
+    // Wait for 300ms debounce
+    await waitFor(() => {
+      expect(router.state.location.search).toContain('search=nguyen');
+    });
+
+    // Should keep replace (history length doesn't expand per keystroke)
+    expect(router.state.historyAction).toBe('REPLACE');
+  });
+
+  it('AC-07 & AC-30: filter popover filters status and instance admin, updating URL and resetting page', async () => {
+    const { router, user } = renderRoute({
+      initialEntries: [`${USERS_PATH}?page=2`],
+    });
+
+    const filterButton = await screen.findByTestId('users-filter-button');
+    expect(filterButton).toHaveTextContent('Filters');
+
+    await user.click(filterButton);
+
+    // Click Deactivated radio
+    const deactivatedRadio = await screen.findByRole('radio', { name: /^deactivated/i });
+    await user.click(deactivatedRadio);
+
+    await waitFor(() => {
+      expect(router.state.location.search).toContain('status=deactivated');
+      expect(router.state.location.search).not.toContain('page=2');
+    });
+    expect(filterButton).toHaveTextContent('Filters · 1');
+
+    // Click Instance admins only radio
+    const adminOnlyRadio = await screen.findByRole('radio', { name: /^instance admins only/i });
+    await user.click(adminOnlyRadio);
+
+    await waitFor(() => {
+      expect(router.state.location.search).toContain('admin=only');
+    });
+    expect(filterButton).toHaveTextContent('Filters · 2');
+
+    // Click Clear filters in popover
+    const clearButton = await screen.findByRole('button', { name: /^clear filters/i });
+    await user.click(clearButton);
+
+    await waitFor(() => {
+      expect(router.state.location.search).not.toContain('status=');
+      expect(router.state.location.search).not.toContain('admin=');
+    });
+    expect(filterButton).toHaveTextContent('Filters');
+  });
+
+  it('AC-08: sorts columns via header menu and sends sort + order', async () => {
+    const { router, user } = renderRoute();
+
+    await screen.findByRole('heading', { name: /^users/i });
+
+    // Open sort menu on Full name
+    const sortBtn = screen.getByRole('button', { name: /sort by full name/i });
+    await user.click(sortBtn);
+
+    const ascOption = await screen.findByRole('menuitem', { name: /^ascending/i });
+    await user.click(ascOption);
+
+    await waitFor(() => {
+      expect(router.state.location.search).toContain('sort=fullName');
+      expect(router.state.location.search).toContain('order=asc');
+    });
+    expect(router.state.historyAction).toBe('REPLACE');
+  });
+
+  it('AC-22 & WEB B2.7: empty state renders "Clear search and filters" when filters or search are active', async () => {
+    const { router, user } = renderRoute({
+      initialEntries: [`${USERS_PATH}?search=nonexistent`],
+      extraMocks: {
+        'GET /api/admin/users': () =>
+          jsonResponse(200, { items: [], total: 0, page: 1, pageSize: 50 }),
+      },
+    });
+
+    await screen.findByText('No users match your search.');
+    const clearAllButton = screen.getByRole('button', { name: /clear search and filters/i });
+    expect(clearAllButton).toBeInTheDocument();
+
+    await user.click(clearAllButton);
+
+    await waitFor(() => {
+      expect(router.state.location.search).toBe('');
+    });
+  });
+
+  it('AC-27 & WEB B2.7: displays rate limit error alert when read limiter exceeded (429)', async () => {
+    renderRoute({
+      extraMocks: {
+        'GET /api/admin/users': () =>
+          apiError(429, 'TOO_MANY_ATTEMPTS', 'Too many requests. Please wait a moment and try again.', {
+            retryAfterSeconds: 30,
+          }),
+      },
+    });
+
+    const errorAlert = await screen.findByTestId('users-load-error');
+    expect(errorAlert).toBeInTheDocument();
+    expect(errorAlert).toHaveTextContent('Too many requests. Please wait a moment and try again.');
+    expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
+  });
+
+  it('AC-37 & INV-W4: Back navigation leaves /users because parameter updates use replace', async () => {
+    // Initial entries: workspace page then users page
+    const { router, user } = renderRoute({
+      initialEntries: ['/workspaces/demo', USERS_PATH],
+    });
+
+    await screen.findByRole('heading', { name: /^users/i });
+    expect(router.state.location.pathname).toBe(USERS_PATH);
+
+    // Apply a search filter
+    const searchInput = screen.getByPlaceholderText(/search by name or email/i);
+    await user.type(searchInput, 'test');
+    await waitFor(() => {
+      expect(router.state.location.search).toContain('search=test');
+    });
+
+    // Apply a sort
+    const sortBtn = screen.getByRole('button', { name: /sort by full name/i });
+    await user.click(sortBtn);
+    const ascOption = await screen.findByRole('menuitem', { name: /^ascending/i });
+    await user.click(ascOption);
+    await waitFor(() => {
+      expect(router.state.location.search).toContain('sort=fullName');
+    });
+
+    // Now navigate back
+    router.navigate(-1);
+
+    // Should navigate directly back to /workspaces/demo, leaving /users completely!
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/workspaces/demo');
     });
   });
 });

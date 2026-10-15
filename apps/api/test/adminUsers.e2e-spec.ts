@@ -724,5 +724,359 @@ describe('Admin Users (e2e)', () => {
       expect(resPage10.body.total).toBe(3);
       expect(resPage10.body.items).toEqual([]);
     });
+
+    it('returns 400 with fields for invalid query parameters (API B3.1, AC-22)', async () => {
+      await createDbUser('admin@openplany.dev', true);
+      const cookie = await signInCookie('admin@openplany.dev');
+
+      // Invalid page: 0
+      const resPage0 = await http()
+        .get('/api/admin/users?page=0')
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(400);
+      expect(resPage0.body.code).toBe('VALIDATION_ERROR');
+      expect(resPage0.body.fields).toHaveProperty('page');
+
+      // Invalid page: negative
+      const resPageNeg = await http()
+        .get('/api/admin/users?page=-5')
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(400);
+      expect(resPageNeg.body.code).toBe('VALIDATION_ERROR');
+      expect(resPageNeg.body.fields).toHaveProperty('page');
+
+      // Invalid page: string
+      const resPageStr = await http()
+        .get('/api/admin/users?page=abc')
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(400);
+      expect(resPageStr.body.code).toBe('VALIDATION_ERROR');
+      expect(resPageStr.body.fields).toHaveProperty('page');
+
+      // Invalid page: exponential notation 1e3
+      const resPageExp = await http()
+        .get('/api/admin/users?page=1e3')
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(400);
+      expect(resPageExp.body.code).toBe('VALIDATION_ERROR');
+      expect(resPageExp.body.fields).toHaveProperty('page');
+
+      // Invalid page: float 1.5
+      const resPageFloat = await http()
+        .get('/api/admin/users?page=1.5')
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(400);
+      expect(resPageFloat.body.code).toBe('VALIDATION_ERROR');
+      expect(resPageFloat.body.fields).toHaveProperty('page');
+
+      // Invalid sort
+      const resSort = await http()
+        .get('/api/admin/users?sort=invalid_sort')
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(400);
+      expect(resSort.body.code).toBe('VALIDATION_ERROR');
+      expect(resSort.body.fields).toHaveProperty('sort');
+
+      // Invalid order
+      const resOrder = await http()
+        .get('/api/admin/users?order=diagonal')
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(400);
+      expect(resOrder.body.code).toBe('VALIDATION_ERROR');
+      expect(resOrder.body.fields).toHaveProperty('order');
+
+      // Invalid status
+      const resStatus = await http()
+        .get('/api/admin/users?status=banned')
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(400);
+      expect(resStatus.body.code).toBe('VALIDATION_ERROR');
+      expect(resStatus.body.fields).toHaveProperty('status');
+
+      // Invalid instanceAdmin
+      const resAdmin = await http()
+        .get('/api/admin/users?instanceAdmin=true')
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(400);
+      expect(resAdmin.body.code).toBe('VALIDATION_ERROR');
+      expect(resAdmin.body.fields).toHaveProperty('instanceAdmin');
+
+      // Search too long (> 100 characters)
+      const resSearchLong = await http()
+        .get(`/api/admin/users?search=${'a'.repeat(101)}`)
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(400);
+      expect(resSearchLong.body.code).toBe('VALIDATION_ERROR');
+      expect(resSearchLong.body.fields).toHaveProperty('search');
+
+      // Search with control character
+      const resSearchControl = await http()
+        .get('/api/admin/users?search=hello%00world')
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(400);
+      expect(resSearchControl.body.code).toBe('VALIDATION_ERROR');
+      expect(resSearchControl.body.fields).toHaveProperty('search');
+    });
+
+    it('searches users accent-insensitively, multi-word, and treats wildcards as literals (DB B3, RQ INV-04, AC-06, AC-22)', async () => {
+      await createDbUser('admin@openplany.dev', true);
+      const cookie = await signInCookie('admin@openplany.dev');
+
+      // User 1: Nguyễn Văn An
+      await e2e.dataSource.query(
+        `INSERT INTO users (
+          id, email, username, password, first_name, last_name, display_name,
+          is_superuser, is_staff, is_email_verified, is_active,
+          created_at, updated_at
+        ) VALUES (
+          'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'nguyen.an@openplany.dev', 'nguyenan',
+          $1, 'Nguyễn', 'Văn An', 'Nguyễn Văn An',
+          false, false, true, true,
+          now() - interval '3 days', now() - interval '3 days'
+        )`,
+        [passwordHash],
+      );
+
+      // User 2: Đặng Quốc Bình
+      await e2e.dataSource.query(
+        `INSERT INTO users (
+          id, email, username, password, first_name, last_name, display_name,
+          is_superuser, is_staff, is_email_verified, is_active,
+          created_at, updated_at
+        ) VALUES (
+          'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'dang.binh@openplany.dev', 'dangbinh',
+          $1, 'Đặng', 'Quốc Bình', 'Đặng Quốc Bình',
+          false, false, true, true,
+          now() - interval '2 days', now() - interval '2 days'
+        )`,
+        [passwordHash],
+      );
+
+      // User 3: User with percent and underscore in email or name
+      await e2e.dataSource.query(
+        `INSERT INTO users (
+          id, email, username, password, first_name, last_name, display_name,
+          is_superuser, is_staff, is_email_verified, is_active,
+          created_at, updated_at
+        ) VALUES (
+          'cccccccc-cccc-4ccc-8ccc-cccccccccccc', 'test_100%@openplany.dev', 'test100',
+          $1, 'Test', '100%_Special', 'Test 100%_Special',
+          false, false, true, true,
+          now() - interval '1 day', now() - interval '1 day'
+        )`,
+        [passwordHash],
+      );
+
+      // "nguyen" -> matches "Nguyễn Văn An"
+      const resNguyen = await http()
+        .get('/api/admin/users?search=nguyen')
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(200);
+      expect(resNguyen.body.items).toHaveLength(1);
+      expect(resNguyen.body.items[0].email).toBe('nguyen.an@openplany.dev');
+
+      // "dang" -> matches "Đặng Quốc Bình"
+      const resDang = await http()
+        .get('/api/admin/users?search=dang')
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(200);
+      expect(resDang.body.items).toHaveLength(1);
+      expect(resDang.body.items[0].email).toBe('dang.binh@openplany.dev');
+
+      // Multi-word "nguyen an" -> matches "Nguyễn Văn An"
+      const resMulti = await http()
+        .get('/api/admin/users?search=nguyen%20an')
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(200);
+      expect(resMulti.body.items).toHaveLength(1);
+      expect(resMulti.body.items[0].email).toBe('nguyen.an@openplany.dev');
+
+      // Literal "%" match -> matches only the user with literal "%"
+      const resPercent = await http()
+        .get('/api/admin/users?search=%25')
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(200);
+      expect(resPercent.body.items).toHaveLength(1);
+      expect(resPercent.body.items[0].email).toBe('test_100%@openplany.dev');
+
+      // Literal "_" match -> matches only the user with literal "_"
+      const resUnderscore = await http()
+        .get('/api/admin/users?search=_')
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(200);
+      expect(resUnderscore.body.items).toHaveLength(1);
+      expect(resUnderscore.body.items[0].email).toBe('test_100%@openplany.dev');
+
+      // Fullwidth '％' -> unaccent converts to literal '%', matches only user with literal '%' (NOT a wildcard matching all users)
+      const resFullwidth = await http()
+        .get('/api/admin/users?search=%EF%BC%85')
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(200);
+      expect(resFullwidth.body.items).toHaveLength(1);
+      expect(resFullwidth.body.items[0].email).toBe('test_100%@openplany.dev');
+    });
+
+    it('filters users by status and instanceAdmin (RQ INV-03, AC-07)', async () => {
+      await createDbUser('admin@openplany.dev', true);
+      const cookie = await signInCookie('admin@openplany.dev');
+
+      // Active regular user
+      await createDbUser('user1@openplany.dev', false);
+
+      // Deactivated user
+      await e2e.dataSource.query(
+        `INSERT INTO users (
+          id, email, username, password, first_name, last_name, display_name,
+          is_superuser, is_staff, is_email_verified, is_active,
+          created_at, updated_at
+        ) VALUES (
+          '22222222-2222-4222-8222-222222222222', 'deactivated@openplany.dev', 'deactivateduser',
+          $1, 'Deactivated', 'User', 'Deactivated User',
+          false, false, true, false,
+          now(), now()
+        )`,
+        [passwordHash],
+      );
+
+      // Filter status=active
+      const resActive = await http()
+        .get('/api/admin/users?status=active')
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(200);
+      expect(resActive.body.total).toBe(2); // admin + user1
+      expect(resActive.body.items.every((u: { isActive: boolean }) => u.isActive)).toBe(true);
+
+      // Filter status=deactivated
+      const resDeactivated = await http()
+        .get('/api/admin/users?status=deactivated')
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(200);
+      expect(resDeactivated.body.total).toBe(1);
+      expect(resDeactivated.body.items[0].email).toBe('deactivated@openplany.dev');
+
+      // Filter instanceAdmin=only
+      const resAdmins = await http()
+        .get('/api/admin/users?instanceAdmin=only')
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(200);
+      expect(resAdmins.body.total).toBe(1);
+      expect(resAdmins.body.items[0].email).toBe('admin@openplany.dev');
+    });
+
+    it('sorts columns with empty and NULL values always last in both ASC and DESC (RQ INV-03, AC-08)', async () => {
+      await createDbUser('admin@openplany.dev', true);
+      const cookie = await signInCookie('admin@openplany.dev');
+
+      // User with first name 'Alice'
+      await e2e.dataSource.query(
+        `INSERT INTO users (
+          id, email, username, password, first_name, last_name, display_name,
+          is_superuser, is_staff, is_email_verified, is_active,
+          created_at, updated_at
+        ) VALUES (
+          'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'alice@openplany.dev', 'alice',
+          $1, 'Alice', 'Smith', 'Alice Smith',
+          false, false, true, true,
+          now() - interval '3 days', now() - interval '3 days'
+        )`,
+        [passwordHash],
+      );
+
+      // User with first name 'Zoe'
+      await e2e.dataSource.query(
+        `INSERT INTO users (
+          id, email, username, password, first_name, last_name, display_name,
+          is_superuser, is_staff, is_email_verified, is_active,
+          created_at, updated_at
+        ) VALUES (
+          'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'zoe@openplany.dev', 'zoe',
+          $1, 'Zoe', 'Taylor', 'Zoe Taylor',
+          false, false, true, true,
+          now() - interval '2 days', now() - interval '2 days'
+        )`,
+        [passwordHash],
+      );
+
+      // User with empty/null names
+      await e2e.dataSource.query(
+        `INSERT INTO users (
+          id, email, username, password, first_name, last_name, display_name,
+          is_superuser, is_staff, is_email_verified, is_active,
+          created_at, updated_at
+        ) VALUES (
+          'cccccccc-cccc-4ccc-8ccc-cccccccccccc', 'empty@openplany.dev', 'empty',
+          $1, '', '', '',
+          false, false, true, true,
+          now() - interval '1 day', now() - interval '1 day'
+        )`,
+        [passwordHash],
+      );
+
+      // Sort fullName ASC -> Alice, Test User (admin), Zoe, then empty last
+      const resAsc = await http()
+        .get('/api/admin/users?sort=fullName&order=asc')
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(200);
+      const ascNames = resAsc.body.items.map((u: { firstName: string }) => u.firstName);
+      expect(ascNames[0]).toBe('Alice');
+      expect(ascNames[ascNames.length - 1]).toBe('');
+
+      // Sort fullName DESC -> Zoe, Test User (admin), Alice, then empty STILL last!
+      const resDesc = await http()
+        .get('/api/admin/users?sort=fullName&order=desc')
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(200);
+      const descNames = resDesc.body.items.map((u: { firstName: string }) => u.firstName);
+      expect(descNames[0]).toBe('Zoe');
+      expect(descNames[descNames.length - 1]).toBe('');
+    });
+
+    it('enforces 120 reads per minute rate limit on GET /api/admin/users (AC-27)', async () => {
+      await createDbUser('rate-read-admin@openplany.dev', true);
+      const cookie = await signInCookie('rate-read-admin@openplany.dev');
+
+      // Send 120 requests
+      for (let i = 1; i <= 120; i++) {
+        await http()
+          .get('/api/admin/users')
+          .set('Origin', ORIGIN)
+          .set('Cookie', cookie)
+          .expect(200);
+      }
+
+      // 121st request hits rate limit 429
+      const res121 = await http()
+        .get('/api/admin/users')
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(429);
+
+      expect(res121.body.code).toBe('TOO_MANY_ATTEMPTS');
+      expect(res121.body.message).toBe('Too many requests. Please wait a moment and try again.');
+      expect(res121.headers['retry-after']).toBeDefined();
+      expect(res121.body.retryAfterSeconds).toBeDefined();
+    });
   });
 });

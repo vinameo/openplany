@@ -1,8 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { type FindOptionsWhere, IsNull, type Repository } from 'typeorm';
+import { Brackets, type FindOptionsWhere, IsNull, type Repository } from 'typeorm';
 import { User } from '../../auth/entities/user.entity.js';
 import { isUniqueViolation } from '../../common/databaseErrors.js';
+import { containsIgnoringCaseAndAccentsSql } from '../../database/findOperators.js';
+import { addOrderByEmptyAndNullLast } from '../../database/sortHelpers.js';
+import { ListAdminUsersQueryDto } from '../dto/listAdminUsersQuery.dto.js';
 
 import {
   ADMIN_USERS_PAGE_SIZE,
@@ -69,16 +72,83 @@ export class TypeOrmAdminUsersRepository extends AdminUsersRepository {
     const orderDirection =
       (query.order ?? defaultAdminUserOrder(sort)) === 'asc' ? 'ASC' : 'DESC';
 
-    const [items, total] = await this.users.findAndCount({
-      where: LISTED_USER,
-      order: {
-        createdAt: orderDirection,
-        id: orderDirection,
-      },
-      skip,
-      take,
+    const qb = this.users
+      .createQueryBuilder('u')
+      .select([
+        'u.id',
+        'u.email',
+        'u.firstName',
+        'u.lastName',
+        'u.displayName',
+        'u.avatar',
+        'u.isActive',
+        'u.isSuperuser',
+        'u.createdAt',
+        'u.updatedAt',
+      ])
+      .where('u.isBot = :isBot', { isBot: false })
+      .andWhere('u.maskedAt IS NULL');
+
+    // Filter status (active, deactivated, all)
+    if (query.status === 'active') {
+      qb.andWhere('u.isActive = :isActive', { isActive: true });
+    } else if (query.status === 'deactivated') {
+      qb.andWhere('u.isActive = :isActive', { isActive: false });
+    }
+
+    // Filter instanceAdmin (only)
+    if (query.instanceAdmin === 'only') {
+      qb.andWhere('u.isSuperuser = :isSuperuser', { isSuperuser: true });
+    }
+
+    // Search terms (up to 5 words, AND of OR groups across fields)
+    let terms: string[] = [];
+    if (query instanceof ListAdminUsersQueryDto) {
+      terms = query.searchTerms;
+    } else if (query.search && query.search.trim() !== '') {
+      terms = query.search
+        .normalize('NFC')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 5);
+    }
+
+    terms.forEach((term, index) => {
+      const paramName = `search_term_${index}`;
+      qb.andWhere(
+        new Brackets((subQb) => {
+          subQb
+            .where(containsIgnoringCaseAndAccentsSql('u.firstName', paramName))
+            .orWhere(containsIgnoringCaseAndAccentsSql('u.lastName', paramName))
+            .orWhere(containsIgnoringCaseAndAccentsSql('u.displayName', paramName))
+            .orWhere(containsIgnoringCaseAndAccentsSql('u.email', paramName));
+        }),
+        { [paramName]: term },
+      );
     });
 
+    // Sort order with empty and NULL last (DB B3)
+    if (sort === 'fullName') {
+      addOrderByEmptyAndNullLast(qb, 'u.firstName', orderDirection, true);
+      addOrderByEmptyAndNullLast(qb, 'u.lastName', orderDirection, false);
+      qb.addOrderBy('u.id', orderDirection);
+    } else if (sort === 'displayName') {
+      addOrderByEmptyAndNullLast(qb, 'u.displayName', orderDirection, true);
+      qb.addOrderBy('u.id', orderDirection);
+    } else if (sort === 'email') {
+      addOrderByEmptyAndNullLast(qb, 'u.email', orderDirection, true);
+      qb.addOrderBy('u.id', orderDirection);
+    } else {
+      // createdAt
+      qb.orderBy('u.createdAt', orderDirection);
+      qb.addOrderBy('u.id', orderDirection);
+    }
+
+    qb.skip(skip).take(take);
+
+    const [items, total] = await qb.getManyAndCount();
     return { items, total };
   }
 

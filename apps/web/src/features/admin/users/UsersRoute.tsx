@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Badge, Skeleton } from '@mantine/core';
+import { Alert, Badge, Button, Skeleton, Text } from '@mantine/core';
 import { Navigate, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
-import { ADMIN_USERS_PAGE_SIZE } from '@repo/contracts';
+import { ADMIN_USERS_PAGE_SIZE, type AdminUserSortKey } from '@repo/contracts';
 import { useAuth } from '../../auth/useAuth';
 import { authApi } from '../../auth/api/authApi';
 import { useDocumentTitle } from '../../../hooks/useDocumentTitle';
+import type { SortState } from '../../workspaces/table/SortableHeader';
 import { AdminPageLayout } from '../AdminPageLayout';
 import {
   parseUsersListParams,
@@ -37,9 +38,14 @@ export function UsersRoute() {
     [setSearchParams],
   );
 
-  const { data, isPlaceholderData, error } = useQuery(
+  const { data, isPlaceholderData, error, refetch } = useQuery(
     adminUserQueries.list(params),
   );
+
+  const queryErrorAction = useMemo(() => {
+    if (!error) return null;
+    return parseAdminUserError(error, 'list');
+  }, [error]);
 
   // Re-verify session when 403 occurs while viewing the page (B2.1, B2.7)
   useEffect(() => {
@@ -72,6 +78,56 @@ export function UsersRoute() {
     }
   }, [isPlaceholderData, total, totalPages, params, updateParams]);
 
+  const handleSearchChange = useCallback(
+    (search: string) => {
+      updateParams({ ...params, search, page: 1 });
+    },
+    [params, updateParams],
+  );
+
+  const handleFilterChange = useCallback(
+    (filters: { status: typeof params.status; admin?: 'only' }) => {
+      updateParams({
+        ...params,
+        status: filters.status,
+        admin: filters.admin,
+        page: 1,
+      });
+    },
+    [params, updateParams],
+  );
+
+  const handleClearFilters = useCallback(() => {
+    updateParams({
+      ...params,
+      status: 'all',
+      admin: undefined,
+      page: 1,
+    });
+  }, [params, updateParams]);
+
+  const handleClearAll = useCallback(() => {
+    updateParams({
+      ...params,
+      search: '',
+      status: 'all',
+      admin: undefined,
+      page: 1,
+    });
+  }, [params, updateParams]);
+
+  const handleSortChange = useCallback(
+    (sort: SortState<AdminUserSortKey>) => {
+      updateParams({
+        ...params,
+        sort: sort.key,
+        order: sort.direction,
+        page: 1,
+      });
+    },
+    [params, updateParams],
+  );
+
   if (
     authState.status === 'authenticated' &&
     !authState.session.user.isInstanceAdmin
@@ -102,6 +158,10 @@ export function UsersRoute() {
     </Badge>
   );
 
+  const hasFiltersOrSearch = Boolean(
+    params.search || (params.status && params.status !== 'all') || params.admin === 'only',
+  );
+
   return (
     <AdminPageLayout
       title={t('admin:users.page.title')}
@@ -111,24 +171,33 @@ export function UsersRoute() {
       <div className={classes.container}>
         <UsersToolbar
           search={params.search}
-          onSearchChange={(search) =>
-            updateParams({ ...params, search, page: 1 })
-          }
+          onSearchChange={handleSearchChange}
+          status={params.status}
+          admin={params.admin}
+          onFilterChange={handleFilterChange}
+          onClearFilters={handleClearFilters}
           onAddUser={() => setCreateModalOpened(true)}
         />
+
+        {error && (
+          <Alert color="red" mb="md" data-testid="users-load-error">
+            <Text size="sm" mb="xs">
+              {queryErrorAction?.type === 'rateLimit'
+                ? queryErrorAction.message
+                : t('admin:users.errors.loadFailed')}
+            </Text>
+            <Button variant="default" size="xs" onClick={() => refetch()}>
+              {t('common:actions.tryAgain')}
+            </Button>
+          </Alert>
+        )}
 
         <UsersTable
           users={data?.items ?? []}
           currentSort={{ key: params.sort, direction: params.order }}
-          onSortChange={(sort) =>
-            updateParams({
-              ...params,
-              sort: sort.key,
-              order: sort.direction,
-              page: 1,
-            })
-          }
+          onSortChange={handleSortChange}
           isPlaceholderData={isPlaceholderData}
+          onClearFilters={hasFiltersOrSearch ? handleClearAll : undefined}
         />
 
         <UsersPagination

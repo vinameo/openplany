@@ -6,6 +6,7 @@ import {
   type AdminUserStatusFilter,
   defaultAdminUserOrder,
   type SortOrder,
+  USER_NAME_ALLOWED,
 } from '@repo/contracts';
 
 export interface UsersListParams {
@@ -27,8 +28,8 @@ export const DEFAULT_USERS_LIST_PARAMS: UsersListParams = {
 
 export function cleanSearch(raw: string | null | undefined): string {
   if (!raw) return '';
-  return Array.from(raw)
-    .filter((ch) => !/[\p{Cc}\p{Cf}]/u.test(ch))
+  return Array.from(raw.normalize('NFC'))
+    .filter((ch) => USER_NAME_ALLOWED.test(ch))
     .join('')
     .slice(0, ADMIN_USER_SEARCH_MAX);
 }
