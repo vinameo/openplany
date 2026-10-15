@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { notifications } from "@mantine/notifications";
 import { useQueryClient } from "@tanstack/react-query";
 import { authApi } from "../../auth/api/authApi";
@@ -23,20 +23,31 @@ export interface AdminUserErrorRecovery {
 /** What every admin-user screen does with the errors of WEB B2.7 it shares. */
 export function useAdminUserErrorRecovery(): AdminUserErrorRecovery {
   const queryClient = useQueryClient();
-  const { updateUser, expireSession } = useAuth();
+  // useAuth() rebuilds its functions on every session change. Callers run
+  // these from effects keyed on the error, so they must stay stable: a
+  // refresh that updates the session must not re-trigger the effect.
+  const auth = useAuth();
+  const authRef = useRef(auth);
+  useEffect(() => {
+    authRef.current = auth;
+  });
+
+  const expireSession = useCallback(() => {
+    authRef.current.expireSession();
+  }, []);
 
   const refreshSessionAfterForbidden = useCallback(async () => {
     try {
       const session = await authApi.getSession();
       if (session !== null) {
-        updateUser(session.user);
+        authRef.current.updateUser(session.user);
       } else {
-        expireSession();
+        authRef.current.expireSession();
       }
     } catch (error) {
       console.error("Session refresh after 403 failed", error);
     }
-  }, [updateUser, expireSession]);
+  }, []);
 
   const forgetMissingUser = useCallback(
     (userId: string, message: string) => {

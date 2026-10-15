@@ -141,29 +141,23 @@ function EditUserModalContent({
     return parseAdminUserError(error, "detail");
   }, [error]);
 
-  // Load errors shared with the other screens (B2.7): 404 closes with a
-  // toast (AC-12), 403 refreshes the session, 401 signs out.
+  // Load errors shared with the other screens (B2.7). 404 closes with a
+  // toast (AC-12); 403 refreshes the session; 401 signs out. Keyed on the
+  // error only, so a parent re-render never repeats the refresh.
   useEffect(() => {
-    switch (queryErrorAction?.type) {
-      case "userNotFound":
-        forgetMissingUser(user.id, queryErrorAction.message);
-        onClose();
-        return;
-      case "forbidden":
-        void refreshSessionAfterForbidden();
-        return;
-      case "expireSession":
-        expireSession();
-        return;
+    if (queryErrorAction?.type === "forbidden") {
+      void refreshSessionAfterForbidden();
+    } else if (queryErrorAction?.type === "expireSession") {
+      expireSession();
     }
-  }, [
-    queryErrorAction,
-    user.id,
-    onClose,
-    forgetMissingUser,
-    refreshSessionAfterForbidden,
-    expireSession,
-  ]);
+  }, [queryErrorAction, refreshSessionAfterForbidden, expireSession]);
+
+  useEffect(() => {
+    if (queryErrorAction?.type === "userNotFound") {
+      forgetMissingUser(user.id, queryErrorAction.message);
+      onClose();
+    }
+  }, [queryErrorAction, user.id, onClose, forgetMissingUser]);
 
   const isFresh = Boolean(data && dataUpdatedAt >= openedAt);
   const loadedUser = isFresh && data ? data : null;

@@ -236,6 +236,30 @@ describe('UsersRoute', { timeout: 15000 }, () => {
     });
   });
 
+  it('B2.1: a 403 refreshes the session once, even when the session still says instance admin', async () => {
+    let sessionCalls = 0;
+    renderRoute({
+      extraMocks: {
+        'GET /api/auth/session': () => {
+          sessionCalls++;
+          return jsonResponse(
+            200,
+            makeSession({ user: { ...makeSession().user, isInstanceAdmin: true } }),
+          );
+        },
+        'GET /api/admin/users': () =>
+          apiError(403, 'FORBIDDEN', "You don't have permission to manage users"),
+      },
+    });
+
+    await waitFor(() => {
+      expect(sessionCalls).toBe(2);
+    });
+    // updateUser re-renders the page; that must not start another refresh.
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(sessionCalls).toBe(2);
+  });
+
   it('AC-06 & AC-30: debounces search input and synchronizes URL with replace', async () => {
     const { router, user } = renderRoute();
 
