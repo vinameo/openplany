@@ -5,14 +5,10 @@ import type { AdminUserResponse } from "@repo/contracts";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { parseAdminUserError } from "./adminUserErrors";
-import { authApi } from "../../auth/api/authApi";
 import { useAuth } from "../../auth/useAuth";
 import { adminUsersApi } from "./api/adminUsersApi";
-import {
-  adminUserKeys,
-  invalidateAdminUserLists,
-  replaceAdminUserInCache,
-} from "./api/adminUserQueries";
+import { replaceAdminUserInCache } from "./api/adminUserQueries";
+import { useAdminUserErrorRecovery } from "./useAdminUserErrorRecovery";
 import {
   adminUserLabel,
   buildUpdateAdminUserPayload,
@@ -47,7 +43,8 @@ export function useEditUserForm({
 }: UseEditUserFormOptions): EditUserFormState {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const { state: authState, updateUser, expireSession } = useAuth();
+  const { state: authState, updateUser } = useAuth();
+  const recovery = useAdminUserErrorRecovery();
   const [loadedUser, setLoadedUser] = useState<AdminUserResponse>(initialLoadedUser);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isConflict, setIsConflict] = useState(false);
@@ -98,10 +95,7 @@ export function useEditUserForm({
         authState.status === "authenticated" &&
         updated.id === authState.session.user.id
       ) {
-        const emailChanged = Boolean(
-          payload.email &&
-            payload.email !== loadedUser.email.trim().toLowerCase(),
-        );
+        const emailChanged = payload.email !== undefined;
         updateUser({
           ...authState.session.user,
           firstName: updated.firstName,
@@ -129,7 +123,7 @@ export function useEditUserForm({
       const action = parseAdminUserError(error, "update");
       switch (action.type) {
         case "expireSession":
-          expireSession();
+          recovery.expireSession();
           return;
 
         case "conflictReload":
@@ -138,18 +132,7 @@ export function useEditUserForm({
 
         case "forbidden":
           setSubmitError(action.message);
-          if (action.refreshSession) {
-            try {
-              const session = await authApi.getSession();
-              if (session !== null) {
-                updateUser(session.user);
-              } else {
-                expireSession();
-              }
-            } catch (sessionError) {
-              console.warn("Session refresh after 403 failed", sessionError);
-            }
-          }
+          await recovery.refreshSessionAfterForbidden();
           return;
 
         case "emailAlreadyExists":
@@ -160,14 +143,7 @@ export function useEditUserForm({
           return;
 
         case "userNotFound":
-          notifications.show({
-            color: "red",
-            message: action.message,
-          });
-          queryClient.removeQueries({
-            queryKey: adminUserKeys.detail(loadedUser.id),
-          });
-          invalidateAdminUserLists(queryClient);
+          recovery.forgetMissingUser(loadedUser.id, action.message);
           onClose();
           return;
 
@@ -195,6 +171,7 @@ export function useEditUserForm({
 
         case "rateLimit":
         case "cannotChangeOwnPassword":
+        case "reauthentication":
         case "general":
           setSubmitError(action.message);
           return;

@@ -342,7 +342,7 @@ describe('UsersRoute', { timeout: 15000 }, () => {
 
     const errorAlert = await screen.findByTestId('users-load-error');
     expect(errorAlert).toBeInTheDocument();
-    expect(errorAlert).toHaveTextContent('Too many requests. Please wait a moment and try again.');
+    expect(errorAlert).toHaveTextContent('Too many requests. Try again in 1 minute.');
     expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
   });
 

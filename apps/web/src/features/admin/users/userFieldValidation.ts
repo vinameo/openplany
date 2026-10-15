@@ -143,90 +143,81 @@ export function validateCreateUserField(
   }
 }
 
+const EDIT_USER_FIELDS = [
+  "firstName",
+  "lastName",
+  "displayName",
+  "email",
+] as const satisfies readonly EditUserField[];
+
+/** How each edit field is compared and sent: names NFC + trim, email trim + lower-case. */
+function normalizeEditUserValues(values: EditUserValues): EditUserValues {
+  return {
+    firstName: normalizeName(values.firstName),
+    lastName: normalizeName(values.lastName),
+    displayName: normalizeName(values.displayName),
+    email: values.email.trim().toLowerCase(),
+  };
+}
+
+/**
+ * WEB B2.5 steps 4–5, the one place "changed" is decided: the fields whose
+ * normalized value differs from the loaded user, with that normalized value.
+ * Validation, the Save button and the PATCH body all read this.
+ */
+export function changedEditFields(
+  values: EditUserValues,
+  loadedUser: AdminUserResponse,
+): Partial<EditUserValues> {
+  const next = normalizeEditUserValues(values);
+  const loaded = normalizeEditUserValues({
+    firstName: loadedUser.firstName,
+    lastName: loadedUser.lastName ?? "",
+    displayName: loadedUser.displayName,
+    email: loadedUser.email,
+  });
+  const changed: Partial<EditUserValues> = {};
+  for (const field of EDIT_USER_FIELDS) {
+    if (next[field] !== loaded[field]) changed[field] = next[field];
+  }
+  return changed;
+}
+
+const EDIT_FIELD_VALIDATORS: Record<
+  EditUserField,
+  (value: string) => string | null
+> = {
+  firstName: validateFirstName,
+  lastName: validateLastName,
+  displayName: validateDisplayName,
+  email: validateEmail,
+};
+
+/** Only changed fields are checked (RQ D35): an unchanged bad value never blocks Save. */
 export function validateEditUserField(
   field: EditUserField,
   values: EditUserValues,
   loadedUser: AdminUserResponse,
 ): string | null {
-  switch (field) {
-    case "firstName": {
-      if (
-        normalizeName(values.firstName) === normalizeName(loadedUser.firstName)
-      ) {
-        return null;
-      }
-      return validateFirstName(values.firstName);
-    }
-    case "lastName": {
-      if (
-        normalizeName(values.lastName) ===
-        normalizeName(loadedUser.lastName ?? "")
-      ) {
-        return null;
-      }
-      return validateLastName(values.lastName);
-    }
-    case "displayName": {
-      if (
-        normalizeName(values.displayName) ===
-        normalizeName(loadedUser.displayName)
-      ) {
-        return null;
-      }
-      return validateDisplayName(values.displayName);
-    }
-    case "email": {
-      if (
-        values.email.trim().toLowerCase() ===
-        loadedUser.email.trim().toLowerCase()
-      ) {
-        return null;
-      }
-      return validateEmail(values.email);
-    }
-  }
+  if (changedEditFields(values, loadedUser)[field] === undefined) return null;
+  return EDIT_FIELD_VALIDATORS[field](values[field]);
 }
 
 export function hasEditUserChanges(
   values: EditUserValues,
   loadedUser: AdminUserResponse,
 ): boolean {
-  return (
-    normalizeName(values.firstName) !== normalizeName(loadedUser.firstName) ||
-    normalizeName(values.lastName) !==
-      normalizeName(loadedUser.lastName ?? "") ||
-    normalizeName(values.displayName) !==
-      normalizeName(loadedUser.displayName) ||
-    values.email.trim().toLowerCase() !== loadedUser.email.trim().toLowerCase()
-  );
+  return Object.keys(changedEditFields(values, loadedUser)).length > 0;
 }
 
 export function buildUpdateAdminUserPayload(
   values: EditUserValues,
   loadedUser: AdminUserResponse,
 ): UpdateAdminUserRequest {
-  const payload: UpdateAdminUserRequest = {
+  return {
     expectedUpdatedAt: loadedUser.updatedAt,
+    ...changedEditFields(values, loadedUser),
   };
-  if (normalizeName(values.firstName) !== normalizeName(loadedUser.firstName)) {
-    payload.firstName = normalizeName(values.firstName);
-  }
-  if (
-    normalizeName(values.lastName) !== normalizeName(loadedUser.lastName ?? "")
-  ) {
-    payload.lastName = normalizeName(values.lastName);
-  }
-  if (
-    normalizeName(values.displayName) !== normalizeName(loadedUser.displayName)
-  ) {
-    payload.displayName = normalizeName(values.displayName);
-  }
-  if (
-    values.email.trim().toLowerCase() !== loadedUser.email.trim().toLowerCase()
-  ) {
-    payload.email = values.email.trim().toLowerCase();
-  }
-  return payload;
 }
 
 export function adminUserLabel(user: {
@@ -246,6 +237,8 @@ export function adminUserLabel(user: {
 export interface ChangePasswordValues {
   password: string;
   confirmPassword: string;
+  /** The acting admin's own password; sent only when the field is shown (API B7). */
+  actorPassword: string;
 }
 
 export type ChangePasswordField = keyof ChangePasswordValues;
@@ -253,19 +246,24 @@ export type ChangePasswordField = keyof ChangePasswordValues;
 export function hasChangePasswordChanges(
   values: ChangePasswordValues,
 ): boolean {
-  return values.password !== "" || values.confirmPassword !== "";
+  return Object.values(values).some((value) => value !== "");
 }
 
 export function validateChangePasswordField(
   field: ChangePasswordField,
   values: ChangePasswordValues,
   targetEmail: string,
+  needsActorPassword: boolean,
 ): string | null {
   switch (field) {
     case "password":
       return validatePassword(values.password, targetEmail);
     case "confirmPassword":
       return validateConfirmPassword(values.confirmPassword, values.password);
+    case "actorPassword":
+      return needsActorPassword && values.actorPassword === ""
+        ? translate("admin:users.validation.actorPasswordRequired")
+        : null;
   }
 }
 

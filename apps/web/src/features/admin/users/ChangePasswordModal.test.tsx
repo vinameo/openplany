@@ -210,6 +210,89 @@ describe("ChangePasswordModal", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it("API B7: asks for the actor's own password when the target is an instance admin, and sends it", async () => {
+    const user = userEvent.setup();
+    let putBody: unknown;
+    renderChangePasswordModal({
+      opened: true,
+      user: { ...targetUser, isInstanceAdmin: true },
+      extraMocks: {
+        "PUT /api/admin/users/user-nam-1/password": (init) => {
+          putBody = JSON.parse(init?.body as string);
+          return new Response(null, { status: 204 });
+        },
+      },
+    });
+
+    await user.type(await screen.findByLabelText(/^Password/i), "BrandNewSecret123!");
+    await user.type(screen.getByLabelText(/^Confirm password/i), "BrandNewSecret123!");
+    const actorInput = screen.getByLabelText(/^Your password/i);
+    expect(actorInput).toHaveAttribute("autocomplete", "current-password");
+    expect(
+      screen.getByText(
+        "Nam Nguyen is an instance admin. Enter your own password to confirm it's you.",
+      ),
+    ).toBeInTheDocument();
+
+    // Required while shown: Save stays off, blur explains why.
+    expect(screen.getByRole("button", { name: "Change password" })).toBeDisabled();
+    await user.click(actorInput);
+    await user.tab();
+    expect(await screen.findByText("Enter your password")).toBeInTheDocument();
+
+    await user.type(actorInput, "KaiOwnSecret1!");
+    await user.click(screen.getByRole("button", { name: "Change password" }));
+    await waitFor(() => {
+      expect(putBody).toEqual({
+        password: "BrandNewSecret123!",
+        actorPassword: "KaiOwnSecret1!",
+      });
+    });
+  });
+
+  it("API B7: hides 'Your password' for other users, and reveals it on REAUTHENTICATION_REQUIRED", async () => {
+    const user = userEvent.setup();
+    renderChangePasswordModal({
+      opened: true,
+      extraMocks: {
+        "PUT /api/admin/users/user-nam-1/password": () =>
+          apiError(403, "REAUTHENTICATION_REQUIRED", "Required", {
+            fields: { actorPassword: "Required" },
+          }),
+      },
+    });
+
+    await user.type(await screen.findByLabelText(/^Password/i), "BrandNewSecret123!");
+    await user.type(screen.getByLabelText(/^Confirm password/i), "BrandNewSecret123!");
+    expect(screen.queryByLabelText(/^Your password/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Change password" }));
+
+    expect(await screen.findByLabelText(/^Your password/i)).toBeInTheDocument();
+    expect(
+      screen.getByText("Enter your password to change another instance admin's password."),
+    ).toBeInTheDocument();
+  });
+
+  it("API B7: shows REAUTHENTICATION_FAILED under 'Your password'", async () => {
+    const user = userEvent.setup();
+    renderChangePasswordModal({
+      opened: true,
+      user: { ...targetUser, isInstanceAdmin: true },
+      extraMocks: {
+        "PUT /api/admin/users/user-nam-1/password": () =>
+          apiError(403, "REAUTHENTICATION_FAILED", "Wrong"),
+      },
+    });
+
+    await user.type(await screen.findByLabelText(/^Password/i), "BrandNewSecret123!");
+    await user.type(screen.getByLabelText(/^Confirm password/i), "BrandNewSecret123!");
+    await user.type(screen.getByLabelText(/^Your password/i), "wrong-guess");
+    await user.click(screen.getByRole("button", { name: "Change password" }));
+
+    expect(await screen.findByText("Your password is incorrect.")).toBeInTheDocument();
+  });
+
   it("AC-18: renders alert if server returns CANNOT_CHANGE_OWN_PASSWORD", async () => {
     const user = userEvent.setup();
     renderChangePasswordModal({
@@ -322,7 +405,7 @@ describe("ChangePasswordModal", () => {
 
     expect(
       await screen.findByText(
-        "Too many user changes. Please wait a moment and try again.",
+        "Too many changes to users. Try again in 2 minutes.",
       ),
     ).toBeInTheDocument();
   });

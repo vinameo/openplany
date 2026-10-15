@@ -3,6 +3,7 @@ import type { AdminUserResponse } from "@repo/contracts";
 import {
   adminUserLabel,
   buildUpdateAdminUserPayload,
+  changedEditFields,
   hasChangePasswordChanges,
   hasEditUserChanges,
   type ChangePasswordValues,
@@ -418,6 +419,50 @@ describe("userFieldValidation", () => {
     });
   });
 
+  describe("changedEditFields (one rule for validation, Save and the PATCH body)", () => {
+    const loaded: AdminUserResponse = {
+      id: "u-1",
+      email: "an@openplany.dev",
+      firstName: "Khái",
+      lastName: "",
+      displayName: "Khái",
+      avatarUrl: null,
+      isActive: true,
+      isInstanceAdmin: false,
+      createdAt: "2026-10-09T10:00:00.000Z",
+      updatedAt: "2026-10-09T10:00:00.000Z",
+    };
+    const same = {
+      firstName: "Kha\u0301i ",
+      lastName: "  ",
+      displayName: "Khái",
+      email: " AN@OpenPlany.dev ",
+    };
+
+    it("returns only differing fields, normalized as sent", () => {
+      expect(changedEditFields(same, loaded)).toEqual({});
+      expect(
+        changedEditFields({ ...same, lastName: " Lê ", email: "B@x.dev" }, loaded),
+      ).toEqual({ lastName: "Lê", email: "b@x.dev" });
+    });
+
+    it("Save is enabled exactly when the PATCH body carries a field", () => {
+      const variants = [
+        same,
+        { ...same, firstName: "Khải" },
+        { ...same, email: "an@openplany.dev" },
+        { ...same, displayName: " Khái  " },
+        { ...same, lastName: "Nguyễn" },
+      ];
+      for (const values of variants) {
+        const payloadFields = Object.keys(
+          buildUpdateAdminUserPayload(values, loaded),
+        ).filter((key) => key !== "expectedUpdatedAt");
+        expect(hasEditUserChanges(values, loaded)).toBe(payloadFields.length > 0);
+      }
+    });
+  });
+
   describe("buildUpdateAdminUserPayload", () => {
     const user: AdminUserResponse = {
       id: "user-1",
@@ -500,22 +545,20 @@ describe("userFieldValidation", () => {
   });
 
   describe("hasChangePasswordChanges", () => {
-    it("returns false when both password fields are empty", () => {
-      expect(
-        hasChangePasswordChanges({ password: "", confirmPassword: "" }),
-      ).toBe(false);
+    const empty = { password: "", confirmPassword: "", actorPassword: "" };
+
+    it("returns false when every field is empty", () => {
+      expect(hasChangePasswordChanges(empty)).toBe(false);
     });
 
-    it("returns true when password is non-empty", () => {
-      expect(
-        hasChangePasswordChanges({ password: "a", confirmPassword: "" }),
-      ).toBe(true);
-    });
-
-    it("returns true when confirmPassword is non-empty", () => {
-      expect(
-        hasChangePasswordChanges({ password: "", confirmPassword: "b" }),
-      ).toBe(true);
+    it("returns true when any field is non-empty", () => {
+      expect(hasChangePasswordChanges({ ...empty, password: "a" })).toBe(true);
+      expect(hasChangePasswordChanges({ ...empty, confirmPassword: "b" })).toBe(
+        true,
+      );
+      expect(hasChangePasswordChanges({ ...empty, actorPassword: "c" })).toBe(
+        true,
+      );
     });
   });
 
@@ -524,14 +567,20 @@ describe("userFieldValidation", () => {
     const validValues: ChangePasswordValues = {
       password: "NewPassword123!",
       confirmPassword: "NewPassword123!",
+      actorPassword: "",
     };
 
     it("returns null for valid password and confirmPassword", () => {
       expect(
-        validateChangePasswordField("password", validValues, targetEmail),
+        validateChangePasswordField("password", validValues, targetEmail, false),
       ).toBeNull();
       expect(
-        validateChangePasswordField("confirmPassword", validValues, targetEmail),
+        validateChangePasswordField(
+          "confirmPassword",
+          validValues,
+          targetEmail,
+          false,
+        ),
       ).toBeNull();
     });
 
@@ -541,6 +590,7 @@ describe("userFieldValidation", () => {
           "password",
           { ...validValues, password: "short" },
           targetEmail,
+          false,
         ),
       ).toBe("Use 8 to 128 characters");
 
@@ -549,6 +599,7 @@ describe("userFieldValidation", () => {
           "password",
           { ...validValues, password: "target@openplany.dev" },
           targetEmail,
+          false,
         ),
       ).toBe("Password can't be the same as the email");
     });
@@ -559,9 +610,26 @@ describe("userFieldValidation", () => {
           "confirmPassword",
           { ...validValues, confirmPassword: "mismatchPassword" },
           targetEmail,
+          false,
         ),
       ).toBe("Passwords don't match");
     });
+
+    it("requires actorPassword only while the field is shown (API B7)", () => {
+      expect(
+        validateChangePasswordField("actorPassword", validValues, targetEmail, false),
+      ).toBeNull();
+      expect(
+        validateChangePasswordField("actorPassword", validValues, targetEmail, true),
+      ).toBe("Enter your password");
+      expect(
+        validateChangePasswordField(
+          "actorPassword",
+          { ...validValues, actorPassword: "mine" },
+          targetEmail,
+          true,
+        ),
+      ).toBeNull();
+    });
   });
 });
-

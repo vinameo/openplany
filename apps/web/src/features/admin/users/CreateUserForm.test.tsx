@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AppUiProvider } from "@repo/ui";
 import { Notifications, notifications } from "@mantine/notifications";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "../../auth/AuthProvider";
@@ -29,14 +30,20 @@ afterEach(() => {
 function renderForm(props?: { onCancel?: () => void; onSuccess?: () => void }) {
   const onCancel = props?.onCancel ?? vi.fn();
   const onSuccess = props?.onSuccess ?? vi.fn();
+  // The form lives under ServerStateProvider in the app (UsersRoute).
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   render(
     <AppUiProvider>
       <Notifications />
-      <AuthProvider>
-        <MemoryRouter>
-          <CreateUserForm onCancel={onCancel} onSuccess={onSuccess} />
-        </MemoryRouter>
-      </AuthProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <MemoryRouter>
+            <CreateUserForm onCancel={onCancel} onSuccess={onSuccess} />
+          </MemoryRouter>
+        </AuthProvider>
+      </QueryClientProvider>
     </AppUiProvider>,
   );
   return { onCancel, onSuccess, user: userEvent.setup() };

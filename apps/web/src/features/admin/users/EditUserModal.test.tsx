@@ -278,6 +278,29 @@ describe("EditUserModal", () => {
     });
   });
 
+  it("WEB B2.1/B2.7: a 403 while loading shows the manage sentence and re-reads the session", async () => {
+    let sessionReads = 0;
+    renderEditModal({
+      opened: true,
+      extraMocks: {
+        "GET /api/auth/session": () => {
+          sessionReads += 1;
+          return jsonResponse(200, adminSession);
+        },
+        "GET /api/admin/users/user-an-1": () =>
+          apiError(403, "FORBIDDEN", "Forbidden"),
+      },
+    });
+
+    expect(
+      await screen.findByText("You no longer have permission to manage users."),
+    ).toBeInTheDocument();
+    // Once on mount by AuthProvider, once more for the 403.
+    await waitFor(() => {
+      expect(sessionReads).toBe(2);
+    });
+  });
+
   it("updates self session when editing own profile (AC-15)", async () => {
     const selfUser: AdminUserResponse = {
       id: "admin-kai-1",
