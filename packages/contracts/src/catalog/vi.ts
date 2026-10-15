@@ -542,10 +542,10 @@ export const vi: TranslatedCatalog = {
     title: "Quản trị",
     "errors.cannotCreateUsers": "Bạn không có quyền tạo người dùng",
     "errors.cannotManageUsers": "Bạn không có quyền quản lý người dùng",
-    "errors.tooManyRequests":
-      "Quá nhiều yêu cầu. Vui lòng chờ một lát rồi thử lại.",
-    "errors.tooManyUserChanges":
-      "Quá nhiều thay đổi người dùng. Vui lòng chờ một lát rồi thử lại.",
+    "errors.tooManyRequests_other":
+      "Bạn đã gửi quá nhiều yêu cầu. Hãy thử lại sau {{count}} phút.",
+    "errors.tooManyUserChanges_other":
+      "Bạn đã thay đổi người dùng quá nhiều lần. Hãy thử lại sau {{count}} phút.",
     "errors.createUserFailed": "Không thể tạo người dùng. Vui lòng thử lại.",
     "errors.loadRolesFailed": "Không thể tải vai trò và quyền.",
     "errors.updateRolesFailed": "Không thể lưu quyền. Vui lòng thử lại.",
@@ -658,6 +658,9 @@ export const vi: TranslatedCatalog = {
     "users.password.submit": "Đổi mật khẩu",
     "users.password.changed":
       "Đã đổi mật khẩu. {{name}} đã bị đăng xuất khỏi mọi nơi.",
+    "users.password.actorPassword": "Mật khẩu của bạn",
+    "users.password.actorPasswordDescription":
+      "{{name}} là instance admin. Nhập mật khẩu của bạn để xác nhận đó là bạn.",
     "users.modal.createTitle": "Tạo người dùng",
     "users.form.title": "Tạo người dùng",
     "users.form.firstName": "Tên",
@@ -691,7 +694,13 @@ export const vi: TranslatedCatalog = {
       "Bạn không thể đổi mật khẩu của chính mình tại đây.",
     "users.errors.updateFailed": "Không lưu được thay đổi. Hãy thử lại.",
     "users.errors.passwordFailed": "Không đổi được mật khẩu. Hãy thử lại.",
+    "users.errors.reauthenticationRequired":
+      "Nhập mật khẩu của bạn để đổi mật khẩu của một instance admin khác.",
+    "users.errors.reauthenticationFailed": "Mật khẩu của bạn không đúng.",
+    "users.errors.tooManyReauthAttempts_other":
+      "Bạn đã nhập sai mật khẩu quá nhiều lần. Hãy thử lại sau {{count}} phút.",
     "users.validation.passwordsDoNotMatch": "Mật khẩu không khớp",
+    "users.validation.actorPasswordRequired": "Nhập mật khẩu của bạn",
   },
   profile: {
     title: "Hồ sơ",
