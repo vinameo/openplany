@@ -53,6 +53,9 @@ jobs:
       - name: Unit and component tests
         run: pnpm test
 
+      - name: Hook tests
+        run: pnpm test:hooks
+
       - name: Duplicated code
         run: pnpm dup
 

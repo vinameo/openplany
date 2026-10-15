@@ -74,6 +74,7 @@ pnpm install          # install all workspace deps
 pnpm dev              # turbo dev — api (:3000) + web (:5173)
 pnpm build            # turbo build (respects ^build dependency order)
 pnpm test             # turbo test
+pnpm test:hooks       # node:test for .claude/hooks (PreToolUse hooks)
 pnpm lint             # turbo lint
 pnpm typecheck        # turbo typecheck
 pnpm format           # prettier --write .

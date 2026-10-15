@@ -9,6 +9,7 @@
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
+    "test:hooks": "node --test .claude/hooks/hooks.test.mjs",
     "clean": "turbo clean && rimraf node_modules",
     "format": "prettier --write .",
     "dup": "jscpd"
