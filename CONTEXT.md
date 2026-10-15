@@ -7,12 +7,24 @@ Self-hosted project management for tracking issues. One instance hosts many work
 ### People and accounts
 
 **User**:
-A person's account on this OpenPlany instance, identified by a unique email. Users are created by an instance admin; there is no self sign-up.
+A person's account on this OpenPlany instance, identified by a unique email. Users are created by an instance admin; there is no self sign-up. An instance admin can change a User's name, email and password from the Users page.
 _Avoid_: Account, profile
 
 **Instance admin**:
-A User allowed to run the whole instance (create Users, create workspaces). Being an instance admin grants nothing inside a workspace.
+A User allowed to run the whole instance (create and edit Users, set a User's password, create workspaces, manage roles and permissions). Being an instance admin grants nothing inside a workspace.
 _Avoid_: Superuser, god mode, system admin
+
+**Account created date**:
+When an instance admin created the User. It never changes. Distinct from Joining date, which belongs to a membership.
+_Avoid_: Joining date (for accounts), member since
+
+**Anonymised account**:
+A User whose personal details were wiped. They cannot sign in and no longer appear on the Users page.
+_Avoid_: masked user, deleted user
+
+**Users page**:
+The instance admin's page listing every User of the instance except bots and Anonymised accounts, where they add Users, edit a User's name and email, and set a new password. Setting a new password signs the User out everywhere.
+_Avoid_: User management, admin panel
 
 ### Workspaces
 
@@ -132,7 +144,7 @@ When Vietnamese is active, the UI and API errors are localized, while core syste
 
 | Keep in English (Giữ tiếng Anh) | Vietnamese Translation (Dịch) |
 | -------------------------------- | ----------------------------- |
-| Workspace, Workspace Admin | Project → **Dự án** |
+| Workspace, Workspace Admin, Instance admin | Project → **Dự án** |
 | Admin, Member, Guest | Members → **Thành viên** |
 | Project Admin, Contributor, Commenter, Viewer | Settings → **Cài đặt** |
 | Project ID | Work item → **Công việc** |
@@ -141,6 +153,8 @@ When Vietnamese is active, the UI and API errors are localized, while core syste
 | | Role → **Vai trò** |
 | | Deactivated account → **Đã vô hiệu hoá** |
 | | Login lockout → **Tạm khoá** |
+| | Account created → **Ngày tạo tài khoản** |
+| | Users (trang) → **Người dùng** |
 
 All translations address the user politely as "bạn". User-supplied content (such as project names, descriptions, and user names), time zone identifiers, server logs, and logos remain untranslated.
 
