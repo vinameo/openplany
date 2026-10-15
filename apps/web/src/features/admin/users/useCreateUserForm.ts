@@ -7,7 +7,7 @@ import {
   type CreateUserRequest,
 } from "@repo/contracts";
 import { useTranslation } from "react-i18next";
-import { ApiRequestError } from "../../../lib/apiClient";
+import { parseAdminUserError } from "./adminUserErrors";
 import { authApi } from "../../auth/api/authApi";
 import { useAuth } from "../../auth/useAuth";
 import {
@@ -18,7 +18,7 @@ import {
   type CreateUserField,
   type CreateUserValues,
   validateCreateUserField,
-} from "./createUserValidation";
+} from "./userFieldValidation";
 
 interface UseCreateUserFormOptions {
   /** Called after the user was created and the toast was shown. */
@@ -146,9 +146,37 @@ export function useCreateUserForm({
     } catch (error: unknown) {
       setIsSubmitting(false);
 
-      if (error instanceof ApiRequestError) {
-        if (error.status === 400 && error.code === "VALIDATION_ERROR") {
-          const fieldEntries = Object.entries(error.fields);
+      const action = parseAdminUserError(error, "create");
+      switch (action.type) {
+        case "expireSession":
+          expireSession();
+          return;
+
+        case "forbidden":
+          setSubmitError(action.message);
+          if (action.refreshSession) {
+            try {
+              const session = await authApi.getSession();
+              if (session !== null) {
+                updateUser(session.user);
+              } else {
+                expireSession();
+              }
+            } catch (sessionError) {
+              console.warn("Session refresh after 403 failed", sessionError);
+            }
+          }
+          return;
+
+        case "emailAlreadyExists":
+          form.setFieldError(
+            "email",
+            action.message ?? t("users:errors.emailTaken"),
+          );
+          return;
+
+        case "validation": {
+          const fieldEntries = Object.entries(action.fields);
           if (fieldEntries.length > 0) {
             const knownFields: CreateUserField[] = [
               "firstName",
@@ -166,55 +194,24 @@ export function useCreateUserForm({
               }
             }
           } else {
-            setSubmitError(error.message);
+            setSubmitError(action.message ?? t(GENERIC_CREATE_USER_ERROR_KEY));
           }
           return;
         }
 
-        if (error.status === 409 && error.code === "EMAIL_ALREADY_EXISTS") {
-          form.setFieldError("email", error.fields.email ?? error.message);
+        case "rateLimit":
+          setSubmitError(action.message);
           return;
-        }
 
-        if (error.status === 403 && error.code === "FORBIDDEN") {
-          setSubmitError(t("admin:users.errors.noPermission"));
-          try {
-            const session = await authApi.getSession();
-            if (session !== null) {
-              updateUser(session.user);
-            } else {
-              expireSession();
-            }
-          } catch (sessionError) {
-            console.warn("Session refresh after 403 failed", sessionError);
-          }
+        case "userNotFound":
+        case "cannotChangeOwnPassword":
+        case "general":
+          setSubmitError(action.message);
           return;
-        }
 
-        if (error.status === 403 && error.code === "PASSWORD_RESET_REQUIRED") {
-          expireSession();
+        case "conflictReload":
           return;
-        }
-
-        if (error.status === 401 && error.code === "UNAUTHENTICATED") {
-          expireSession();
-          return;
-        }
-
-        if (error.status === 429 && error.code === "TOO_MANY_ATTEMPTS") {
-          const minutes = Math.ceil((error.retryAfterSeconds ?? 60) / 60);
-          setSubmitError(
-            t("admin:users.errors.tooManyUsers", { count: minutes }),
-          );
-          return;
-        }
-
-        setSubmitError(error.message || t(GENERIC_CREATE_USER_ERROR_KEY));
-        return;
       }
-
-      console.error("Create user failed", error);
-      setSubmitError(t(GENERIC_CREATE_USER_ERROR_KEY));
     }
   }
 

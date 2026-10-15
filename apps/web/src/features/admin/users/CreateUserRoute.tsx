@@ -1,10 +1,9 @@
 import { Navigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { ColorSchemeToggle } from "@repo/ui";
 import { useAuth } from "../../auth/useAuth";
 import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
+import { AdminPageLayout } from "../AdminPageLayout";
 import { CreateUserForm } from "./CreateUserForm";
-import classes from "./CreateUserRoute.module.css";
 
 export function CreateUserRoute() {
   const { t } = useTranslation();
@@ -19,17 +18,8 @@ export function CreateUserRoute() {
   }
 
   return (
-    <div className={classes.page}>
-      <div className={classes.topBar}>
-        <ColorSchemeToggle
-          size="input-xs"
-          labelLight={t("common:theme.switchToLight")}
-          labelDark={t("common:theme.switchToDark")}
-        />
-      </div>
-      <main className={classes.main}>
-        <CreateUserForm />
-      </main>
-    </div>
+    <AdminPageLayout maxWidth={840}>
+      <CreateUserForm />
+    </AdminPageLayout>
   );
 }

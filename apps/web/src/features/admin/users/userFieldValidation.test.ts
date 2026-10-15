@@ -1,10 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
   type CreateUserValues,
+  validateConfirmPassword,
   validateCreateUserField,
-} from "./createUserValidation";
+  validateDisplayName,
+  validateEmail,
+  validateFirstName,
+  validateLastName,
+  validatePassword,
+} from "./userFieldValidation";
 
-describe("createUserValidation", () => {
+describe("userFieldValidation", () => {
   const baseValues: CreateUserValues = {
     firstName: "An",
     lastName: "Nguyen",
@@ -17,6 +23,7 @@ describe("createUserValidation", () => {
   describe("firstName", () => {
     it("accepts valid names and decomposed Unicode normalized to NFC", () => {
       expect(validateCreateUserField("firstName", baseValues)).toBeNull();
+      expect(validateFirstName("An")).toBeNull();
       // Khái vs Khái
       expect(
         validateCreateUserField("firstName", {
@@ -24,6 +31,7 @@ describe("createUserValidation", () => {
           firstName: "Kha\u0301i",
         }),
       ).toBeNull();
+      expect(validateFirstName("Kha\u0301i")).toBeNull();
     });
 
     it("requires non-empty name after normalization", () => {
@@ -36,6 +44,8 @@ describe("createUserValidation", () => {
           firstName: "   ",
         }),
       ).toBe("Enter a first name");
+      expect(validateFirstName("")).toBe("Enter a first name");
+      expect(validateFirstName("   ")).toBe("Enter a first name");
     });
 
     it("rejects names longer than 50 characters", () => {
@@ -45,6 +55,9 @@ describe("createUserValidation", () => {
           firstName: "a".repeat(51),
         }),
       ).toBe("First name must be 50 characters or fewer");
+      expect(validateFirstName("a".repeat(51))).toBe(
+        "First name must be 50 characters or fewer",
+      );
     });
 
     it("rejects control and zero-width characters", () => {
@@ -60,6 +73,9 @@ describe("createUserValidation", () => {
           firstName: "An\u0000",
         }),
       ).toBe("Contains characters that aren't allowed");
+      expect(validateFirstName("An\u200B")).toBe(
+        "Contains characters that aren't allowed",
+      );
     });
   });
 
@@ -71,6 +87,8 @@ describe("createUserValidation", () => {
       expect(
         validateCreateUserField("lastName", { ...baseValues, lastName: "   " }),
       ).toBeNull();
+      expect(validateLastName("")).toBeNull();
+      expect(validateLastName("   ")).toBeNull();
     });
 
     it("rejects last name longer than 50 characters", () => {
@@ -80,6 +98,9 @@ describe("createUserValidation", () => {
           lastName: "a".repeat(51),
         }),
       ).toBe("Last name must be 50 characters or fewer");
+      expect(validateLastName("a".repeat(51))).toBe(
+        "Last name must be 50 characters or fewer",
+      );
     });
 
     it("rejects invalid characters in last name", () => {
@@ -89,12 +110,16 @@ describe("createUserValidation", () => {
           lastName: "Nguyen\u200E",
         }),
       ).toBe("Contains characters that aren't allowed");
+      expect(validateLastName("Nguyen\u200E")).toBe(
+        "Contains characters that aren't allowed",
+      );
     });
   });
 
   describe("displayName", () => {
     it("accepts valid display name", () => {
       expect(validateCreateUserField("displayName", baseValues)).toBeNull();
+      expect(validateDisplayName("An Nguyen")).toBeNull();
     });
 
     it("requires non-empty display name", () => {
@@ -110,6 +135,8 @@ describe("createUserValidation", () => {
           displayName: "   ",
         }),
       ).toBe("Enter a display name");
+      expect(validateDisplayName("")).toBe("Enter a display name");
+      expect(validateDisplayName("   ")).toBe("Enter a display name");
     });
 
     it("rejects display name longer than 50 characters", () => {
@@ -119,6 +146,9 @@ describe("createUserValidation", () => {
           displayName: "a".repeat(51),
         }),
       ).toBe("Display name must be 50 characters or fewer");
+      expect(validateDisplayName("a".repeat(51))).toBe(
+        "Display name must be 50 characters or fewer",
+      );
     });
 
     it("rejects invalid characters in display name", () => {
@@ -128,6 +158,9 @@ describe("createUserValidation", () => {
           displayName: "An\u0007",
         }),
       ).toBe("Contains characters that aren't allowed");
+      expect(validateDisplayName("An\u0007")).toBe(
+        "Contains characters that aren't allowed",
+      );
     });
   });
 
@@ -139,6 +172,7 @@ describe("createUserValidation", () => {
           email: "  an@openplany.dev  ",
         }),
       ).toBeNull();
+      expect(validateEmail("  an@openplany.dev  ")).toBeNull();
     });
 
     it("rejects empty or invalid email formats", () => {
@@ -163,6 +197,8 @@ describe("createUserValidation", () => {
       expect(
         validateCreateUserField("email", { ...baseValues, email: "a@b" }),
       ).toBe("Enter a valid email");
+      expect(validateEmail("")).toBe("Enter a valid email");
+      expect(validateEmail("invalid")).toBe("Enter a valid email");
     });
 
     it("rejects email longer than 254 characters", () => {
@@ -172,6 +208,9 @@ describe("createUserValidation", () => {
           email: `${"a".repeat(250)}@test.com`,
         }),
       ).toBe("Enter a valid email");
+      expect(validateEmail(`${"a".repeat(250)}@test.com`)).toBe(
+        "Enter a valid email",
+      );
     });
   });
 
@@ -184,6 +223,8 @@ describe("createUserValidation", () => {
           password: "a".repeat(128),
         }),
       ).toBeNull();
+      expect(validatePassword("password123")).toBeNull();
+      expect(validatePassword("a".repeat(128))).toBeNull();
     });
 
     it("rejects password shorter than 8 or longer than 128 characters", () => {
@@ -199,6 +240,8 @@ describe("createUserValidation", () => {
           password: "a".repeat(129),
         }),
       ).toBe("Use 8 to 128 characters");
+      expect(validatePassword("short")).toBe("Use 8 to 128 characters");
+      expect(validatePassword("a".repeat(129))).toBe("Use 8 to 128 characters");
     });
 
     it("rejects password identical to email case-insensitively", () => {
@@ -209,12 +252,16 @@ describe("createUserValidation", () => {
           password: "AN@OpenPlany.dev",
         }),
       ).toBe("Password can't be the same as the email");
+      expect(validatePassword("AN@OpenPlany.dev", "an@openplany.dev")).toBe(
+        "Password can't be the same as the email",
+      );
     });
   });
 
   describe("confirmPassword", () => {
     it("accepts matching confirmPassword", () => {
       expect(validateCreateUserField("confirmPassword", baseValues)).toBeNull();
+      expect(validateConfirmPassword("password123", "password123")).toBeNull();
     });
 
     it("rejects empty or mismatching confirmPassword", () => {
@@ -230,6 +277,12 @@ describe("createUserValidation", () => {
           confirmPassword: "different-password",
         }),
       ).toBe("Passwords don't match");
+      expect(validateConfirmPassword("", "password123")).toBe(
+        "Passwords don't match",
+      );
+      expect(validateConfirmPassword("different-password", "password123")).toBe(
+        "Passwords don't match",
+      );
     });
   });
 });

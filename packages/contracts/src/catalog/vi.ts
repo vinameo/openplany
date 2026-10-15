@@ -531,7 +531,7 @@ export const vi: TranslatedCatalog = {
     "errors.lastNameText": "Họ phải là văn bản",
     "errors.displayNameRequired": "Nhập tên hiển thị",
     "errors.displayNameTooLong": "Tên hiển thị phải có {{max}} ký tự trở xuống",
-    "errors.passwordLength": "Sử dụng từ {{min}} đến {{max}} ký tự",
+    "errors.passwordLength": "Dùng từ {{min}} đến {{max}} ký tự",
     "errors.emailValid": "Nhập một email hợp lệ",
     "errors.emailTaken": "Một người dùng có email này đã tồn tại",
     "errors.enterYourFirstName": "Nhập tên của bạn",
@@ -635,18 +635,7 @@ export const vi: TranslatedCatalog = {
     "users.errors.tooManyUsers_other":
       "Quá nhiều người dùng được tạo. Thử lại sau {{count}} phút.",
     "users.errors.createFailed": "Không thể tạo người dùng. Vui lòng thử lại.",
-    "users.validation.enterFirstName": "Nhập tên",
-    "users.validation.firstNameMax": "Tên phải có từ {{max}} ký tự trở xuống",
-    "users.validation.enterDisplayName": "Nhập tên hiển thị",
-    "users.validation.displayNameMax":
-      "Tên hiển thị phải có từ {{max}} ký tự trở xuống",
-    "users.validation.lastNameMax": "Họ phải có từ {{max}} ký tự trở xuống",
-    "users.validation.invalidEmail": "Nhập một email hợp lệ",
-    "users.validation.passwordLength": "Dùng từ {{min}} đến {{max}} ký tự",
-    "users.validation.passwordSameAsEmail":
-      "Mật khẩu không được trùng với email",
     "users.validation.passwordsDoNotMatch": "Mật khẩu không khớp",
-    "users.validation.disallowedCharacters": "Chứa ký tự không được phép",
   },
   profile: {
     title: "Hồ sơ",

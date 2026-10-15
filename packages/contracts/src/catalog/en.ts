@@ -666,21 +666,7 @@ export const en = {
     "users.errors.tooManyUsers_other":
       "Too many users created. Try again in {{count}} minutes.",
     "users.errors.createFailed": "Couldn't create the user. Please try again.",
-    "users.validation.enterFirstName": "Enter a first name",
-    "users.validation.firstNameMax":
-      "First name must be {{max}} characters or fewer",
-    "users.validation.enterDisplayName": "Enter a display name",
-    "users.validation.displayNameMax":
-      "Display name must be {{max}} characters or fewer",
-    "users.validation.lastNameMax":
-      "Last name must be {{max}} characters or fewer",
-    "users.validation.invalidEmail": "Enter a valid email",
-    "users.validation.passwordLength": "Use {{min}} to {{max}} characters",
-    "users.validation.passwordSameAsEmail":
-      "Password can't be the same as the email",
     "users.validation.passwordsDoNotMatch": "Passwords don't match",
-    "users.validation.disallowedCharacters":
-      "Contains characters that aren't allowed",
   },
   profile: {
     title: "Profile",

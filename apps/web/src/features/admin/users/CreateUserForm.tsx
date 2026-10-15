@@ -1,8 +1,10 @@
-import { Alert, Button, PasswordInput, TextInput, Title } from "@mantine/core";
+import { Alert, Button, Title } from "@mantine/core";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { PASSWORD_MIN } from "@repo/contracts";
 import { useCreateUserForm } from "./useCreateUserForm";
+import { DisplayNameField, UserNameFields } from "./form/UserNameFields";
+import { EmailField } from "./form/EmailField";
+import { NewPasswordFields } from "./form/NewPasswordFields";
 import classes from "./CreateUserForm.module.css";
 
 export interface CreateUserFormProps {
@@ -53,88 +55,14 @@ export function CreateUserForm({
         autoComplete="off"
         className={classes.form}
       >
-        <div className={classes.row}>
-          <TextInput
-            label={t("admin:users.form.firstName")}
-            withAsterisk
-            autoComplete="off"
-            data-autofocus
-            data-1p-ignore
-            data-lpignore="true"
-            readOnly={isSubmitting}
-            {...form.getInputProps("firstName")}
-            key={form.key("firstName")}
-          />
-          <TextInput
-            label={t("admin:users.form.lastName")}
-            autoComplete="off"
-            data-1p-ignore
-            data-lpignore="true"
-            readOnly={isSubmitting}
-            {...form.getInputProps("lastName")}
-            key={form.key("lastName")}
-          />
-        </div>
+        <UserNameFields form={form} readOnly={isSubmitting} autoFocus />
 
         <div className={classes.row}>
-          <TextInput
-            label={t("admin:users.form.displayName")}
-            withAsterisk
-            autoComplete="off"
-            description={t("admin:users.form.displayNameDescription")}
-            data-1p-ignore
-            data-lpignore="true"
-            readOnly={isSubmitting}
-            {...form.getInputProps("displayName")}
-            key={form.key("displayName")}
-          />
-          <TextInput
-            label={t("admin:users.form.email")}
-            withAsterisk
-            type="email"
-            inputMode="email"
-            autoComplete="off"
-            description={t("admin:users.form.emailDescription")}
-            data-1p-ignore
-            data-lpignore="true"
-            readOnly={isSubmitting}
-            {...form.getInputProps("email")}
-            key={form.key("email")}
-          />
+          <DisplayNameField form={form} readOnly={isSubmitting} />
+          <EmailField form={form} readOnly={isSubmitting} />
         </div>
 
-        <div className={classes.row}>
-          <PasswordInput
-            label={t("admin:users.form.password")}
-            withAsterisk
-            autoComplete="new-password"
-            description={t("admin:users.form.passwordDescription", {
-              min: PASSWORD_MIN,
-            })}
-            visibilityToggleButtonProps={{
-              "aria-label": t("admin:users.form.showPassword"),
-            }}
-            data-1p-ignore
-            data-lpignore="true"
-            readOnly={isSubmitting}
-            {...form.getInputProps("password")}
-            key={form.key("password")}
-          />
-          <PasswordInput
-            label={t("admin:users.form.confirmPassword")}
-            withAsterisk
-            autoComplete="new-password"
-            description={t("admin:users.form.confirmPasswordDescription")}
-            visibilityToggleButtonProps={{
-              "aria-label": t("admin:users.form.showPassword"),
-            }}
-            data-1p-ignore
-            data-lpignore="true"
-            readOnly={isSubmitting}
-            {...form.getInputProps("confirmPassword")}
-            key={form.key("confirmPassword")}
-          />
-        </div>
+        <NewPasswordFields form={form} readOnly={isSubmitting} />
 
         {submitError && (
           <Alert color="red" title={t("common:error")} role="alert">
