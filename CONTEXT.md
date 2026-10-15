@@ -26,6 +26,10 @@ _Avoid_: masked user, deleted user
 The instance admin's page listing every User of the instance except bots and Anonymised accounts, where they add Users, edit a User's name and email, and set a new password. Setting a new password signs the User out everywhere.
 _Avoid_: User management, admin panel
 
+**Re-authentication**:
+Typing your own password again to confirm it's you before a sensitive change. Required to set a new password for another Instance admin.
+_Avoid_: step-up, sudo mode, confirm identity
+
 ### Workspaces
 
 **Workspace**:
