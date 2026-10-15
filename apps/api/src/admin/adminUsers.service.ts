@@ -1,10 +1,16 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
-import type { CreatedUserResponse } from '@repo/contracts';
+import type {
+  AdminUserListQuery,
+  AdminUserListResponse,
+  CreatedUserResponse,
+} from '@repo/contracts';
+import { ADMIN_USERS_PAGE_SIZE } from '@repo/contracts';
 import { Clock } from '../auth/clock.js';
 import { PasswordHasher } from '../auth/passwordHasher.js';
 import { UsersRepository } from '../auth/repositories/usersRepository.js';
 import { ApiException } from '../common/apiException.js';
 import { type CreateUserDto } from './dto/createUser.dto.js';
+import { toAdminUserResponse } from './dto/adminUserResponse.dto.js';
 import { toCreatedUserResponse } from './dto/createdUserResponse.dto.js';
 import { UserEvents } from './events/userEvents.js';
 import {
@@ -26,6 +32,17 @@ export class AdminUsersService {
     private readonly events: UserEvents,
     private readonly clock: Clock,
   ) {}
+
+  async list(query: AdminUserListQuery): Promise<AdminUserListResponse> {
+    const page = Math.max(1, query.page ?? 1);
+    const { items, total } = await this.adminUsers.list(query);
+    return {
+      items: items.map(toAdminUserResponse),
+      total,
+      page,
+      pageSize: ADMIN_USERS_PAGE_SIZE,
+    };
+  }
 
   async create(
     actorId: string,

@@ -17,6 +17,13 @@ import { WorkspaceMemberGuard } from './workspaces/workspaceMemberGuard.js';
 import { WorkspacePermissionGuard } from './workspaces/workspacePermissionGuard.js';
 import { WorkspaceWriteRateLimitGuard } from './workspaces/workspaceWriteRateLimitGuard.js';
 import { MemberCandidateRateLimitGuard } from './workspaces/members/memberCandidateRateLimitGuard.js';
+import { AdminUsersController } from './admin/adminUsers.controller.js';
+import { InstanceAdminGuard } from './admin/instanceAdminGuard.js';
+import { UserCreateRateLimitGuard } from './admin/userCreateRateLimitGuard.js';
+import {
+  AdminUsersReadRateLimitGuard,
+  AdminUsersWriteRateLimitGuard,
+} from './admin/adminUsersRateLimitGuards.js';
 
 /**
  * Fitness functions: rules that every endpoint, present and future, must keep.
@@ -227,5 +234,31 @@ describe('Architecture', () => {
       (r) => r.path.includes('access-polic') && !r.key.startsWith('GET '),
     );
     expect(policyWriteRoutes).toEqual([]);
+  });
+
+  it('defines no class-level guards on AdminUsersController (RQ INV-01)', () => {
+    const classGuards =
+      Reflect.getMetadata(GUARDS_METADATA, AdminUsersController) ?? [];
+    expect(classGuards).toEqual([]);
+  });
+
+  it('enforces exact guard chain on every admin/users route: SessionGuard -> RateLimiter -> InstanceAdminGuard (RQ INV-01)', () => {
+    const adminUsersRoutes = routes.filter((r) =>
+      r.path.startsWith('/admin/users'),
+    );
+    expect(adminUsersRoutes.length).toBeGreaterThan(0);
+
+    const allowedLimiters = [
+      UserCreateRateLimitGuard,
+      AdminUsersReadRateLimitGuard,
+      AdminUsersWriteRateLimitGuard,
+    ];
+
+    for (const route of adminUsersRoutes) {
+      expect(route.guards).toHaveLength(3);
+      expect(route.guards[0]).toBe(SessionGuard);
+      expect(allowedLimiters).toContain(route.guards[1]);
+      expect(route.guards[2]).toBe(InstanceAdminGuard);
+    }
   });
 });

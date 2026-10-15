@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { CreatedUserResponse, CreateUserRequest } from "@repo/contracts";
+import type {
+  AdminUserListResponse,
+  CreatedUserResponse,
+  CreateUserRequest,
+} from "@repo/contracts";
 import { apiError, jsonResponse, mockFetch } from "../../../../test/fetchMock";
 import { adminUsersApi, GENERIC_CREATE_USER_ERROR_KEY } from "./adminUsersApi";
 import { translate } from "../../../../i18n/language";
@@ -68,6 +72,38 @@ describe("adminUsersApi", () => {
     await expect(adminUsersApi.createUser(requestBody)).rejects.toMatchObject({
       code: "NETWORK_ERROR",
       message: GENERIC_CREATE_USER_ERROR,
+    });
+  });
+
+  describe("list", () => {
+    it("fetches GET /api/admin/users with mapped query params", async () => {
+      const listResponse: AdminUserListResponse = {
+        items: [],
+        total: 0,
+        page: 1,
+        pageSize: 50,
+      };
+      const fetchMock = mockFetch({
+        "GET /api/admin/users": () => jsonResponse(200, listResponse),
+      });
+
+      const result = await adminUsersApi.list({
+        search: "kai",
+        status: "active",
+        admin: "only",
+        sort: "createdAt",
+        order: "desc",
+        page: 2,
+      });
+
+      expect(result).toEqual(listResponse);
+      const calledUrl = fetchMock.mock.calls[0][0] as string;
+      expect(calledUrl).toContain("page=2");
+      expect(calledUrl).toContain("sort=createdAt");
+      expect(calledUrl).toContain("order=desc");
+      expect(calledUrl).toContain("search=kai");
+      expect(calledUrl).toContain("status=active");
+      expect(calledUrl).toContain("instanceAdmin=only");
     });
   });
 });

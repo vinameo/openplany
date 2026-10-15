@@ -580,4 +580,149 @@ describe('Admin Users (e2e)', () => {
     expect(res21.headers['retry-after']).toBeDefined();
     expect(res21.body.retryAfterSeconds).toBeDefined();
   });
+
+  describe('GET /api/admin/users', () => {
+    it('returns 401 for unauthenticated request', async () => {
+      const res = await http()
+        .get('/api/admin/users')
+        .set('Origin', ORIGIN)
+        .expect(401);
+      expect(res.body.code).toBe('UNAUTHENTICATED');
+    });
+
+    it('returns 403 with cannotManageUsers message for non-instance admin (AC-02)', async () => {
+      await createDbUser('regular@openplany.dev', false);
+      const cookie = await signInCookie('regular@openplany.dev');
+
+      const res = await http()
+        .get('/api/admin/users')
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(403);
+
+      expect(res.body.code).toBe('FORBIDDEN');
+      expect(res.body.message).toBe("You don't have permission to manage users");
+
+      // With Vietnamese language
+      const resVi = await http()
+        .get('/api/admin/users')
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .set('Accept-Language', 'vi')
+        .expect(403);
+
+      expect(resVi.body.code).toBe('FORBIDDEN');
+      expect(resVi.body.message).toBe("Bạn không có quyền quản lý người dùng");
+    });
+
+    it('returns listed users sorted by createdAt desc, id desc with pagination and excludes bots and masked users (INV-02, INV-03, AC-03, AC-04, AC-05)', async () => {
+      await createDbUser('admin@openplany.dev', true);
+      const cookie = await signInCookie('admin@openplany.dev');
+
+      // Create active user
+      await e2e.dataSource.query(
+        `INSERT INTO users (
+          id, email, username, password, first_name, last_name, display_name,
+          is_superuser, is_staff, is_email_verified, is_active, is_bot, masked_at,
+          created_at, updated_at
+        ) VALUES (
+          '11111111-1111-4111-8111-111111111111', 'active@openplany.dev', 'activeuser',
+          $1, 'Active', 'User', 'Active User',
+          false, false, true, true, false, null,
+          now() - interval '2 days', now() - interval '2 days'
+        )`,
+        [passwordHash],
+      );
+
+      // Create deactivated user (should be included, AC-04)
+      await e2e.dataSource.query(
+        `INSERT INTO users (
+          id, email, username, password, first_name, last_name, display_name,
+          is_superuser, is_staff, is_email_verified, is_active, is_bot, masked_at,
+          created_at, updated_at
+        ) VALUES (
+          '22222222-2222-4222-8222-222222222222', 'deactivated@openplany.dev', 'deactivateduser',
+          $1, 'Deactivated', 'User', 'Deactivated User',
+          false, false, true, false, false, null,
+          now() - interval '1 day', now() - interval '1 day'
+        )`,
+        [passwordHash],
+      );
+
+      // Create bot user (should be excluded, INV-02, AC-04)
+      await e2e.dataSource.query(
+        `INSERT INTO users (
+          id, email, username, password, first_name, last_name, display_name,
+          is_superuser, is_staff, is_email_verified, is_active, is_bot, masked_at,
+          created_at, updated_at
+        ) VALUES (
+          '33333333-3333-4333-8333-333333333333', 'bot@openplany.dev', 'botuser',
+          $1, 'Bot', 'User', 'Bot User',
+          false, false, true, true, true, null,
+          now(), now()
+        )`,
+        [passwordHash],
+      );
+
+      // Create masked user (should be excluded, INV-02, AC-04)
+      await e2e.dataSource.query(
+        `INSERT INTO users (
+          id, email, username, password, first_name, last_name, display_name,
+          is_superuser, is_staff, is_email_verified, is_active, is_bot, masked_at,
+          created_at, updated_at
+        ) VALUES (
+          '44444444-4444-4444-8444-444444444444', 'masked@openplany.dev', 'maskeduser',
+          $1, 'Masked', 'User', 'Masked User',
+          false, false, true, true, false, now(),
+          now(), now()
+        )`,
+        [passwordHash],
+      );
+
+      const res = await http()
+        .get('/api/admin/users')
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(200);
+
+      expect(res.body.pageSize).toBe(50);
+      expect(res.body.page).toBe(1);
+      // Admin + active + deactivated = 3 listed users
+      expect(res.body.total).toBe(3);
+      expect(res.body.items).toHaveLength(3);
+
+      const emails = res.body.items.map((u: { email: string }) => u.email);
+      expect(emails).not.toContain('bot@openplany.dev');
+      expect(emails).not.toContain('masked@openplany.dev');
+      expect(emails).toContain('admin@openplany.dev');
+      expect(emails).toContain('deactivated@openplany.dev');
+      expect(emails).toContain('active@openplany.dev');
+
+      // Check fields for AC-03
+      const first = res.body.items[0];
+      expect(first).not.toHaveProperty('password');
+      expect(first).not.toHaveProperty('username');
+      expect(first).toHaveProperty('id');
+      expect(first).toHaveProperty('email');
+      expect(first).toHaveProperty('firstName');
+      expect(first).toHaveProperty('lastName');
+      expect(first).toHaveProperty('displayName');
+      expect(first).toHaveProperty('avatarUrl');
+      expect(first).toHaveProperty('isActive');
+      expect(first).toHaveProperty('isInstanceAdmin');
+      expect(first).toHaveProperty('createdAt');
+      expect(first).toHaveProperty('updatedAt');
+
+      // Verify page beyond total returns items: [] and correct total (AC-05)
+      const resPage10 = await http()
+        .get('/api/admin/users?page=10')
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(200);
+
+      expect(resPage10.body.page).toBe(10);
+      expect(resPage10.body.total).toBe(3);
+      expect(resPage10.body.items).toEqual([]);
+    });
+  });
 });

@@ -1,54 +1,36 @@
-import { Alert, Button, Title } from "@mantine/core";
-import { useNavigate } from "react-router";
-import { useTranslation } from "react-i18next";
-import { useCreateUserForm } from "./useCreateUserForm";
-import { DisplayNameField, UserNameFields } from "./form/UserNameFields";
-import { EmailField } from "./form/EmailField";
-import { NewPasswordFields } from "./form/NewPasswordFields";
-import classes from "./CreateUserForm.module.css";
+import type { ReactNode } from 'react';
+import { Alert, Button } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
+import {
+  type CreateUserFormState,
+  useCreateUserForm,
+} from './useCreateUserForm';
+import { DisplayNameField, UserNameFields } from './form/UserNameFields';
+import { EmailField } from './form/EmailField';
+import { NewPasswordFields } from './form/NewPasswordFields';
+import classes from './CreateUserForm.module.css';
 
 export interface CreateUserFormProps {
+  state?: CreateUserFormState;
   onSuccess?: () => void;
   onCancel?: () => void;
+  footer?: ReactNode;
 }
 
-export function CreateUserForm({
-  onSuccess,
+function CreateUserFormView({
+  state,
   onCancel,
-}: CreateUserFormProps = {}) {
+  footer,
+}: {
+  state: CreateUserFormState;
+  onCancel?: () => void;
+  footer?: ReactNode;
+}) {
   const { t } = useTranslation();
-  const navigate = useNavigate();
-
-  function handleGoBack() {
-    if (onCancel) {
-      onCancel();
-      return;
-    }
-    if (typeof window !== "undefined" && (window.history.state?.idx ?? 0) > 0) {
-      navigate(-1);
-    } else {
-      navigate("/");
-    }
-  }
-
-  function handleSuccess() {
-    if (onSuccess) {
-      onSuccess();
-      return;
-    }
-    handleGoBack();
-  }
-
-  const { form, isSubmitting, submitError, handleSubmit } = useCreateUserForm({
-    onCreated: handleSuccess,
-  });
+  const { form, isSubmitting, submitError, handleSubmit } = state;
 
   return (
     <div className={classes.container}>
-      <Title order={1} className={classes.title}>
-        {t("admin:users.form.title")}
-      </Title>
-
       <form
         onSubmit={handleSubmit}
         noValidate
@@ -65,31 +47,67 @@ export function CreateUserForm({
         <NewPasswordFields form={form} readOnly={isSubmitting} />
 
         {submitError && (
-          <Alert color="red" title={t("common:error")} role="alert">
+          <Alert color="red" title={t('common:error')} role="alert">
             {submitError}
           </Alert>
         )}
 
-        <div className={classes.actions}>
-          <Button
-            type="submit"
-            variant="filled"
-            loading={isSubmitting}
-            disabled={!form.isValid()}
-          >
-            {t("admin:users.form.submit")}
-          </Button>
+        {footer ?? (
+          <div className={classes.actions}>
+            <Button
+              type="submit"
+              variant="filled"
+              loading={isSubmitting}
+              disabled={!form.isValid()}
+            >
+              {t('admin:users.form.submit')}
+            </Button>
 
-          <Button
-            type="button"
-            variant="default"
-            onClick={handleGoBack}
-            disabled={isSubmitting}
-          >
-            {t("common:actions.cancel")}
-          </Button>
-        </div>
+            {onCancel && (
+              <Button
+                type="button"
+                variant="default"
+                onClick={onCancel}
+                disabled={isSubmitting}
+              >
+                {t('common:actions.cancel')}
+              </Button>
+            )}
+          </div>
+        )}
       </form>
     </div>
   );
+}
+
+function CreateUserFormWithInternalState({
+  onSuccess,
+  onCancel,
+  footer,
+}: CreateUserFormProps) {
+  const state = useCreateUserForm({
+    onCreated: onSuccess ?? (() => {}),
+  });
+
+  return (
+    <CreateUserFormView
+      state={state}
+      onCancel={onCancel}
+      footer={footer}
+    />
+  );
+}
+
+export function CreateUserForm(props: CreateUserFormProps = {}) {
+  if (props.state) {
+    return (
+      <CreateUserFormView
+        state={props.state}
+        onCancel={props.onCancel}
+        footer={props.footer}
+      />
+    );
+  }
+
+  return <CreateUserFormWithInternalState {...props} />;
 }

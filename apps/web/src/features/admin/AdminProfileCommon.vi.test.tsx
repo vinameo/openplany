@@ -438,9 +438,21 @@ describe("Admin, Profile, and Common in Vietnamese (Ticket 09)", () => {
           ),
         "GET /api/workspaces": () =>
           jsonResponse(200, { workspaces: [], lastWorkspaceSlug: null }),
+        "GET /api/admin/users": () =>
+          jsonResponse(200, {
+            items: [],
+            total: 0,
+            page: 1,
+            pageSize: 50,
+          }),
       });
 
-      const { user } = renderApp("/create-user");
+      const { user } = renderApp("/users");
+
+      const addUserButton = await screen.findByRole("button", {
+        name: "Thêm người dùng",
+      });
+      await user.click(addUserButton);
 
       // Verify page and form headings in Vietnamese
       expect(

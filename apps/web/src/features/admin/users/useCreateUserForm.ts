@@ -29,6 +29,7 @@ export interface CreateUserFormState {
   form: UseFormReturnType<CreateUserValues>;
   isSubmitting: boolean;
   submitError: string | null;
+  hasChanges: boolean;
   handleSubmit: (event?: FormEvent<HTMLFormElement>) => void;
 }
 
@@ -215,10 +216,15 @@ export function useCreateUserForm({
     }
   }
 
+  const hasChanges = Object.values(form.values).some(
+    (val) => typeof val === "string" && val.length > 0,
+  );
+
   return {
     form,
     isSubmitting,
     submitError,
+    hasChanges,
     handleSubmit,
   };
 }

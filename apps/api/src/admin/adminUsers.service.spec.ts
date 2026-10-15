@@ -41,8 +41,13 @@ describe('AdminUsersService', () => {
         createdAt: new Date('2026-10-09T10:00:00.000Z'),
       };
     });
+    const listMock = vi.fn(async () => ({
+      items: [] as User[],
+      total: 0,
+    }));
     const adminUsersRepo = {
       createUser: createUserMock,
+      list: listMock,
     } as unknown as AdminUsersRepository;
 
     const hasher = new FakePasswordHasher();
@@ -74,6 +79,8 @@ describe('AdminUsersService', () => {
 
     return {
       service,
+      adminUsersRepo,
+      listMock,
       findByEmailMock,
       createUserMock,
       hashMock,
@@ -232,5 +239,62 @@ describe('AdminUsersService', () => {
 
     const username = ctx.getCapturedNewUser()?.username;
     expect(username).toMatch(/^[0-9a-f]{32}$/);
+  });
+
+  describe('list', () => {
+    it('calls repository.list and maps items with toAdminUserResponse', async () => {
+      const ctx = setup();
+      const mockUsers: User[] = [
+        {
+          id: 'u-1',
+          email: 'u1@example.com',
+          firstName: 'An',
+          lastName: 'Nguyen',
+          displayName: 'An Nguyen',
+          avatar: 'https://example.com/avatar.png',
+          isActive: true,
+          isSuperuser: true,
+          createdAt: new Date('2026-10-09T10:00:00.000Z'),
+          updatedAt: new Date('2026-10-09T10:00:00.000Z'),
+        } as User,
+      ];
+      ctx.listMock.mockResolvedValueOnce({
+        items: mockUsers,
+        total: 101,
+      });
+
+      const result = await ctx.service.list({ page: 2 });
+
+      expect(ctx.listMock).toHaveBeenCalledWith({ page: 2 });
+      expect(result.page).toBe(2);
+      expect(result.pageSize).toBe(50);
+      expect(result.total).toBe(101);
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0]).toEqual({
+        id: 'u-1',
+        email: 'u1@example.com',
+        firstName: 'An',
+        lastName: 'Nguyen',
+        displayName: 'An Nguyen',
+        avatarUrl: 'https://example.com/avatar.png',
+        isActive: true,
+        isInstanceAdmin: true,
+        createdAt: '2026-10-09T10:00:00.000Z',
+        updatedAt: '2026-10-09T10:00:00.000Z',
+      });
+    });
+
+    it('defaults page to 1 when page is undefined or negative', async () => {
+      const ctx = setup();
+      ctx.listMock.mockResolvedValueOnce({
+        items: [],
+        total: 0,
+      });
+
+      const result = await ctx.service.list({});
+      expect(result.page).toBe(1);
+      expect(result.items).toEqual([]);
+      expect(result.total).toBe(0);
+    });
   });
 });
