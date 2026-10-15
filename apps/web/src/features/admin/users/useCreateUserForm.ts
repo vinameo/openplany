@@ -8,8 +8,7 @@ import {
 } from "@repo/contracts";
 import { useTranslation } from "react-i18next";
 import { parseAdminUserError } from "./adminUserErrors";
-import { authApi } from "../../auth/api/authApi";
-import { useAuth } from "../../auth/useAuth";
+import { useAdminUserErrorRecovery } from "./useAdminUserErrorRecovery";
 import {
   adminUsersApi,
   GENERIC_CREATE_USER_ERROR_KEY,
@@ -37,7 +36,7 @@ export function useCreateUserForm({
   onCreated,
 }: UseCreateUserFormOptions): CreateUserFormState {
   const { t } = useTranslation();
-  const { updateUser, expireSession } = useAuth();
+  const recovery = useAdminUserErrorRecovery();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const displayNameTouched = useRef(false);
@@ -150,23 +149,12 @@ export function useCreateUserForm({
       const action = parseAdminUserError(error, "create");
       switch (action.type) {
         case "expireSession":
-          expireSession();
+          recovery.expireSession();
           return;
 
         case "forbidden":
           setSubmitError(action.message);
-          if (action.refreshSession) {
-            try {
-              const session = await authApi.getSession();
-              if (session !== null) {
-                updateUser(session.user);
-              } else {
-                expireSession();
-              }
-            } catch (sessionError) {
-              console.warn("Session refresh after 403 failed", sessionError);
-            }
-          }
+          await recovery.refreshSessionAfterForbidden();
           return;
 
         case "emailAlreadyExists":
@@ -206,6 +194,7 @@ export function useCreateUserForm({
 
         case "userNotFound":
         case "cannotChangeOwnPassword":
+        case "reauthentication":
         case "general":
           setSubmitError(action.message);
           return;

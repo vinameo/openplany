@@ -64,7 +64,7 @@ describe('UserCreateRateLimitGuard', () => {
       );
       expect(warnSpy).toHaveBeenCalledTimes(1);
       expect(warnSpy).toHaveBeenCalledWith(
-        'admin.users.rate_limited userId=admin-1 requestId=req-99',
+        'admin.users.rate_limited limiter=create userId=admin-1 requestId=req-99',
       );
 
       // 22nd request: blocked in the same window, so it does not log again (API B1, B2.2)

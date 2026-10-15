@@ -1,18 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Button, Modal, Skeleton, Text } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
-import { notifications } from "@mantine/notifications";
 import type { AdminUserResponse } from "@repo/contracts";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { DiscardChangesFooter } from "../../layout/DiscardChangesFooter";
 import { useDiscardGuard } from "../../layout/useDiscardGuard";
-import {
-  adminUserKeys,
-  adminUserQueries,
-  invalidateAdminUserLists,
-} from "./api/adminUserQueries";
+import { adminUserKeys, adminUserQueries } from "./api/adminUserQueries";
 import { parseAdminUserError } from "./adminUserErrors";
+import { useAdminUserErrorRecovery } from "./useAdminUserErrorRecovery";
 import { useEditUserForm } from "./useEditUserForm";
 import { EditUserForm } from "./EditUserForm";
 import classes from "./EditUserModal.module.css";
@@ -127,6 +123,8 @@ function EditUserModalContent({
   const isNarrow = useMediaQuery("(max-width: 575px)");
   const [openedAt] = useState(() => Date.now());
   const requestCloseRef = useRef<() => void>(onClose);
+  const { forgetMissingUser, refreshSessionAfterForbidden, expireSession } =
+    useAdminUserErrorRecovery();
 
   // Clear detail query cache on mount to ensure fresh fetch (RQ D23, AC-38)
   useEffect(() => {
@@ -143,23 +141,23 @@ function EditUserModalContent({
     return parseAdminUserError(error, "detail");
   }, [error]);
 
-  // Handle 404 on load: close modal, red toast, invalidate list (B2.7, AC-12)
+  // Load errors shared with the other screens (B2.7). 404 closes with a
+  // toast (AC-12); 403 refreshes the session; 401 signs out. Keyed on the
+  // error only, so a parent re-render never repeats the refresh.
   useEffect(() => {
-    if (error) {
-      const action = parseAdminUserError(error, "detail");
-      if (action.type === "userNotFound") {
-        notifications.show({
-          color: "red",
-          message: action.message,
-        });
-        queryClient.removeQueries({
-          queryKey: adminUserKeys.detail(user.id),
-        });
-        invalidateAdminUserLists(queryClient);
-        onClose();
-      }
+    if (queryErrorAction?.type === "forbidden") {
+      void refreshSessionAfterForbidden();
+    } else if (queryErrorAction?.type === "expireSession") {
+      expireSession();
     }
-  }, [error, user.id, queryClient, onClose]);
+  }, [queryErrorAction, refreshSessionAfterForbidden, expireSession]);
+
+  useEffect(() => {
+    if (queryErrorAction?.type === "userNotFound") {
+      forgetMissingUser(user.id, queryErrorAction.message);
+      onClose();
+    }
+  }, [queryErrorAction, user.id, onClose, forgetMissingUser]);
 
   const isFresh = Boolean(data && dataUpdatedAt >= openedAt);
   const loadedUser = isFresh && data ? data : null;
@@ -180,7 +178,8 @@ function EditUserModalContent({
       {error && queryErrorAction?.type !== "userNotFound" ? (
         <Alert color="red" title={t("common:error")} role="alert">
           <Text size="sm" mb="xs">
-            {queryErrorAction?.type === "rateLimit"
+            {queryErrorAction?.type === "rateLimit" ||
+            queryErrorAction?.type === "forbidden"
               ? queryErrorAction.message
               : t("admin:users.errors.loadUserFailed")}
           </Text>

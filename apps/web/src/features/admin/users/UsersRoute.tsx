@@ -9,7 +9,6 @@ import {
   type AdminUserSortKey,
 } from '@repo/contracts';
 import { useAuth } from '../../auth/useAuth';
-import { authApi } from '../../auth/api/authApi';
 import { useDocumentTitle } from '../../../hooks/useDocumentTitle';
 import type { SortState } from '../../workspaces/table/SortableHeader';
 import { AdminPageLayout } from '../AdminPageLayout';
@@ -20,6 +19,7 @@ import {
 } from './usersListParams';
 import { adminUserQueries } from './api/adminUserQueries';
 import { parseAdminUserError } from './adminUserErrors';
+import { useAdminUserErrorRecovery } from './useAdminUserErrorRecovery';
 import { UsersToolbar } from './UsersToolbar';
 import { UsersTable } from './UsersTable';
 import { UsersPagination } from './UsersPagination';
@@ -31,7 +31,9 @@ import classes from './UsersRoute.module.css';
 export function UsersRoute() {
   const { t } = useTranslation();
   useDocumentTitle(t('admin:users.documentTitle'));
-  const { state: authState, updateUser, expireSession } = useAuth();
+  const { state: authState } = useAuth();
+  const { expireSession, refreshSessionAfterForbidden } =
+    useAdminUserErrorRecovery();
   const [searchParams, setSearchParams] = useSearchParams();
   const [createModalOpened, setCreateModalOpened] = useState(false);
   const [editingUser, setEditingUser] = useState<AdminUserResponse | null>(null);
@@ -57,24 +59,12 @@ export function UsersRoute() {
 
   // Re-verify session when 403 occurs while viewing the page (B2.1, B2.7)
   useEffect(() => {
-    if (error) {
-      const action = parseAdminUserError(error, 'list');
-      if (action.type === 'expireSession') {
-        expireSession();
-      } else if (action.type === 'forbidden' && action.refreshSession) {
-        authApi
-          .getSession()
-          .then((session) => {
-            if (session !== null) {
-              updateUser(session.user);
-            } else {
-              expireSession();
-            }
-          })
-          .catch(() => {});
-      }
+    if (queryErrorAction?.type === 'expireSession') {
+      expireSession();
+    } else if (queryErrorAction?.type === 'forbidden') {
+      void refreshSessionAfterForbidden();
     }
-  }, [error, expireSession, updateUser]);
+  }, [queryErrorAction, expireSession, refreshSessionAfterForbidden]);
 
   const total = data?.total ?? 0;
   const totalPages = Math.ceil(total / ADMIN_USERS_PAGE_SIZE);

@@ -6,7 +6,9 @@ import {
   ADMIN_USER_SORT_KEYS,
   ADMIN_USER_STATUSES,
   ADMIN_USERS_PAGE_SIZE,
+  adminUserSearchTerms,
   defaultAdminUserOrder,
+  normalizeAdminUserSearch,
 } from "./adminUsers.js";
 
 describe("adminUsers contracts", () => {
@@ -32,5 +34,21 @@ describe("adminUsers contracts", () => {
     expect(defaultAdminUserOrder("fullName")).toBe("asc");
     expect(defaultAdminUserOrder("displayName")).toBe("asc");
     expect(defaultAdminUserOrder("email")).toBe("asc");
+  });
+
+  it("normalizeAdminUserSearch applies NFC, trims and collapses whitespace", () => {
+    const decomposed = "Nguye\u0302\u0303n";
+    expect(normalizeAdminUserSearch(`  ${decomposed} \t  An  `)).toBe(
+      "Nguyễn An",
+    );
+  });
+
+  it("adminUserSearchTerms keeps the first ADMIN_USER_SEARCH_TERMS_MAX words", () => {
+    expect(adminUserSearchTerms(undefined)).toEqual([]);
+    expect(adminUserSearchTerms("   ")).toEqual([]);
+    expect(adminUserSearchTerms(" a  b ")).toEqual(["a", "b"]);
+    expect(adminUserSearchTerms("1 2 3 4 5 6 7")).toHaveLength(
+      ADMIN_USER_SEARCH_TERMS_MAX,
+    );
   });
 });

@@ -106,4 +106,22 @@ describe('InMemorySlidingWindowLimiter', () => {
     expect(block4.allowed).toBe(false);
     expect(block4.firstBlockInWindow).toBe(false);
   });
+
+  it('peek reports the decision without recording a hit', () => {
+    const limiter = new InMemorySlidingWindowLimiter({
+      limit: 2,
+      windowMs: 60_000,
+    });
+    const t0 = new Date('2026-10-08T12:00:00.000Z');
+
+    expect(limiter.peek('user-1', t0).allowed).toBe(true);
+    expect(limiter.peek('user-1', t0).allowed).toBe(true);
+    limiter.hit('user-1', t0);
+    expect(limiter.peek('user-1', t0).allowed).toBe(true);
+    limiter.hit('user-1', new Date(t0.getTime() + 10_000));
+
+    const blocked = limiter.peek('user-1', new Date(t0.getTime() + 20_000));
+    expect(blocked.allowed).toBe(false);
+    expect(blocked.retryAfterSeconds).toBe(40);
+  });
 });

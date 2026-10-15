@@ -35,7 +35,12 @@ describe('AdminUsersRateLimitGuards', () => {
         expect.objectContaining({
           status: HttpStatus.TOO_MANY_REQUESTS,
           code: 'TOO_MANY_ATTEMPTS',
-          messageRef: { key: 'admin:errors.tooManyRequests' },
+          messageRef: {
+            key: 'admin:errors.tooManyRequests',
+            params: { count: 1 },
+          },
+          message: 'Too many requests. Try again in 1 minute.',
+          retryAfterSeconds: 60,
         }),
       );
     });
@@ -60,7 +65,12 @@ describe('AdminUsersRateLimitGuards', () => {
         expect.objectContaining({
           status: HttpStatus.TOO_MANY_REQUESTS,
           code: 'TOO_MANY_ATTEMPTS',
-          messageRef: { key: 'admin:errors.tooManyUserChanges' },
+          messageRef: {
+            key: 'admin:errors.tooManyUserChanges',
+            params: { count: 10 },
+          },
+          message: 'Too many changes to users. Try again in 10 minutes.',
+          retryAfterSeconds: 600,
         }),
       );
     });

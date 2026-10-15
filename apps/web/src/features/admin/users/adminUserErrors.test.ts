@@ -22,7 +22,7 @@ describe('adminUserErrors (INV-14)', () => {
       expect(action).toEqual({ type: 'expireSession' });
     });
 
-    it('classifies 403 FORBIDDEN as forbidden with create catalog message and refreshSession', () => {
+    it('classifies 403 FORBIDDEN as forbidden with create catalog message', () => {
       const error = new ApiRequestError(403, {
         code: 'FORBIDDEN',
         message: 'Sensitive server permission denied message',
@@ -31,7 +31,6 @@ describe('adminUserErrors (INV-14)', () => {
       expect(action).toEqual({
         type: 'forbidden',
         message: 'You no longer have permission to create users.',
-        refreshSession: true,
       });
     });
 
@@ -128,7 +127,6 @@ describe('adminUserErrors (INV-14)', () => {
       expect(action).toEqual({
         type: 'forbidden',
         message: 'You no longer have permission to manage users.',
-        refreshSession: true,
       });
     });
 
@@ -141,7 +139,7 @@ describe('adminUserErrors (INV-14)', () => {
       const action = parseAdminUserError(error, 'list');
       expect(action).toEqual({
         type: 'rateLimit',
-        message: 'Too many requests. Please wait a moment and try again.',
+        message: 'Too many requests. Try again in 1 minute.',
         retryAfterSeconds: 30,
       });
     });
@@ -175,7 +173,7 @@ describe('adminUserErrors (INV-14)', () => {
       const action = parseAdminUserError(error, 'detail');
       expect(action).toEqual({
         type: 'rateLimit',
-        message: 'Too many requests. Please wait a moment and try again.',
+        message: 'Too many requests. Try again in 1 minute.',
         retryAfterSeconds: 45,
       });
     });
@@ -216,7 +214,7 @@ describe('adminUserErrors (INV-14)', () => {
       const action = parseAdminUserError(error, 'update');
       expect(action).toEqual({
         type: 'rateLimit',
-        message: 'Too many user changes. Please wait a moment and try again.',
+        message: 'Too many changes to users. Try again in 1 minute.',
         retryAfterSeconds: 60,
       });
     });
@@ -232,6 +230,56 @@ describe('adminUserErrors (INV-14)', () => {
   });
 
   describe('password context', () => {
+    it('classifies REAUTHENTICATION_REQUIRED / _FAILED by code, before the generic 403 (API B7)', () => {
+      expect(
+        parseAdminUserError(
+          new ApiRequestError(403, { code: 'REAUTHENTICATION_REQUIRED', message: 'x' }),
+          'password',
+        ),
+      ).toEqual({
+        type: 'reauthentication',
+        reason: 'required',
+        message: "Enter your password to change another instance admin's password.",
+      });
+      expect(
+        parseAdminUserError(
+          new ApiRequestError(403, { code: 'REAUTHENTICATION_FAILED', message: 'x' }),
+          'password',
+        ),
+      ).toEqual({
+        type: 'reauthentication',
+        reason: 'failed',
+        message: 'Your password is incorrect.',
+      });
+    });
+
+    it('tells the re-auth limit from the write limit by code (two 429 sentences)', () => {
+      const reauth = parseAdminUserError(
+        new ApiRequestError(429, {
+          code: 'TOO_MANY_REAUTH_ATTEMPTS',
+          message: 'x',
+          retryAfterSeconds: 61,
+        }),
+        'password',
+      );
+      expect(reauth).toEqual({
+        type: 'rateLimit',
+        message: 'Too many incorrect passwords. Try again in 2 minutes.',
+        retryAfterSeconds: 61,
+      });
+      const writes = parseAdminUserError(
+        new ApiRequestError(429, {
+          code: 'TOO_MANY_ATTEMPTS',
+          message: 'x',
+          retryAfterSeconds: 540,
+        }),
+        'password',
+      );
+      expect(writes).toMatchObject({
+        message: 'Too many changes to users. Try again in 9 minutes.',
+      });
+    });
+
     it('classifies 403 CANNOT_CHANGE_OWN_PASSWORD as cannotChangeOwnPassword', () => {
       const error = new ApiRequestError(403, { code: 'CANNOT_CHANGE_OWN_PASSWORD', message: 'Cannot change own password' });
       const action = parseAdminUserError(error, 'password');
@@ -246,7 +294,7 @@ describe('adminUserErrors (INV-14)', () => {
       const action = parseAdminUserError(error, 'password');
       expect(action).toEqual({
         type: 'rateLimit',
-        message: 'Too many user changes. Please wait a moment and try again.',
+        message: 'Too many changes to users. Try again in 1 minute.',
         retryAfterSeconds: 60,
       });
     });

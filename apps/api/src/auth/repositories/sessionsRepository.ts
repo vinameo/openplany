@@ -113,25 +113,34 @@ export class TypeOrmSessionsRepository extends SessionsRepository {
     return user === null ? null : { session, user };
   }
 
+  // Lock order everywhere: users row first, then its sessions (as
+  // createForSignIn and the admin password change do), so no two
+  // transactions wait on each other in a cycle (40P01).
+
   async touch(session: Session, now: Date, expiresAt: Date): Promise<void> {
     await this.dataSource.transaction(async (manager) => {
-      await manager.update(Session, session.id, { lastUsedAt: now, expiresAt });
       // Throttled like the session itself: one users write per 5 minutes at most.
       await manager.update(User, session.userId, { lastActive: now });
+      await manager.update(Session, session.id, { lastUsedAt: now, expiresAt });
     });
   }
 
   async revoke(tokenHash: string, ip: string, now: Date): Promise<void> {
     await this.dataSource.transaction(async (manager) => {
+      // Unlocked read: only to learn the user; the writes below lock in order.
       const session = await manager.findOne(Session, {
         where: { tokenHash, revokedAt: IsNull() },
       });
       if (session === null) return;
-      await manager.update(Session, session.id, { revokedAt: now });
       await manager.update(User, session.userId, {
         lastLogoutTime: now,
         lastLogoutIp: ip,
       });
+      await manager.update(
+        Session,
+        { id: session.id, revokedAt: IsNull() },
+        { revokedAt: now },
+      );
     });
   }
 }

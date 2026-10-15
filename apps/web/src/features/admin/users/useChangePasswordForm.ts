@@ -1,17 +1,16 @@
 import { useState, type FormEvent } from "react";
 import { useForm, type UseFormReturnType } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import type { AdminUserResponse } from "@repo/contracts";
+import type {
+  AdminUserResponse,
+  ChangeUserPasswordRequest,
+} from "@repo/contracts";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { authApi } from "../../auth/api/authApi";
-import { useAuth } from "../../auth/useAuth";
 import { parseAdminUserError } from "./adminUserErrors";
-import {
-  adminUserKeys,
-  invalidateAdminUserLists,
-} from "./api/adminUserQueries";
+import { adminUserKeys } from "./api/adminUserQueries";
 import { adminUsersApi } from "./api/adminUsersApi";
+import { useAdminUserErrorRecovery } from "./useAdminUserErrorRecovery";
 import {
   adminUserLabel,
   hasChangePasswordChanges,
@@ -30,6 +29,8 @@ export interface ChangePasswordFormState {
   isSubmitting: boolean;
   submitError: string | null;
   hasChanges: boolean;
+  /** Show "Your password": the target is an instance admin, or the API asked (API B7). */
+  needsActorPassword: boolean;
   handleSubmit: (event?: FormEvent<HTMLFormElement>) => void;
 }
 
@@ -39,26 +40,45 @@ export function useChangePasswordForm({
   onClose,
 }: UseChangePasswordFormOptions): ChangePasswordFormState {
   const { t } = useTranslation();
-  const { updateUser, expireSession } = useAuth();
+  const recovery = useAdminUserErrorRecovery();
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  // The list row can be stale (promoted since): the API's
+  // REAUTHENTICATION_REQUIRED reveals the field too.
+  const [actorPasswordRequested, setActorPasswordRequested] = useState(false);
+  const needsActorPassword =
+    targetUser.isInstanceAdmin || actorPasswordRequested;
 
   const form = useForm<ChangePasswordValues>({
     mode: "controlled",
     initialValues: {
       password: "",
       confirmPassword: "",
+      actorPassword: "",
     },
     validateInputOnBlur: true,
     validate: {
       password: (_val, values) =>
-        validateChangePasswordField("password", values, targetUser.email),
+        validateChangePasswordField(
+          "password",
+          values,
+          targetUser.email,
+          needsActorPassword,
+        ),
       confirmPassword: (_val, values) =>
         validateChangePasswordField(
           "confirmPassword",
           values,
           targetUser.email,
+          needsActorPassword,
+        ),
+      actorPassword: (_val, values) =>
+        validateChangePasswordField(
+          "actorPassword",
+          values,
+          targetUser.email,
+          needsActorPassword,
         ),
     },
     onValuesChange: (values, previous) => {
@@ -98,9 +118,11 @@ export function useChangePasswordForm({
 
     setIsSubmitting(true);
     try {
-      await adminUsersApi.changePassword(targetUser.id, {
+      const request: ChangeUserPasswordRequest = {
         password: form.values.password,
-      });
+        ...(needsActorPassword && { actorPassword: form.values.actorPassword }),
+      };
+      await adminUsersApi.changePassword(targetUser.id, request);
 
       notifications.show({
         message: t("admin:users.password.changed", {
@@ -108,7 +130,7 @@ export function useChangePasswordForm({
         }),
       });
 
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: adminUserKeys.detail(targetUser.id),
       });
 
@@ -120,71 +142,45 @@ export function useChangePasswordForm({
       const action = parseAdminUserError(error, "password");
       switch (action.type) {
         case "expireSession":
-          expireSession();
+          recovery.expireSession();
           return;
 
-        case "cannotChangeOwnPassword":
-          setSubmitError(action.message);
+        case "reauthentication":
+          setActorPasswordRequested(true);
+          form.setFieldError("actorPassword", action.message);
           return;
 
         case "forbidden":
           setSubmitError(action.message);
-          if (action.refreshSession) {
-            try {
-              const session = await authApi.getSession();
-              if (session !== null) {
-                updateUser(session.user);
-              } else {
-                expireSession();
-              }
-            } catch (sessionError) {
-              console.warn("Session refresh after 403 failed", sessionError);
-            }
-          }
-          return;
-
-        case "rateLimit":
-          setSubmitError(action.message);
+          await recovery.refreshSessionAfterForbidden();
           return;
 
         case "userNotFound":
-          notifications.show({
-            color: "red",
-            message: action.message,
-          });
-          queryClient.removeQueries({
-            queryKey: adminUserKeys.detail(targetUser.id),
-          });
-          invalidateAdminUserLists(queryClient);
+          recovery.forgetMissingUser(targetUser.id, action.message);
           onClose();
           return;
 
         case "validation": {
-          const fieldEntries = Object.entries(action.fields);
-          if (fieldEntries.length > 0) {
-            let handled = false;
-            for (const [key, msg] of fieldEntries) {
-              if (key === "password" && typeof msg === "string") {
-                form.setFieldError("password", msg);
-                handled = true;
-              }
-            }
-            if (!handled) {
-              setSubmitError(action.message ?? t("common:error"));
-            }
-          } else {
+          const { password, actorPassword } = action.fields;
+          if (password !== undefined) form.setFieldError("password", password);
+          if (actorPassword !== undefined) {
+            form.setFieldError("actorPassword", actorPassword);
+          }
+          if (password === undefined && actorPassword === undefined) {
             setSubmitError(action.message ?? t("common:error"));
           }
           return;
         }
 
+        case "cannotChangeOwnPassword":
+        case "rateLimit":
         case "general":
-        default:
-          setSubmitError(
-            "message" in action && action.message
-              ? action.message
-              : t("admin:users.errors.passwordFailed"),
-          );
+          setSubmitError(action.message);
+          return;
+
+        case "emailAlreadyExists":
+        case "conflictReload":
+          setSubmitError(t("admin:users.errors.passwordFailed"));
           return;
       }
     }
@@ -195,6 +191,7 @@ export function useChangePasswordForm({
     isSubmitting,
     submitError,
     hasChanges,
+    needsActorPassword,
     handleSubmit,
   };
 }

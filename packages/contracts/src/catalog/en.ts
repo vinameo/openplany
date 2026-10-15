@@ -567,10 +567,14 @@ export const en = {
     title: "Admin",
     "errors.cannotCreateUsers": "You don't have permission to create users",
     "errors.cannotManageUsers": "You don't have permission to manage users",
-    "errors.tooManyRequests":
-      "Too many requests. Please wait a moment and try again.",
-    "errors.tooManyUserChanges":
-      "Too many user changes. Please wait a moment and try again.",
+    "errors.tooManyRequests_one":
+      "Too many requests. Try again in {{count}} minute.",
+    "errors.tooManyRequests_other":
+      "Too many requests. Try again in {{count}} minutes.",
+    "errors.tooManyUserChanges_one":
+      "Too many changes to users. Try again in {{count}} minute.",
+    "errors.tooManyUserChanges_other":
+      "Too many changes to users. Try again in {{count}} minutes.",
     "errors.createUserFailed": "Couldn't create user. Please try again.",
     "errors.loadRolesFailed": "Couldn't load roles and permissions.",
     "errors.updateRolesFailed": "Couldn't save permissions. Please try again.",
@@ -687,6 +691,9 @@ export const en = {
     "users.password.submit": "Change password",
     "users.password.changed":
       "Password changed. {{name}} has been signed out everywhere.",
+    "users.password.actorPassword": "Your password",
+    "users.password.actorPasswordDescription":
+      "{{name}} is an instance admin. Enter your own password to confirm it's you.",
     "users.modal.createTitle": "Create user",
     "users.form.title": "Create user",
     "users.form.firstName": "First name",
@@ -724,7 +731,15 @@ export const en = {
     "users.errors.updateFailed": "Couldn't save changes. Please try again.",
     "users.errors.passwordFailed":
       "Couldn't change the password. Please try again.",
+    "users.errors.reauthenticationRequired":
+      "Enter your password to change another instance admin's password.",
+    "users.errors.reauthenticationFailed": "Your password is incorrect.",
+    "users.errors.tooManyReauthAttempts_one":
+      "Too many incorrect passwords. Try again in {{count}} minute.",
+    "users.errors.tooManyReauthAttempts_other":
+      "Too many incorrect passwords. Try again in {{count}} minutes.",
     "users.validation.passwordsDoNotMatch": "Passwords don't match",
+    "users.validation.actorPasswordRequired": "Enter your password",
   },
   profile: {
     title: "Profile",

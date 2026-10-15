@@ -5,7 +5,13 @@ export interface SlidingWindowDecision {
 }
 
 export abstract class SlidingWindowLimiter {
+  /** Records a hit for `key` unless it is already at the limit. */
   abstract hit(key: string, now: Date): SlidingWindowDecision;
+  /**
+   * The decision `hit` would make, without recording a hit: for limits that
+   * count only failures (check first, `hit` when the attempt fails).
+   */
+  abstract peek(key: string, now: Date): SlidingWindowDecision;
 }
 
 export interface InMemorySlidingWindowLimiterOptions {
@@ -23,6 +29,18 @@ export class InMemorySlidingWindowLimiter extends SlidingWindowLimiter {
   }
 
   hit(key: string, now: Date): SlidingWindowDecision {
+    return this.decide(key, now, true);
+  }
+
+  peek(key: string, now: Date): SlidingWindowDecision {
+    return this.decide(key, now, false);
+  }
+
+  private decide(
+    key: string,
+    now: Date,
+    record: boolean,
+  ): SlidingWindowDecision {
     const nowMs = now.getTime();
     const windowMs = this.options.windowMs;
     const limit = this.options.limit;
@@ -55,8 +73,12 @@ export class InMemorySlidingWindowLimiter extends SlidingWindowLimiter {
       return { allowed: false, retryAfterSeconds, firstBlockInWindow };
     }
 
-    valid.push(nowMs);
-    this.hits.set(key, valid);
+    if (record) {
+      valid.push(nowMs);
+    }
+    if (valid.length > 0) {
+      this.hits.set(key, valid);
+    }
     this.blockedKeys.delete(key);
     return { allowed: true };
   }

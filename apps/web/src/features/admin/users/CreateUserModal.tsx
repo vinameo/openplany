@@ -29,7 +29,7 @@ function CreateUserModalContent({
   const isNarrow = useMediaQuery('(max-width: 575px)');
 
   function handleSuccess() {
-    invalidateAdminUserLists(queryClient);
+    void invalidateAdminUserLists(queryClient);
     onCreated?.();
     onClose();
   }

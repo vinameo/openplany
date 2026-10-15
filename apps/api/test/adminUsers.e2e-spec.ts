@@ -1,7 +1,11 @@
 import request from 'supertest';
 import { Logger } from '@nestjs/common';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { IsNull } from 'typeorm';
+import { Session } from '../src/auth/entities/session.entity.js';
+import { User } from '../src/auth/entities/user.entity.js';
 import { Argon2PasswordHasher, PasswordHasher } from '../src/auth/passwordHasher.js';
+import { SessionsRepository } from '../src/auth/repositories/sessionsRepository.js';
 import { createE2eApp, type E2eApp } from './createE2eApp.js';
 
 const ORIGIN = 'http://localhost:5173';
@@ -47,6 +51,20 @@ describe('Admin Users (e2e)', () => {
       [email.toLowerCase(), email.toLowerCase().replace(/[^a-z0-9]/g, ''), pwdHash, isSuperuser],
     );
     return rows[0]!.id;
+  }
+
+  /** Waits until `count` backends of this database wait on a row lock (catalog read, e2e only). */
+  async function waitForLockWaiters(count: number): Promise<void> {
+    const deadline = Date.now() + 5_000;
+    for (;;) {
+      const rows = await e2e.dataSource.query<{ n: number }[]>(
+        `SELECT count(*)::int AS n FROM pg_stat_activity
+         WHERE datname = current_database() AND wait_event_type = 'Lock'`,
+      );
+      if ((rows[0]?.n ?? 0) >= count) return;
+      if (Date.now() > deadline) throw new Error(`Expected ${count} lock waiters`);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
   }
 
   async function signInCookie(
@@ -1074,7 +1092,7 @@ describe('Admin Users (e2e)', () => {
         .expect(429);
 
       expect(res121.body.code).toBe('TOO_MANY_ATTEMPTS');
-      expect(res121.body.message).toBe('Too many requests. Please wait a moment and try again.');
+      expect(res121.body.message).toBe('Too many requests. Try again in 1 minute.');
       expect(res121.headers['retry-after']).toBeDefined();
       expect(res121.body.retryAfterSeconds).toBeDefined();
     });
@@ -1362,6 +1380,38 @@ describe('Admin Users (e2e)', () => {
       expect(res.body.firstName).toBe('MicroUpdated');
     });
 
+    it('API B3.2: expectedUpdatedAt without an offset is 400, never a TZ-dependent 409', async () => {
+      await createDbUser('kai-tz@openplany.dev', true);
+      const kaiCookie = await signInCookie('kai-tz@openplany.dev');
+      const targetId = await createDbUser('target-tz@openplany.dev', false);
+      const loaded = await http()
+        .get(`/api/admin/users/${targetId}`)
+        .set('Origin', ORIGIN)
+        .set('Cookie', kaiCookie)
+        .expect(200);
+      const local = (loaded.body.updatedAt as string).replace(/Z$/, '');
+
+      const res = await http()
+        .patch(`/api/admin/users/${targetId}`)
+        .set('Origin', ORIGIN)
+        .set('Cookie', kaiCookie)
+        .send({ expectedUpdatedAt: local, displayName: 'No Offset' })
+        .expect(400);
+      expect(res.body.code).toBe('VALIDATION_ERROR');
+      expect(res.body.fields?.expectedUpdatedAt).toBeDefined();
+
+      const offset = new Date(loaded.body.updatedAt as string);
+      const plus7 = new Date(offset.getTime() + 7 * 3_600_000)
+        .toISOString()
+        .replace('Z', '+07:00');
+      await http()
+        .patch(`/api/admin/users/${targetId}`)
+        .set('Origin', ORIGIN)
+        .set('Cookie', kaiCookie)
+        .send({ expectedUpdatedAt: plus7, displayName: 'With Offset' })
+        .expect(200);
+    });
+
     it('returns 409 EMAIL_ALREADY_EXISTS when changing to another user email', async () => {
       await createDbUser('admin-dup@openplany.dev', true);
       const cookie = await signInCookie('admin-dup@openplany.dev');
@@ -1493,7 +1543,7 @@ describe('Admin Users (e2e)', () => {
         .expect(429);
 
       expect(res61.body.code).toBe('TOO_MANY_ATTEMPTS');
-      expect(res61.body.message).toBe('Too many user changes. Please wait a moment and try again.');
+      expect(res61.body.message).toBe('Too many changes to users. Try again in 10 minutes.');
       expect(res61.headers['retry-after']).toBeDefined();
       expect(res61.body.retryAfterSeconds).toBeDefined();
     });
@@ -1790,6 +1840,104 @@ describe('Admin Users (e2e)', () => {
         .send({ password: 'ValidPassword123!', confirmPassword: 'ValidPassword123!' })
         .expect(400);
       expect(extraProp.body.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('API B7: another instance admin\'s password needs the actor\'s own password (step-up)', async () => {
+      await createDbUser('kai-step@openplany.dev', true);
+      const kaiCookie = await signInCookie('kai-step@openplany.dev');
+      const binhId = await createDbUser('binh-step@openplany.dev', true);
+      const binhCookie = await signInCookie('binh-step@openplany.dev');
+      const put = (body: Record<string, unknown>, lang = 'en') =>
+        http()
+          .put(`/api/admin/users/${binhId}/password`)
+          .set('Origin', ORIGIN)
+          .set('Cookie', kaiCookie)
+          .set('Accept-Language', lang)
+          .send(body);
+
+      const required = await put({ password: 'NewSecret456!' }).expect(403);
+      expect(required.body.code).toBe('REAUTHENTICATION_REQUIRED');
+      expect(required.body.fields?.actorPassword).toBe(
+        "Enter your password to change another instance admin's password.",
+      );
+
+      const wrong = await put({ password: 'NewSecret456!', actorPassword: 'nope' }, 'vi').expect(403);
+      expect(wrong.body.code).toBe('REAUTHENTICATION_FAILED');
+      expect(wrong.body.fields?.actorPassword).toBe('Mật khẩu của bạn không đúng.');
+
+      // Nothing changed so far: Bình's session is still live.
+      await http().get('/api/users/me').set('Cookie', binhCookie).set('Origin', ORIGIN).expect(200);
+
+      await put({ password: 'NewSecret456!', actorPassword: DEFAULT_PASSWORD }).expect(204);
+      await http().get('/api/users/me').set('Cookie', binhCookie).set('Origin', ORIGIN).expect(401);
+      await signInCookie('binh-step@openplany.dev', 'NewSecret456!');
+    });
+
+    it('API B7: wrong actor passwords are limited to 5 per 15 minutes per actor (429)', async () => {
+      await createDbUser('kai-guess@openplany.dev', true);
+      const kaiCookie = await signInCookie('kai-guess@openplany.dev');
+      const binhId = await createDbUser('binh-guess@openplany.dev', true);
+      const put = (actorPassword: string) =>
+        http()
+          .put(`/api/admin/users/${binhId}/password`)
+          .set('Origin', ORIGIN)
+          .set('Cookie', kaiCookie)
+          .send({ password: 'NewSecret456!', actorPassword });
+
+      for (let i = 0; i < 5; i++) {
+        const res = await put(`guess-${i}`).expect(403);
+        expect(res.body.code).toBe('REAUTHENTICATION_FAILED');
+      }
+      // Even the right password is refused while blocked: no oracle.
+      const blocked = await put(DEFAULT_PASSWORD).expect(429);
+      expect(blocked.body.code).toBe('TOO_MANY_REAUTH_ATTEMPTS');
+      expect(blocked.body.retryAfterSeconds).toBeGreaterThan(0);
+      expect(blocked.body.message).toMatch(/^Too many incorrect passwords\. Try again in \d+ minutes?\.$/);
+    });
+
+    it('DB B7: one lock order (users → sessions), so touch and logout never deadlock with a password change', async () => {
+      const namId = await createDbUser('nam-lock@openplany.dev', false);
+      const namCookie = await signInCookie('nam-lock@openplany.dev');
+      const tokenCookie = await signInCookie('nam-lock@openplany.dev');
+      const sessions = await e2e.dataSource.getRepository(Session).find({
+        where: { userId: namId },
+        order: { createdAt: 'ASC' },
+      });
+      expect(sessions).toHaveLength(2);
+      const repo = e2e.app.get(SessionsRepository);
+      const now = new Date();
+
+      // The admin password change: lock the users row, then revoke sessions.
+      const qr = e2e.dataSource.createQueryRunner();
+      await qr.connect();
+      await qr.startTransaction();
+      try {
+        await qr.manager.find(User, {
+          where: { id: namId },
+          lock: { mode: 'pessimistic_write' },
+        });
+        // Nam's own requests meanwhile: a sliding-expiry touch and a logout.
+        const touch = repo.touch(sessions[0]!, now, new Date(now.getTime() + 60_000));
+        const logout = http()
+          .post('/api/auth/sign-out')
+          .set('Origin', ORIGIN)
+          .set('Cookie', tokenCookie);
+        const logoutDone = logout.then((res) => res.status);
+        await waitForLockWaiters(2);
+        // Under the old order (sessions → users) this UPDATE closed a cycle: 40P01.
+        await qr.manager.update(
+          Session,
+          { userId: namId, revokedAt: IsNull() },
+          { revokedAt: now },
+        );
+        await qr.commitTransaction();
+        await touch;
+        expect(await logoutDone).toBe(204);
+      } finally {
+        if (qr.isTransactionActive) await qr.rollbackTransaction();
+        await qr.release();
+      }
+      await http().get('/api/users/me').set('Cookie', namCookie).set('Origin', ORIGIN).expect(401);
     });
 
     it('AC-33: sign-in with stale credentials throws 401 when password changed between verify and write', async () => {

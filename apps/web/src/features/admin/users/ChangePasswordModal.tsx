@@ -1,4 +1,4 @@
-import { Alert, Button, Modal, Text } from '@mantine/core';
+import { Alert, Button, Modal, PasswordInput, Text } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import type { AdminUserResponse } from '@repo/contracts';
 import { useTranslation } from 'react-i18next';
@@ -31,8 +31,14 @@ function ChangePasswordModalContent({
   const isNarrow = useMediaQuery('(max-width: 575px)');
   const name = adminUserLabel(user);
 
-  const { form, isSubmitting, submitError, hasChanges, handleSubmit } =
-    useChangePasswordForm({
+  const {
+    form,
+    isSubmitting,
+    submitError,
+    hasChanges,
+    needsActorPassword,
+    handleSubmit,
+  } = useChangePasswordForm({
       targetUser: user,
       onSuccess: onSuccess ?? (() => {}),
       onClose,
@@ -100,6 +106,23 @@ function ChangePasswordModalContent({
         </Text>
 
         <NewPasswordFields form={form} readOnly={isSubmitting} />
+
+        {needsActorPassword && (
+          <PasswordInput
+            label={t('admin:users.password.actorPassword')}
+            description={t('admin:users.password.actorPasswordDescription', {
+              name,
+            })}
+            withAsterisk
+            autoComplete="current-password"
+            visibilityToggleButtonProps={{
+              'aria-label': t('admin:users.form.showPassword'),
+            }}
+            readOnly={isSubmitting}
+            {...form.getInputProps('actorPassword')}
+            key={form.key('actorPassword')}
+          />
+        )}
 
         <Text size="sm" c="dimmed">
           {t('admin:users.password.lockoutNote', { name })}

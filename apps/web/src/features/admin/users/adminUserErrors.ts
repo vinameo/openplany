@@ -7,9 +7,9 @@ export type AdminUserErrorContext =
 export type AdminUserAction =
   | { type: "expireSession" }
   | {
+      /** Also refresh the session: the route sends a demoted admin away (WEB B2.1). */
       type: "forbidden";
       message: string;
-      refreshSession: boolean;
     }
   | {
       type: "validation";
@@ -38,6 +38,12 @@ export type AdminUserAction =
       message: string;
     }
   | {
+      /** Step-up for an instance admin target (API B7): show the actor password field. */
+      type: "reauthentication";
+      reason: "required" | "failed";
+      message: string;
+    }
+  | {
       type: "general";
       message: string;
     };
@@ -58,6 +64,29 @@ function fallbackMessageForContext(context: AdminUserErrorContext): string {
   }
 }
 
+/** WEB B2.7: one sentence per limiter, with the minutes to wait. */
+function rateLimitMessage(
+  code: string,
+  context: AdminUserErrorContext,
+  minutes: number,
+): string {
+  if (code === "TOO_MANY_REAUTH_ATTEMPTS") {
+    return translate("admin:users.errors.tooManyReauthAttempts", {
+      count: minutes,
+    });
+  }
+  switch (context) {
+    case "create":
+      return translate("admin:users.errors.tooManyUsers", { count: minutes });
+    case "list":
+    case "detail":
+      return translate("admin:errors.tooManyRequests", { count: minutes });
+    case "update":
+    case "password":
+      return translate("admin:errors.tooManyUserChanges", { count: minutes });
+  }
+}
+
 /**
  * Classifies an error into an actionable result for admin user operations (RQ INV-14).
  * Always selects messages by error code and fields, never inspecting error.message.
@@ -75,6 +104,21 @@ export function parseAdminUserError(
       return { type: "expireSession" };
     }
 
+    if (error.code === "REAUTHENTICATION_REQUIRED") {
+      return {
+        type: "reauthentication",
+        reason: "required",
+        message: translate("admin:users.errors.reauthenticationRequired"),
+      };
+    }
+    if (error.code === "REAUTHENTICATION_FAILED") {
+      return {
+        type: "reauthentication",
+        reason: "failed",
+        message: translate("admin:users.errors.reauthenticationFailed"),
+      };
+    }
+
     if (error.code === "FORBIDDEN" || error.status === 403) {
       if (error.code === "CANNOT_CHANGE_OWN_PASSWORD") {
         return {
@@ -86,31 +130,18 @@ export function parseAdminUserError(
         context === "create"
           ? translate("admin:users.errors.noPermission")
           : translate("admin:users.errors.noPermissionManage");
-      return {
-        type: "forbidden",
-        message,
-        refreshSession: true,
-      };
+      return { type: "forbidden", message };
     }
 
-    if (error.code === "TOO_MANY_ATTEMPTS" || error.status === 429) {
+    if (error.status === 429) {
       const retryAfterSeconds = error.retryAfterSeconds ?? 60;
-      const minutes = Math.ceil(retryAfterSeconds / 60);
-
-      let message: string;
-      if (context === "create") {
-        message = translate("admin:users.errors.tooManyUsers", {
-          count: minutes,
-        });
-      } else if (context === "list" || context === "detail") {
-        message = translate("admin:errors.tooManyRequests");
-      } else {
-        message = translate("admin:errors.tooManyUserChanges");
-      }
-
       return {
         type: "rateLimit",
-        message,
+        message: rateLimitMessage(
+          error.code,
+          context,
+          Math.max(1, Math.ceil(retryAfterSeconds / 60)),
+        ),
         retryAfterSeconds,
       };
     }
