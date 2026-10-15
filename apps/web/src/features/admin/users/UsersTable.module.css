@@ -1,0 +1,34 @@
+.nameCell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.nameInfo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tableFaded {
+  opacity: 0.6;
+  pointer-events: none;
+  transition: opacity 150ms ease;
+}
+
+.emptyState {
+  padding: 48px 16px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+@media (max-width: 768px) {
+  .colDisplayName,
+  .colAccountCreated {
+    display: none;
+  }
+}

@@ -5,7 +5,24 @@ export interface UserCreatedEvent {
   requestId: string;
 }
 
-export abstract class UserEvents {
-  abstract created(event: UserCreatedEvent): Promise<void>;
+export interface UserUpdatedEvent {
+  userId: string;
+  actorId: string;
+  fields: string[];
+  occurredAt: Date;
+  requestId: string;
 }
 
+export interface UserPasswordChangedEvent {
+  userId: string;
+  actorId: string;
+  revokedSessionCount: number;
+  occurredAt: Date;
+  requestId: string;
+}
+
+export abstract class UserEvents {
+  abstract created(event: UserCreatedEvent): Promise<void>;
+  abstract updated(event: UserUpdatedEvent): Promise<void>;
+  abstract passwordChanged(event: UserPasswordChangedEvent): Promise<void>;
+}

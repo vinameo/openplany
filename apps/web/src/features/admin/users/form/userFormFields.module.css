@@ -1,0 +1,18 @@
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 24px;
+  row-gap: 20px;
+  align-items: start;
+}
+
+.row > * {
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .row {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}

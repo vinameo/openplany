@@ -1,6 +1,7 @@
 export interface SlidingWindowDecision {
   allowed: boolean;
   retryAfterSeconds?: number;
+  firstBlockInWindow?: boolean;
 }
 
 export abstract class SlidingWindowLimiter {
@@ -14,6 +15,7 @@ export interface InMemorySlidingWindowLimiterOptions {
 
 export class InMemorySlidingWindowLimiter extends SlidingWindowLimiter {
   private readonly hits = new Map<string, number[]>();
+  private readonly blockedKeys = new Set<string>();
   private hitCounter = 0;
 
   constructor(private readonly options: InMemorySlidingWindowLimiterOptions) {
@@ -36,6 +38,7 @@ export class InMemorySlidingWindowLimiter extends SlidingWindowLimiter {
 
     if (valid.length === 0 && existing.length > 0) {
       this.hits.delete(key);
+      this.blockedKeys.delete(key);
     }
 
     if (valid.length >= limit) {
@@ -45,11 +48,16 @@ export class InMemorySlidingWindowLimiter extends SlidingWindowLimiter {
         Math.ceil((oldest + windowMs - nowMs) / 1000),
       );
       this.hits.set(key, valid);
-      return { allowed: false, retryAfterSeconds };
+      const firstBlockInWindow = !this.blockedKeys.has(key);
+      if (firstBlockInWindow) {
+        this.blockedKeys.add(key);
+      }
+      return { allowed: false, retryAfterSeconds, firstBlockInWindow };
     }
 
     valid.push(nowMs);
     this.hits.set(key, valid);
+    this.blockedKeys.delete(key);
     return { allowed: true };
   }
 
@@ -61,8 +69,8 @@ export class InMemorySlidingWindowLimiter extends SlidingWindowLimiter {
         timestamps[timestamps.length - 1]! <= cutoff
       ) {
         this.hits.delete(key);
+        this.blockedKeys.delete(key);
       }
     }
   }
 }
-

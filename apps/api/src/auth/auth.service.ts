@@ -23,7 +23,10 @@ import type { User } from './entities/user.entity.js';
 import { PasswordHasher } from './passwordHasher.js';
 import { LoginRateLimiter } from './rateLimiter.js';
 import { LoginAttemptsRepository } from './repositories/loginAttemptsRepository.js';
-import { SessionsRepository } from './repositories/sessionsRepository.js';
+import {
+  SessionsRepository,
+  StaleCredentialsError,
+} from './repositories/sessionsRepository.js';
 import { UsersRepository } from './repositories/usersRepository.js';
 
 export interface RequestContext {
@@ -157,22 +160,31 @@ export class AuthService implements OnModuleInit {
     const token = generateSessionToken();
     const reason: LoginReason | null = resetOnly ? 'reset_required' : null;
 
-    await this.sessions.createForSignIn({
-      userId: user.id,
-      at: now,
-      ip: context.ip,
-      userAgent,
-      rehashedPassword,
-      session: {
-        tokenHash: hashSessionToken(token),
-        expiresAt,
-        isResetOnly: resetOnly,
-      },
-      attempt: {
-        id: limit.attemptId,
-        outcome: { userId: user.id, result: 'success', reason },
-      },
-    });
+    try {
+      await this.sessions.createForSignIn({
+        userId: user.id,
+        verifiedHash: user.password,
+        at: now,
+        ip: context.ip,
+        userAgent,
+        rehashedPassword,
+        session: {
+          tokenHash: hashSessionToken(token),
+          expiresAt,
+          isResetOnly: resetOnly,
+        },
+        attempt: {
+          id: limit.attemptId,
+          outcome: { userId: user.id, result: 'success', reason },
+        },
+      });
+    } catch (err) {
+      if (err instanceof StaleCredentialsError) {
+        await fail('wrong_password', user.id);
+        throw invalidCredentials();
+      }
+      throw err;
+    }
     this.logger.log(
       `sign-in success requestId=${context.requestId} userId=${user.id}` +
         (reason === null ? '' : ` reason=${reason}`),

@@ -161,7 +161,7 @@ describe("WorkspaceSwitcher", () => {
     expect(items.length).toBeGreaterThan(0);
   });
 
-  it("AC-01: hides 'Create workspace' and 'Create user' menuitems when isInstanceAdmin is false", async () => {
+  it("AC-01: hides 'Create workspace' and 'Users' menuitems when isInstanceAdmin is false", async () => {
     mockFetch({
       "GET /api/auth/session": () =>
         jsonResponse(
@@ -185,10 +185,10 @@ describe("WorkspaceSwitcher", () => {
     await user.click(trigger);
 
     expect(screen.queryByText("Create workspace")).not.toBeInTheDocument();
-    expect(screen.queryByText("Create user")).not.toBeInTheDocument();
+    expect(screen.queryByText("Users")).not.toBeInTheDocument();
   });
 
-  it("AC-02: shows 'Create user' between 'Create workspace' and 'Sign out' when isInstanceAdmin is true", async () => {
+  it("AC-02: shows 'Users' between 'Create workspace' and 'Sign out' when isInstanceAdmin is true", async () => {
     mockFetch({
       "GET /api/auth/session": () =>
         jsonResponse(
@@ -215,14 +215,14 @@ describe("WorkspaceSwitcher", () => {
     const itemTexts = menuItems.map((item) => item.textContent?.trim());
 
     const createWsIndex = itemTexts.findIndex((t) => t?.includes("Create workspace"));
-    const createUserIndex = itemTexts.findIndex((t) => t?.includes("Create user"));
+    const usersIndex = itemTexts.findIndex((t) => t?.includes("Users"));
     const signOutIndex = itemTexts.findIndex((t) => t?.includes("Sign out"));
 
-    expect(createUserIndex).toBeGreaterThan(createWsIndex);
-    expect(signOutIndex).toBeGreaterThan(createUserIndex);
+    expect(usersIndex).toBeGreaterThan(createWsIndex);
+    expect(signOutIndex).toBeGreaterThan(usersIndex);
   });
 
-  it("AC-18: clicking 'Create user' item navigates to /create-user", async () => {
+  it("AC-18: clicking 'Users' item navigates to /users", async () => {
     mockFetch({
       "GET /api/auth/session": () =>
         jsonResponse(
@@ -245,8 +245,8 @@ describe("WorkspaceSwitcher", () => {
           element: <WorkspaceSwitcher currentWorkspace={workspacesMock[0]} />,
         },
         {
-          path: "/create-user",
-          element: <div>Create User Page</div>,
+          path: "/users",
+          element: <div>Users Page</div>,
         },
       ],
       { initialEntries: ["/"] },
@@ -268,13 +268,13 @@ describe("WorkspaceSwitcher", () => {
     });
     await user.click(trigger);
 
-    const createUserItem = await screen.findByText("Create user");
-    await user.click(createUserItem);
+    const usersItem = await screen.findByText("Users");
+    await user.click(usersItem);
 
-    expect(router.state.location.pathname).toBe("/create-user");
+    expect(router.state.location.pathname).toBe("/users");
   });
 
-  it("AC-12: shows 'Roles & Permissions' immediately after 'Create user' and before 'Sign out' for instance admin, and clicking it navigates", async () => {
+  it("AC-12: shows 'Roles & Permissions' immediately after 'Users' and before 'Sign out' for instance admin, and clicking it navigates", async () => {
     mockFetch({
       "GET /api/auth/session": () =>
         jsonResponse(
@@ -323,15 +323,15 @@ describe("WorkspaceSwitcher", () => {
     const menuItems = await screen.findAllByRole("menuitem");
     const itemTexts = menuItems.map((item) => item.textContent?.trim());
 
-    const createUserIndex = itemTexts.findIndex((t) =>
-      t?.includes("Create user"),
+    const usersIndex = itemTexts.findIndex((t) =>
+      t?.includes("Users"),
     );
     const rolesIndex = itemTexts.findIndex((t) =>
       t?.includes("Roles & Permissions"),
     );
     const signOutIndex = itemTexts.findIndex((t) => t?.includes("Sign out"));
 
-    expect(rolesIndex).toBe(createUserIndex + 1);
+    expect(rolesIndex).toBe(usersIndex + 1);
     expect(signOutIndex).toBe(rolesIndex + 1);
 
     const rolesItem = await screen.findByText("Roles & Permissions");

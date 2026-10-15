@@ -9,18 +9,16 @@ import {
   Stack,
   Tabs,
   Text,
-  Title,
   VisuallyHidden,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { Navigate, useNavigate, useSearchParams } from "react-router";
+import { Navigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
-import { ColorSchemeToggle } from "@repo/ui";
 import type { RoleRef } from "@repo/contracts";
 import { useAuth } from "../../auth/useAuth";
 import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
 import { useUnsavedChangesGuard } from "../../../hooks/useUnsavedChangesGuard";
-import { ArrowLeftIcon } from "../../workspaces/icons";
+import { AdminPageLayout } from "../AdminPageLayout";
 import { SettingsSection } from "../../workspaces/settings/SettingsSection";
 import { buildProjectAccessRows, buildRolesOverview } from "./rolesOverview";
 import {
@@ -39,7 +37,6 @@ import { PermissionMatrixTable } from "./PermissionMatrixTable";
 import { SaveChangesBar } from "./SaveChangesBar";
 import { ConfirmPermissionChangesModal } from "./ConfirmPermissionChangesModal";
 import { useRolePermissions } from "./useRolePermissions";
-import classes from "./RolesAndPermissionsRoute.module.css";
 
 type SaveErrorState =
   | { type: "conflict" }
@@ -51,7 +48,6 @@ export function RolesAndPermissionsRoute() {
   const { t } = useTranslation();
   useDocumentTitle(t("admin:roles.documentTitle"));
   const { state: authState } = useAuth();
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const currentTab =
@@ -132,14 +128,6 @@ export function RolesAndPermissionsRoute() {
     return <Navigate to="/" replace />;
   }
 
-  function handleGoBack() {
-    if (typeof window !== "undefined" && (window.history.state?.idx ?? 0) > 0) {
-      navigate(-1);
-    } else {
-      navigate("/");
-    }
-  }
-
   function handleToggle(role: RoleRef, permission: string) {
     if (roleState.status !== "ready" || isSaving) return;
     setDraft((prev) =>
@@ -194,237 +182,205 @@ export function RolesAndPermissionsRoute() {
   }
 
   return (
-    <div className={classes.page}>
-      <div className={classes.topBar}>
-        <ColorSchemeToggle
-          size="input-xs"
-          labelLight={t("common:theme.switchToLight")}
-          labelDark={t("common:theme.switchToDark")}
-        />
-      </div>
-      <main className={classes.main}>
-        <div className={classes.header}>
-          <Button
-            variant="subtle"
-            size="compact-sm"
-            leftSection={<ArrowLeftIcon width={16} height={16} />}
-            onClick={handleGoBack}
-            aria-label={t("admin:roles.back")}
-            className={classes.backButton}
+    <AdminPageLayout
+      title={t("admin:roles.title")}
+      subtitle={t("admin:roles.subtitle")}
+      backLabel={t("admin:roles.back")}
+    >
+      {saveError?.type === "conflict" && (
+        <Alert color="yellow" mb="xl" title={t("admin:errors.conflictReload")}>
+          <Group justify="flex-end" mt="xs">
+            <Button size="xs" variant="default" onClick={handleConflictReload}>
+              {t("common:actions.reload")}
+            </Button>
+          </Group>
+        </Alert>
+      )}
+
+      {saveError?.type === "invalid" && (
+        <Alert color="red" mb="xl" title={t("common:error")}>
+          {Object.entries(saveError.fields).map(([field, msg]) => (
+            <div key={field}>{msg}</div>
+          ))}
+        </Alert>
+      )}
+
+      {saveError?.type === "failed" && (
+        <Alert color="red" mb="xl" title={t("common:error")}>
+          {saveError.message}
+        </Alert>
+      )}
+
+      <Tabs value={currentTab} onChange={handleTabChange} keepMounted={false}>
+        <Tabs.List mb="xl">
+          <Tabs.Tab
+            value="workspace"
+            rightSection={
+              hasWorkspaceChanges ? (
+                <>
+                  <Indicator size={6} color="blue" offset={0} inline />
+                  <VisuallyHidden>
+                    {" "}
+                    {t("admin:roles.unsavedChangesIndicator")}
+                  </VisuallyHidden>
+                </>
+              ) : null
+            }
           >
-            {t("admin:roles.back")}
-          </Button>
-          <Title order={1} className={classes.title}>
-            {t("admin:roles.title")}
-          </Title>
-          <Text className={classes.subtitle}>{t("admin:roles.subtitle")}</Text>
-        </div>
-
-        {saveError?.type === "conflict" && (
-          <Alert
-            color="yellow"
-            mb="xl"
-            title={t("admin:errors.conflictReload")}
+            {t("admin:roles.tabWorkspace")}
+          </Tabs.Tab>
+          <Tabs.Tab
+            value="project"
+            rightSection={
+              hasProjectChanges ? (
+                <>
+                  <Indicator size={6} color="blue" offset={0} inline />
+                  <VisuallyHidden>
+                    {" "}
+                    {t("admin:roles.unsavedChangesIndicator")}
+                  </VisuallyHidden>
+                </>
+              ) : null
+            }
           >
-            <Group justify="flex-end" mt="xs">
-              <Button
-                size="xs"
-                variant="default"
-                onClick={handleConflictReload}
-              >
-                {t("common:actions.reload")}
-              </Button>
-            </Group>
-          </Alert>
-        )}
+            {t("admin:roles.tabProject")}
+          </Tabs.Tab>
+        </Tabs.List>
 
-        {saveError?.type === "invalid" && (
-          <Alert color="red" mb="xl" title={t("common:error")}>
-            {Object.entries(saveError.fields).map(([field, msg]) => (
-              <div key={field}>{msg}</div>
-            ))}
-          </Alert>
-        )}
-
-        {saveError?.type === "failed" && (
-          <Alert color="red" mb="xl" title={t("common:error")}>
-            {saveError.message}
-          </Alert>
-        )}
-
-        <Tabs value={currentTab} onChange={handleTabChange} keepMounted={false}>
-          <Tabs.List mb="xl">
-            <Tabs.Tab
-              value="workspace"
-              rightSection={
-                hasWorkspaceChanges ? (
-                  <>
-                    <Indicator size={6} color="blue" offset={0} inline />
-                    <VisuallyHidden>
-                      {" "}
-                      {t("admin:roles.unsavedChangesIndicator")}
-                    </VisuallyHidden>
-                  </>
-                ) : null
-              }
+        <Tabs.Panel value="workspace">
+          <Stack gap="xl">
+            <SettingsSection
+              titleOrder={2}
+              title={t("admin:roles.workspaceRolesSection.title")}
+              description={t("admin:roles.workspaceRolesSection.description")}
             >
-              {t("admin:roles.tabWorkspace")}
-            </Tabs.Tab>
-            <Tabs.Tab
-              value="project"
-              rightSection={
-                hasProjectChanges ? (
-                  <>
-                    <Indicator size={6} color="blue" offset={0} inline />
-                    <VisuallyHidden>
-                      {" "}
-                      {t("admin:roles.unsavedChangesIndicator")}
-                    </VisuallyHidden>
-                  </>
-                ) : null
-              }
+              <WorkspaceRolesTable rows={overview.workspaceRoles} />
+            </SettingsSection>
+
+            <SettingsSection
+              titleOrder={2}
+              title={t("admin:roles.workspacePermissionsSection.title")}
+              description={t(
+                "admin:roles.workspacePermissionsSection.description",
+              )}
             >
-              {t("admin:roles.tabProject")}
-            </Tabs.Tab>
-          </Tabs.List>
-
-          <Tabs.Panel value="workspace">
-            <Stack gap="xl">
-              <SettingsSection
-                titleOrder={2}
-                title={t("admin:roles.workspaceRolesSection.title")}
-                description={t("admin:roles.workspaceRolesSection.description")}
-              >
-                <WorkspaceRolesTable rows={overview.workspaceRoles} />
-              </SettingsSection>
-
-              <SettingsSection
-                titleOrder={2}
-                title={t("admin:roles.workspacePermissionsSection.title")}
-                description={t(
-                  "admin:roles.workspacePermissionsSection.description",
-                )}
-              >
-                {roleState.status === "loading" && (
-                  <Stack gap="xs">
-                    <Skeleton height={40} />
-                    <Skeleton height={200} />
-                  </Stack>
-                )}
-                {roleState.status === "error" && (
-                  <Alert color="red">
-                    <Text mb="xs">{t("admin:roles.errors.loadFailed")}</Text>
-                    <Button size="xs" variant="default" onClick={reload}>
-                      {t("common:actions.tryAgain")}
-                    </Button>
-                  </Alert>
-                )}
-                {roleState.status === "ready" && workspaceMatrix && (
-                  <PermissionMatrixTable
-                    matrix={workspaceMatrix}
-                    readOnly={isSaving}
-                    onToggle={handleToggle}
-                  />
-                )}
-              </SettingsSection>
-            </Stack>
-          </Tabs.Panel>
-
-          <Tabs.Panel value="project">
-            <Stack gap="xl">
-              <SettingsSection
-                titleOrder={2}
-                title={t("admin:roles.projectRolesSection.title")}
-                description={t("admin:roles.projectRolesSection.description")}
-              >
-                <ProjectRolesTable rows={overview.projectRoles} />
-              </SettingsSection>
-
-              <SettingsSection
-                titleOrder={2}
-                title={t("admin:roles.projectAccessSection.title")}
-                description={t("admin:roles.projectAccessSection.description")}
-              >
-                {roleState.status === "loading" && (
-                  <Stack gap="xs">
-                    <Skeleton height={40} />
-                    <Skeleton height={140} />
-                  </Stack>
-                )}
-                {roleState.status === "error" && (
-                  <Alert color="red">
-                    <Text mb="xs">{t("admin:roles.errors.loadFailed")}</Text>
-                    <Button size="xs" variant="default" onClick={reload}>
-                      {t("common:actions.tryAgain")}
-                    </Button>
-                  </Alert>
-                )}
-                {roleState.status === "ready" && (
-                  <ProjectAccessTable rows={projectAccessRows} />
-                )}
-              </SettingsSection>
-
-              <SettingsSection
-                titleOrder={2}
-                title={t("admin:roles.projectPermissionsSection.title")}
-                description={t(
-                  "admin:roles.projectPermissionsSection.description",
-                )}
-              >
-                {roleState.status === "loading" && (
-                  <Stack gap="xs">
-                    <Skeleton height={40} />
-                    <Skeleton height={200} />
-                  </Stack>
-                )}
-                {roleState.status === "ready" && projectMatrix && (
-                  <PermissionMatrixTable
-                    matrix={projectMatrix}
-                    readOnly={isSaving}
-                    onToggle={handleToggle}
-                  />
-                )}
-              </SettingsSection>
-            </Stack>
-          </Tabs.Panel>
-        </Tabs>
-
-        <SaveChangesBar
-          changeCount={totalUnsavedChanges}
-          onDiscard={handleDiscard}
-          onSaveClick={() => setConfirmModalOpened(true)}
-          disabled={isSaving}
-        />
-
-        <ConfirmPermissionChangesModal
-          opened={confirmModalOpened}
-          onClose={() => setConfirmModalOpened(false)}
-          diff={diff}
-          onConfirm={handleConfirmSave}
-          isSaving={isSaving}
-          permissions={
-            roleState.status === "ready" ? roleState.permissions : []
-          }
-        />
-
-        <Modal
-          opened={blocked}
-          onClose={stay}
-          title={t("admin:roles.discardModal.title")}
-        >
-          <Stack gap="md">
-            <Text size="sm">{t("admin:roles.discardModal.description")}</Text>
-            <Group justify="flex-end" gap="sm">
-              <Button variant="default" onClick={stay}>
-                {t("common:actions.keepEditing")}
-              </Button>
-              <Button color="red" onClick={proceed}>
-                {t("common:actions.discard")}
-              </Button>
-            </Group>
+              {roleState.status === "loading" && (
+                <Stack gap="xs">
+                  <Skeleton height={40} />
+                  <Skeleton height={200} />
+                </Stack>
+              )}
+              {roleState.status === "error" && (
+                <Alert color="red">
+                  <Text mb="xs">{t("admin:roles.errors.loadFailed")}</Text>
+                  <Button size="xs" variant="default" onClick={reload}>
+                    {t("common:actions.tryAgain")}
+                  </Button>
+                </Alert>
+              )}
+              {roleState.status === "ready" && workspaceMatrix && (
+                <PermissionMatrixTable
+                  matrix={workspaceMatrix}
+                  readOnly={isSaving}
+                  onToggle={handleToggle}
+                />
+              )}
+            </SettingsSection>
           </Stack>
-        </Modal>
-      </main>
-    </div>
+        </Tabs.Panel>
+
+        <Tabs.Panel value="project">
+          <Stack gap="xl">
+            <SettingsSection
+              titleOrder={2}
+              title={t("admin:roles.projectRolesSection.title")}
+              description={t("admin:roles.projectRolesSection.description")}
+            >
+              <ProjectRolesTable rows={overview.projectRoles} />
+            </SettingsSection>
+
+            <SettingsSection
+              titleOrder={2}
+              title={t("admin:roles.projectAccessSection.title")}
+              description={t("admin:roles.projectAccessSection.description")}
+            >
+              {roleState.status === "loading" && (
+                <Stack gap="xs">
+                  <Skeleton height={40} />
+                  <Skeleton height={140} />
+                </Stack>
+              )}
+              {roleState.status === "error" && (
+                <Alert color="red">
+                  <Text mb="xs">{t("admin:roles.errors.loadFailed")}</Text>
+                  <Button size="xs" variant="default" onClick={reload}>
+                    {t("common:actions.tryAgain")}
+                  </Button>
+                </Alert>
+              )}
+              {roleState.status === "ready" && (
+                <ProjectAccessTable rows={projectAccessRows} />
+              )}
+            </SettingsSection>
+
+            <SettingsSection
+              titleOrder={2}
+              title={t("admin:roles.projectPermissionsSection.title")}
+              description={t(
+                "admin:roles.projectPermissionsSection.description",
+              )}
+            >
+              {roleState.status === "loading" && (
+                <Stack gap="xs">
+                  <Skeleton height={40} />
+                  <Skeleton height={200} />
+                </Stack>
+              )}
+              {roleState.status === "ready" && projectMatrix && (
+                <PermissionMatrixTable
+                  matrix={projectMatrix}
+                  readOnly={isSaving}
+                  onToggle={handleToggle}
+                />
+              )}
+            </SettingsSection>
+          </Stack>
+        </Tabs.Panel>
+      </Tabs>
+
+      <SaveChangesBar
+        changeCount={totalUnsavedChanges}
+        onDiscard={handleDiscard}
+        onSaveClick={() => setConfirmModalOpened(true)}
+        disabled={isSaving}
+      />
+
+      <ConfirmPermissionChangesModal
+        opened={confirmModalOpened}
+        onClose={() => setConfirmModalOpened(false)}
+        diff={diff}
+        onConfirm={handleConfirmSave}
+        isSaving={isSaving}
+        permissions={roleState.status === "ready" ? roleState.permissions : []}
+      />
+
+      <Modal
+        opened={blocked}
+        onClose={stay}
+        title={t("admin:roles.discardModal.title")}
+      >
+        <Stack gap="md">
+          <Text size="sm">{t("admin:roles.discardModal.description")}</Text>
+          <Group justify="flex-end" gap="sm">
+            <Button variant="default" onClick={stay}>
+              {t("common:actions.keepEditing")}
+            </Button>
+            <Button color="red" onClick={proceed}>
+              {t("common:actions.discard")}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+    </AdminPageLayout>
   );
 }

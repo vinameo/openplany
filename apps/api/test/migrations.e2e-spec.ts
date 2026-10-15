@@ -13,6 +13,7 @@ import {
 import { PROJECT_ROLE_RANK } from '@repo/contracts';
 import { DEFAULT_PROJECT_ACCESS_POLICIES } from '@repo/contracts/testing';
 import { MIGRATION_PROJECT_ROLE_RANK } from '../src/database/migrations/1791610200000-ApplyProjectAccessPolicies.js';
+import { EnableUnaccent1791610400000 } from '../src/database/migrations/1791610400000-EnableUnaccent.js';
 
 /**
  * Migrations meet real data (CLAUDE.md §8 design pass): the newest migrations
@@ -39,7 +40,11 @@ async function schemaSnapshot(ds: DataSource): Promise<unknown> {
     FROM pg_constraint
     WHERE connamespace = 'public'::regnamespace
     ORDER BY table_name, conname`);
-  return { columns, indexes, constraints };
+  const extensions: unknown = await ds.query(`
+    SELECT extname FROM pg_extension
+    WHERE extname <> 'uuid-ossp'
+    ORDER BY extname`);
+  return { columns, indexes, constraints, extensions };
 }
 
 /** Schema of a fresh database at each of the last `count` + 1 versions, oldest first. */
@@ -333,7 +338,8 @@ describe('Migrations (e2e)', () => {
       [wsId, project!.id, ownerId],
     );
 
-    // Revert AddProjectRoleChangedHistory, ApplyProjectAccessPolicies, CreateProjectAccessPolicies and RenameProjectGuestToViewer so AddProjectMemberJoinedAt is the last applied migration
+    // Revert EnableUnaccent, AddProjectRoleChangedHistory, ApplyProjectAccessPolicies, CreateProjectAccessPolicies and RenameProjectGuestToViewer so AddProjectMemberJoinedAt is the last applied migration
+    await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
@@ -446,7 +452,8 @@ describe('Migrations (e2e)', () => {
       [wsId, project!.id, ownerId],
     );
 
-    // Revert AddProjectRoleChangedHistory so ApplyProjectAccessPolicies is the last applied migration
+    // Revert EnableUnaccent and AddProjectRoleChangedHistory so ApplyProjectAccessPolicies is the last applied migration
+    await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
     const schemaBefore = await schemaSnapshot(migrationsDs);
     try {
@@ -465,7 +472,8 @@ describe('Migrations (e2e)', () => {
   });
 
   it('AC-16: refuses to revert CreateProjectAccessPolicies if workspace_role_applied role history rows exist', async () => {
-    // 1. Revert AddProjectRoleChangedHistory and ApplyProjectAccessPolicies first (when no later changes exist, they revert cleanly)
+    // 1. Revert EnableUnaccent, AddProjectRoleChangedHistory and ApplyProjectAccessPolicies first (when no later changes exist, they revert cleanly)
+    await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
 
@@ -511,7 +519,8 @@ describe('Migrations (e2e)', () => {
   });
 
   it('AC-13, AC-14, AC-15: ApplyProjectAccessPolicies updates the 6 input rows and down() restores them', async () => {
-    // 1. Revert AddProjectRoleChangedHistory and ApplyProjectAccessPolicies first
+    // 1. Revert EnableUnaccent, AddProjectRoleChangedHistory and ApplyProjectAccessPolicies first
+    await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
 
@@ -680,6 +689,7 @@ describe('Migrations (e2e)', () => {
       // 4. Test AC-15: down() reverts all changes and deletes history rows
       await migrationsDs.undoLastMigration({ transaction: 'each' });
       await migrationsDs.undoLastMigration({ transaction: 'each' });
+      await migrationsDs.undoLastMigration({ transaction: 'each' });
 
       const rowsAfterDown = await migrationsDs.query<
         { member_id: string; role: string; is_active: boolean }[]
@@ -756,6 +766,9 @@ describe('Migrations (e2e)', () => {
       [wsId, pId, memberUser, ownerId],
     );
 
+    // Revert EnableUnaccent so AddProjectRoleChangedHistory is the last applied migration
+    await migrationsDs.undoLastMigration({ transaction: 'each' });
+
     try {
       await expect(
         migrationsDs.undoLastMigration({ transaction: 'each' }),
@@ -779,4 +792,31 @@ describe('Migrations (e2e)', () => {
       await migrationsDs.runMigrations({ transaction: 'each' });
     }
   });
+
+  it('EnableUnaccent: rejects when extension is unavailable and supports up/down round-trip (DB B2)', async () => {
+    // Unit pre-check test: throws specific error if unaccent is not available in pg_available_extensions
+    const fakeQueryRunner = {
+      query: vi.fn().mockResolvedValue([]),
+    };
+    const migration = new EnableUnaccent1791610400000();
+    await expect(
+      migration.up(fakeQueryRunner as unknown as import('typeorm').QueryRunner),
+    ).rejects.toThrow(
+      'PostgreSQL extension `unaccent` is not available. Install the postgresql-contrib package (or enable `unaccent` on your managed database) and run the migrations again.',
+    );
+
+    // Live round-trip on database
+    await migrationsDs.undoLastMigration({ transaction: 'each' });
+    const droppedExt = await migrationsDs.query(
+      `SELECT 1 FROM pg_extension WHERE extname = 'unaccent'`,
+    );
+    expect(droppedExt).toHaveLength(0);
+
+    await migrationsDs.runMigrations({ transaction: 'each' });
+    const createdExt = await migrationsDs.query(
+      `SELECT 1 FROM pg_extension WHERE extname = 'unaccent'`,
+    );
+    expect(createdExt).toHaveLength(1);
+  });
 });
+

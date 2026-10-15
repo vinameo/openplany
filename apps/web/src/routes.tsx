@@ -10,7 +10,8 @@ import {
   SIGN_IN_PATH,
 } from "./features/auth/sessionDestination";
 import { HomePage } from "./features/home/HomePage";
-import { CreateUserRoute } from "./features/admin/users/CreateUserRoute";
+import { UsersRoute } from "./features/admin/users/UsersRoute";
+import { USERS_PATH } from "./features/admin/users/usersPaths";
 import { RolesAndPermissionsRoute } from "./features/admin/roles/RolesAndPermissionsRoute";
 import { ROLES_AND_PERMISSIONS_PATH } from "./features/admin/roles/rolesOverview";
 import { CreateWorkspaceRoute } from "./features/workspaces/create/CreateWorkspaceRoute";
@@ -52,7 +53,7 @@ export const appRoutes: RouteObject[] = [
             children: [
               { path: HOME_PATH, element: <HomeRedirect /> },
               { path: "/create-workspace", element: <CreateWorkspaceRoute /> },
-              { path: "/create-user", element: <CreateUserRoute /> },
+              { path: USERS_PATH, element: <UsersRoute /> },
               {
                 path: ROLES_AND_PERMISSIONS_PATH,
                 element: <RolesAndPermissionsRoute />,

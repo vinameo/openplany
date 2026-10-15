@@ -5,7 +5,10 @@ import { InMemorySlidingWindowLimiter } from '../common/slidingWindowLimiter.js'
 import { UserCreateRateLimitGuard } from './userCreateRateLimitGuard.js';
 
 describe('UserCreateRateLimitGuard', () => {
-  function makeCtx(auth?: { userId: string }, requestId = 'test-req'): ExecutionContext {
+  function makeCtx(
+    auth?: { userId: string },
+    requestId = 'test-req',
+  ): ExecutionContext {
     return {
       switchToHttp: () => ({
         getRequest: () => ({
@@ -17,7 +20,10 @@ describe('UserCreateRateLimitGuard', () => {
   }
 
   it('throws UNAUTHENTICATED when userId is missing', () => {
-    const limiter = new InMemorySlidingWindowLimiter({ limit: 20, windowMs: 600_000 });
+    const limiter = new InMemorySlidingWindowLimiter({
+      limit: 20,
+      windowMs: 600_000,
+    });
     const clock = new FakeClock();
     const guard = new UserCreateRateLimitGuard(limiter, clock);
 
@@ -31,8 +37,13 @@ describe('UserCreateRateLimitGuard', () => {
   });
 
   it('allows 20 requests and rejects the 21st with 429 and retryAfterSeconds', () => {
-    const warnSpy = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
-    const limiter = new InMemorySlidingWindowLimiter({ limit: 20, windowMs: 600_000 });
+    const warnSpy = vi
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => {});
+    const limiter = new InMemorySlidingWindowLimiter({
+      limit: 20,
+      windowMs: 600_000,
+    });
     const clock = new FakeClock(new Date('2026-10-09T10:00:00.000Z'));
     const guard = new UserCreateRateLimitGuard(limiter, clock);
 
@@ -42,16 +53,21 @@ describe('UserCreateRateLimitGuard', () => {
       }
 
       // 21st request
-      expect(() => guard.canActivate(makeCtx({ userId: 'admin-1' }, 'req-99'))).toThrowError(
+      expect(() =>
+        guard.canActivate(makeCtx({ userId: 'admin-1' }, 'req-99')),
+      ).toThrowError(
         expect.objectContaining({
           status: HttpStatus.TOO_MANY_REQUESTS,
           code: 'TOO_MANY_ATTEMPTS',
           message: 'Too many users created. Try again later.',
         }),
       );
-      expect(warnSpy).toHaveBeenCalledWith('admin.users.rate_limited userId=admin-1 requestId=req-99');
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      expect(warnSpy).toHaveBeenCalledWith(
+        'admin.users.rate_limited userId=admin-1 requestId=req-99',
+      );
 
-      // 22nd request with no requestId
+      // 22nd request: blocked in the same window, so it does not log again (API B1, B2.2)
       expect(() =>
         guard.canActivate({
           switchToHttp: () => ({
@@ -59,14 +75,17 @@ describe('UserCreateRateLimitGuard', () => {
           }),
         } as unknown as ExecutionContext),
       ).toThrow();
-      expect(warnSpy).toHaveBeenCalledWith('admin.users.rate_limited userId=admin-1 requestId=');
+      expect(warnSpy).toHaveBeenCalledTimes(1);
     } finally {
       warnSpy.mockRestore();
     }
   });
 
   it('counts rate limit by userId independently', () => {
-    const limiter = new InMemorySlidingWindowLimiter({ limit: 2, windowMs: 600_000 });
+    const limiter = new InMemorySlidingWindowLimiter({
+      limit: 2,
+      windowMs: 600_000,
+    });
     const clock = new FakeClock();
     const guard = new UserCreateRateLimitGuard(limiter, clock);
 

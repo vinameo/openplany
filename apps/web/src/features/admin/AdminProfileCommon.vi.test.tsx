@@ -438,9 +438,21 @@ describe("Admin, Profile, and Common in Vietnamese (Ticket 09)", () => {
           ),
         "GET /api/workspaces": () =>
           jsonResponse(200, { workspaces: [], lastWorkspaceSlug: null }),
+        "GET /api/admin/users": () =>
+          jsonResponse(200, {
+            items: [],
+            total: 0,
+            page: 1,
+            pageSize: 50,
+          }),
       });
 
-      const { user } = renderApp("/create-user");
+      const { user } = renderApp("/users");
+
+      const addUserButton = await screen.findByRole("button", {
+        name: "Thêm người dùng",
+      });
+      await user.click(addUserButton);
 
       // Verify page and form headings in Vietnamese
       expect(
@@ -475,6 +487,98 @@ describe("Admin, Profile, and Common in Vietnamese (Ticket 09)", () => {
       await user.click(confirmInput);
       expect(
         await screen.findByText("Dùng từ 8 đến 128 ký tự"),
+      ).toBeInTheDocument();
+    });
+
+    it("renders Users page table, Edit user modal, and Change password modal in Vietnamese (AC-32)", async () => {
+      const targetUser = {
+        id: "user-2",
+        firstName: "An",
+        lastName: "Nguyen",
+        displayName: "An Nguyen",
+        email: "an@openplany.dev",
+        avatarUrl: null,
+        isActive: true,
+        isInstanceAdmin: false,
+        createdAt: "2026-10-10T10:00:00.000Z",
+        updatedAt: "2026-10-10T10:00:00.000Z",
+      };
+
+      mockFetch({
+        "GET /api/auth/session": () =>
+          jsonResponse(
+            200,
+            makeSession({
+              user: { ...makeSession().user, id: "admin-vi-user", isInstanceAdmin: true },
+            }),
+          ),
+        "GET /api/workspaces": () =>
+          jsonResponse(200, { workspaces: [], lastWorkspaceSlug: null }),
+        "GET /api/admin/users": () =>
+          jsonResponse(200, {
+            items: [targetUser],
+            total: 1,
+            page: 1,
+            pageSize: 50,
+          }),
+        "GET /api/admin/users/user-2": () => jsonResponse(200, targetUser),
+      });
+
+      const { user } = renderApp("/users");
+
+      // Verify Users page title and elements in Vietnamese
+      expect(
+        await screen.findByRole("heading", { name: /^Người dùng/ }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Thêm người dùng" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByPlaceholderText("Tìm theo tên hoặc email…"),
+      ).toBeInTheDocument();
+
+      // Table headers in Vietnamese
+      expect(screen.getByText("Họ tên")).toBeInTheDocument();
+      expect(screen.getByText("Tên hiển thị")).toBeInTheDocument();
+      expect(screen.getByText("Email")).toBeInTheDocument();
+      expect(screen.getByText("Ngày tạo tài khoản")).toBeInTheDocument();
+
+      // Open row actions menu for target user
+      const actionMenuBtn = await screen.findByRole("button", {
+        name: "Thao tác cho An Nguyen",
+      });
+      await user.click(actionMenuBtn);
+
+      expect(screen.getByText("Sửa người dùng")).toBeInTheDocument();
+      expect(screen.getByText("Đổi mật khẩu")).toBeInTheDocument();
+
+      // Click Edit user
+      await user.click(screen.getByText("Sửa người dùng"));
+      expect(
+        await screen.findByRole("heading", { name: "Sửa người dùng" }),
+      ).toBeInTheDocument();
+      expect(screen.getByLabelText(/^Tên\s*\*?$/i)).toHaveValue("An");
+      expect(screen.getByLabelText(/^Họ$/i)).toHaveValue("Nguyen");
+      expect(screen.getByLabelText(/^Tên hiển thị\s*\*?$/i)).toHaveValue("An Nguyen");
+      expect(screen.getByLabelText(/^Email\s*\*?$/i)).toHaveValue("an@openplany.dev");
+      expect(screen.getByRole("button", { name: "Lưu thay đổi" })).toBeInTheDocument();
+
+      // Close Edit modal
+      await user.click(screen.getByRole("button", { name: "Huỷ" }));
+
+      // Open Change password modal
+      await user.click(actionMenuBtn);
+      await user.click(screen.getByText("Đổi mật khẩu"));
+      expect(
+        await screen.findByRole("heading", { name: "Đổi mật khẩu" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/Nếu An Nguyen đang bị tạm khoá do đăng nhập sai nhiều lần/),
+      ).toBeInTheDocument();
+      expect(screen.getByLabelText(/^Mật khẩu\s*\*?$/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/^Xác nhận mật khẩu\s*\*?$/i)).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Đổi mật khẩu" }),
       ).toBeInTheDocument();
     });
   });

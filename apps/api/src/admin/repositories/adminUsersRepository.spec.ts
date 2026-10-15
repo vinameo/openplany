@@ -1,11 +1,20 @@
-import { describe, expect, it, vi } from 'vitest';
-import { QueryFailedError, type Repository } from 'typeorm';
+import { type DataSource, IsNull, QueryFailedError, type Repository } from 'typeorm';
 import type { User } from '../../auth/entities/user.entity.js';
 import {
   EmailAlreadyExistsError,
+  LISTED_USER,
   type NewUser,
   TypeOrmAdminUsersRepository,
 } from './adminUsersRepository.js';
+
+describe('LISTED_USER (INV-02)', () => {
+  it('excludes bots and masked/anonymized users', () => {
+    expect(LISTED_USER).toEqual({
+      isBot: false,
+      maskedAt: IsNull(),
+    });
+  });
+});
 
 describe('TypeOrmAdminUsersRepository', () => {
   const sampleUser: NewUser = {
@@ -19,9 +28,12 @@ describe('TypeOrmAdminUsersRepository', () => {
     at: new Date('2026-10-09T10:00:00.000Z'),
   };
 
-  function repoWith(insert: ReturnType<typeof vi.fn>) {
+  function repoWith(
+    insert: ReturnType<typeof vi.fn>,
+    dataSource = {} as DataSource,
+  ) {
     const users = { insert } as unknown as Repository<User>;
-    return new TypeOrmAdminUsersRepository(users);
+    return new TypeOrmAdminUsersRepository(users, dataSource);
   }
 
   it('inserts user with every privilege flag false and returns id and createdAt', async () => {

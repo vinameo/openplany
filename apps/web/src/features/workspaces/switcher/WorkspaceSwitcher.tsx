@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { WORKSPACE_ROLE_LABELS, type WorkspaceResponse } from "@repo/contracts";
 import { useAuth } from "../../auth/useAuth";
 import { ROLES_AND_PERMISSIONS_PATH } from "../../admin/roles/rolesOverview";
+import { USERS_PATH } from "../../admin/users/usersPaths";
 import {
   CheckIcon,
   ChevronDownIcon,
@@ -11,7 +12,7 @@ import {
   SettingsIcon,
   ShieldIcon,
   SignOutIcon,
-  UserPlusIcon,
+  UsersIcon,
 } from "../icons";
 import { useWorkspaces } from "../useWorkspaces";
 import { WorkspaceAvatar } from "../WorkspaceAvatar";
@@ -164,10 +165,10 @@ export function WorkspaceSwitcher({
         {isInstanceAdmin && (
           <>
             <Menu.Item
-              leftSection={<UserPlusIcon />}
-              onClick={() => navigate("/create-user")}
+              leftSection={<UsersIcon />}
+              onClick={() => navigate(USERS_PATH)}
             >
-              <Text size="sm">{t("workspace:switcher.createUser")}</Text>
+              <Text size="sm">{t("workspace:switcher.users")}</Text>
             </Menu.Item>
             <Menu.Item
               leftSection={<ShieldIcon />}

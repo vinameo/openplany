@@ -20,6 +20,7 @@ import {
 } from '../../src/auth/repositories/loginAttemptsRepository.js';
 import {
   SessionsRepository,
+  StaleCredentialsError,
   type ActiveSession,
   type SignInRecord,
 } from '../../src/auth/repositories/sessionsRepository.js';
@@ -233,8 +234,12 @@ export class FakeSessionsRepository extends SessionsRepository {
   readonly touches: { session: Session; now: Date; expiresAt: Date }[] = [];
   readonly revocations: { tokenHash: string; ip: string; now: Date }[] = [];
   active: ActiveSession | null = null;
+  rejectSignInWithStaleCredentials = false;
 
   createForSignIn(record: SignInRecord): Promise<Session> {
+    if (this.rejectSignInWithStaleCredentials) {
+      return Promise.reject(new StaleCredentialsError());
+    }
     this.signIns.push(record);
     return Promise.resolve(
       makeSession({ tokenHash: record.session.tokenHash }),

@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Avatar, Button, Group, Modal, Stack, Text } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import type { AuthUser } from "../auth/api/authTypes";
+import { DiscardChangesFooter } from "../layout/DiscardChangesFooter";
+import { useDiscardGuard } from "../layout/useDiscardGuard";
 import { ProfileForm } from "./ProfileForm";
 import { fullName } from "./profileValidation";
 import { userLabel } from "./userName";
@@ -24,45 +25,24 @@ export function ProfileModal({ opened, onClose, user }: ProfileModalProps) {
   const isNarrow = useMediaQuery("(max-width: 575px)");
   const state = useProfileForm({ user, onSaved: onClose });
   const { form, hasChanges, isSaving } = state;
-  const [isConfirmingDiscard, setIsConfirmingDiscard] = useState(false);
-  const keepEditingRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (isConfirmingDiscard) keepEditingRef.current?.focus();
-  }, [isConfirmingDiscard]);
-
-  function requestClose(): void {
-    if (isSaving) return;
-    if (isConfirmingDiscard) {
-      setIsConfirmingDiscard(false);
-    } else if (hasChanges) {
-      setIsConfirmingDiscard(true);
-    } else {
-      onClose();
-    }
-  }
+  const { isConfirmingDiscard, keepEditingRef, requestClose, cancelDiscard } =
+    useDiscardGuard({
+      hasChanges,
+      isSaving,
+      onDiscard: onClose,
+    });
 
   // Follows the typing, so a doubled name like "Kai Tran Tran" shows at once.
   const heading = fullName(form.values) ?? userLabel(user);
 
   const footer = isConfirmingDiscard ? (
-    <Group justify="space-between" className={classes.footer}>
-      <Text fw={500} role="alert">
-        {t("profile:discardModal.title")}
-      </Text>
-      <Group gap="sm">
-        <Button
-          ref={keepEditingRef}
-          variant="default"
-          onClick={() => setIsConfirmingDiscard(false)}
-        >
-          {t("common:actions.keepEditing")}
-        </Button>
-        <Button color="red" onClick={onClose}>
-          {t("common:actions.discard")}
-        </Button>
-      </Group>
-    </Group>
+    <DiscardChangesFooter
+      title={t("profile:discardModal.title")}
+      keepEditingRef={keepEditingRef}
+      onKeepEditing={cancelDiscard}
+      onDiscard={onClose}
+      className={classes.footer}
+    />
   ) : (
     <div className={classes.footer}>
       <Button

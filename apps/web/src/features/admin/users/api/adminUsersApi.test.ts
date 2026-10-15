@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { CreatedUserResponse, CreateUserRequest } from "@repo/contracts";
+import type {
+  AdminUserListResponse,
+  CreatedUserResponse,
+  CreateUserRequest,
+} from "@repo/contracts";
 import { apiError, jsonResponse, mockFetch } from "../../../../test/fetchMock";
 import { adminUsersApi, GENERIC_CREATE_USER_ERROR_KEY } from "./adminUsersApi";
 import { translate } from "../../../../i18n/language";
@@ -68,6 +72,111 @@ describe("adminUsersApi", () => {
     await expect(adminUsersApi.createUser(requestBody)).rejects.toMatchObject({
       code: "NETWORK_ERROR",
       message: GENERIC_CREATE_USER_ERROR,
+    });
+  });
+
+  describe("list", () => {
+    it("fetches GET /api/admin/users with mapped query params", async () => {
+      const listResponse: AdminUserListResponse = {
+        items: [],
+        total: 0,
+        page: 1,
+        pageSize: 50,
+      };
+      const fetchMock = mockFetch({
+        "GET /api/admin/users": () => jsonResponse(200, listResponse),
+      });
+
+      const result = await adminUsersApi.list({
+        search: "kai",
+        status: "active",
+        admin: "only",
+        sort: "createdAt",
+        order: "desc",
+        page: 2,
+      });
+
+      expect(result).toEqual(listResponse);
+      const calledUrl = fetchMock.mock.calls[0][0] as string;
+      expect(calledUrl).toContain("page=2");
+      expect(calledUrl).toContain("sort=createdAt");
+      expect(calledUrl).toContain("order=desc");
+      expect(calledUrl).toContain("search=kai");
+      expect(calledUrl).toContain("status=active");
+      expect(calledUrl).toContain("instanceAdmin=only");
+    });
+  });
+
+  describe("get", () => {
+    it("fetches GET /api/admin/users/:userId", async () => {
+      const userResponse = {
+        id: "u-1",
+        email: "an@openplany.dev",
+        firstName: "An",
+        lastName: "Nguyen",
+        displayName: "An Nguyen",
+        avatarUrl: null,
+        isActive: true,
+        isInstanceAdmin: false,
+        createdAt: "2026-10-09T10:00:00.000Z",
+        updatedAt: "2026-10-09T10:00:00.000Z",
+      };
+      const fetchMock = mockFetch({
+        "GET /api/admin/users/u-1": () => jsonResponse(200, userResponse),
+      });
+
+      const result = await adminUsersApi.get("u-1");
+      expect(result).toEqual(userResponse);
+      expect(fetchMock.mock.calls[0][0]).toBe("/api/admin/users/u-1");
+    });
+  });
+
+  describe("update", () => {
+    it("patches to /api/admin/users/:userId with JSON body", async () => {
+      const updatedResponse = {
+        id: "u-1",
+        email: "an.new@openplany.dev",
+        firstName: "An",
+        lastName: "Nguyen",
+        displayName: "An Nguyen",
+        avatarUrl: null,
+        isActive: true,
+        isInstanceAdmin: false,
+        createdAt: "2026-10-09T10:00:00.000Z",
+        updatedAt: "2026-10-09T11:00:00.000Z",
+      };
+      const fetchMock = mockFetch({
+        "PATCH /api/admin/users/u-1": () => jsonResponse(200, updatedResponse),
+      });
+
+      const updateBody = {
+        expectedUpdatedAt: "2026-10-09T10:00:00.000Z",
+        email: "an.new@openplany.dev",
+      };
+      const result = await adminUsersApi.update("u-1", updateBody);
+      expect(result).toEqual(updatedResponse);
+      expect(fetchMock.mock.calls[0][1]).toMatchObject({
+        method: "PATCH",
+        body: JSON.stringify(updateBody),
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+  });
+
+  describe("changePassword", () => {
+    it("puts to /api/admin/users/:userId/password with json body and returns 204 void", async () => {
+      const fetchMock = mockFetch({
+        "PUT /api/admin/users/u-1/password": () => new Response(null, { status: 204 }),
+      });
+
+      const body = { password: "NewValidPassword123!" };
+      await adminUsersApi.changePassword("u-1", body);
+
+      expect(fetchMock.mock.calls[0][1]).toMatchObject({
+        method: "PUT",
+        body: JSON.stringify(body),
+        headers: { "Content-Type": "application/json" },
+      });
     });
   });
 });

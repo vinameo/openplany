@@ -6,8 +6,15 @@ import { Session } from '../entities/session.entity.js';
 import { User } from '../entities/user.entity.js';
 import type { LoginAttemptOutcome } from './loginAttemptsRepository.js';
 
+export class StaleCredentialsError extends Error {
+  constructor() {
+    super('Credentials changed before session creation');
+  }
+}
+
 export interface SignInRecord {
   userId: string;
+  verifiedHash: string;
   at: Date;
   ip: string;
   userAgent: string | null;
@@ -52,18 +59,24 @@ export class TypeOrmSessionsRepository extends SessionsRepository {
 
   createForSignIn(record: SignInRecord): Promise<Session> {
     return this.dataSource.transaction(async (manager) => {
-      await manager.update(User, record.userId, {
-        lastLogin: record.at,
-        lastLoginTime: record.at,
-        lastActive: record.at,
-        lastLoginIp: record.ip,
-        lastLoginMedium: 'email',
-        lastLoginUserAgent: record.userAgent,
-        updatedAt: record.at,
-        ...(record.rehashedPassword !== null && {
-          password: record.rehashedPassword,
-        }),
-      });
+      const result = await manager.update(
+        User,
+        { id: record.userId, password: record.verifiedHash },
+        {
+          lastLogin: record.at,
+          lastLoginTime: record.at,
+          lastActive: record.at,
+          lastLoginIp: record.ip,
+          lastLoginMedium: 'email',
+          lastLoginUserAgent: record.userAgent,
+          ...(record.rehashedPassword !== null && {
+            password: record.rehashedPassword,
+          }),
+        },
+      );
+      if (result.affected === 0) {
+        throw new StaleCredentialsError();
+      }
       const session = manager.create(Session, {
         userId: record.userId,
         tokenHash: record.session.tokenHash,
@@ -118,7 +131,6 @@ export class TypeOrmSessionsRepository extends SessionsRepository {
       await manager.update(User, session.userId, {
         lastLogoutTime: now,
         lastLogoutIp: ip,
-        updatedAt: now,
       });
     });
   }

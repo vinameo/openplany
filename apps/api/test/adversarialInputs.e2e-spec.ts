@@ -222,6 +222,40 @@ describe('Adversarial inputs (e2e)', () => {
     );
   });
 
+  it('PATCH /admin/users/:userId', async () => {
+    const cookieFor = rotatingCookie(() => newUser({ instanceAdmin: true }));
+    const target = await newUser();
+    const valid = {
+      expectedUpdatedAt: new Date().toISOString(),
+      firstName: 'Binh',
+      lastName: 'Tran',
+      displayName: 'Binh',
+      email: 'binh.updated@openplany.dev',
+    };
+    await expectNoServerErrors(adversarialBodies(valid), async (body, i) =>
+      http()
+        .patch(`/api/admin/users/${target.id}`)
+        .set('Cookie', await cookieFor(i))
+        .set('Origin', ORIGIN)
+        .send(body as object),
+    );
+  });
+
+  it('PUT /admin/users/:userId/password', async () => {
+    const cookieFor = rotatingCookie(() => newUser({ instanceAdmin: true }));
+    const target = await newUser();
+    const valid = {
+      password: 'ValidPassword123!',
+    };
+    await expectNoServerErrors(adversarialBodies(valid), async (body, i) =>
+      http()
+        .put(`/api/admin/users/${target.id}/password`)
+        .set('Cookie', await cookieFor(i))
+        .set('Origin', ORIGIN)
+        .send(body as object),
+    );
+  });
+
   it('PATCH /admin/role-permissions', async () => {
     const cookieFor = rotatingCookie(() => newUser({ instanceAdmin: true }));
     const valid = {

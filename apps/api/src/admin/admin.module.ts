@@ -23,7 +23,15 @@ import { RolePermissionsRepository } from './roles/repositories/rolePermissionsR
 import { TypeOrmRolePermissionsRepository } from './roles/repositories/typeOrmRolePermissions.repository.js';
 import { RolePermissionsWriteRateLimitGuard } from './roles/rolePermissionsWriteRateLimitGuard.js';
 import { ROLE_PERMISSIONS_WRITE_LIMITER } from './roles/tokens.js';
-import { USER_CREATE_LIMITER } from './tokens.js';
+import {
+  ADMIN_USERS_READ_LIMITER,
+  ADMIN_USERS_WRITE_LIMITER,
+  USER_CREATE_LIMITER,
+} from './tokens.js';
+import {
+  AdminUsersReadRateLimitGuard,
+  AdminUsersWriteRateLimitGuard,
+} from './adminUsersRateLimitGuards.js';
 import { Permission } from '../roles/entities/permission.entity.js';
 import { Role } from '../roles/entities/role.entity.js';
 import { RolePermission } from '../roles/entities/rolePermission.entity.js';
@@ -51,10 +59,22 @@ import { RolesModule } from '../roles/roles.module.js';
     InstanceAdminGuard,
     UserCreateRateLimitGuard,
     RolePermissionsWriteRateLimitGuard,
+    AdminUsersReadRateLimitGuard,
+    AdminUsersWriteRateLimitGuard,
     {
       provide: USER_CREATE_LIMITER,
       useFactory: () =>
         new InMemorySlidingWindowLimiter({ limit: 20, windowMs: 600_000 }),
+    },
+    {
+      provide: ADMIN_USERS_READ_LIMITER,
+      useFactory: () =>
+        new InMemorySlidingWindowLimiter({ limit: 120, windowMs: 60_000 }),
+    },
+    {
+      provide: ADMIN_USERS_WRITE_LIMITER,
+      useFactory: () =>
+        new InMemorySlidingWindowLimiter({ limit: 60, windowMs: 600_000 }),
     },
     {
       provide: ROLE_PERMISSIONS_WRITE_LIMITER,
