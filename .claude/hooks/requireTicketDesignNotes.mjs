@@ -3,10 +3,11 @@
 // packages/docs/<docs-dir>/tickets/NN-<slug>.design.md, one table row per spec
 // sketch or rule the ticket builds on, every cell filled with evidence.
 // Commits of type review/docs/chore/style/ci/build and --amend pass through.
-import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { deny, readHookInput } from "./hookIo.mjs";
+import { deny, readHookInput, runGit, startWatchdog, warn } from "./hookIo.mjs";
+
+const HOOK = "requireTicketDesignNotes";
 
 const DESIGN_NOTES_COLUMNS = [
   "Sketch or rule (spec §)",
@@ -103,15 +104,11 @@ function designNotesProblems(text) {
   return problems;
 }
 
-function git(root, args) {
-  return execFileSync("git", args, { cwd: root, encoding: "utf8" }).trim();
-}
-
 function check(command, root) {
   if (!/\bgit\s+(?:-C\s+\S+\s+)?commit\b/.test(command)) return null;
   if (/\s--amend\b/.test(command)) return null;
 
-  const branch = git(root, ["rev-parse", "--abbrev-ref", "HEAD"]);
+  const branch = runGit(root, ["rev-parse", "--abbrev-ref", "HEAD"]);
   if (!branch.startsWith("feature/")) return null;
   const docsDir = branch.slice("feature/".length);
   const ticketsDir = join(root, "packages", "docs", docsDir, "tickets");
@@ -120,7 +117,7 @@ function check(command, root) {
   const type = commitSubject(command)?.match(/^(\w+)[(!:]/)?.[1];
   if (type !== undefined && EXEMPT_TYPES.has(type)) return null;
 
-  const headSeconds = Number(git(root, ["log", "-1", "--format=%ct"]));
+  const headSeconds = Number(runGit(root, ["log", "-1", "--format=%ct"]));
   const fresh = readdirSync(ticketsDir)
     .filter((f) => f.endsWith(".design.md"))
     .map((f) => ({ f, mtime: statSync(join(ticketsDir, f)).mtimeMs / 1000 }))
@@ -143,16 +140,15 @@ function check(command, root) {
   return null;
 }
 
-const { antigravity, command, root } = readHookInput();
+startWatchdog(HOOK);
+const { antigravity, command, root } = await readHookInput(HOOK);
 if (command !== null) {
   let reason = null;
   try {
     reason = check(command, root);
   } catch (err) {
-    // A git failure (no repo, no commits yet) is git's to report, not this hook's.
-    process.stderr.write(
-      `requireTicketDesignNotes: skipped (${err instanceof Error ? err.message : String(err)})\n`,
-    );
+    // A git failure (no repo, no commits yet, timeout) is git's to report, not this hook's.
+    warn(HOOK, `skipped (${err instanceof Error ? err.message : String(err)})`);
   }
   if (reason !== null) deny(antigravity, reason);
 }

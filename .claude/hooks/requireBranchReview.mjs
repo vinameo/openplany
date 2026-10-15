@@ -3,10 +3,17 @@
 // .claude/reviews/<branch with "/" as "__">.md, newer than the branch tip.
 // A remote-tracking ref (origin/fix/x) is checked as the branch it names (fix/x).
 // Claude Code runs it from .claude/settings.json, Antigravity from .agents/hooks.json.
-import { execFileSync } from "node:child_process";
 import { existsSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { deny as denyFor, readHookInput } from "./hookIo.mjs";
+import {
+  deny as denyFor,
+  readHookInput,
+  runGit,
+  startWatchdog,
+  warn,
+} from "./hookIo.mjs";
+
+const HOOK = "requireBranchReview";
 
 const GUARDED = /^(feature|fix|refactor|chore|review)\//;
 const OPTIONS_WITH_VALUE = new Set([
@@ -52,17 +59,18 @@ function branchName(ref, remotes) {
 
 function listRemotes(root) {
   try {
-    return execFileSync("git", ["remote"], { cwd: root, encoding: "utf8" })
+    return runGit(root, ["remote"])
       .split("\n")
       .filter((r) => r !== "");
   } catch (error) {
-    // Not a repo or git missing: only local branch names are checked.
-    process.stderr.write(`requireBranchReview: git remote failed: ${error}\n`);
+    // Not a repo, git missing or too slow: only local branch names are checked.
+    warn(HOOK, `git remote failed: ${error}`);
     return [];
   }
 }
 
-const { antigravity, command, root } = readHookInput();
+startWatchdog(HOOK);
+const { antigravity, command, root } = await readHookInput(HOOK);
 const deny = (reason) => denyFor(antigravity, reason);
 
 if (command !== null) {
@@ -79,14 +87,11 @@ if (command !== null) {
     );
     let tipSeconds;
     try {
-      tipSeconds = Number(
-        execFileSync("git", ["log", "-1", "--format=%ct", ref], {
-          cwd: root,
-          encoding: "utf8",
-        }).trim(),
-      );
-    } catch {
-      continue; // Unknown branch: let git report it.
+      tipSeconds = Number(runGit(root, ["log", "-1", "--format=%ct", ref]));
+    } catch (error) {
+      // Unknown branch: git reports it. A git timeout cannot be checked either.
+      warn(HOOK, `skipped ${ref}: ${error}`);
+      continue;
     }
     if (!existsSync(report)) {
       deny(
