@@ -10,6 +10,7 @@ import { Clock } from '../auth/clock.js';
 import { PasswordHasher } from '../auth/passwordHasher.js';
 import { UsersRepository } from '../auth/repositories/usersRepository.js';
 import { ApiException } from '../common/apiException.js';
+import { type ChangeUserPasswordDto } from './dto/changeUserPassword.dto.js';
 import { type CreateUserDto } from './dto/createUser.dto.js';
 import { toAdminUserResponse } from './dto/adminUserResponse.dto.js';
 import { toCreatedUserResponse } from './dto/createdUserResponse.dto.js';
@@ -19,6 +20,7 @@ import {
   ActorForbiddenError,
   AdminUsersRepository,
   EmailAlreadyExistsError,
+  PasswordSameAsEmailError,
   TargetNotFoundError,
   UserChangedSinceLoadedError,
 } from './repositories/adminUsersRepository.js';
@@ -140,6 +142,74 @@ export class AdminUsersService {
     }
 
     return toAdminUserResponse(result.user);
+  }
+
+  async changePassword(
+    actorId: string,
+    userId: string,
+    dto: ChangeUserPasswordDto,
+    requestId: string,
+  ): Promise<void> {
+    if (actorId === userId) {
+      throw new ApiException(
+        HttpStatus.FORBIDDEN,
+        'CANNOT_CHANGE_OWN_PASSWORD',
+        { key: 'admin:users.errors.cannotChangeOwnPassword' },
+      );
+    }
+
+    const passwordHash = await this.hasher.hash(dto.password);
+    const now = this.clock.now();
+
+    let result: { revokedSessionCount: number };
+    try {
+      result = await this.adminUsers.changePassword(
+        actorId,
+        userId,
+        passwordHash,
+        dto.password,
+        now,
+      );
+    } catch (error) {
+      if (error instanceof ActorForbiddenError) {
+        throw new ApiException(HttpStatus.FORBIDDEN, 'FORBIDDEN', {
+          key: 'admin:errors.cannotManageUsers',
+        });
+      }
+      if (error instanceof TargetNotFoundError) {
+        throw new ApiException(HttpStatus.NOT_FOUND, 'USER_NOT_FOUND', {
+          key: 'admin:users.errors.userNotFound',
+        });
+      }
+      if (error instanceof PasswordSameAsEmailError) {
+        throw new ApiException(
+          HttpStatus.BAD_REQUEST,
+          'VALIDATION_ERROR',
+          { key: 'errors:checkHighlightedFields' },
+          {
+            fields: {
+              password: { key: 'users:errors.passwordSameAsEmail' },
+            },
+          },
+        );
+      }
+      throw error;
+    }
+
+    try {
+      await this.events.passwordChanged({
+        userId,
+        actorId,
+        revokedSessionCount: result.revokedSessionCount,
+        occurredAt: now,
+        requestId,
+      });
+    } catch (error) {
+      this.logger.error(
+        `user.password_changed event failed userId=${userId} requestId=${requestId}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
   }
 
   async create(

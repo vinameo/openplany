@@ -237,7 +237,7 @@ describe('adminUserErrors (INV-14)', () => {
       const action = parseAdminUserError(error, 'password');
       expect(action).toEqual({
         type: 'cannotChangeOwnPassword',
-        message: 'You no longer have permission to manage users.',
+        message: "You can't change your own password here.",
       });
     });
 

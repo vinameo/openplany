@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Patch,
   Post,
+  Put,
   Query,
   Req,
   UseGuards,
@@ -24,6 +25,7 @@ import {
   AdminUsersWrite,
 } from './adminUsersAccess.decorator.js';
 import { AdminUsersService } from './adminUsers.service.js';
+import { ChangeUserPasswordDto } from './dto/changeUserPassword.dto.js';
 import { CreateUserDto } from './dto/createUser.dto.js';
 import { ListAdminUsersQueryDto } from './dto/listAdminUsersQuery.dto.js';
 import { UpdateAdminUserDto } from './dto/updateAdminUser.dto.js';
@@ -58,6 +60,23 @@ export class AdminUsersController {
     @Req() request: Request,
   ): Promise<AdminUserResponse> {
     return this.adminUsersService.update(
+      actorId,
+      userId,
+      dto,
+      request.requestId,
+    );
+  }
+
+  @Put(':userId/password')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @AdminUsersWrite()
+  changePassword(
+    @CurrentUserId() actorId: string,
+    @MemberUserIdParam() userId: string,
+    @Body() dto: ChangeUserPasswordDto,
+    @Req() request: Request,
+  ): Promise<void> {
+    return this.adminUsersService.changePassword(
       actorId,
       userId,
       dto,

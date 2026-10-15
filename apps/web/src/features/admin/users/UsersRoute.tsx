@@ -25,6 +25,7 @@ import { UsersTable } from './UsersTable';
 import { UsersPagination } from './UsersPagination';
 import { CreateUserModal } from './CreateUserModal';
 import { EditUserModal } from './EditUserModal';
+import { ChangePasswordModal } from './ChangePasswordModal';
 import classes from './UsersRoute.module.css';
 
 export function UsersRoute() {
@@ -34,6 +35,7 @@ export function UsersRoute() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [createModalOpened, setCreateModalOpened] = useState(false);
   const [editingUser, setEditingUser] = useState<AdminUserResponse | null>(null);
+  const [changingPasswordUser, setChangingPasswordUser] = useState<AdminUserResponse | null>(null);
 
   const params = useMemo(() => parseUsersListParams(searchParams), [searchParams]);
 
@@ -200,11 +202,17 @@ export function UsersRoute() {
 
         <UsersTable
           users={data?.items ?? []}
+          currentUserId={
+            authState.status === 'authenticated'
+              ? authState.session.user.id
+              : undefined
+          }
           currentSort={{ key: params.sort, direction: params.order }}
           onSortChange={handleSortChange}
           isPlaceholderData={isPlaceholderData}
           onClearFilters={hasFiltersOrSearch ? handleClearAll : undefined}
           onEdit={(user) => setEditingUser(user)}
+          onChangePassword={(user) => setChangingPasswordUser(user)}
         />
 
         <UsersPagination
@@ -224,6 +232,12 @@ export function UsersRoute() {
         opened={editingUser !== null}
         user={editingUser}
         onClose={() => setEditingUser(null)}
+      />
+
+      <ChangePasswordModal
+        opened={changingPasswordUser !== null}
+        user={changingPasswordUser}
+        onClose={() => setChangingPasswordUser(null)}
       />
     </AdminPageLayout>
   );

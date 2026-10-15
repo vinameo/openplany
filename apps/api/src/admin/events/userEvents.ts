@@ -13,7 +13,16 @@ export interface UserUpdatedEvent {
   requestId: string;
 }
 
+export interface UserPasswordChangedEvent {
+  userId: string;
+  actorId: string;
+  revokedSessionCount: number;
+  occurredAt: Date;
+  requestId: string;
+}
+
 export abstract class UserEvents {
   abstract created(event: UserCreatedEvent): Promise<void>;
   abstract updated(event: UserUpdatedEvent): Promise<void>;
+  abstract passwordChanged(event: UserPasswordChangedEvent): Promise<void>;
 }

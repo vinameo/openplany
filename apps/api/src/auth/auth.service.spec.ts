@@ -222,6 +222,30 @@ describe('AuthService', () => {
       expect(wrong.getResponse()).toEqual(unknown.getResponse());
     });
 
+    it('rejects with INVALID_CREDENTIALS when credentials become stale concurrently (INV-16, AC-33)', async () => {
+      const user = makeUser();
+      const { service, sessions, attempts } = await setup([user]);
+      sessions.rejectSignInWithStaleCredentials = true;
+
+      await expectApiError(
+        service.signIn(
+          { email: 'an@openplany.dev', password: 'Secret123!' },
+          CONTEXT,
+        ),
+        HttpStatus.UNAUTHORIZED,
+        'INVALID_CREDENTIALS',
+      );
+
+      expect(attempts.recorded).toEqual([
+        {
+          id: RESERVED_ATTEMPT_ID,
+          result: 'failure',
+          reason: 'wrong_password',
+          userId: user.id,
+        },
+      ]);
+    });
+
     it('throws ACCOUNT_DEACTIVATED only once the password is correct', async () => {
       const { service, attempts, sessions } = await setup([
         makeUser({ isActive: false }),

@@ -162,4 +162,21 @@ describe("adminUsersApi", () => {
       });
     });
   });
+
+  describe("changePassword", () => {
+    it("puts to /api/admin/users/:userId/password with json body and returns 204 void", async () => {
+      const fetchMock = mockFetch({
+        "PUT /api/admin/users/u-1/password": () => new Response(null, { status: 204 }),
+      });
+
+      const body = { password: "NewValidPassword123!" };
+      await adminUsersApi.changePassword("u-1", body);
+
+      expect(fetchMock.mock.calls[0][1]).toMatchObject({
+        method: "PUT",
+        body: JSON.stringify(body),
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+  });
 });

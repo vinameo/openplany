@@ -7,6 +7,7 @@ import { AdminUsersService } from './adminUsers.service.js';
 import type { CreateUserDto } from './dto/createUser.dto.js';
 import type {
   UserCreatedEvent,
+  UserPasswordChangedEvent,
   UserUpdatedEvent,
   UserEvents,
 } from './events/userEvents.js';
@@ -15,6 +16,7 @@ import {
   type AdminUsersRepository,
   EmailAlreadyExistsError,
   type NewUser,
+  PasswordSameAsEmailError,
   TargetNotFoundError,
   UserChangedSinceLoadedError,
 } from './repositories/adminUsersRepository.js';
@@ -57,11 +59,15 @@ describe('AdminUsersService', () => {
       user: {} as User,
       changedFields: [] as string[],
     }));
+    const changePasswordMock = vi.fn(async () => ({
+      revokedSessionCount: 2,
+    }));
     const adminUsersRepo = {
       createUser: createUserMock,
       list: listMock,
       findById: findByIdMock,
       updateUser: updateUserMock,
+      changePassword: changePasswordMock,
     } as unknown as AdminUsersRepository;
 
     const hasher = new FakePasswordHasher();
@@ -82,9 +88,17 @@ describe('AdminUsersService', () => {
       callOrder.push('events.updated');
       capturedUpdatedEvent = event;
     });
+    let capturedPasswordChangedEvent: UserPasswordChangedEvent | null = null;
+    const passwordChangedEventMock = vi.fn(
+      async (event: UserPasswordChangedEvent) => {
+        callOrder.push('events.passwordChanged');
+        capturedPasswordChangedEvent = event;
+      },
+    );
     const events = {
       created: createdEventMock,
       updated: updatedEventMock,
+      passwordChanged: passwordChangedEventMock,
     } as unknown as UserEvents;
 
     const clock = new FakeClock(new Date('2026-10-09T10:00:00.000Z'));
@@ -103,16 +117,19 @@ describe('AdminUsersService', () => {
       listMock,
       findByIdMock,
       updateUserMock,
+      changePasswordMock,
       findByEmailMock,
       createUserMock,
       hashMock,
       createdEventMock,
       updatedEventMock,
+      passwordChangedEventMock,
       clock,
       callOrder,
       getCapturedNewUser: () => capturedNewUser,
       getCapturedEvent: () => capturedEvent,
       getCapturedUpdatedEvent: () => capturedUpdatedEvent,
+      getCapturedPasswordChangedEvent: () => capturedPasswordChangedEvent,
     };
   }
 
@@ -508,6 +525,105 @@ describe('AdminUsersService', () => {
           }),
         }),
       );
+    });
+  });
+
+  describe('changePassword', () => {
+    const passwordDto = { password: 'NewPassword123!' };
+
+    it('rejects changing own password before hashing or repo call (RQ INV-10, AC-18)', async () => {
+      const ctx = setup();
+      await expect(
+        ctx.service.changePassword('actor-kai', 'actor-kai', passwordDto, 'req-1'),
+      ).rejects.toThrow(
+        expect.objectContaining({
+          status: HttpStatus.FORBIDDEN,
+          code: 'CANNOT_CHANGE_OWN_PASSWORD',
+        }),
+      );
+      expect(ctx.hashMock).not.toHaveBeenCalled();
+      expect(ctx.changePasswordMock).not.toHaveBeenCalled();
+    });
+
+    it('hashes password and calls changePassword on repository, then emits event', async () => {
+      const ctx = setup();
+      await ctx.service.changePassword('actor-kai', 'target-nam', passwordDto, 'req-1');
+
+      expect(ctx.hashMock).toHaveBeenCalledWith('NewPassword123!');
+      expect(ctx.changePasswordMock).toHaveBeenCalledWith(
+        'actor-kai',
+        'target-nam',
+        'hash:NewPassword123!',
+        'NewPassword123!',
+        ctx.clock.now(),
+      );
+      expect(ctx.passwordChangedEventMock).toHaveBeenCalledWith({
+        userId: 'target-nam',
+        actorId: 'actor-kai',
+        revokedSessionCount: 2,
+        occurredAt: ctx.clock.now(),
+        requestId: 'req-1',
+      });
+    });
+
+    it('translates ActorForbiddenError to 403 FORBIDDEN', async () => {
+      const ctx = setup();
+      ctx.changePasswordMock.mockRejectedValueOnce(new ActorForbiddenError());
+
+      await expect(
+        ctx.service.changePassword('actor-kai', 'target-nam', passwordDto, 'req-1'),
+      ).rejects.toThrow(
+        expect.objectContaining({
+          status: HttpStatus.FORBIDDEN,
+          code: 'FORBIDDEN',
+        }),
+      );
+    });
+
+    it('translates TargetNotFoundError to 404 USER_NOT_FOUND', async () => {
+      const ctx = setup();
+      ctx.changePasswordMock.mockRejectedValueOnce(new TargetNotFoundError());
+
+      await expect(
+        ctx.service.changePassword('actor-kai', 'target-nam', passwordDto, 'req-1'),
+      ).rejects.toThrow(
+        expect.objectContaining({
+          status: HttpStatus.NOT_FOUND,
+          code: 'USER_NOT_FOUND',
+        }),
+      );
+    });
+
+    it('translates PasswordSameAsEmailError to 400 VALIDATION_ERROR with fields.password', async () => {
+      const ctx = setup();
+      ctx.changePasswordMock.mockRejectedValueOnce(new PasswordSameAsEmailError());
+
+      await expect(
+        ctx.service.changePassword('actor-kai', 'target-nam', passwordDto, 'req-1'),
+      ).rejects.toThrow(
+        expect.objectContaining({
+          status: HttpStatus.BAD_REQUEST,
+          code: 'VALIDATION_ERROR',
+          fields: expect.objectContaining({
+            password: "Password can't be the same as the email",
+          }),
+        }),
+      );
+    });
+
+    it('tolerates event emission failure without throwing', async () => {
+      const ctx = setup();
+      ctx.passwordChangedEventMock.mockRejectedValueOnce(new Error('Event bus down'));
+
+      const errorSpy = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+      try {
+        await expect(
+          ctx.service.changePassword('actor-kai', 'target-nam', passwordDto, 'req-1'),
+        ).resolves.toBeUndefined();
+        expect(errorSpy).toHaveBeenCalled();
+      } finally {
+        errorSpy.mockRestore();
+      }
     });
   });
 });

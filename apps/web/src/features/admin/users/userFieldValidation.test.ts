@@ -3,9 +3,12 @@ import type { AdminUserResponse } from "@repo/contracts";
 import {
   adminUserLabel,
   buildUpdateAdminUserPayload,
+  hasChangePasswordChanges,
   hasEditUserChanges,
+  type ChangePasswordValues,
   type CreateUserValues,
   type EditUserValues,
+  validateChangePasswordField,
   validateConfirmPassword,
   validateCreateUserField,
   validateDisplayName,
@@ -493,6 +496,71 @@ describe("userFieldValidation", () => {
           email: "an@openplany.dev",
         }),
       ).toBe("an@openplany.dev");
+    });
+  });
+
+  describe("hasChangePasswordChanges", () => {
+    it("returns false when both password fields are empty", () => {
+      expect(
+        hasChangePasswordChanges({ password: "", confirmPassword: "" }),
+      ).toBe(false);
+    });
+
+    it("returns true when password is non-empty", () => {
+      expect(
+        hasChangePasswordChanges({ password: "a", confirmPassword: "" }),
+      ).toBe(true);
+    });
+
+    it("returns true when confirmPassword is non-empty", () => {
+      expect(
+        hasChangePasswordChanges({ password: "", confirmPassword: "b" }),
+      ).toBe(true);
+    });
+  });
+
+  describe("validateChangePasswordField", () => {
+    const targetEmail = "target@openplany.dev";
+    const validValues: ChangePasswordValues = {
+      password: "NewPassword123!",
+      confirmPassword: "NewPassword123!",
+    };
+
+    it("returns null for valid password and confirmPassword", () => {
+      expect(
+        validateChangePasswordField("password", validValues, targetEmail),
+      ).toBeNull();
+      expect(
+        validateChangePasswordField("confirmPassword", validValues, targetEmail),
+      ).toBeNull();
+    });
+
+    it("validates password length and email collision", () => {
+      expect(
+        validateChangePasswordField(
+          "password",
+          { ...validValues, password: "short" },
+          targetEmail,
+        ),
+      ).toBe("Use 8 to 128 characters");
+
+      expect(
+        validateChangePasswordField(
+          "password",
+          { ...validValues, password: "target@openplany.dev" },
+          targetEmail,
+        ),
+      ).toBe("Password can't be the same as the email");
+    });
+
+    it("validates confirmPassword matching", () => {
+      expect(
+        validateChangePasswordField(
+          "confirmPassword",
+          { ...validValues, confirmPassword: "mismatchPassword" },
+          targetEmail,
+        ),
+      ).toBe("Passwords don't match");
     });
   });
 });

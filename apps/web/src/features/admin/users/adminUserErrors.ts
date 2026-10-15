@@ -79,7 +79,7 @@ export function parseAdminUserError(
       if (error.code === "CANNOT_CHANGE_OWN_PASSWORD") {
         return {
           type: "cannotChangeOwnPassword",
-          message: translate("admin:users.errors.noPermissionManage"),
+          message: translate("admin:users.errors.cannotChangeOwnPassword"),
         };
       }
       const message =

@@ -243,3 +243,30 @@ export function adminUserLabel(user: {
   );
 }
 
+export interface ChangePasswordValues {
+  password: string;
+  confirmPassword: string;
+}
+
+export type ChangePasswordField = keyof ChangePasswordValues;
+
+export function hasChangePasswordChanges(
+  values: ChangePasswordValues,
+): boolean {
+  return values.password !== "" || values.confirmPassword !== "";
+}
+
+export function validateChangePasswordField(
+  field: ChangePasswordField,
+  values: ChangePasswordValues,
+  targetEmail: string,
+): string | null {
+  switch (field) {
+    case "password":
+      return validatePassword(values.password, targetEmail);
+    case "confirmPassword":
+      return validateConfirmPassword(values.confirmPassword, values.password);
+  }
+}
+
+

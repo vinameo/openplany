@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { Logger } from '@nestjs/common';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Argon2PasswordHasher } from '../src/auth/passwordHasher.js';
+import { Argon2PasswordHasher, PasswordHasher } from '../src/auth/passwordHasher.js';
 import { createE2eApp, type E2eApp } from './createE2eApp.js';
 
 const ORIGIN = 'http://localhost:5173';
@@ -1582,6 +1582,309 @@ describe('Admin Users (e2e)', () => {
       );
 
       expect(after[0]!.updated_at.getTime()).toBe(before[0]!.updated_at.getTime());
+    });
+  });
+
+  describe('PUT /api/admin/users/:userId/password (Ticket 06)', () => {
+    it('AC-17 & AC-25: changes password, revokes all active sessions, allows new login, keeps actor session, logs without PII', async () => {
+      const kaiId = await createDbUser('kai@openplany.dev', true);
+      const kaiCookie = await signInCookie('kai@openplany.dev');
+
+      const namId = await createDbUser('nam@openplany.dev', false);
+      const namCookie1 = await signInCookie('nam@openplany.dev');
+      const namCookie2 = await signInCookie('nam@openplany.dev');
+      const namCookie3 = await signInCookie('nam@openplany.dev');
+
+      // Verify all 3 sessions are active
+      await http().get('/api/users/me').set('Cookie', namCookie1).set('Origin', ORIGIN).expect(200);
+      await http().get('/api/users/me').set('Cookie', namCookie2).set('Origin', ORIGIN).expect(200);
+      await http().get('/api/users/me').set('Cookie', namCookie3).set('Origin', ORIGIN).expect(200);
+
+      const loggedMessages: string[] = [];
+      const logSpy = vi.spyOn(Logger.prototype, 'log').mockImplementation((msg: string) => {
+        loggedMessages.push(String(msg));
+      });
+
+      try {
+        const newPassword = 'NewSecretPassword456!';
+        await http()
+          .put(`/api/admin/users/${namId}/password`)
+          .set('Origin', ORIGIN)
+          .set('Cookie', kaiCookie)
+          .send({ password: newPassword })
+          .expect(204);
+
+        // Nam's 3 sessions are now revoked -> 401
+        await http().get('/api/users/me').set('Cookie', namCookie1).set('Origin', ORIGIN).expect(401);
+        await http().get('/api/users/me').set('Cookie', namCookie2).set('Origin', ORIGIN).expect(401);
+        await http().get('/api/users/me').set('Cookie', namCookie3).set('Origin', ORIGIN).expect(401);
+
+        // Kai's session is still active
+        await http().get('/api/users/me').set('Cookie', kaiCookie).set('Origin', ORIGIN).expect(200);
+
+        // Nam cannot sign in with old password
+        await http()
+          .post('/api/auth/sign-in')
+          .set('Origin', ORIGIN)
+          .send({ email: 'nam@openplany.dev', password: DEFAULT_PASSWORD })
+          .expect(401);
+
+        // Nam can sign in with new password
+        const newNamCookie = await signInCookie('nam@openplany.dev', newPassword);
+        await http().get('/api/users/me').set('Cookie', newNamCookie).set('Origin', ORIGIN).expect(200);
+
+        // Verify logs: contains user.password_changed with revokedSessionCount=3, actorId, userId, NO PII
+        const pwdLogs = loggedMessages.filter((m) => m.startsWith('user.password_changed'));
+        expect(pwdLogs).toHaveLength(1);
+        expect(pwdLogs[0]).toContain(`userId=${namId}`);
+        expect(pwdLogs[0]).toContain(`actorId=${kaiId}`);
+        expect(pwdLogs[0]).toContain('revokedSessionCount=3');
+        expect(pwdLogs[0]).toContain('requestId=');
+        for (const logMsg of loggedMessages) {
+          expect(logMsg).not.toContain(newPassword);
+          expect(logMsg).not.toContain('nam@openplany.dev');
+        }
+      } finally {
+        logSpy.mockRestore();
+      }
+    });
+
+    it('AC-18: actor cannot change own password -> 403 CANNOT_CHANGE_OWN_PASSWORD', async () => {
+      const kaiId = await createDbUser('kai-self@openplany.dev', true);
+      const kaiCookie = await signInCookie('kai-self@openplany.dev');
+
+      const res = await http()
+        .put(`/api/admin/users/${kaiId}/password`)
+        .set('Origin', ORIGIN)
+        .set('Cookie', kaiCookie)
+        .send({ password: 'SomeOtherPassword123!' })
+        .expect(403);
+
+      expect(res.body.code).toBe('CANNOT_CHANGE_OWN_PASSWORD');
+      expect(res.body.message).toBe("You can't change your own password here.");
+    });
+
+    it('AC-19: password equals target email (case-insensitive) -> 400 fields.password', async () => {
+      await createDbUser('kai-pw@openplany.dev', true);
+      const kaiCookie = await signInCookie('kai-pw@openplany.dev');
+      const namId = await createDbUser('nam-pw@openplany.dev', false);
+
+      // Exact match
+      const res1 = await http()
+        .put(`/api/admin/users/${namId}/password`)
+        .set('Origin', ORIGIN)
+        .set('Cookie', kaiCookie)
+        .send({ password: 'nam-pw@openplany.dev' })
+        .expect(400);
+
+      expect(res1.body.code).toBe('VALIDATION_ERROR');
+      expect(res1.body.fields?.password).toBe("Password can't be the same as the email");
+
+      // Case variation
+      const res2 = await http()
+        .put(`/api/admin/users/${namId}/password`)
+        .set('Origin', ORIGIN)
+        .set('Cookie', kaiCookie)
+        .send({ password: 'NAM-PW@OPENPLANY.DEV' })
+        .expect(400);
+
+      expect(res2.body.code).toBe('VALIDATION_ERROR');
+      expect(res2.body.fields?.password).toBe("Password can't be the same as the email");
+    });
+
+    it('AC-20: deactivated target user password can still be changed -> 204', async () => {
+      await createDbUser('kai-deact@openplany.dev', true);
+      const kaiCookie = await signInCookie('kai-deact@openplany.dev');
+      const targetId = await createDbUser('inactive@openplany.dev', false);
+
+      // Deactivate user in DB
+      await e2e.dataSource.query('UPDATE users SET is_active = false WHERE id = $1', [targetId]);
+
+      await http()
+        .put(`/api/admin/users/${targetId}/password`)
+        .set('Origin', ORIGIN)
+        .set('Cookie', kaiCookie)
+        .send({ password: 'NewPasswordForInactive123!' })
+        .expect(204);
+    });
+
+    it('AC-21: password change updates updated_at so open edit modal gets 409', async () => {
+      await createDbUser('kai-concur@openplany.dev', true);
+      const kaiCookie = await signInCookie('kai-concur@openplany.dev');
+      const targetId = await createDbUser('target-concur@openplany.dev', false);
+
+      // Kai fetches target details
+      const detailRes = await http()
+        .get(`/api/admin/users/${targetId}`)
+        .set('Origin', ORIGIN)
+        .set('Cookie', kaiCookie)
+        .expect(200);
+
+      const staleUpdatedAt = detailRes.body.updatedAt;
+
+      // Kai changes password in another tab
+      await http()
+        .put(`/api/admin/users/${targetId}/password`)
+        .set('Origin', ORIGIN)
+        .set('Cookie', kaiCookie)
+        .send({ password: 'ChangedPassword999!' })
+        .expect(204);
+
+      // Kai tries to save edit using stale expectedUpdatedAt
+      const editRes = await http()
+        .patch(`/api/admin/users/${targetId}`)
+        .set('Origin', ORIGIN)
+        .set('Cookie', kaiCookie)
+        .send({
+          expectedUpdatedAt: staleUpdatedAt,
+          firstName: 'NewFirstName',
+          lastName: 'NewLastName',
+          displayName: 'New Display Name',
+          email: 'target-concur@openplany.dev',
+        })
+        .expect(409);
+
+      expect(editRes.body.code).toBe('USER_CHANGED_SINCE_LOADED');
+    });
+
+    it('AC-26 & API B3.3 / B5: input validation and error codes', async () => {
+      await createDbUser('kai-val@openplany.dev', true);
+      const kaiCookie = await signInCookie('kai-val@openplany.dev');
+      const targetId = await createDbUser('target-val@openplany.dev', false);
+
+      // Invalid UUID
+      const badUuid = await http()
+        .put('/api/admin/users/not-a-uuid/password')
+        .set('Origin', ORIGIN)
+        .set('Cookie', kaiCookie)
+        .send({ password: 'ValidPassword123!' })
+        .expect(400);
+      expect(badUuid.body.code).toBe('VALIDATION_ERROR');
+      expect(badUuid.body.fields?.userId).toBeDefined();
+
+      // Unknown user
+      const unknownId = '00000000-0000-4000-8000-000000000000';
+      const notFound = await http()
+        .put(`/api/admin/users/${unknownId}/password`)
+        .set('Origin', ORIGIN)
+        .set('Cookie', kaiCookie)
+        .send({ password: 'ValidPassword123!' })
+        .expect(404);
+      expect(notFound.body.code).toBe('USER_NOT_FOUND');
+
+      // Password < 8 chars
+      const shortPw = await http()
+        .put(`/api/admin/users/${targetId}/password`)
+        .set('Origin', ORIGIN)
+        .set('Cookie', kaiCookie)
+        .send({ password: '1234567' })
+        .expect(400);
+      expect(shortPw.body.code).toBe('VALIDATION_ERROR');
+      expect(shortPw.body.fields?.password).toBe('Use 8 to 128 characters');
+
+      // Extra unwhitelisted properties
+      const extraProp = await http()
+        .put(`/api/admin/users/${targetId}/password`)
+        .set('Origin', ORIGIN)
+        .set('Cookie', kaiCookie)
+        .send({ password: 'ValidPassword123!', confirmPassword: 'ValidPassword123!' })
+        .expect(400);
+      expect(extraProp.body.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('AC-33: sign-in with stale credentials throws 401 when password changed between verify and write', async () => {
+      const email = 'stale-signin@openplany.dev';
+      const userId = await createDbUser(email, false);
+
+      const hasher = e2e.app.get(PasswordHasher);
+      const originalVerify = hasher.verify.bind(hasher);
+      const verifySpy = vi.spyOn(hasher, 'verify').mockImplementation(async (hash, candidate) => {
+        const result = await originalVerify(hash, candidate);
+        if (result && candidate === DEFAULT_PASSWORD) {
+          // Admin changes user's password in DB concurrently
+          const newHash = await new Argon2PasswordHasher().hash('NewConcurrentlyChanged123!');
+          await e2e.dataSource.query('UPDATE users SET password = $1 WHERE id = $2', [
+            newHash,
+            userId,
+          ]);
+        }
+        return result;
+      });
+
+      try {
+        const res = await http()
+          .post('/api/auth/sign-in')
+          .set('Origin', ORIGIN)
+          .send({ email, password: DEFAULT_PASSWORD })
+          .expect(401);
+
+        expect(res.body.code).toBe('INVALID_CREDENTIALS');
+
+        // No session was created
+        const sessionCount = await e2e.dataSource.query<{ count: string }[]>(
+          'SELECT count(*) FROM sessions WHERE user_id = $1',
+          [userId],
+        );
+        expect(sessionCount[0]!.count).toBe('0');
+
+        // Failed login attempt was recorded with wrong_password
+        const attempts = await e2e.dataSource.query<
+          { result: string; reason: string }[]
+        >(
+          'SELECT result, reason FROM login_attempts WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
+          [userId],
+        );
+        expect(attempts).toHaveLength(1);
+        expect(attempts[0]!.result).toBe('failure');
+        expect(attempts[0]!.reason).toBe('wrong_password');
+      } finally {
+        verifySpy.mockRestore();
+      }
+    });
+
+    it('AC-34: clears isPasswordAutoset, isPasswordResetRequired, isPasswordExpired so user can sign in normally', async () => {
+      await createDbUser('kai-flags@openplany.dev', true);
+      const kaiCookie = await signInCookie('kai-flags@openplany.dev');
+
+      const targetEmail = 'flags-target@openplany.dev';
+      const targetId = await createDbUser(targetEmail, false);
+
+      // Set all 3 flags to true
+      await e2e.dataSource.query(
+        `UPDATE users
+         SET is_password_autoset = true,
+             is_password_reset_required = true,
+             is_password_expired = true
+         WHERE id = $1`,
+        [targetId],
+      );
+
+      const newPassword = 'CleanFlagsPassword123!';
+      await http()
+        .put(`/api/admin/users/${targetId}/password`)
+        .set('Origin', ORIGIN)
+        .set('Cookie', kaiCookie)
+        .send({ password: newPassword })
+        .expect(204);
+
+      // Verify all 3 flags are false in DB
+      const userRow = await e2e.dataSource.query<
+        {
+          is_password_autoset: boolean;
+          is_password_reset_required: boolean;
+          is_password_expired: boolean;
+        }[]
+      >(
+        'SELECT is_password_autoset, is_password_reset_required, is_password_expired FROM users WHERE id = $1',
+        [targetId],
+      );
+      expect(userRow[0]!.is_password_autoset).toBe(false);
+      expect(userRow[0]!.is_password_reset_required).toBe(false);
+      expect(userRow[0]!.is_password_expired).toBe(false);
+
+      // User signs in with new password -> 200 (not restricted with PASSWORD_RESET_REQUIRED)
+      const targetCookie = await signInCookie(targetEmail, newPassword);
+      await http().get('/api/users/me').set('Cookie', targetCookie).set('Origin', ORIGIN).expect(200);
     });
   });
 });

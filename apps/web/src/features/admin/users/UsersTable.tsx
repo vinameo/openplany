@@ -10,6 +10,7 @@ import classes from './UsersTable.module.css';
 
 export interface UsersTableProps {
   users: AdminUserResponse[];
+  currentUserId?: string;
   currentSort?: SortState<AdminUserSortKey>;
   onSortChange?: (sort: SortState<AdminUserSortKey>) => void;
   isPlaceholderData?: boolean;
@@ -20,6 +21,7 @@ export interface UsersTableProps {
 
 export function UsersTable({
   users,
+  currentUserId,
   currentSort = { key: 'createdAt', direction: 'desc' },
   onSortChange = () => {},
   isPlaceholderData = false,
@@ -131,6 +133,7 @@ export function UsersTable({
                   <Table.Td style={{ width: 48 }}>
                     <UserRowActions
                       user={user}
+                      currentUserId={currentUserId}
                       onEdit={onEdit}
                       onChangePassword={onChangePassword}
                     />

@@ -1,6 +1,7 @@
 import type {
   AdminUserListResponse,
   AdminUserResponse,
+  ChangeUserPasswordRequest,
   CreatedUserResponse,
   CreateUserRequest,
   MessageKey,
@@ -17,6 +18,8 @@ export const GENERIC_LOAD_USER_ERROR_KEY: MessageKey =
   'admin:users.errors.loadUserFailed';
 export const GENERIC_UPDATE_USER_ERROR_KEY: MessageKey =
   'admin:users.errors.updateFailed';
+export const GENERIC_CHANGE_PASSWORD_ERROR_KEY: MessageKey =
+  'admin:users.errors.passwordFailed';
 
 export const adminUsersApi = {
   createUser(body: CreateUserRequest): Promise<CreatedUserResponse> {
@@ -73,6 +76,21 @@ export const adminUsersApi = {
         body: JSON.stringify(body),
       },
       GENERIC_UPDATE_USER_ERROR_KEY,
+    );
+  },
+
+  changePassword(
+    userId: string,
+    body: ChangeUserPasswordRequest,
+  ): Promise<void> {
+    return request<void>(
+      `/api/admin/users/${userId}/password`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      },
+      GENERIC_CHANGE_PASSWORD_ERROR_KEY,
     );
   },
 };

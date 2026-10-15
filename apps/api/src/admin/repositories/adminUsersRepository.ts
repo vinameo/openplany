@@ -10,6 +10,7 @@ import {
   Not,
   type Repository,
 } from 'typeorm';
+import { Session } from '../../auth/entities/session.entity.js';
 import { User } from '../../auth/entities/user.entity.js';
 import { isUniqueViolation } from '../../common/databaseErrors.js';
 import {
@@ -78,6 +79,13 @@ export class UserChangedSinceLoadedError extends Error {
   }
 }
 
+export class PasswordSameAsEmailError extends Error {
+  constructor() {
+    super('Password cannot be the same as email');
+    this.name = 'PasswordSameAsEmailError';
+  }
+}
+
 export interface UpdateUserFields {
   firstName?: string;
   lastName?: string;
@@ -108,6 +116,14 @@ export abstract class AdminUsersRepository {
     expectedUpdatedAt: string,
     at: Date,
   ): Promise<{ user: User; changedFields: string[] }>;
+  /** Changes a user's password, resets password flags, and revokes all active sessions following DB B6. */
+  abstract changePassword(
+    actorId: string,
+    targetId: string,
+    passwordHash: string,
+    rawPassword: string,
+    at: Date,
+  ): Promise<{ revokedSessionCount: number }>;
 }
 
 @Injectable()
@@ -244,6 +260,46 @@ export class TypeOrmAdminUsersRepository extends AdminUsersRepository {
       // Step 8: Return updated user
       const updatedUser: User = Object.assign(target, changes);
       return { user: updatedUser, changedFields };
+    });
+  }
+
+  async changePassword(
+    actorId: string,
+    targetId: string,
+    passwordHash: string,
+    rawPassword: string,
+    at: Date,
+  ): Promise<{ revokedSessionCount: number }> {
+    return this.dataSource.transaction(async (manager) => {
+      // Steps 1-3: Lock & check actor and target
+      const { target } = await this.lockActorAndTarget(
+        manager,
+        actorId,
+        targetId,
+      );
+
+      // Step 4: Password !== target email
+      if (rawPassword.toLowerCase() === (target.email ?? '').toLowerCase()) {
+        throw new PasswordSameAsEmailError();
+      }
+
+      // Step 5: Write password, clear 3 password flags, set updatedAt
+      await manager.update(User, targetId, {
+        password: passwordHash,
+        isPasswordAutoset: false,
+        isPasswordExpired: false,
+        isPasswordResetRequired: false,
+        updatedAt: at,
+      });
+
+      // Step 6: Revoke all active sessions
+      const sessionResult = await manager.update(
+        Session,
+        { userId: targetId, revokedAt: IsNull() },
+        { revokedAt: at },
+      );
+
+      return { revokedSessionCount: sessionResult.affected ?? 0 };
     });
   }
 

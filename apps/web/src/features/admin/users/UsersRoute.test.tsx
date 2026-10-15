@@ -32,6 +32,7 @@ function renderRoute(options?: {
   isInstanceAdmin?: boolean;
   extraMocks?: Parameters<typeof mockFetch>[0];
   initialEntries?: string[];
+  currentUserId?: string;
 }) {
   const isInstanceAdmin = options?.isInstanceAdmin ?? true;
   const defaultUsers: AdminUserListResponse = {
@@ -65,7 +66,11 @@ function renderRoute(options?: {
       jsonResponse(
         200,
         makeSession({
-          user: { ...makeSession().user, isInstanceAdmin },
+          user: {
+            ...makeSession().user,
+            id: options?.currentUserId ?? 'user-1',
+            isInstanceAdmin,
+          },
         }),
       ),
     'GET /api/workspaces': () =>
@@ -373,5 +378,35 @@ describe('UsersRoute', { timeout: 15000 }, () => {
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/workspaces/demo');
     });
+  });
+
+  it('INV-W3 & AC-18: hides Change password on self row, shows on other users and opens modal', async () => {
+    const { user } = renderRoute();
+
+    await screen.findByRole('heading', { name: /^users/i });
+    await screen.findAllByText('Kai Tran');
+
+    // user-1 is Kai Tran (current user)
+    const kaiActionsBtn = screen.getByRole('button', { name: /actions for kai tran/i });
+    await user.click(kaiActionsBtn);
+
+    expect(await screen.findByRole('menuitem', { name: /edit user/i })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /change password/i })).not.toBeInTheDocument();
+
+    // Close menu by clicking outside or pressing Escape
+    await user.keyboard('{Escape}');
+
+    // user-2 is An Nguyen (different user)
+    const anActionsBtn = screen.getByRole('button', { name: /actions for an nguyen/i });
+    await user.click(anActionsBtn);
+
+    expect(await screen.findByRole('menuitem', { name: /edit user/i })).toBeInTheDocument();
+    const changePasswordItem = screen.getByRole('menuitem', { name: /change password/i });
+    expect(changePasswordItem).toBeInTheDocument();
+
+    // Clicking Change password opens the Change password modal
+    await user.click(changePasswordItem);
+    expect(await screen.findByRole('dialog', { name: 'Change password' })).toBeInTheDocument();
+    expect(screen.getByText('For An Nguyen (an@openplany.dev)')).toBeInTheDocument();
   });
 });

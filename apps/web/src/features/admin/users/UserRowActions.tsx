@@ -4,12 +4,14 @@ import type { AdminUserResponse } from '@repo/contracts';
 
 export interface UserRowActionsProps {
   user: AdminUserResponse;
+  currentUserId?: string;
   onEdit?: (user: AdminUserResponse) => void;
   onChangePassword?: (user: AdminUserResponse) => void;
 }
 
 export function UserRowActions({
   user,
+  currentUserId,
   onEdit,
   onChangePassword,
 }: UserRowActionsProps) {
@@ -19,7 +21,8 @@ export function UserRowActions({
     `${user.firstName} ${user.lastName}`.trim() ||
     user.email;
 
-  const hasMenuItems = Boolean(onEdit || onChangePassword);
+  const canChangePassword = Boolean(onChangePassword && user.id !== currentUserId);
+  const hasMenuItems = Boolean(onEdit || canChangePassword);
 
   return (
     <Menu position="bottom-end" withinPortal disabled={!hasMenuItems}>
@@ -39,8 +42,8 @@ export function UserRowActions({
               {t('admin:users.menu.edit')}
             </Menu.Item>
           )}
-          {onChangePassword && (
-            <Menu.Item onClick={() => onChangePassword(user)}>
+          {canChangePassword && (
+            <Menu.Item onClick={() => onChangePassword?.(user)}>
               {t('admin:users.menu.changePassword')}
             </Menu.Item>
           )}
