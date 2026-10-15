@@ -17,7 +17,7 @@ import {
   type AdminUserListQuery,
   type AdminUserSortKey,
   type AdminUserStatusFilter,
-  defaultAdminUserOrder,
+  normalizeAdminUserSearch,
   type SortOrder,
   USER_NAME_ALLOWED,
 } from '@repo/contracts';
@@ -27,7 +27,7 @@ export class ListAdminUsersQueryDto implements AdminUserListQuery {
   @IsString()
   @Transform(({ value }) => {
     if (typeof value !== 'string') return value;
-    return value.normalize('NFC').trim().replace(/\s+/g, ' ');
+    return normalizeAdminUserSearch(value);
   })
   @Matches(USER_NAME_ALLOWED)
   @MaxLength(ADMIN_USER_SEARCH_MAX)
@@ -60,14 +60,4 @@ export class ListAdminUsersQueryDto implements AdminUserListQuery {
   @Min(1)
   @Max(ADMIN_USER_PAGE_MAX)
   page?: number;
-
-  get resolvedOrder(): SortOrder {
-    if (this.order) return this.order;
-    return defaultAdminUserOrder(this.sort ?? 'createdAt');
-  }
-
-  get searchTerms(): string[] {
-    if (!this.search || this.search.trim() === '') return [];
-    return this.search.split(' ').filter(Boolean).slice(0, 5);
-  }
 }

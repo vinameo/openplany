@@ -8,7 +8,7 @@ import { USER_CREATE_LIMITER } from './tokens.js';
 export class UserCreateRateLimitGuard extends createActorRateLimitGuard({
   limiterToken: USER_CREATE_LIMITER,
   messageKey: 'errors:tooManyUsersCreatedLater',
-  logLabel: 'admin.users.rate_limited',
+  logLabel: 'admin.users.rate_limited limiter=create',
 }) {
   constructor(
     @Inject(USER_CREATE_LIMITER) limiter: SlidingWindowLimiter,

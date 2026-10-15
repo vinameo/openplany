@@ -13,6 +13,7 @@ import {
 import {
   createUser,
   DEFAULT_E2E_ORIGIN as ORIGIN,
+  DEFAULT_E2E_PASSWORD,
   signInCookie,
 } from './helpers/e2eUsers.js';
 
@@ -246,6 +247,22 @@ describe('Adversarial inputs (e2e)', () => {
     const target = await newUser();
     const valid = {
       password: 'ValidPassword123!',
+    };
+    await expectNoServerErrors(adversarialBodies(valid), async (body, i) =>
+      http()
+        .put(`/api/admin/users/${target.id}/password`)
+        .set('Cookie', await cookieFor(i))
+        .set('Origin', ORIGIN)
+        .send(body as object),
+    );
+  });
+
+  it('PUT /admin/users/:userId/password (instance admin target, re-authentication)', async () => {
+    const cookieFor = rotatingCookie(() => newUser({ instanceAdmin: true }));
+    const target = await newUser({ instanceAdmin: true });
+    const valid = {
+      password: 'ValidPassword123!',
+      actorPassword: DEFAULT_E2E_PASSWORD,
     };
     await expectNoServerErrors(adversarialBodies(valid), async (body, i) =>
       http()

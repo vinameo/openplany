@@ -58,6 +58,33 @@ describe('ChangeUserPasswordDto', () => {
     }
   });
 
+  it('accepts an actorPassword without trimming it', async () => {
+    const { dto, messages } = await check({
+      password: 'validPassword123',
+      actorPassword: ' mine ',
+    });
+    expect(messages).toEqual({});
+    expect(dto.actorPassword).toBe(' mine ');
+  });
+
+  it('rejects an empty, non-string or over-long actorPassword', async () => {
+    const cases = [
+      { actorPassword: '' },
+      { actorPassword: null },
+      { actorPassword: 123 },
+      { actorPassword: ['x'] },
+    ];
+    for (const c of cases) {
+      const { messages } = await check({ password: 'validPassword123', ...c });
+      expect(messages.actorPassword).toBe('Enter your password');
+    }
+    const { messages } = await check({
+      password: 'validPassword123',
+      actorPassword: 'a'.repeat(129),
+    });
+    expect(messages.actorPassword).toBe('Password is too long');
+  });
+
   it('rejects unwhitelisted properties', async () => {
     const { errors } = await check({
       password: 'validPassword123',

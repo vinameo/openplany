@@ -65,12 +65,25 @@ describe('UpdateAdminUserDto', () => {
       { expectedUpdatedAt: '' },
       { expectedUpdatedAt: 'yesterday' },
       { expectedUpdatedAt: '2026-10-15' }, // date only without time
+      { expectedUpdatedAt: '2026-10-15T10:00:00.123' }, // no offset: server-TZ dependent
+      { expectedUpdatedAt: '2026-10-15T10:00' }, // no offset
       { expectedUpdatedAt: null },
       { expectedUpdatedAt: 123 },
     ];
     for (const c of cases) {
       const { messages } = await check(c as Record<string, unknown>);
       expect(messages.expectedUpdatedAt).toBeDefined();
+    }
+  });
+
+  it('accepts expectedUpdatedAt with Z or a numeric offset', async () => {
+    for (const expectedUpdatedAt of [
+      '2026-10-15T10:00:00.123Z',
+      '2026-10-15T17:00:00.123+07:00',
+      '2026-10-15T10:00Z',
+    ]) {
+      const { messages } = await check({ expectedUpdatedAt });
+      expect(messages).toEqual({});
     }
   });
 
