@@ -59,7 +59,6 @@ export class TypeOrmSessionsRepository extends SessionsRepository {
         lastLoginIp: record.ip,
         lastLoginMedium: 'email',
         lastLoginUserAgent: record.userAgent,
-        updatedAt: record.at,
         ...(record.rehashedPassword !== null && {
           password: record.rehashedPassword,
         }),
@@ -118,7 +117,6 @@ export class TypeOrmSessionsRepository extends SessionsRepository {
       await manager.update(User, session.userId, {
         lastLogoutTime: now,
         lastLogoutIp: ip,
-        updatedAt: now,
       });
     });
   }

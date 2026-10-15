@@ -1079,4 +1079,509 @@ describe('Admin Users (e2e)', () => {
       expect(res121.body.retryAfterSeconds).toBeDefined();
     });
   });
+
+  describe('GET /api/admin/users/:userId (API-02)', () => {
+    it('returns 200 with full AdminUserResponse for listed user', async () => {
+      await createDbUser('admin-get@openplany.dev', true);
+      const cookie = await signInCookie('admin-get@openplany.dev');
+
+      const targetId = await createDbUser('target-get@openplany.dev', false);
+
+      const res = await http()
+        .get(`/api/admin/users/${targetId}`)
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(200);
+
+      expect(res.body).toEqual(
+        expect.objectContaining({
+          id: targetId,
+          email: 'target-get@openplany.dev',
+          firstName: 'Test',
+          lastName: 'User',
+          displayName: 'Test User',
+          isActive: true,
+          isInstanceAdmin: false,
+        }),
+      );
+      expect(res.body.createdAt).toBeDefined();
+      expect(res.body.updatedAt).toBeDefined();
+    });
+
+    it('returns 404 USER_NOT_FOUND when user does not exist', async () => {
+      await createDbUser('admin-get-404@openplany.dev', true);
+      const cookie = await signInCookie('admin-get-404@openplany.dev');
+
+      const nonExistent = '00000000-0000-4000-8000-000000000000';
+      const res = await http()
+        .get(`/api/admin/users/${nonExistent}`)
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(404);
+
+      expect(res.body.code).toBe('USER_NOT_FOUND');
+      expect(res.body.message).toBe('This user no longer exists.');
+    });
+
+    it('returns 404 USER_NOT_FOUND when target user is a bot', async () => {
+      await createDbUser('admin-bot@openplany.dev', true);
+      const cookie = await signInCookie('admin-bot@openplany.dev');
+
+      const botId = await createDbUser('bot-user@openplany.dev', false);
+      await e2e.dataSource.query('UPDATE users SET is_bot = true WHERE id = $1', [botId]);
+
+      const res = await http()
+        .get(`/api/admin/users/${botId}`)
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(404);
+
+      expect(res.body.code).toBe('USER_NOT_FOUND');
+    });
+
+    it('returns 404 USER_NOT_FOUND when target user is masked', async () => {
+      await createDbUser('admin-masked@openplany.dev', true);
+      const cookie = await signInCookie('admin-masked@openplany.dev');
+
+      const maskedId = await createDbUser('masked-user@openplany.dev', false);
+      await e2e.dataSource.query('UPDATE users SET masked_at = now() WHERE id = $1', [maskedId]);
+
+      const res = await http()
+        .get(`/api/admin/users/${maskedId}`)
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(404);
+
+      expect(res.body.code).toBe('USER_NOT_FOUND');
+    });
+
+    it('returns 403 FORBIDDEN when non-admin calls GET :userId', async () => {
+      await createDbUser('regular-get@openplany.dev', false);
+      const cookie = await signInCookie('regular-get@openplany.dev');
+      const targetId = await createDbUser('target-user@openplany.dev', false);
+
+      const res = await http()
+        .get(`/api/admin/users/${targetId}`)
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(403);
+
+      expect(res.body.code).toBe('FORBIDDEN');
+      expect(res.body.message).toBe("You don't have permission to manage users");
+    });
+
+    it('returns 400 VALIDATION_ERROR when :userId is not a valid uuid v4', async () => {
+      await createDbUser('admin-invalid-uuid@openplany.dev', true);
+      const cookie = await signInCookie('admin-invalid-uuid@openplany.dev');
+
+      const res = await http()
+        .get('/api/admin/users/not-a-valid-uuid')
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(400);
+
+      expect(res.body.code).toBe('VALIDATION_ERROR');
+      expect(res.body.fields.userId).toBeDefined();
+    });
+  });
+
+  describe('PATCH /api/admin/users/:userId (API-03, DB B5)', () => {
+    it('updates user fields, resets isEmailVerified on email change, and emits log', async () => {
+      const loggedMessages: string[] = [];
+      const logSpy = vi.spyOn(Logger.prototype, 'log').mockImplementation((msg: string) => {
+        loggedMessages.push(String(msg));
+      });
+
+      try {
+        await createDbUser('admin-patch@openplany.dev', true);
+        const cookie = await signInCookie('admin-patch@openplany.dev');
+
+        const targetId = await createDbUser('target-patch@openplany.dev', false);
+
+        // Fetch detail to get expectedUpdatedAt
+        const getRes = await http()
+          .get(`/api/admin/users/${targetId}`)
+          .set('Origin', ORIGIN)
+          .set('Cookie', cookie)
+          .expect(200);
+
+        const patchRes = await http()
+          .patch(`/api/admin/users/${targetId}`)
+          .set('Origin', ORIGIN)
+          .set('Cookie', cookie)
+          .send({
+            expectedUpdatedAt: getRes.body.updatedAt,
+            firstName: 'Binh',
+            lastName: 'Tran',
+            displayName: 'Binh Tran',
+            email: 'binh.new@openplany.dev',
+          })
+          .expect(200);
+
+        expect(patchRes.body.firstName).toBe('Binh');
+        expect(patchRes.body.lastName).toBe('Tran');
+        expect(patchRes.body.displayName).toBe('Binh Tran');
+        expect(patchRes.body.email).toBe('binh.new@openplany.dev');
+
+        // Check DB row: email verified must be false after email change
+        const dbRows = await e2e.dataSource.query<{ is_email_verified: boolean }[]>(
+          'SELECT is_email_verified FROM users WHERE id = $1',
+          [targetId],
+        );
+        expect(dbRows[0]!.is_email_verified).toBe(false);
+
+        // Check user.updated log
+        const updateLogs = loggedMessages.filter((m) => m.startsWith('user.updated'));
+        expect(updateLogs).toHaveLength(1);
+        expect(updateLogs[0]).toContain(`userId=${targetId}`);
+        expect(updateLogs[0]).toContain('fields=firstName,lastName,displayName,email');
+        expect(updateLogs[0]).not.toContain('binh.new@openplany.dev');
+        expect(updateLogs[0]).not.toContain('Binh');
+      } finally {
+        logSpy.mockRestore();
+      }
+    });
+
+    it('updating only name fields preserves isEmailVerified', async () => {
+      await createDbUser('admin-name-patch@openplany.dev', true);
+      const cookie = await signInCookie('admin-name-patch@openplany.dev');
+
+      const targetId = await createDbUser('target-name@openplany.dev', false);
+
+      const getRes = await http()
+        .get(`/api/admin/users/${targetId}`)
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(200);
+
+      await http()
+        .patch(`/api/admin/users/${targetId}`)
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .send({
+          expectedUpdatedAt: getRes.body.updatedAt,
+          firstName: 'Renamed',
+        })
+        .expect(200);
+
+      const dbRows = await e2e.dataSource.query<{ is_email_verified: boolean }[]>(
+        'SELECT is_email_verified FROM users WHERE id = $1',
+        [targetId],
+      );
+      expect(dbRows[0]!.is_email_verified).toBe(true);
+    });
+
+    it('returns 200 without writing when no changes are provided (INV-07)', async () => {
+      await createDbUser('admin-noop@openplany.dev', true);
+      const cookie = await signInCookie('admin-noop@openplany.dev');
+
+      const targetId = await createDbUser('target-noop@openplany.dev', false);
+
+      const getRes = await http()
+        .get(`/api/admin/users/${targetId}`)
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(200);
+
+      const patchRes = await http()
+        .patch(`/api/admin/users/${targetId}`)
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .send({
+          expectedUpdatedAt: getRes.body.updatedAt,
+          firstName: 'Test', // same value
+        })
+        .expect(200);
+
+      expect(patchRes.body.updatedAt).toBe(getRes.body.updatedAt);
+    });
+
+    it('returns 409 USER_CHANGED_SINCE_LOADED when expectedUpdatedAt is stale (AC-10, AC-11)', async () => {
+      const warnMessages: string[] = [];
+      const warnSpy = vi.spyOn(Logger.prototype, 'warn').mockImplementation((msg: string) => {
+        warnMessages.push(String(msg));
+      });
+
+      try {
+        await createDbUser('admin-conflict@openplany.dev', true);
+        const cookie = await signInCookie('admin-conflict@openplany.dev');
+
+        const targetId = await createDbUser('target-conflict@openplany.dev', false);
+
+        const staleUpdatedAt = new Date(Date.now() - 60000).toISOString();
+
+        const res = await http()
+          .patch(`/api/admin/users/${targetId}`)
+          .set('Origin', ORIGIN)
+          .set('Cookie', cookie)
+          .send({
+            expectedUpdatedAt: staleUpdatedAt,
+            firstName: 'ConflictName',
+          })
+          .expect(409);
+
+        expect(res.body.code).toBe('USER_CHANGED_SINCE_LOADED');
+        expect(res.body.message).toBe(
+          'Someone else updated this user while you were editing. Reload to see the latest details.',
+        );
+
+        // Conflict log
+        const conflictLogs = warnMessages.filter((m) =>
+          m.startsWith('admin.users.update.conflict'),
+        );
+        expect(conflictLogs).toHaveLength(1);
+        expect(conflictLogs[0]).toContain(`userId=${targetId}`);
+      } finally {
+        warnSpy.mockRestore();
+      }
+    });
+
+    it('accepts expectedUpdatedAt matching millisecond when DB updated_at has microseconds', async () => {
+      await createDbUser('admin-micro@openplany.dev', true);
+      const cookie = await signInCookie('admin-micro@openplany.dev');
+
+      const targetId = await createDbUser('target-micro@openplany.dev', false);
+
+      // Set DB updated_at explicitly with microseconds
+      await e2e.dataSource.query(
+        "UPDATE users SET updated_at = '2026-10-15 12:34:56.789123+00' WHERE id = $1",
+        [targetId],
+      );
+
+      // Send matching milliseconds
+      const res = await http()
+        .patch(`/api/admin/users/${targetId}`)
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .send({
+          expectedUpdatedAt: '2026-10-15T12:34:56.789Z',
+          firstName: 'MicroUpdated',
+        })
+        .expect(200);
+
+      expect(res.body.firstName).toBe('MicroUpdated');
+    });
+
+    it('returns 409 EMAIL_ALREADY_EXISTS when changing to another user email', async () => {
+      await createDbUser('admin-dup@openplany.dev', true);
+      const cookie = await signInCookie('admin-dup@openplany.dev');
+
+      await createDbUser('existing-other@openplany.dev', false);
+      const targetId = await createDbUser('target-dup@openplany.dev', false);
+
+      const getRes = await http()
+        .get(`/api/admin/users/${targetId}`)
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(200);
+
+      const res = await http()
+        .patch(`/api/admin/users/${targetId}`)
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .send({
+          expectedUpdatedAt: getRes.body.updatedAt,
+          email: 'EXISTING-OTHER@openplany.dev',
+        })
+        .expect(409);
+
+      expect(res.body.code).toBe('EMAIL_ALREADY_EXISTS');
+      expect(res.body.fields.email).toBe('A user with this email already exists.');
+    });
+
+    it('returns 403 FORBIDDEN when actor loses superuser privileges', async () => {
+      const actorId = await createDbUser('actor-demote@openplany.dev', true);
+      const cookie = await signInCookie('actor-demote@openplany.dev');
+
+      const targetId = await createDbUser('target-demote@openplany.dev', false);
+      const getRes = await http()
+        .get(`/api/admin/users/${targetId}`)
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(200);
+
+      // Demote actor directly in DB
+      await e2e.dataSource.query('UPDATE users SET is_superuser = false WHERE id = $1', [actorId]);
+
+      const res = await http()
+        .patch(`/api/admin/users/${targetId}`)
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .send({
+          expectedUpdatedAt: getRes.body.updatedAt,
+          firstName: 'ShouldFail',
+        })
+        .expect(403);
+
+      expect(res.body.code).toBe('FORBIDDEN');
+    });
+
+    it('concurrent cross-updates do not deadlock (DB B5)', async () => {
+      const admin1Id = await createDbUser('admin-cross1@openplany.dev', true);
+      const admin2Id = await createDbUser('admin-cross2@openplany.dev', true);
+
+      const cookie1 = await signInCookie('admin-cross1@openplany.dev');
+      const cookie2 = await signInCookie('admin-cross2@openplany.dev');
+
+      const get1 = await http()
+        .get(`/api/admin/users/${admin2Id}`)
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie1)
+        .expect(200);
+
+      const get2 = await http()
+        .get(`/api/admin/users/${admin1Id}`)
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie2)
+        .expect(200);
+
+      // Perform cross-updates concurrently
+      const [res1, res2] = await Promise.all([
+        http()
+          .patch(`/api/admin/users/${admin2Id}`)
+          .set('Origin', ORIGIN)
+          .set('Cookie', cookie1)
+          .send({
+            expectedUpdatedAt: get1.body.updatedAt,
+            displayName: 'Admin 2 Updated',
+          }),
+        http()
+          .patch(`/api/admin/users/${admin1Id}`)
+          .set('Origin', ORIGIN)
+          .set('Cookie', cookie2)
+          .send({
+            expectedUpdatedAt: get2.body.updatedAt,
+            displayName: 'Admin 1 Updated',
+          }),
+      ]);
+
+      expect(res1.status).toBe(200);
+      expect(res2.status).toBe(200);
+    });
+
+    it('enforces 60 writes per 10 minutes rate limit on PATCH (AC-27)', async () => {
+      await createDbUser('rate-write-admin@openplany.dev', true);
+      const cookie = await signInCookie('rate-write-admin@openplany.dev');
+      const targetId = await createDbUser('target-rate-write@openplany.dev', false);
+
+      const getRes = await http()
+        .get(`/api/admin/users/${targetId}`)
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(200);
+
+      // Send 60 requests (no-op updates to target)
+      for (let i = 1; i <= 60; i++) {
+        await http()
+          .patch(`/api/admin/users/${targetId}`)
+          .set('Origin', ORIGIN)
+          .set('Cookie', cookie)
+          .send({
+            expectedUpdatedAt: getRes.body.updatedAt,
+          })
+          .expect(200);
+      }
+
+      // 61st request hits rate limit
+      const res61 = await http()
+        .patch(`/api/admin/users/${targetId}`)
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .send({
+          expectedUpdatedAt: getRes.body.updatedAt,
+        })
+        .expect(429);
+
+      expect(res61.body.code).toBe('TOO_MANY_ATTEMPTS');
+      expect(res61.body.message).toBe('Too many user changes. Please wait a moment and try again.');
+      expect(res61.headers['retry-after']).toBeDefined();
+      expect(res61.body.retryAfterSeconds).toBeDefined();
+    });
+  });
+
+  describe('Sign-in & sign-out immutability (RQ INV-08; AC-14)', () => {
+    it('sign-in does not change users.updated_at', async () => {
+      const email = 'signin-immutable@openplany.dev';
+      const userId = await createDbUser(email, false);
+
+      const before = await e2e.dataSource.query<{ updated_at: Date }[]>(
+        'SELECT updated_at FROM users WHERE id = $1',
+        [userId],
+      );
+
+      // Wait 10ms to ensure a time boundary
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      await http()
+        .post('/api/auth/sign-in')
+        .set('Origin', ORIGIN)
+        .send({ email, password: DEFAULT_PASSWORD })
+        .expect(200);
+
+      const after = await e2e.dataSource.query<{ updated_at: Date }[]>(
+        'SELECT updated_at FROM users WHERE id = $1',
+        [userId],
+      );
+
+      expect(after[0]!.updated_at.getTime()).toBe(before[0]!.updated_at.getTime());
+    });
+
+    it('sign-in with password rehash does not change users.updated_at', async () => {
+      const email = 'rehash-immutable@openplany.dev';
+      // Legacy Django PBKDF2 hash
+      const djangoHash =
+        'pbkdf2_sha256$260000$seasalt$YlZ2Vggtqdc61YjArZuoApoBh9JNGYoDRBUGu6tcJQo=';
+      const userId = await createDbUser(email, false, djangoHash);
+
+      const before = await e2e.dataSource.query<{ updated_at: Date; password: string }[]>(
+        'SELECT updated_at, password FROM users WHERE id = $1',
+        [userId],
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      await http()
+        .post('/api/auth/sign-in')
+        .set('Origin', ORIGIN)
+        .send({ email, password: 'lètmein' })
+        .expect(200);
+
+      const after = await e2e.dataSource.query<{ updated_at: Date; password: string }[]>(
+        'SELECT updated_at, password FROM users WHERE id = $1',
+        [userId],
+      );
+
+      // Password was rehashed to argon2id
+      expect(after[0]!.password).toMatch(/^\$argon2id\$/);
+      expect(after[0]!.password).not.toBe(before[0]!.password);
+      // updated_at was NOT modified!
+      expect(after[0]!.updated_at.getTime()).toBe(before[0]!.updated_at.getTime());
+    });
+
+    it('sign-out does not change users.updated_at', async () => {
+      const email = 'signout-immutable@openplany.dev';
+      const userId = await createDbUser(email, false);
+      const cookie = await signInCookie(email);
+
+      const before = await e2e.dataSource.query<{ updated_at: Date }[]>(
+        'SELECT updated_at FROM users WHERE id = $1',
+        [userId],
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      await http()
+        .post('/api/auth/sign-out')
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(204);
+
+      const after = await e2e.dataSource.query<{ updated_at: Date }[]>(
+        'SELECT updated_at FROM users WHERE id = $1',
+        [userId],
+      );
+
+      expect(after[0]!.updated_at.getTime()).toBe(before[0]!.updated_at.getTime());
+    });
+  });
 });

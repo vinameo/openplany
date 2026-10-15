@@ -1,9 +1,21 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, type FindOptionsWhere, IsNull, type Repository } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import {
+  Brackets,
+  DataSource,
+  EntityManager,
+  type FindOptionsWhere,
+  In,
+  IsNull,
+  Not,
+  type Repository,
+} from 'typeorm';
 import { User } from '../../auth/entities/user.entity.js';
 import { isUniqueViolation } from '../../common/databaseErrors.js';
-import { containsIgnoringCaseAndAccentsSql } from '../../database/findOperators.js';
+import {
+  containsIgnoringCaseAndAccentsSql,
+  equalsLowercase,
+} from '../../database/findOperators.js';
 import { addOrderByEmptyAndNullLast } from '../../database/sortHelpers.js';
 import { ListAdminUsersQueryDto } from '../dto/listAdminUsersQuery.dto.js';
 
@@ -45,6 +57,34 @@ export class EmailAlreadyExistsError extends Error {
   }
 }
 
+export class ActorForbiddenError extends Error {
+  constructor() {
+    super('Actor is not an active non-masked instance admin');
+    this.name = 'ActorForbiddenError';
+  }
+}
+
+export class TargetNotFoundError extends Error {
+  constructor() {
+    super('Target user not found or not a listed user');
+    this.name = 'TargetNotFoundError';
+  }
+}
+
+export class UserChangedSinceLoadedError extends Error {
+  constructor() {
+    super('Target user was updated since loaded');
+    this.name = 'UserChangedSinceLoadedError';
+  }
+}
+
+export interface UpdateUserFields {
+  firstName?: string;
+  lastName?: string;
+  displayName?: string;
+  email?: string;
+}
+
 export abstract class AdminUsersRepository {
   /** Inserts one user with every privilege flag forced to false (INV-02). */
   abstract createUser(user: NewUser): Promise<CreatedUserRow>;
@@ -52,14 +92,159 @@ export abstract class AdminUsersRepository {
   abstract list(
     query: AdminUserListQuery,
   ): Promise<{ items: User[]; total: number }>;
+  /** Finds one listed user by id (DB B4). */
+  abstract findById(id: string): Promise<User | null>;
+  /** Locks actor and target users by id in ASC order and verifies permissions (DB B5 steps 1-3, BA FC-01). */
+  abstract lockActorAndTarget(
+    manager: EntityManager,
+    actorId: string,
+    targetId: string,
+  ): Promise<{ actor: User; target: User }>;
+  /** Updates a user within a transaction following DB B5. */
+  abstract updateUser(
+    actorId: string,
+    targetId: string,
+    updates: UpdateUserFields,
+    expectedUpdatedAt: string,
+    at: Date,
+  ): Promise<{ user: User; changedFields: string[] }>;
 }
 
 @Injectable()
 export class TypeOrmAdminUsersRepository extends AdminUsersRepository {
   constructor(
     @InjectRepository(User) private readonly users: Repository<User>,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {
     super();
+  }
+
+  async findById(id: string): Promise<User | null> {
+    return this.users.findOne({
+      where: {
+        id,
+        ...LISTED_USER,
+      },
+    });
+  }
+
+  async lockActorAndTarget(
+    manager: EntityManager,
+    actorId: string,
+    targetId: string,
+  ): Promise<{ actor: User; target: User }> {
+    // 1. Lock rows sorted by id ASC (avoids deadlocks on cross-updates)
+    // Actor = target -> one row. Do not filter LISTED_USER in this query.
+    const lockedRows = await manager.find(User, {
+      where: { id: In([actorId, targetId]) },
+      order: { id: 'ASC' },
+      lock: { mode: 'pessimistic_write' },
+    });
+
+    const actor = lockedRows.find((u) => u.id === actorId);
+    // 2. Actor check: exists, isSuperuser = true, isActive = true, maskedAt IS NULL
+    if (
+      !actor ||
+      !actor.isSuperuser ||
+      !actor.isActive ||
+      actor.maskedAt !== null
+    ) {
+      throw new ActorForbiddenError();
+    }
+
+    const target = lockedRows.find((u) => u.id === targetId);
+    // 3. Target check: exists, isBot = false, maskedAt === null
+    if (!target || target.isBot || target.maskedAt !== null) {
+      throw new TargetNotFoundError();
+    }
+
+    return { actor, target };
+  }
+
+  async updateUser(
+    actorId: string,
+    targetId: string,
+    updates: UpdateUserFields,
+    expectedUpdatedAt: string,
+    at: Date,
+  ): Promise<{ user: User; changedFields: string[] }> {
+    return this.dataSource.transaction(async (manager) => {
+      // Steps 1-3: Lock & check actor and target
+      const { target } = await this.lockActorAndTarget(
+        manager,
+        actorId,
+        targetId,
+      );
+
+      // Step 4: Stale data check in JS comparing milliseconds
+      if (target.updatedAt.getTime() !== Date.parse(expectedUpdatedAt)) {
+        throw new UserChangedSinceLoadedError();
+      }
+
+      // Step 5: Calculate changes
+      const changes: Partial<User> = {};
+      const changedFields: string[] = [];
+
+      if (
+        updates.firstName !== undefined &&
+        (target.firstName ?? '') !== updates.firstName
+      ) {
+        changes.firstName = updates.firstName;
+        changedFields.push('firstName');
+      }
+      if (
+        updates.lastName !== undefined &&
+        (target.lastName ?? '') !== updates.lastName
+      ) {
+        changes.lastName = updates.lastName;
+        changedFields.push('lastName');
+      }
+      if (
+        updates.displayName !== undefined &&
+        (target.displayName ?? '') !== updates.displayName
+      ) {
+        changes.displayName = updates.displayName;
+        changedFields.push('displayName');
+      }
+      const emailChanged =
+        updates.email !== undefined &&
+        (target.email ?? '').toLowerCase() !== updates.email.toLowerCase();
+      if (emailChanged && updates.email !== undefined) {
+        changes.email = updates.email;
+        changes.isEmailVerified = false;
+        changedFields.push('email');
+      }
+
+      // If no changes, return target without writing (INV-07)
+      if (changedFields.length === 0) {
+        return { user: target, changedFields: [] };
+      }
+
+      // Step 6: Email conflict check
+      if (emailChanged && changes.email) {
+        const existing = await manager.findOne(User, {
+          where: { email: equalsLowercase(changes.email), id: Not(targetId) },
+        });
+        if (existing !== null) {
+          throw new EmailAlreadyExistsError();
+        }
+      }
+
+      // Step 7: Write updates
+      changes.updatedAt = at;
+      try {
+        await manager.update(User, targetId, changes);
+      } catch (error) {
+        if (isUniqueViolation(error, 'users_email_lower_key')) {
+          throw new EmailAlreadyExistsError();
+        }
+        throw error;
+      }
+
+      // Step 8: Return updated user
+      const updatedUser: User = Object.assign(target, changes);
+      return { user: updatedUser, changedFields };
+    });
   }
 
   async list(

@@ -23,5 +23,26 @@ describe('LoggingUserEvents', () => {
       logSpy.mockRestore();
     }
   });
-});
 
+  it('logs user.updated event in exact format', async () => {
+    const logSpy = vi.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
+    const events = new LoggingUserEvents();
+
+    try {
+      await events.updated({
+        userId: 'user-uuid-1',
+        actorId: 'actor-uuid-2',
+        fields: ['email', 'displayName'],
+        occurredAt: new Date('2026-10-09T10:00:00.000Z'),
+        requestId: 'req-123',
+      });
+
+      expect(logSpy).toHaveBeenCalledTimes(1);
+      expect(logSpy).toHaveBeenCalledWith(
+        'user.updated userId=user-uuid-1 actorId=actor-uuid-2 fields=email,displayName requestId=req-123',
+      );
+    } finally {
+      logSpy.mockRestore();
+    }
+  });
+});

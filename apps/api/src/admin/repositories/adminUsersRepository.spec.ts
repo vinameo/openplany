@@ -1,4 +1,4 @@
-import { IsNull, QueryFailedError, type Repository } from 'typeorm';
+import { type DataSource, IsNull, QueryFailedError, type Repository } from 'typeorm';
 import type { User } from '../../auth/entities/user.entity.js';
 import {
   EmailAlreadyExistsError,
@@ -28,9 +28,12 @@ describe('TypeOrmAdminUsersRepository', () => {
     at: new Date('2026-10-09T10:00:00.000Z'),
   };
 
-  function repoWith(insert: ReturnType<typeof vi.fn>) {
+  function repoWith(
+    insert: ReturnType<typeof vi.fn>,
+    dataSource = {} as DataSource,
+  ) {
     const users = { insert } as unknown as Repository<User>;
-    return new TypeOrmAdminUsersRepository(users);
+    return new TypeOrmAdminUsersRepository(users, dataSource);
   }
 
   it('inserts user with every privilege flag false and returns id and createdAt', async () => {

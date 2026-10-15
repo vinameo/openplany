@@ -182,6 +182,32 @@ describe('UsersRoute', { timeout: 15000 }, () => {
     expect(screen.getByRole('textbox', { name: /^email$/i })).toBeInTheDocument();
   });
 
+  it('opens EditUserModal when clicking Edit user in row action menu', async () => {
+    const { user } = renderRoute({
+      extraMocks: {
+        'GET /api/admin/users/user-2': () =>
+          jsonResponse(
+            200,
+            makeAdminUser({
+              id: 'user-2',
+              firstName: 'An',
+              lastName: 'Nguyen',
+              displayName: 'An Nguyen',
+              email: 'an@openplany.dev',
+            }),
+          ),
+      },
+    });
+
+    const rowActionsBtn = await screen.findByRole('button', { name: /actions for an nguyen/i });
+    await user.click(rowActionsBtn);
+
+    const editMenuItem = await screen.findByRole('menuitem', { name: /edit user/i });
+    await user.click(editMenuItem);
+
+    expect(await screen.findByRole('heading', { name: 'Edit user' })).toBeInTheDocument();
+  });
+
   it('B2.1: handles 403 on users query by refreshing session', async () => {
     let sessionCalls = 0;
     renderRoute({

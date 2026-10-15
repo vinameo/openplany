@@ -5,11 +5,18 @@ import type { User } from '../auth/entities/user.entity.js';
 import type { UsersRepository } from '../auth/repositories/usersRepository.js';
 import { AdminUsersService } from './adminUsers.service.js';
 import type { CreateUserDto } from './dto/createUser.dto.js';
-import type { UserCreatedEvent, UserEvents } from './events/userEvents.js';
+import type {
+  UserCreatedEvent,
+  UserUpdatedEvent,
+  UserEvents,
+} from './events/userEvents.js';
 import {
+  ActorForbiddenError,
   type AdminUsersRepository,
   EmailAlreadyExistsError,
   type NewUser,
+  TargetNotFoundError,
+  UserChangedSinceLoadedError,
 } from './repositories/adminUsersRepository.js';
 
 describe('AdminUsersService', () => {
@@ -45,9 +52,16 @@ describe('AdminUsersService', () => {
       items: [] as User[],
       total: 0,
     }));
+    const findByIdMock = vi.fn(async () => null as User | null);
+    const updateUserMock = vi.fn(async () => ({
+      user: {} as User,
+      changedFields: [] as string[],
+    }));
     const adminUsersRepo = {
       createUser: createUserMock,
       list: listMock,
+      findById: findByIdMock,
+      updateUser: updateUserMock,
     } as unknown as AdminUsersRepository;
 
     const hasher = new FakePasswordHasher();
@@ -63,8 +77,14 @@ describe('AdminUsersService', () => {
       callOrder.push('events.created');
       capturedEvent = event;
     });
+    let capturedUpdatedEvent: UserUpdatedEvent | null = null;
+    const updatedEventMock = vi.fn(async (event: UserUpdatedEvent) => {
+      callOrder.push('events.updated');
+      capturedUpdatedEvent = event;
+    });
     const events = {
       created: createdEventMock,
+      updated: updatedEventMock,
     } as unknown as UserEvents;
 
     const clock = new FakeClock(new Date('2026-10-09T10:00:00.000Z'));
@@ -81,14 +101,18 @@ describe('AdminUsersService', () => {
       service,
       adminUsersRepo,
       listMock,
+      findByIdMock,
+      updateUserMock,
       findByEmailMock,
       createUserMock,
       hashMock,
       createdEventMock,
+      updatedEventMock,
       clock,
       callOrder,
       getCapturedNewUser: () => capturedNewUser,
       getCapturedEvent: () => capturedEvent,
+      getCapturedUpdatedEvent: () => capturedUpdatedEvent,
     };
   }
 
@@ -295,6 +319,195 @@ describe('AdminUsersService', () => {
       expect(result.page).toBe(1);
       expect(result.items).toEqual([]);
       expect(result.total).toBe(0);
+    });
+  });
+
+  describe('get', () => {
+    it('returns AdminUserResponse when user is found', async () => {
+      const ctx = setup();
+      ctx.findByIdMock.mockResolvedValueOnce({
+        id: 'u-1',
+        email: 'u1@example.com',
+        firstName: 'An',
+        lastName: 'Nguyen',
+        displayName: 'An Nguyen',
+        avatar: null,
+        isActive: true,
+        isSuperuser: false,
+        createdAt: new Date('2026-10-09T10:00:00.000Z'),
+        updatedAt: new Date('2026-10-09T10:00:00.000Z'),
+      } as User);
+
+      const result = await ctx.service.get('u-1');
+      expect(result).toEqual({
+        id: 'u-1',
+        email: 'u1@example.com',
+        firstName: 'An',
+        lastName: 'Nguyen',
+        displayName: 'An Nguyen',
+        avatarUrl: null,
+        isActive: true,
+        isInstanceAdmin: false,
+        createdAt: '2026-10-09T10:00:00.000Z',
+        updatedAt: '2026-10-09T10:00:00.000Z',
+      });
+      expect(ctx.findByIdMock).toHaveBeenCalledWith('u-1');
+    });
+
+    it('throws 404 USER_NOT_FOUND when user does not exist', async () => {
+      const ctx = setup();
+      ctx.findByIdMock.mockResolvedValueOnce(null);
+
+      await expect(ctx.service.get('missing-uuid')).rejects.toThrow(
+        expect.objectContaining({
+          status: HttpStatus.NOT_FOUND,
+          code: 'USER_NOT_FOUND',
+        }),
+      );
+    });
+  });
+
+  describe('update', () => {
+    const updateDto = {
+      expectedUpdatedAt: '2026-10-09T10:00:00.000Z',
+      firstName: 'Binh',
+      email: 'binh@openplany.dev',
+    };
+
+    it('successful update with changes emits events.updated and returns response', async () => {
+      const ctx = setup();
+      const updatedUser = {
+        id: 'u-1',
+        email: 'binh@openplany.dev',
+        firstName: 'Binh',
+        lastName: 'Nguyen',
+        displayName: 'An Nguyen',
+        avatar: null,
+        isActive: true,
+        isSuperuser: false,
+        createdAt: new Date('2026-10-09T10:00:00.000Z'),
+        updatedAt: new Date('2026-10-09T11:00:00.000Z'),
+      } as User;
+      ctx.updateUserMock.mockResolvedValueOnce({
+        user: updatedUser,
+        changedFields: ['firstName', 'email'],
+      });
+
+      const result = await ctx.service.update('actor-1', 'u-1', updateDto, 'req-99');
+
+      expect(ctx.updateUserMock).toHaveBeenCalledWith(
+        'actor-1',
+        'u-1',
+        {
+          firstName: 'Binh',
+          lastName: undefined,
+          displayName: undefined,
+          email: 'binh@openplany.dev',
+        },
+        '2026-10-09T10:00:00.000Z',
+        new Date('2026-10-09T10:00:00.000Z'),
+      );
+      expect(ctx.getCapturedUpdatedEvent()).toEqual({
+        userId: 'u-1',
+        actorId: 'actor-1',
+        fields: ['firstName', 'email'],
+        occurredAt: new Date('2026-10-09T10:00:00.000Z'),
+        requestId: 'req-99',
+      });
+      expect(result.firstName).toBe('Binh');
+      expect(result.email).toBe('binh@openplany.dev');
+    });
+
+    it('update with no changes returns 200 without emitting events.updated', async () => {
+      const ctx = setup();
+      const targetUser = {
+        id: 'u-1',
+        email: 'binh@openplany.dev',
+        firstName: 'Binh',
+        lastName: 'Nguyen',
+        displayName: 'An Nguyen',
+        avatar: null,
+        isActive: true,
+        isSuperuser: false,
+        createdAt: new Date('2026-10-09T10:00:00.000Z'),
+        updatedAt: new Date('2026-10-09T10:00:00.000Z'),
+      } as User;
+      ctx.updateUserMock.mockResolvedValueOnce({
+        user: targetUser,
+        changedFields: [],
+      });
+
+      const result = await ctx.service.update('actor-1', 'u-1', updateDto, 'req-99');
+
+      expect(ctx.updatedEventMock).not.toHaveBeenCalled();
+      expect(result.id).toBe('u-1');
+    });
+
+    it('translates ActorForbiddenError to 403 FORBIDDEN', async () => {
+      const ctx = setup();
+      ctx.updateUserMock.mockRejectedValueOnce(new ActorForbiddenError());
+
+      await expect(
+        ctx.service.update('actor-1', 'u-1', updateDto, 'req-99'),
+      ).rejects.toThrow(
+        expect.objectContaining({
+          status: HttpStatus.FORBIDDEN,
+          code: 'FORBIDDEN',
+        }),
+      );
+    });
+
+    it('translates TargetNotFoundError to 404 USER_NOT_FOUND', async () => {
+      const ctx = setup();
+      ctx.updateUserMock.mockRejectedValueOnce(new TargetNotFoundError());
+
+      await expect(
+        ctx.service.update('actor-1', 'u-1', updateDto, 'req-99'),
+      ).rejects.toThrow(
+        expect.objectContaining({
+          status: HttpStatus.NOT_FOUND,
+          code: 'USER_NOT_FOUND',
+        }),
+      );
+    });
+
+    it('translates UserChangedSinceLoadedError to 409 USER_CHANGED_SINCE_LOADED and logs conflict', async () => {
+      const ctx = setup();
+      ctx.updateUserMock.mockRejectedValueOnce(new UserChangedSinceLoadedError());
+
+      const warnSpy = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+      try {
+        await expect(
+          ctx.service.update('actor-1', 'u-1', updateDto, 'req-99'),
+        ).rejects.toThrow(
+          expect.objectContaining({
+            status: HttpStatus.CONFLICT,
+            code: 'USER_CHANGED_SINCE_LOADED',
+          }),
+        );
+        expect(warnSpy).toHaveBeenCalledWith(
+          'admin.users.update.conflict userId=u-1 actorId=actor-1 requestId=req-99',
+        );
+      } finally {
+        warnSpy.mockRestore();
+      }
+    });
+
+    it('translates EmailAlreadyExistsError to 409 EMAIL_ALREADY_EXISTS with fields.email', async () => {
+      const ctx = setup();
+      ctx.updateUserMock.mockRejectedValueOnce(new EmailAlreadyExistsError());
+
+      await expect(
+        ctx.service.update('actor-1', 'u-1', updateDto, 'req-99'),
+      ).rejects.toThrow(
+        expect.objectContaining({
+          status: HttpStatus.CONFLICT,
+          code: 'EMAIL_ALREADY_EXISTS',
+          fields: expect.objectContaining({
+            email: 'A user with this email already exists.',
+          }),
+        }),
+      );
     });
   });
 });

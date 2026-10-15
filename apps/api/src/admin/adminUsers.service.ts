@@ -2,6 +2,7 @@ import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import type {
   AdminUserListQuery,
   AdminUserListResponse,
+  AdminUserResponse,
   CreatedUserResponse,
 } from '@repo/contracts';
 import { ADMIN_USERS_PAGE_SIZE } from '@repo/contracts';
@@ -12,10 +13,14 @@ import { ApiException } from '../common/apiException.js';
 import { type CreateUserDto } from './dto/createUser.dto.js';
 import { toAdminUserResponse } from './dto/adminUserResponse.dto.js';
 import { toCreatedUserResponse } from './dto/createdUserResponse.dto.js';
+import { type UpdateAdminUserDto } from './dto/updateAdminUser.dto.js';
 import { UserEvents } from './events/userEvents.js';
 import {
+  ActorForbiddenError,
   AdminUsersRepository,
   EmailAlreadyExistsError,
+  TargetNotFoundError,
+  UserChangedSinceLoadedError,
 } from './repositories/adminUsersRepository.js';
 import { generateUsername } from './username.js';
 
@@ -42,6 +47,99 @@ export class AdminUsersService {
       page,
       pageSize: ADMIN_USERS_PAGE_SIZE,
     };
+  }
+
+  async get(userId: string): Promise<AdminUserResponse> {
+    const user = await this.adminUsers.findById(userId);
+    if (!user) {
+      throw new ApiException(
+        HttpStatus.NOT_FOUND,
+        'USER_NOT_FOUND',
+        { key: 'admin:users.errors.userNotFound' },
+      );
+    }
+    return toAdminUserResponse(user);
+  }
+
+  async update(
+    actorId: string,
+    userId: string,
+    dto: UpdateAdminUserDto,
+    requestId: string,
+  ): Promise<AdminUserResponse> {
+    const now = this.clock.now();
+    let result;
+    try {
+      result = await this.adminUsers.updateUser(
+        actorId,
+        userId,
+        {
+          firstName: dto.firstName,
+          lastName: dto.lastName,
+          displayName: dto.displayName,
+          email: dto.email,
+        },
+        dto.expectedUpdatedAt,
+        now,
+      );
+    } catch (error) {
+      if (error instanceof ActorForbiddenError) {
+        throw new ApiException(
+          HttpStatus.FORBIDDEN,
+          'FORBIDDEN',
+          { key: 'admin:errors.cannotManageUsers' },
+        );
+      }
+      if (error instanceof TargetNotFoundError) {
+        throw new ApiException(
+          HttpStatus.NOT_FOUND,
+          'USER_NOT_FOUND',
+          { key: 'admin:users.errors.userNotFound' },
+        );
+      }
+      if (error instanceof UserChangedSinceLoadedError) {
+        this.logger.warn(
+          `admin.users.update.conflict userId=${userId} actorId=${actorId} requestId=${requestId}`,
+        );
+        throw new ApiException(
+          HttpStatus.CONFLICT,
+          'USER_CHANGED_SINCE_LOADED',
+          { key: 'admin:users.errors.changedSinceLoaded' },
+        );
+      }
+      if (error instanceof EmailAlreadyExistsError) {
+        throw new ApiException(
+          HttpStatus.CONFLICT,
+          'EMAIL_ALREADY_EXISTS',
+          EMAIL_ALREADY_EXISTS_REF,
+          {
+            fields: {
+              email: EMAIL_ALREADY_EXISTS_REF,
+            },
+          },
+        );
+      }
+      throw error;
+    }
+
+    if (result.changedFields.length > 0) {
+      try {
+        await this.events.updated({
+          userId,
+          actorId,
+          fields: result.changedFields,
+          occurredAt: now,
+          requestId,
+        });
+      } catch (error) {
+        this.logger.error(
+          `user.updated event failed userId=${userId} requestId=${requestId}`,
+          error instanceof Error ? error.stack : String(error),
+        );
+      }
+    }
+
+    return toAdminUserResponse(result.user);
   }
 
   async create(
@@ -137,4 +235,3 @@ export class AdminUsersService {
     });
   }
 }
-

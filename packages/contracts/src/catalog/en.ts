@@ -717,6 +717,10 @@ export const en = {
     "users.errors.loadFailed": "Couldn't load users.",
     "users.errors.loadUserFailed": "Couldn't load this user.",
     "users.errors.userNotFound": "This user no longer exists.",
+    "users.errors.changedSinceLoaded":
+      "Someone else updated this user while you were editing. Reload to see the latest details.",
+    "users.errors.cannotChangeOwnPassword":
+      "You can't change your own password here.",
     "users.errors.updateFailed": "Couldn't save changes. Please try again.",
     "users.errors.passwordFailed":
       "Couldn't change the password. Please try again.",

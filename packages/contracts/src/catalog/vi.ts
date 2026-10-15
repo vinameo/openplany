@@ -685,6 +685,10 @@ export const vi: TranslatedCatalog = {
     "users.errors.loadFailed": "Không tải được danh sách người dùng.",
     "users.errors.loadUserFailed": "Không tải được thông tin người dùng này.",
     "users.errors.userNotFound": "Người dùng này không còn tồn tại.",
+    "users.errors.changedSinceLoaded":
+      "Thông tin người dùng này vừa được người khác cập nhật. Tải lại để xem dữ liệu mới nhất.",
+    "users.errors.cannotChangeOwnPassword":
+      "Bạn không thể đổi mật khẩu của chính mình tại đây.",
     "users.errors.updateFailed": "Không lưu được thay đổi. Hãy thử lại.",
     "users.errors.passwordFailed": "Không đổi được mật khẩu. Hãy thử lại.",
     "users.validation.passwordsDoNotMatch": "Mật khẩu không khớp",

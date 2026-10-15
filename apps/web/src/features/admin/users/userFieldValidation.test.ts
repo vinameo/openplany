@@ -1,9 +1,15 @@
 import { describe, expect, it } from "vitest";
+import type { AdminUserResponse } from "@repo/contracts";
 import {
+  adminUserLabel,
+  buildUpdateAdminUserPayload,
+  hasEditUserChanges,
   type CreateUserValues,
+  type EditUserValues,
   validateConfirmPassword,
   validateCreateUserField,
   validateDisplayName,
+  validateEditUserField,
   validateEmail,
   validateFirstName,
   validateLastName,
@@ -285,4 +291,209 @@ describe("userFieldValidation", () => {
       );
     });
   });
+
+  describe("validateEditUserField (RQ D35, AC-35)", () => {
+    const cliUser: AdminUserResponse = {
+      id: "cli-user-1",
+      email: "kai@openplany.dev",
+      firstName: "",
+      lastName: "",
+      displayName: "Kai",
+      avatarUrl: null,
+      isActive: true,
+      isInstanceAdmin: true,
+      createdAt: "2026-10-15T00:00:00.000Z",
+      updatedAt: "2026-10-15T00:00:00.000Z",
+    };
+
+    const regularUser: AdminUserResponse = {
+      ...cliUser,
+      id: "reg-user-1",
+      firstName: "An",
+      lastName: "Nguyen",
+      displayName: "An Nguyen",
+      email: "an@openplany.dev",
+    };
+
+    it("allows unchanged invalid fields like empty CLI firstName without error (AC-35)", () => {
+      const values: EditUserValues = {
+        firstName: "",
+        lastName: "",
+        displayName: "Kai",
+        email: "kai-new@openplany.dev",
+      };
+
+      // firstName is unchanged (both empty) -> should be null, not "Enter a first name"
+      expect(validateEditUserField("firstName", values, cliUser)).toBeNull();
+      // email changed to valid -> null
+      expect(validateEditUserField("email", values, cliUser)).toBeNull();
+    });
+
+    it("validates field when changed from original value", () => {
+      // Changed from "An" to ""
+      const valuesWithEmptyFirst: EditUserValues = {
+        firstName: "",
+        lastName: "Nguyen",
+        displayName: "An Nguyen",
+        email: "an@openplany.dev",
+      };
+      expect(
+        validateEditUserField("firstName", valuesWithEmptyFirst, regularUser),
+      ).toBe("Enter a first name");
+
+      // Changed email to invalid
+      const valuesWithInvalidEmail: EditUserValues = {
+        firstName: "An",
+        lastName: "Nguyen",
+        displayName: "An Nguyen",
+        email: "invalid-email",
+      };
+      expect(
+        validateEditUserField("email", valuesWithInvalidEmail, regularUser),
+      ).toBe("Enter a valid email");
+    });
+  });
+
+  describe("hasEditUserChanges", () => {
+    const user: AdminUserResponse = {
+      id: "user-1",
+      email: "an@openplany.dev",
+      firstName: "An",
+      lastName: "Nguyen",
+      displayName: "An Nguyen",
+      avatarUrl: null,
+      isActive: true,
+      isInstanceAdmin: false,
+      createdAt: "2026-10-15T00:00:00.000Z",
+      updatedAt: "2026-10-15T00:00:00.000Z",
+    };
+
+    it("returns false when values match loadedUser", () => {
+      const values: EditUserValues = {
+        firstName: "An",
+        lastName: "Nguyen",
+        displayName: "An Nguyen",
+        email: "an@openplany.dev",
+      };
+      expect(hasEditUserChanges(values, user)).toBe(false);
+    });
+
+    it("returns false when difference is only surrounding whitespace or case in email", () => {
+      const values: EditUserValues = {
+        firstName: " An ",
+        lastName: " Nguyen ",
+        displayName: " An Nguyen ",
+        email: " AN@OpenPlany.dev ",
+      };
+      expect(hasEditUserChanges(values, user)).toBe(false);
+    });
+
+    it("returns true when any field differs", () => {
+      expect(
+        hasEditUserChanges(
+          {
+            firstName: "Binh",
+            lastName: "Nguyen",
+            displayName: "An Nguyen",
+            email: "an@openplany.dev",
+          },
+          user,
+        ),
+      ).toBe(true);
+
+      expect(
+        hasEditUserChanges(
+          {
+            firstName: "An",
+            lastName: "Nguyen",
+            displayName: "An Nguyen",
+            email: "an-new@openplany.dev",
+          },
+          user,
+        ),
+      ).toBe(true);
+    });
+  });
+
+  describe("buildUpdateAdminUserPayload", () => {
+    const user: AdminUserResponse = {
+      id: "user-1",
+      email: "an@openplany.dev",
+      firstName: "An",
+      lastName: "Nguyen",
+      displayName: "An Nguyen",
+      avatarUrl: null,
+      isActive: true,
+      isInstanceAdmin: false,
+      createdAt: "2026-10-15T00:00:00.000Z",
+      updatedAt: "2026-10-15T00:00:00.000Z",
+    };
+
+    it("only includes fields that actually changed + expectedUpdatedAt", () => {
+      const values: EditUserValues = {
+        firstName: "An",
+        lastName: "Nguyen",
+        displayName: "An Nguyen",
+        email: "an-new@openplany.dev",
+      };
+      const payload = buildUpdateAdminUserPayload(values, user);
+      expect(payload).toEqual({
+        expectedUpdatedAt: "2026-10-15T00:00:00.000Z",
+        email: "an-new@openplany.dev",
+      });
+      expect(payload.firstName).toBeUndefined();
+      expect(payload.lastName).toBeUndefined();
+      expect(payload.displayName).toBeUndefined();
+    });
+
+    it("sends empty string when lastName is cleared", () => {
+      const values: EditUserValues = {
+        firstName: "An",
+        lastName: "",
+        displayName: "An Nguyen",
+        email: "an@openplany.dev",
+      };
+      const payload = buildUpdateAdminUserPayload(values, user);
+      expect(payload).toEqual({
+        expectedUpdatedAt: "2026-10-15T00:00:00.000Z",
+        lastName: "",
+      });
+    });
+  });
+
+  describe("adminUserLabel", () => {
+    it("returns displayName if present", () => {
+      expect(
+        adminUserLabel({
+          displayName: "An Nguyen",
+          firstName: "An",
+          lastName: "Nguyen",
+          email: "an@openplany.dev",
+        }),
+      ).toBe("An Nguyen");
+    });
+
+    it("falls back to fullName if displayName is empty", () => {
+      expect(
+        adminUserLabel({
+          displayName: "",
+          firstName: "An",
+          lastName: "Nguyen",
+          email: "an@openplany.dev",
+        }),
+      ).toBe("An Nguyen");
+    });
+
+    it("falls back to email if displayName and fullName are empty", () => {
+      expect(
+        adminUserLabel({
+          displayName: "",
+          firstName: "",
+          lastName: null,
+          email: "an@openplany.dev",
+        }),
+      ).toBe("an@openplany.dev");
+    });
+  });
 });
+

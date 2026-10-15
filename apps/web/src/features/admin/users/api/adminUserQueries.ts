@@ -20,8 +20,17 @@ export function adminUsersListQuery(params: UsersListParams) {
   });
 }
 
+export function adminUserDetailQuery(id: string) {
+  return queryOptions({
+    queryKey: adminUserKeys.detail(id),
+    queryFn: () => adminUsersApi.get(id),
+    refetchOnWindowFocus: false,
+  });
+}
+
 export const adminUserQueries = {
   list: adminUsersListQuery,
+  detail: adminUserDetailQuery,
 };
 
 export function invalidateAdminUserLists(

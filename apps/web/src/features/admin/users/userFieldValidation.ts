@@ -5,6 +5,8 @@ import {
   USER_NAME_ALLOWED,
   USER_NAME_MAX,
   normalizeName,
+  type AdminUserResponse,
+  type UpdateAdminUserRequest,
 } from "@repo/contracts";
 import { translate } from "../../../i18n/index.js";
 
@@ -24,6 +26,15 @@ export interface CreateUserValues {
   password: string;
   confirmPassword: string;
 }
+
+export interface EditUserValues {
+  firstName: string;
+  lastName: string;
+  displayName: string;
+  email: string;
+}
+
+export type EditUserField = keyof EditUserValues;
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -131,3 +142,104 @@ export function validateCreateUserField(
       return validateConfirmPassword(values.confirmPassword, values.password);
   }
 }
+
+export function validateEditUserField(
+  field: EditUserField,
+  values: EditUserValues,
+  loadedUser: AdminUserResponse,
+): string | null {
+  switch (field) {
+    case "firstName": {
+      if (
+        normalizeName(values.firstName) === normalizeName(loadedUser.firstName)
+      ) {
+        return null;
+      }
+      return validateFirstName(values.firstName);
+    }
+    case "lastName": {
+      if (
+        normalizeName(values.lastName) ===
+        normalizeName(loadedUser.lastName ?? "")
+      ) {
+        return null;
+      }
+      return validateLastName(values.lastName);
+    }
+    case "displayName": {
+      if (
+        normalizeName(values.displayName) ===
+        normalizeName(loadedUser.displayName)
+      ) {
+        return null;
+      }
+      return validateDisplayName(values.displayName);
+    }
+    case "email": {
+      if (
+        values.email.trim().toLowerCase() ===
+        loadedUser.email.trim().toLowerCase()
+      ) {
+        return null;
+      }
+      return validateEmail(values.email);
+    }
+  }
+}
+
+export function hasEditUserChanges(
+  values: EditUserValues,
+  loadedUser: AdminUserResponse,
+): boolean {
+  return (
+    normalizeName(values.firstName) !== normalizeName(loadedUser.firstName) ||
+    normalizeName(values.lastName) !==
+      normalizeName(loadedUser.lastName ?? "") ||
+    normalizeName(values.displayName) !==
+      normalizeName(loadedUser.displayName) ||
+    values.email.trim().toLowerCase() !== loadedUser.email.trim().toLowerCase()
+  );
+}
+
+export function buildUpdateAdminUserPayload(
+  values: EditUserValues,
+  loadedUser: AdminUserResponse,
+): UpdateAdminUserRequest {
+  const payload: UpdateAdminUserRequest = {
+    expectedUpdatedAt: loadedUser.updatedAt,
+  };
+  if (normalizeName(values.firstName) !== normalizeName(loadedUser.firstName)) {
+    payload.firstName = normalizeName(values.firstName);
+  }
+  if (
+    normalizeName(values.lastName) !== normalizeName(loadedUser.lastName ?? "")
+  ) {
+    payload.lastName = normalizeName(values.lastName);
+  }
+  if (
+    normalizeName(values.displayName) !== normalizeName(loadedUser.displayName)
+  ) {
+    payload.displayName = normalizeName(values.displayName);
+  }
+  if (
+    values.email.trim().toLowerCase() !== loadedUser.email.trim().toLowerCase()
+  ) {
+    payload.email = values.email.trim().toLowerCase();
+  }
+  return payload;
+}
+
+export function adminUserLabel(user: {
+  displayName?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  email: string;
+}): string {
+  return (
+    user.displayName?.trim() ||
+    `${user.firstName ?? ""}`.trim() +
+      (user.lastName?.trim() ? ` ${user.lastName.trim()}` : "") ||
+    user.email
+  );
+}
+

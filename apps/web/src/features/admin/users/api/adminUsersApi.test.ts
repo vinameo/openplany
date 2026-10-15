@@ -106,4 +106,60 @@ describe("adminUsersApi", () => {
       expect(calledUrl).toContain("instanceAdmin=only");
     });
   });
+
+  describe("get", () => {
+    it("fetches GET /api/admin/users/:userId", async () => {
+      const userResponse = {
+        id: "u-1",
+        email: "an@openplany.dev",
+        firstName: "An",
+        lastName: "Nguyen",
+        displayName: "An Nguyen",
+        avatarUrl: null,
+        isActive: true,
+        isInstanceAdmin: false,
+        createdAt: "2026-10-09T10:00:00.000Z",
+        updatedAt: "2026-10-09T10:00:00.000Z",
+      };
+      const fetchMock = mockFetch({
+        "GET /api/admin/users/u-1": () => jsonResponse(200, userResponse),
+      });
+
+      const result = await adminUsersApi.get("u-1");
+      expect(result).toEqual(userResponse);
+      expect(fetchMock.mock.calls[0][0]).toBe("/api/admin/users/u-1");
+    });
+  });
+
+  describe("update", () => {
+    it("patches to /api/admin/users/:userId with JSON body", async () => {
+      const updatedResponse = {
+        id: "u-1",
+        email: "an.new@openplany.dev",
+        firstName: "An",
+        lastName: "Nguyen",
+        displayName: "An Nguyen",
+        avatarUrl: null,
+        isActive: true,
+        isInstanceAdmin: false,
+        createdAt: "2026-10-09T10:00:00.000Z",
+        updatedAt: "2026-10-09T11:00:00.000Z",
+      };
+      const fetchMock = mockFetch({
+        "PATCH /api/admin/users/u-1": () => jsonResponse(200, updatedResponse),
+      });
+
+      const updateBody = {
+        expectedUpdatedAt: "2026-10-09T10:00:00.000Z",
+        email: "an.new@openplany.dev",
+      };
+      const result = await adminUsersApi.update("u-1", updateBody);
+      expect(result).toEqual(updatedResponse);
+      expect(fetchMock.mock.calls[0][1]).toMatchObject({
+        method: "PATCH",
+        body: JSON.stringify(updateBody),
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+  });
 });

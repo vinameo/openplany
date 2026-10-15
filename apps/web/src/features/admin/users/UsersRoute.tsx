@@ -3,7 +3,11 @@ import { Alert, Badge, Button, Skeleton, Text } from '@mantine/core';
 import { Navigate, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
-import { ADMIN_USERS_PAGE_SIZE, type AdminUserSortKey } from '@repo/contracts';
+import {
+  ADMIN_USERS_PAGE_SIZE,
+  type AdminUserResponse,
+  type AdminUserSortKey,
+} from '@repo/contracts';
 import { useAuth } from '../../auth/useAuth';
 import { authApi } from '../../auth/api/authApi';
 import { useDocumentTitle } from '../../../hooks/useDocumentTitle';
@@ -20,6 +24,7 @@ import { UsersToolbar } from './UsersToolbar';
 import { UsersTable } from './UsersTable';
 import { UsersPagination } from './UsersPagination';
 import { CreateUserModal } from './CreateUserModal';
+import { EditUserModal } from './EditUserModal';
 import classes from './UsersRoute.module.css';
 
 export function UsersRoute() {
@@ -28,6 +33,7 @@ export function UsersRoute() {
   const { state: authState, updateUser, expireSession } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [createModalOpened, setCreateModalOpened] = useState(false);
+  const [editingUser, setEditingUser] = useState<AdminUserResponse | null>(null);
 
   const params = useMemo(() => parseUsersListParams(searchParams), [searchParams]);
 
@@ -198,6 +204,7 @@ export function UsersRoute() {
           onSortChange={handleSortChange}
           isPlaceholderData={isPlaceholderData}
           onClearFilters={hasFiltersOrSearch ? handleClearAll : undefined}
+          onEdit={(user) => setEditingUser(user)}
         />
 
         <UsersPagination
@@ -211,6 +218,12 @@ export function UsersRoute() {
         opened={createModalOpened}
         onClose={() => setCreateModalOpened(false)}
         onCreated={() => setCreateModalOpened(false)}
+      />
+
+      <EditUserModal
+        opened={editingUser !== null}
+        user={editingUser}
+        onClose={() => setEditingUser(null)}
       />
     </AdminPageLayout>
   );
