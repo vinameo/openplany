@@ -151,8 +151,8 @@ describe("AddMembersModal", () => {
     });
     await user.click(screen.getByRole("option", { name: /alice@example\.com/i }));
 
-    // Click "+ Add more" to add Row 2
-    await user.click(screen.getByRole("button", { name: "+ Add more" }));
+    // Click "Add more" to add Row 2
+    await user.click(screen.getByRole("button", { name: "Add more" }));
 
     // Row 2: Select Bob
     const inputs = screen.getAllByRole("textbox", { name: "Email" });
@@ -168,8 +168,8 @@ describe("AddMembersModal", () => {
     await user.click(roleSelects[1]!);
     await user.click(await screen.findByRole("option", { name: "Guest" }));
 
-    // Click "+ Add more" to add an empty Row 3
-    await user.click(screen.getByRole("button", { name: "+ Add more" }));
+    // Click "Add more" to add an empty Row 3
+    await user.click(screen.getByRole("button", { name: "Add more" }));
 
     // Click "Add member" button in footer
     const addBtn = screen.getByRole("button", { name: "Add member" });
@@ -212,7 +212,7 @@ describe("AddMembersModal", () => {
     await user.click(screen.getByRole("option", { name: /alice@example\.com/i }));
 
     // Add row 2 and select Bob
-    await user.click(screen.getByRole("button", { name: "+ Add more" }));
+    await user.click(screen.getByRole("button", { name: "Add more" }));
     const row2Input = screen.getByRole("textbox", { name: "Email" });
     await user.type(row2Input, "bob");
     await waitFor(() => {

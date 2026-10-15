@@ -271,7 +271,7 @@ describe("AddProjectMembersModal", () => {
     );
 
     // Add Row 2
-    await user.click(screen.getByRole("button", { name: "+ Add more" }));
+    await user.click(screen.getByRole("button", { name: "Add more" }));
 
     // Row 2: Search Alice again
     const input2 = screen.getByRole("textbox", { name: "Email" });
@@ -286,20 +286,20 @@ describe("AddProjectMembersModal", () => {
     expect(optionAlice).toHaveAttribute("data-combobox-disabled", "true");
   });
 
-  it("AC-21: hides + Add more when row count reaches 20", async () => {
+  it("AC-21: hides Add more when row count reaches 20", async () => {
     const user = userEvent.setup();
     renderModal();
 
-    const addMoreBtn = screen.getByRole("button", { name: "+ Add more" });
+    const addMoreBtn = screen.getByRole("button", { name: "Add more" });
 
     // Add 19 more rows (total 20 rows)
     for (let i = 1; i < 20; i++) {
       await user.click(addMoreBtn);
     }
 
-    // At 20 rows, "+ Add more" button is hidden
+    // At 20 rows, "Add more" button is hidden
     expect(
-      screen.queryByRole("button", { name: "+ Add more" }),
+      screen.queryByRole("button", { name: "Add more" }),
     ).not.toBeInTheDocument();
   });
 

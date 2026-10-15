@@ -69,7 +69,7 @@ describe("WorkspaceSettings and Members in Vietnamese (Ticket 07)", () => {
     expect(
       screen.getByRole("heading", { name: "Quản trị" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Chung" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Tổng quan" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Thành viên" })).toBeInTheDocument();
   });
 
