@@ -22,11 +22,7 @@ function renderModal({
   render(
     <AppUiProvider>
       <AuthProvider>
-        <ChangeMyPasswordModal
-          opened={opened}
-          onClose={onClose}
-          user={user}
-        />
+        <ChangeMyPasswordModal opened={opened} onClose={onClose} user={user} />
       </AuthProvider>
     </AppUiProvider>,
   );
@@ -79,7 +75,9 @@ describe("ChangeMyPasswordModal", () => {
     await user.type(newInput, "OldPassword123!");
     await user.tab();
     expect(
-      await screen.findByText("Choose a password different from your current one"),
+      await screen.findByText(
+        "Choose a password different from your current one",
+      ),
     ).toBeInTheDocument();
 
     // Type mismatched confirm password
@@ -122,8 +120,8 @@ describe("ChangeMyPasswordModal", () => {
     });
 
     // Check payload has NO confirmPassword
-    const putCall = fetchMock.mock.calls.find(([input]) =>
-      String(input) === "/api/users/me/password",
+    const putCall = fetchMock.mock.calls.find(
+      ([input]) => String(input) === "/api/users/me/password",
     );
     expect(putCall).toBeDefined();
     expect(JSON.parse((putCall![1] as RequestInit).body as string)).toEqual({
@@ -139,8 +137,8 @@ describe("ChangeMyPasswordModal", () => {
     );
 
     // Verify GET /api/auth/session was NOT called to renew
-    const getSessionCalls = fetchMock.mock.calls.filter(([input]) =>
-      String(input) === "/api/auth/session",
+    const getSessionCalls = fetchMock.mock.calls.filter(
+      ([input]) => String(input) === "/api/auth/session",
     );
     // Only the initial session check on mount
     expect(getSessionCalls.length).toBeLessThanOrEqual(1);
@@ -302,9 +300,7 @@ describe("ChangeMyPasswordModal", () => {
     await user.click(cancelBtn);
 
     // Prompt shown
-    expect(
-      screen.getByText("Discard unsaved changes?"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Discard unsaved changes?")).toBeInTheDocument();
     const keepEditingBtn = screen.getByRole("button", { name: "Keep editing" });
     const discardBtn = screen.getByRole("button", { name: "Discard" });
     expect(discardBtn).toBeInTheDocument();
@@ -325,5 +321,34 @@ describe("ChangeMyPasswordModal", () => {
     });
     await user.click(remountedDiscardBtn);
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("AC-13: handles 401 with kept session by staying in modal and showing submit error", async () => {
+    const session = makeSession();
+    const { user, onClose } = renderModal({
+      user: session.user,
+      extraHandlers: {
+        "PUT /api/users/me/password": () =>
+          apiError(401, "UNAUTHENTICATED", "Unauthenticated"),
+      },
+    });
+
+    const currentInput = screen.getByLabelText("Current password *");
+    const newInput = screen.getByLabelText("New password *");
+    const confirmInput = screen.getByLabelText("Confirm new password *");
+    const submitBtn = screen.getByRole("button", { name: "Change password" });
+
+    await user.type(currentInput, "OldPassword123!");
+    await user.type(newInput, "NewPassword456!");
+    await user.type(confirmInput, "NewPassword456!");
+
+    await user.click(submitBtn);
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(
+      "Couldn't change your password. Please try again.",
+    );
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByDisplayValue("OldPassword123!")).toBeInTheDocument();
   });
 });

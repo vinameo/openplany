@@ -380,6 +380,30 @@ describe('Auth (e2e)', () => {
 
       expect(String(response.headers['set-cookie'])).toMatch(/^op_session=;/);
     });
+
+    it('returns 401 without clearing cookie when session is revoked (AC-27)', async () => {
+      await createUser('an@openplany.dev');
+      const signedIn = await signIn({
+        email: 'an@openplany.dev',
+        password: PASSWORD,
+      }).expect(200);
+      const cookie = sessionCookie(signedIn.headers['set-cookie']);
+
+      // Revoke the session via sign-out
+      await http()
+        .post('/api/auth/sign-out')
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .expect(204);
+
+      // Now GET /api/auth/session with the revoked cookie
+      const response = await http()
+        .get('/api/auth/session')
+        .set('Cookie', cookie)
+        .expect(401);
+
+      expect(response.headers['set-cookie']).toBeUndefined();
+    });
   });
 
   describe('POST /api/auth/sign-out', () => {

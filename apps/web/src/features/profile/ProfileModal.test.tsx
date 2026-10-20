@@ -186,8 +186,14 @@ describe("profile popup", () => {
   });
 
   it("sends the user to sign-in when the session has expired", async () => {
+    let sessionCall = 0;
     mockFetch({
-      [SESSION_ROUTE]: signedIn,
+      [SESSION_ROUTE]: () => {
+        sessionCall += 1;
+        return sessionCall === 1
+          ? signedIn()
+          : apiError(401, "UNAUTHENTICATED", "Sign in to continue");
+      },
       "PATCH /api/users/me": () =>
         apiError(401, "UNAUTHENTICATED", "Sign in to continue"),
     });

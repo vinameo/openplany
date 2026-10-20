@@ -814,4 +814,68 @@ describe('PUT /api/users/me/password (e2e)', () => {
     expect(lockCount).toBe(2);
     expect(res.body.requiresPasswordReset).toBe(false);
   });
+
+  it('AC-27: old session waiting on users lock gets 401 without Set-Cookie and does not extend session', async () => {
+    const email = 'an-ac27@openplany.dev';
+    const userId = await createDbUser(email);
+    const oldCookie = await signInCookie(email);
+
+    // Make old session stale so it requires touch (> 5 minutes)
+    const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000);
+    await e2e.dataSource
+      .getRepository(Session)
+      .update({ userId }, { lastUsedAt: tenMinAgo });
+
+    const sessionBefore = await e2e.dataSource
+      .getRepository(Session)
+      .findOneByOrFail({ userId });
+    const initialExpiresAt = sessionBefore.expiresAt.getTime();
+
+    // Acquire lock on users row in a separate transaction, then change password and commit
+    const queryRunner = e2e.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      // Hold lock on user row
+      await queryRunner.manager.query(
+        'SELECT id FROM users WHERE id = $1 FOR UPDATE',
+        [userId],
+      );
+
+      // Start in-flight GET /api/auth/session that needs touch
+      const sessionRequestPromise = http()
+        .get('/api/auth/session')
+        .set('Cookie', oldCookie);
+
+      // Wait a moment to ensure GET request has reached touch waiting for the user lock
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // In the locked transaction: revoke all sessions and change password
+      const newHash = await new Argon2PasswordHasher().hash(NEW_PASSWORD);
+      await queryRunner.manager.update(User, userId, { password: newHash });
+      await queryRunner.manager.update(
+        Session,
+        { userId, revokedAt: IsNull() },
+        { revokedAt: new Date() },
+      );
+
+      // Commit transaction, releasing the lock so the in-flight touch can proceed
+      await queryRunner.commitTransaction();
+
+      // The in-flight request proceeds, discovers session is revoked during touch -> 401
+      const sessionRes = await sessionRequestPromise;
+      expect(sessionRes.status).toBe(401);
+      expect(sessionRes.body.code).toBe('UNAUTHENTICATED');
+      expect(sessionRes.headers['set-cookie']).toBeUndefined();
+
+      // Session row expires_at was NOT modified
+      const sessionAfter = await e2e.dataSource
+        .getRepository(Session)
+        .findOneByOrFail({ id: sessionBefore.id });
+      expect(sessionAfter.expiresAt.getTime()).toBe(initialExpiresAt);
+    } finally {
+      await queryRunner.release();
+    }
+  });
 });

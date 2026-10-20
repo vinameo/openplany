@@ -44,12 +44,16 @@ export interface SignInResult {
   maxAgeMs: number;
 }
 
-export interface SessionResult {
-  body: AuthSessionResponse;
-  /** Set when the expiry slid, so the cookie must be refreshed. */
-  renewedExpiresAt: Date | null;
-  renewedMaxAgeMs: number | null;
-}
+export type SessionResult =
+  | {
+      status: 'active';
+      body: AuthSessionResponse;
+      /** Set when the expiry slid, so the cookie must be refreshed. */
+      renewedExpiresAt: Date | null;
+      renewedMaxAgeMs: number | null;
+    }
+  | { status: 'revoked' }
+  | { status: 'unusable' };
 
 const SESSION_TOUCH_INTERVAL_MS = 5 * 60 * 1000;
 
@@ -197,14 +201,24 @@ export class AuthService implements OnModuleInit {
     };
   }
 
-  /** null when the cookie does not map to a usable session (api-spec 3.2). */
-  async getSession(token: string): Promise<SessionResult | null> {
+  /** Evaluates the session behind the cookie (api-spec B4.4, DB B4). */
+  async getSession(token: string): Promise<SessionResult> {
     const now = this.clock.now();
-    const active = await this.sessions.findActive(hashSessionToken(token), now);
-    if (active === null) return null;
+    const lookup = await this.sessions.lookupSession(
+      hashSessionToken(token),
+      now,
+    );
+    if (lookup.status === 'revoked') {
+      return { status: 'revoked' };
+    }
+    if (lookup.status !== 'active') {
+      return { status: 'unusable' };
+    }
 
-    const { session, user } = active;
-    if (!user.isActive || user.maskedAt !== null) return null;
+    const { session, user } = lookup;
+    if (!user.isActive || user.maskedAt !== null) {
+      return { status: 'unusable' };
+    }
 
     let renewedExpiresAt: Date | null = null;
     const stale =
@@ -216,10 +230,14 @@ export class AuthService implements OnModuleInit {
           session.createdAt.getTime() + this.sessionAbsoluteTtlMs,
         ),
       );
-      await this.sessions.touch(session, now, renewedExpiresAt);
+      const touched = await this.sessions.touch(session, now, renewedExpiresAt);
+      if (!touched) {
+        return { status: 'revoked' };
+      }
     }
 
     return {
+      status: 'active',
       body: toAuthSessionResponse(user, session.isResetOnly),
       renewedExpiresAt,
       renewedMaxAgeMs:
@@ -229,10 +247,23 @@ export class AuthService implements OnModuleInit {
     };
   }
 
-  /** Always succeeds: sign-out must work even with a broken session. */
-  async signOut(token: string | null, ip: string): Promise<void> {
+  /** Always succeeds: sign-out must work even with a broken session (api-spec B6). */
+  async signOut(
+    token: string | null,
+    ip: string,
+    requestId?: string,
+  ): Promise<void> {
     if (token === null) return;
-    await this.sessions.revoke(hashSessionToken(token), ip, this.clock.now());
+    const userId = await this.sessions.revoke(
+      hashSessionToken(token),
+      ip,
+      this.clock.now(),
+    );
+    if (userId !== null) {
+      this.logger.log(
+        `auth.signed_out userId=${userId} requestId=${requestId ?? '-'}`,
+      );
+    }
   }
 }
 

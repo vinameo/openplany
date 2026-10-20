@@ -30,11 +30,13 @@ function renderModal({
       status: "authenticated",
       session: makeSession(),
     },
+    sessionEpoch: 0,
     signIn: vi.fn(),
     signOut: vi.fn(),
     updateUser: vi.fn(),
     replaceSession: vi.fn(),
     expireSession: vi.fn(),
+    recheckSession: vi.fn().mockResolvedValue("kept"),
   };
 
   const ws = makeWorkspace({
@@ -150,7 +152,9 @@ describe("AddMembersModal", () => {
     await waitFor(() => {
       expect(screen.getByText("alice@example.com")).toBeInTheDocument();
     });
-    await user.click(screen.getByRole("option", { name: /alice@example\.com/i }));
+    await user.click(
+      screen.getByRole("option", { name: /alice@example\.com/i }),
+    );
 
     // Click "Add more" to add Row 2
     await user.click(screen.getByRole("button", { name: "Add more" }));
@@ -210,7 +214,9 @@ describe("AddMembersModal", () => {
     await waitFor(() => {
       expect(screen.getByText("alice@example.com")).toBeInTheDocument();
     });
-    await user.click(screen.getByRole("option", { name: /alice@example\.com/i }));
+    await user.click(
+      screen.getByRole("option", { name: /alice@example\.com/i }),
+    );
 
     // Add row 2 and select Bob
     await user.click(screen.getByRole("button", { name: "Add more" }));
@@ -303,7 +309,9 @@ describe("AddMembersModal", () => {
     await waitFor(() => {
       expect(screen.getByText("alice@example.com")).toBeInTheDocument();
     });
-    await user.click(screen.getByRole("option", { name: /alice@example\.com/i }));
+    await user.click(
+      screen.getByRole("option", { name: /alice@example\.com/i }),
+    );
 
     // Click Cancel
     const cancelBtn2 = screen.getByRole("button", { name: "Cancel" });
@@ -344,7 +352,9 @@ describe("AddMembersModal", () => {
     await waitFor(() => {
       expect(screen.getByText("alice@example.com")).toBeInTheDocument();
     });
-    await user.click(screen.getByRole("option", { name: /alice@example\.com/i }));
+    await user.click(
+      screen.getByRole("option", { name: /alice@example\.com/i }),
+    );
 
     const addBtn = screen.getByRole("button", { name: "Add member" });
     await user.click(addBtn);
@@ -398,14 +408,25 @@ describe("AddMembersModal", () => {
     const baseSession = makeSession();
     const authValue: AuthContextValue = {
       state: { status: "authenticated", session: baseSession },
+      sessionEpoch: 0,
       signIn: vi.fn(),
       signOut: vi.fn(),
       updateUser: vi.fn(),
       replaceSession: vi.fn(),
       expireSession: vi.fn(),
+      recheckSession: vi.fn().mockResolvedValue("kept"),
     };
-    const ws = makeWorkspace({ id: "ws-1", slug: "openstudy", name: "OpenStudy", role: "admin" });
-    const wsValue = { workspace: ws, applyWorkspaceUpdate: vi.fn(), reload: vi.fn().mockResolvedValue(undefined) };
+    const ws = makeWorkspace({
+      id: "ws-1",
+      slug: "openstudy",
+      name: "OpenStudy",
+      role: "admin",
+    });
+    const wsValue = {
+      workspace: ws,
+      applyWorkspaceUpdate: vi.fn(),
+      reload: vi.fn().mockResolvedValue(undefined),
+    };
 
     rerender(
       <QueryClientProvider client={queryClient}>

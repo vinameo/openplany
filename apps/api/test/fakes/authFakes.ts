@@ -22,6 +22,7 @@ import {
   SessionsRepository,
   StaleCredentialsError,
   type ActiveSession,
+  type SessionLookupResult,
   type SignInRecord,
 } from '../../src/auth/repositories/sessionsRepository.js';
 import {
@@ -239,7 +240,10 @@ export class FakeSessionsRepository extends SessionsRepository {
   readonly touches: { session: Session; now: Date; expiresAt: Date }[] = [];
   readonly revocations: { tokenHash: string; ip: string; now: Date }[] = [];
   active: ActiveSession | null = null;
+  lookupResult: SessionLookupResult | null = null;
   rejectSignInWithStaleCredentials = false;
+  failTouch = false;
+  revokeResultUserId: string | null = 'user-1';
 
   createForSignIn(record: SignInRecord): Promise<Session> {
     if (this.rejectSignInWithStaleCredentials) {
@@ -251,18 +255,32 @@ export class FakeSessionsRepository extends SessionsRepository {
     );
   }
 
+  lookupSession(_tokenHash: string, _now: Date): Promise<SessionLookupResult> {
+    if (this.lookupResult !== null) {
+      return Promise.resolve(this.lookupResult);
+    }
+    if (this.active !== null) {
+      return Promise.resolve({
+        status: 'active',
+        session: this.active.session,
+        user: this.active.user,
+      });
+    }
+    return Promise.resolve({ status: 'missing_or_expired' });
+  }
+
   findActive(): Promise<ActiveSession | null> {
     return Promise.resolve(this.active);
   }
 
-  touch(session: Session, now: Date, expiresAt: Date): Promise<void> {
+  touch(session: Session, now: Date, expiresAt: Date): Promise<boolean> {
     this.touches.push({ session, now, expiresAt });
-    return Promise.resolve();
+    return Promise.resolve(!this.failTouch);
   }
 
-  revoke(tokenHash: string, ip: string, now: Date): Promise<void> {
+  revoke(tokenHash: string, ip: string, now: Date): Promise<string | null> {
     this.revocations.push({ tokenHash, ip, now });
-    return Promise.resolve();
+    return Promise.resolve(this.revokeResultUserId);
   }
 }
 
@@ -291,8 +309,7 @@ export class FakeLockedUsersRepository extends LockedUsersRepository {
         Promise.resolve(
           this.users.some(
             (u) =>
-              u.id !== userId &&
-              u.email?.toLowerCase() === email.toLowerCase(),
+              u.id !== userId && u.email?.toLowerCase() === email.toLowerCase(),
           ),
         ),
       updateUser: (userId, changes) => {

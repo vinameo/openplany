@@ -5,7 +5,7 @@ import { useAuth } from "../useAuth";
 
 /** Gate for app routes: signed in with a full (not reset-only) session. */
 export function RequireAuth() {
-  const { state } = useAuth();
+  const { state, sessionEpoch } = useAuth();
 
   if (state.status === "loading") {
     return <AuthLayout title="OpenPlany" showCard={false} />;
@@ -16,5 +16,5 @@ export function RequireAuth() {
   if (state.session.requiresPasswordReset) {
     return <Navigate to={SET_PASSWORD_PATH} replace />;
   }
-  return <Outlet />;
+  return <Outlet key={sessionEpoch} />;
 }

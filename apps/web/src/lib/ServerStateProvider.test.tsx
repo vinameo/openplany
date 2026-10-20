@@ -10,14 +10,16 @@ import {
 import { makeSession } from "../test/authFixtures";
 import { ServerStateProvider } from "./ServerStateProvider";
 
-function authValue(state: AuthState): AuthContextValue {
+function authValue(state: AuthState, sessionEpoch = 0): AuthContextValue {
   return {
     state,
+    sessionEpoch,
     signIn: vi.fn(),
     signOut: vi.fn(),
     updateUser: vi.fn(),
     replaceSession: vi.fn(),
     expireSession: vi.fn(),
+    recheckSession: vi.fn().mockResolvedValue("kept"),
   };
 }
 
@@ -96,5 +98,29 @@ describe("ServerStateProvider", () => {
       </AuthContext>,
     );
     expect(screen.getByText("first user's data")).toBeInTheDocument();
+  });
+
+  it("resets cache when sessionEpoch changes for the same user", () => {
+    const session = makeSession();
+    const first = authValue({ status: "authenticated", session }, 0);
+    const { rerender } = render(
+      <AuthContext value={first}>
+        <ServerStateProvider>
+          <CachedValue />
+        </ServerStateProvider>
+      </AuthContext>,
+    );
+    act(() => screen.getByRole("button", { name: "store" }).click());
+    expect(screen.getByText("first user's data")).toBeInTheDocument();
+
+    const second = authValue({ status: "authenticated", session }, 1);
+    rerender(
+      <AuthContext value={second}>
+        <ServerStateProvider>
+          <CachedValue />
+        </ServerStateProvider>
+      </AuthContext>,
+    );
+    expect(screen.getByText("empty")).toBeInTheDocument();
   });
 });

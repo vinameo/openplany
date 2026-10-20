@@ -39,7 +39,7 @@ export function useChangeMyPasswordForm({
   focusCurrentPassword,
 }: UseChangeMyPasswordFormOptions): ChangeMyPasswordFormState {
   const { t } = useTranslation();
-  const { replaceSession, expireSession } = useAuth();
+  const { replaceSession, recheckSession } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -96,7 +96,9 @@ export function useChangeMyPasswordForm({
     form.values.newPassword !== "" ||
     form.values.confirmPassword !== "";
 
-  async function handleSubmit(event?: FormEvent<HTMLFormElement>): Promise<void> {
+  async function handleSubmit(
+    event?: FormEvent<HTMLFormElement>,
+  ): Promise<void> {
     event?.preventDefault();
     setSubmitError(null);
 
@@ -121,10 +123,15 @@ export function useChangeMyPasswordForm({
       setIsSubmitting(false);
       const resolution = resolveMyPasswordError(error, t);
       switch (resolution.kind) {
-        case "unauthenticated":
-          expireSession();
-          onUnauthenticated?.();
+        case "unauthenticated": {
+          const outcome = await recheckSession();
+          if (outcome === "kept") {
+            setSubmitError(t("profile:password.errors.failed"));
+          } else {
+            onUnauthenticated?.();
+          }
           return;
+        }
         case "fieldErrors": {
           if (resolution.fieldErrors.currentPassword) {
             form.setFieldError(
@@ -133,7 +140,10 @@ export function useChangeMyPasswordForm({
             );
           }
           if (resolution.fieldErrors.newPassword) {
-            form.setFieldError("newPassword", resolution.fieldErrors.newPassword);
+            form.setFieldError(
+              "newPassword",
+              resolution.fieldErrors.newPassword,
+            );
           }
           if (resolution.submitError) {
             setSubmitError(resolution.submitError);

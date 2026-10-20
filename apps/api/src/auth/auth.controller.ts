@@ -42,8 +42,10 @@ export class AuthController {
     const token = this.sessionCookie.read(request);
     const result =
       token === null ? null : await this.authService.getSession(token);
-    if (result === null) {
-      if (token !== null) this.sessionCookie.clear(response);
+    if (result === null || result.status !== 'active') {
+      if (token !== null && result?.status !== 'revoked') {
+        this.sessionCookie.clear(response);
+      }
       throw new ApiException(HttpStatus.UNAUTHORIZED, 'UNAUTHENTICATED', {
         key: 'errors:http.unauthenticated',
       });
@@ -63,6 +65,7 @@ export class AuthController {
     await this.authService.signOut(
       this.sessionCookie.read(request),
       clientIp(request),
+      request.requestId,
     );
     this.sessionCookie.clear(response);
   }

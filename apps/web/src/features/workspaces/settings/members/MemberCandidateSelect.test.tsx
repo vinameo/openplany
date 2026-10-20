@@ -22,11 +22,13 @@ function renderSelect(
         user: { ...baseSession.user, isInstanceAdmin },
       },
     },
+    sessionEpoch: 0,
     signIn: vi.fn(),
     signOut: vi.fn(),
     updateUser: vi.fn(),
     replaceSession: vi.fn(),
     expireSession: vi.fn(),
+    recheckSession: vi.fn().mockResolvedValue("kept"),
   };
 
   const queryClient = new QueryClient({
@@ -114,7 +116,9 @@ describe("MemberCandidateSelect", () => {
     });
 
     // Alice is selectable
-    const aliceOption = screen.getByRole("option", { name: /alice@example\.com/i });
+    const aliceOption = screen.getByRole("option", {
+      name: /alice@example\.com/i,
+    });
     expect(aliceOption).not.toHaveAttribute("data-combobox-disabled");
 
     await user.click(aliceOption);
@@ -168,7 +172,9 @@ describe("MemberCandidateSelect", () => {
       expect(screen.getByText("Already selected")).toBeInTheDocument();
     });
 
-    const aliceOption = screen.getByRole("option", { name: /alice@example\.com/i });
+    const aliceOption = screen.getByRole("option", {
+      name: /alice@example\.com/i,
+    });
     expect(aliceOption).toHaveAttribute("data-combobox-disabled", "true");
   });
 
@@ -234,7 +240,9 @@ describe("MemberCandidateSelect", () => {
       ).toBeInTheDocument();
     });
 
-    expect(screen.queryByRole("link", { name: "Create user" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Create user" }),
+    ).not.toBeInTheDocument();
   });
 
   it("WEB-35: pressing Enter when typing exact email selects the candidate", async () => {

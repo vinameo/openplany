@@ -37,15 +37,15 @@ export class SessionGuard implements CanActivate {
     const token = this.sessionCookie.read(request);
     const result =
       token === null ? null : await this.authService.getSession(token);
-    if (token === null || result === null) {
-      if (token !== null) this.sessionCookie.clear(response);
-      throw new ApiException(
-        HttpStatus.UNAUTHORIZED,
-        'UNAUTHENTICATED',
-        { key: 'errors:http.unauthenticated' },
-      );
+    if (result === null || result.status !== 'active') {
+      if (token !== null && result?.status !== 'revoked') {
+        this.sessionCookie.clear(response);
+      }
+      throw new ApiException(HttpStatus.UNAUTHORIZED, 'UNAUTHENTICATED', {
+        key: 'errors:http.unauthenticated',
+      });
     }
-    if (result.renewedMaxAgeMs !== null) {
+    if (token !== null && result.renewedMaxAgeMs !== null) {
       this.sessionCookie.set(response, token, result.renewedMaxAgeMs);
     }
 
@@ -55,11 +55,9 @@ export class SessionGuard implements CanActivate {
       [context.getHandler(), context.getClass()],
     );
     if (isResetOnly && allowsResetOnly !== true) {
-      throw new ApiException(
-        HttpStatus.FORBIDDEN,
-        'PASSWORD_RESET_REQUIRED',
-        { key: 'errors:passwordResetRequired' },
-      );
+      throw new ApiException(HttpStatus.FORBIDDEN, 'PASSWORD_RESET_REQUIRED', {
+        key: 'errors:passwordResetRequired',
+      });
     }
 
     request.auth = {

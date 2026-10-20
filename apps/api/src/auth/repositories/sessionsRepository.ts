@@ -61,9 +61,20 @@ export interface ActiveSession {
   user: User;
 }
 
+export type SessionLookupResult =
+  | { status: 'active'; session: Session; user: User }
+  | { status: 'revoked' }
+  | { status: 'missing_or_expired' };
+
 export abstract class SessionsRepository {
   /** Writes users, sessions and login_attempts in one transaction (database-spec 5.3). */
   abstract createForSignIn(record: SignInRecord): Promise<Session>;
+
+  /** Finds a session by tokenHash distinguishing active, revoked, or missing/expired (DB B4). */
+  abstract lookupSession(
+    tokenHash: string,
+    now: Date,
+  ): Promise<SessionLookupResult>;
 
   /** A session that is not revoked and not expired at `now`, with its user. */
   abstract findActive(
@@ -71,11 +82,19 @@ export abstract class SessionsRepository {
     now: Date,
   ): Promise<ActiveSession | null>;
 
-  /** Slides the session expiry and records users.last_active. */
-  abstract touch(session: Session, now: Date, expiresAt: Date): Promise<void>;
+  /** Slides the session expiry and records users.last_active. Returns true if updated, false if revoked. */
+  abstract touch(
+    session: Session,
+    now: Date,
+    expiresAt: Date,
+  ): Promise<boolean>;
 
-  /** Revokes the session and records the logout on its user (database-spec 5.5). */
-  abstract revoke(tokenHash: string, ip: string, now: Date): Promise<void>;
+  /** Revokes the session and records the logout on its user (database-spec 5.5). Returns the userId if revoked, or null. */
+  abstract revoke(
+    tokenHash: string,
+    ip: string,
+    now: Date,
+  ): Promise<string | null>;
 }
 
 @Injectable()
@@ -114,40 +133,63 @@ export class TypeOrmSessionsRepository extends SessionsRepository {
     });
   }
 
-  async findActive(
+  async lookupSession(
     tokenHash: string,
     now: Date,
-  ): Promise<ActiveSession | null> {
+  ): Promise<SessionLookupResult> {
     const session = await this.dataSource.getRepository(Session).findOne({
-      where: { tokenHash, revokedAt: IsNull() },
+      where: { tokenHash },
     });
-    if (session === null || session.expiresAt <= now) return null;
+    if (session === null) return { status: 'missing_or_expired' };
+    if (session.revokedAt !== null) return { status: 'revoked' };
+    if (session.expiresAt <= now) return { status: 'missing_or_expired' };
 
     const user = await this.dataSource
       .getRepository(User)
       .findOneBy({ id: session.userId });
-    return user === null ? null : { session, user };
+    if (user === null) return { status: 'missing_or_expired' };
+
+    return { status: 'active', session, user };
+  }
+
+  async findActive(
+    tokenHash: string,
+    now: Date,
+  ): Promise<ActiveSession | null> {
+    const lookup = await this.lookupSession(tokenHash, now);
+    return lookup.status === 'active'
+      ? { session: lookup.session, user: lookup.user }
+      : null;
   }
 
   // Lock order everywhere: users row first, then its sessions (as
   // createForSignIn and the admin password change do), so no two
   // transactions wait on each other in a cycle (40P01).
 
-  async touch(session: Session, now: Date, expiresAt: Date): Promise<void> {
-    await this.dataSource.transaction(async (manager) => {
+  async touch(session: Session, now: Date, expiresAt: Date): Promise<boolean> {
+    return this.dataSource.transaction(async (manager) => {
       // Throttled like the session itself: one users write per 5 minutes at most.
       await manager.update(User, session.userId, { lastActive: now });
-      await manager.update(Session, session.id, { lastUsedAt: now, expiresAt });
+      const result = await manager.update(
+        Session,
+        { id: session.id, revokedAt: IsNull() },
+        { lastUsedAt: now, expiresAt },
+      );
+      return (result.affected ?? 0) > 0;
     });
   }
 
-  async revoke(tokenHash: string, ip: string, now: Date): Promise<void> {
-    await this.dataSource.transaction(async (manager) => {
+  async revoke(
+    tokenHash: string,
+    ip: string,
+    now: Date,
+  ): Promise<string | null> {
+    return this.dataSource.transaction(async (manager) => {
       // Unlocked read: only to learn the user; the writes below lock in order.
       const session = await manager.findOne(Session, {
         where: { tokenHash, revokedAt: IsNull() },
       });
-      if (session === null) return;
+      if (session === null) return null;
       await manager.update(User, session.userId, {
         lastLogoutTime: now,
         lastLogoutIp: ip,
@@ -157,6 +199,7 @@ export class TypeOrmSessionsRepository extends SessionsRepository {
         { id: session.id, revokedAt: IsNull() },
         { revokedAt: now },
       );
+      return session.userId;
     });
   }
 }
