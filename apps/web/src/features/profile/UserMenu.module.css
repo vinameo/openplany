@@ -12,6 +12,10 @@
   background: var(--mantine-color-default-hover);
 }
 
+.avatar {
+  flex-shrink: 0;
+}
+
 .name {
   max-width: 160px;
   overflow: hidden;

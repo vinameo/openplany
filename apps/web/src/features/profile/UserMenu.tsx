@@ -72,7 +72,7 @@ export function UserMenu({ user }: UserMenuProps) {
               alt=""
               radius="xl"
               size="sm"
-              style={{ flexShrink: 0 }}
+              className={classes.avatar}
             >
               {name.charAt(0).toUpperCase()}
             </Avatar>

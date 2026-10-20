@@ -1,6 +1,6 @@
 import type { FormEvent, ReactNode, RefObject } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, PasswordInput, Stack } from "@mantine/core";
+import { Alert, PasswordInput, Stack, VisuallyHidden } from "@mantine/core";
 import { NewPasswordFields } from "../../passwords/NewPasswordFields";
 import type { ChangeMyPasswordFormState } from "./useChangeMyPasswordForm";
 
@@ -26,26 +26,18 @@ export function ChangeMyPasswordForm({
       onSubmit={(e: FormEvent<HTMLFormElement>) => void handleSubmit(e)}
       noValidate
     >
-      {/* Hidden username input for password manager integration */}
-      <input
-        type="text"
-        name="username"
-        autoComplete="username"
-        value={email}
-        readOnly
-        tabIndex={-1}
-        aria-hidden="true"
-        style={{
-          position: "absolute",
-          width: 1,
-          height: 1,
-          padding: 0,
-          margin: -1,
-          overflow: "hidden",
-          clip: "rect(0, 0, 0, 0)",
-          border: 0,
-        }}
-      />
+      {/* Tells password managers which account the new password belongs to. */}
+      <VisuallyHidden>
+        <input
+          type="text"
+          name="username"
+          autoComplete="username"
+          value={email}
+          readOnly
+          tabIndex={-1}
+          aria-hidden="true"
+        />
+      </VisuallyHidden>
       <Stack gap="md">
         <PasswordInput
           ref={currentPasswordInputRef}

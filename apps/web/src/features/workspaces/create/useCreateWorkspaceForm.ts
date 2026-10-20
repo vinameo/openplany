@@ -22,7 +22,7 @@ import {
   type CreateWorkspaceRequest,
   type OrganizationSize,
 } from "@repo/contracts";
-import { ApiRequestError } from "../../../lib/apiClient";
+import { ApiRequestError, retryAfterMinutes } from "../../../lib/apiClient";
 import { useAuth } from "../../auth/useAuth";
 import { workspaceApi } from "../api/workspaceApi";
 import { useWorkspaces } from "../useWorkspaces";
@@ -170,12 +170,10 @@ export function useCreateWorkspaceForm() {
         }
 
         if (error.status === 429) {
-          const minutes = Math.max(
-            1,
-            Math.ceil((error.retryAfterSeconds ?? 60) / 60),
-          );
           setGeneralError(
-            t("workspace:create.errors.rateLimited", { count: minutes }),
+            t("workspace:create.errors.rateLimited", {
+              count: retryAfterMinutes(error.retryAfterSeconds),
+            }),
           );
           return;
         }
