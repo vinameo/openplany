@@ -7,11 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { randomBytes } from 'node:crypto';
 import { ApiException } from '../common/apiException.js';
-import {
-  generateSessionToken,
-  hashEmail,
-  hashSessionToken,
-} from './authTokens.js';
+import { hashEmail, hashSessionToken } from './authTokens.js';
 import { Clock } from './clock.js';
 import {
   type AuthSessionResponse,
@@ -28,6 +24,11 @@ import {
   StaleCredentialsError,
 } from './repositories/sessionsRepository.js';
 import { UsersRepository } from './repositories/usersRepository.js';
+import {
+  DAY_MS,
+  MAX_USER_AGENT_LENGTH,
+  SessionIssuer,
+} from './sessionIssuer.js';
 
 export interface RequestContext {
   requestId: string;
@@ -50,10 +51,7 @@ export interface SessionResult {
   renewedMaxAgeMs: number | null;
 }
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-const RESET_ONLY_SESSION_MS = 15 * 60 * 1000;
 const SESSION_TOUCH_INTERVAL_MS = 5 * 60 * 1000;
-export const MAX_USER_AGENT_LENGTH = 512;
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -71,6 +69,7 @@ export class AuthService implements OnModuleInit {
     private readonly hasher: PasswordHasher,
     private readonly rateLimiter: LoginRateLimiter,
     private readonly clock: Clock,
+    private readonly sessionIssuer: SessionIssuer,
     config: ConfigService,
   ) {
     this.hmacSecret = config.getOrThrow<string>('AUTH_HMAC_SECRET');
@@ -155,9 +154,13 @@ export class AuthService implements OnModuleInit {
       ? await this.hasher.hash(dto.password)
       : null;
     const now = this.clock.now();
-    const maxAgeMs = resetOnly ? RESET_ONLY_SESSION_MS : this.sessionTtlMs;
-    const expiresAt = new Date(now.getTime() + maxAgeMs);
-    const token = generateSessionToken();
+    const issued = this.sessionIssuer.issue({
+      userId: user.id,
+      now,
+      resetOnly,
+      ip: context.ip,
+      userAgent: context.userAgent,
+    });
     const reason: LoginReason | null = resetOnly ? 'reset_required' : null;
 
     try {
@@ -168,11 +171,7 @@ export class AuthService implements OnModuleInit {
         ip: context.ip,
         userAgent,
         rehashedPassword,
-        session: {
-          tokenHash: hashSessionToken(token),
-          expiresAt,
-          isResetOnly: resetOnly,
-        },
+        session: issued.record,
         attempt: {
           id: limit.attemptId,
           outcome: { userId: user.id, result: 'success', reason },
@@ -192,9 +191,9 @@ export class AuthService implements OnModuleInit {
 
     return {
       body: toAuthSessionResponse(user, resetOnly),
-      token,
-      expiresAt,
-      maxAgeMs,
+      token: issued.token,
+      expiresAt: issued.record.expiresAt,
+      maxAgeMs: issued.maxAgeMs,
     };
   }
 

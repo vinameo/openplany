@@ -124,4 +124,42 @@ describe('InMemorySlidingWindowLimiter', () => {
     expect(blocked.allowed).toBe(false);
     expect(blocked.retryAfterSeconds).toBe(40);
   });
+
+  describe('release', () => {
+    it('removes matching hit and restores quota', () => {
+      const limiter = new InMemorySlidingWindowLimiter({
+        limit: 2,
+        windowMs: 60_000,
+      });
+      const t0 = new Date('2026-10-08T12:00:00.000Z');
+      const t1 = new Date(t0.getTime() + 10_000);
+
+      expect(limiter.hit('user-1', t0).allowed).toBe(true);
+      expect(limiter.hit('user-1', t1).allowed).toBe(true);
+      expect(limiter.peek('user-1', new Date(t0.getTime() + 20_000)).allowed).toBe(false);
+
+      // Release t1
+      limiter.release('user-1', t1);
+      expect(limiter.peek('user-1', new Date(t0.getTime() + 20_000)).allowed).toBe(true);
+      expect(limiter.hit('user-1', new Date(t0.getTime() + 20_000)).allowed).toBe(true);
+      expect(limiter.peek('user-1', new Date(t0.getTime() + 25_000)).allowed).toBe(false);
+    });
+
+    it('does nothing if timestamp or key does not match', () => {
+      const limiter = new InMemorySlidingWindowLimiter({
+        limit: 1,
+        windowMs: 60_000,
+      });
+      const t0 = new Date('2026-10-08T12:00:00.000Z');
+
+      expect(limiter.hit('user-1', t0).allowed).toBe(true);
+      // Non-existent key
+      limiter.release('user-2', t0);
+      expect(limiter.peek('user-1', t0).allowed).toBe(false);
+
+      // Non-existent timestamp
+      limiter.release('user-1', new Date(t0.getTime() + 5_000));
+      expect(limiter.peek('user-1', t0).allowed).toBe(false);
+    });
+  });
 });

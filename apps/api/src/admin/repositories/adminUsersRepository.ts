@@ -1,25 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
 import {
   Brackets,
-  DataSource,
-  type EntityManager,
   type FindOptionsWhere,
-  In,
   IsNull,
-  Not,
   type Repository,
 } from 'typeorm';
-import { Session } from '../../auth/entities/session.entity.js';
 import { User } from '../../auth/entities/user.entity.js';
 import { isUniqueViolation } from '../../common/databaseErrors.js';
 import {
   containsIgnoringCaseAndAccentsSql,
-  equalsLowercase,
 } from '../../database/findOperators.js';
 import { matchesWhere } from '../../database/matchesWhere.js';
 import { addOrderByEmptyAndNullLast } from '../../database/sortHelpers.js';
-import { runTransactionWithRetry } from '../../database/transactionRetry.js';
 
 import {
   ADMIN_USERS_PAGE_SIZE,
@@ -51,8 +44,7 @@ export const isListedUser = (user: User): boolean =>
 export const isActiveInstanceAdmin = (user: User): boolean =>
   matchesWhere(user, ACTIVE_INSTANCE_ADMIN);
 
-/** Attempts for one locked write before a 40P01/40001 reaches the client. */
-const MAX_LOCKED_WRITE_ATTEMPTS = 3;
+
 
 export interface NewUser {
   email: string;
@@ -70,39 +62,18 @@ export interface CreatedUserRow {
   createdAt: Date;
 }
 
-export class EmailAlreadyExistsError extends Error {
-  constructor() {
-    super('users_email_lower_key violated');
-    this.name = 'EmailAlreadyExistsError';
-  }
-}
+import {
+  EmailAlreadyExistsError,
+  type LockedUserWrites,
+  LockedUsersRepository,
+  type UserChanges,
+} from '../../auth/repositories/lockedUsers.js';
 
-/** Columns an admin write may set on a user row. */
-export type UserChanges = Partial<
-  Pick<
-    User,
-    | 'firstName'
-    | 'lastName'
-    | 'displayName'
-    | 'email'
-    | 'isEmailVerified'
-    | 'password'
-    | 'isPasswordAutoset'
-    | 'isPasswordExpired'
-    | 'isPasswordResetRequired'
-    | 'updatedAt'
-  >
->;
-
-/** Writes allowed while `withLockedActorAndTarget` holds both rows. */
-export interface LockedUserWrites {
-  /** Another user (listed or not: bots and masked users hold emails too) has this email, compared lower-case. */
-  emailTakenByOther(email: string, userId: string): Promise<boolean>;
-  /** Writes `changes`; throws EmailAlreadyExistsError on users_email_lower_key. */
-  updateUser(userId: string, changes: UserChanges): Promise<void>;
-  /** Revokes every live session of the user; returns how many. */
-  revokeAllSessions(userId: string, at: Date): Promise<number>;
-}
+export {
+  EmailAlreadyExistsError,
+  type LockedUserWrites,
+  type UserChanges,
+};
 
 export interface LockedActorAndTarget {
   /** The rows locked FOR UPDATE, or null when absent. Actor = target → the same row. */
@@ -134,45 +105,13 @@ export abstract class AdminUsersRepository {
   ): Promise<T>;
 }
 
-class TypeOrmLockedUserWrites implements LockedUserWrites {
-  constructor(private readonly manager: EntityManager) {}
-
-  async emailTakenByOther(email: string, userId: string): Promise<boolean> {
-    return this.manager.exists(User, {
-      where: { email: equalsLowercase(email.toLowerCase()), id: Not(userId) },
-    });
-  }
-
-  async updateUser(userId: string, changes: UserChanges): Promise<void> {
-    try {
-      await this.manager.update(User, { id: userId }, changes);
-    } catch (error) {
-      if (isUniqueViolation(error, 'users_email_lower_key')) {
-        throw new EmailAlreadyExistsError();
-      }
-      throw error;
-    }
-  }
-
-  async revokeAllSessions(userId: string, at: Date): Promise<number> {
-    // The users row is already locked: same order as sign-in, touch and
-    // logout (users → sessions), so this cannot deadlock with them.
-    const result = await this.manager.update(
-      Session,
-      { userId, revokedAt: IsNull() },
-      { revokedAt: at },
-    );
-    return result.affected ?? 0;
-  }
-}
-
 @Injectable()
 export class TypeOrmAdminUsersRepository extends AdminUsersRepository {
   private readonly logger = new Logger(TypeOrmAdminUsersRepository.name);
 
   constructor(
     @InjectRepository(User) private readonly users: Repository<User>,
-    @InjectDataSource() private readonly dataSource: DataSource,
+    private readonly lockedUsers: LockedUsersRepository,
   ) {
     super();
   }
@@ -186,28 +125,19 @@ export class TypeOrmAdminUsersRepository extends AdminUsersRepository {
     targetId: string,
     work: (locked: LockedActorAndTarget) => Promise<T>,
   ): Promise<T> {
-    return runTransactionWithRetry(
-      this.dataSource,
-      async (manager) => {
-        // Not filtered by LISTED_USER: the caller decides on the locked rows.
-        const rows = await manager.find(User, {
-          where: { id: In([actorId, targetId]) },
-          order: { id: 'ASC' },
-          lock: { mode: 'pessimistic_write' },
-        });
+    return this.lockedUsers.withLockedUsers(
+      [actorId, targetId],
+      async ({ rows, writes }) => {
         return work({
-          actor: rows.find((row) => row.id === actorId) ?? null,
-          target: rows.find((row) => row.id === targetId) ?? null,
-          writes: new TypeOrmLockedUserWrites(manager),
+          actor: rows.get(actorId) ?? null,
+          target: rows.get(targetId) ?? null,
+          writes,
         });
       },
-      {
-        maxAttempts: MAX_LOCKED_WRITE_ATTEMPTS,
-        onRetry: (attempt) => {
-          this.logger.warn(
-            `admin.users.lock.retry actorId=${actorId} userId=${targetId} attempt=${attempt}`,
-          );
-        },
+      (attempt) => {
+        this.logger.warn(
+          `admin.users.lock.retry actorId=${actorId} userId=${targetId} attempt=${attempt}`,
+        );
       },
     );
   }

@@ -17,6 +17,7 @@ import {
 import { AuthService } from '../auth.service.js';
 import { AllowResetOnlySession } from '../currentUser.decorator.js';
 import { SessionCookie } from '../sessionCookie.js';
+import { SessionIssuer } from '../sessionIssuer.js';
 import { SessionGuard } from './sessionGuard.js';
 
 const COOKIE = 'op_session';
@@ -46,6 +47,7 @@ function setup() {
     new FakePasswordHasher(),
     new FakeRateLimiter(),
     new FakeClock(),
+    new SessionIssuer(config),
     config,
   );
   const guard = new SessionGuard(

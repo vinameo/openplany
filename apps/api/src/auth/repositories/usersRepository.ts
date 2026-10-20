@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, type FindOptionsWhere, type Repository } from 'typeorm';
 import { equalsLowercase } from '../../database/findOperators.js';
+import { matchesWhere } from '../../database/matchesWhere.js';
 import { User } from '../entities/user.entity.js';
 
 /** Columns a user may change on their own profile (profile database-spec 3.3). */
@@ -12,7 +13,9 @@ export interface ProfileChanges {
 }
 
 /** Who counts as a usable account: not deactivated, not masked. */
-const ACTIVE_USER: FindOptionsWhere<User> = { isActive: true, maskedAt: IsNull() };
+export const ACTIVE_USER: FindOptionsWhere<User> = { isActive: true, maskedAt: IsNull() };
+
+export const isUsableUser = (user: User): boolean => matchesWhere(user, ACTIVE_USER);
 
 export abstract class UsersRepository {
   /** `email` must already be trimmed and lower-cased. */

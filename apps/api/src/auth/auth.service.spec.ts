@@ -16,6 +16,7 @@ import {
 import { AuthService, type RequestContext } from './auth.service.js';
 import { hashEmail, hashSessionToken } from './authTokens.js';
 import type { User } from './entities/user.entity.js';
+import { SessionIssuer } from './sessionIssuer.js';
 
 const SECRET = 'test-secret-that-is-at-least-32-characters';
 const MINUTE = 60 * 1000;
@@ -41,6 +42,7 @@ async function setup(users: User[] = [makeUser()]) {
     SESSION_TTL_DAYS: 7,
     SESSION_ABSOLUTE_TTL_DAYS: 30,
   });
+  const sessionIssuer = new SessionIssuer(config);
   const service = new AuthService(
     deps.users,
     deps.sessions,
@@ -48,6 +50,7 @@ async function setup(users: User[] = [makeUser()]) {
     deps.hasher,
     deps.rateLimiter,
     deps.clock,
+    sessionIssuer,
     config,
   );
   await service.onModuleInit();
@@ -94,7 +97,7 @@ describe('AuthService', () => {
       expect(result.expiresAt).toEqual(new Date(NOW.getTime() + 7 * DAY));
       expect(sessions.signIns).toHaveLength(1);
       const [record] = sessions.signIns;
-      expect(record.session).toEqual({
+      expect(record.session).toMatchObject({
         tokenHash: hashSessionToken(result.token),
         expiresAt: result.expiresAt,
         isResetOnly: false,

@@ -1,8 +1,8 @@
-import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { Clock } from '../auth/clock.js';
+import { PasswordConfirmation } from '../auth/passwordConfirmation.js';
 import { PasswordHasher } from '../auth/passwordHasher.js';
 import { UsersRepository } from '../auth/repositories/usersRepository.js';
-import { retryAfterMinutes } from '../common/actorRateLimitGuard.js';
 import { ApiException } from '../common/apiException.js';
 import { SlidingWindowLimiter } from '../common/slidingWindowLimiter.js';
 import { ADMIN_REAUTH_FAILURE_LIMITER } from './tokens.js';
@@ -11,7 +11,7 @@ import { ADMIN_REAUTH_FAILURE_LIMITER } from './tokens.js';
 export const REAUTH_FAILURE_LIMIT = 5;
 export const REAUTH_FAILURE_WINDOW_MS = 15 * 60 * 1000;
 
-const REAUTHENTICATION_FAILED_REF = {
+export const REAUTHENTICATION_FAILED_REF = {
   key: 'admin:users.errors.reauthenticationFailed',
 } as const;
 
@@ -23,15 +23,40 @@ const REAUTHENTICATION_FAILED_REF = {
  */
 @Injectable()
 export class ActorReauthentication {
-  private readonly logger = new Logger(ActorReauthentication.name);
+  private readonly confirmation: PasswordConfirmation;
 
   constructor(
-    private readonly users: UsersRepository,
-    private readonly hasher: PasswordHasher,
+    users: UsersRepository,
+    hasher: PasswordHasher,
     @Inject(ADMIN_REAUTH_FAILURE_LIMITER)
-    private readonly failures: SlidingWindowLimiter,
-    private readonly clock: Clock,
-  ) {}
+    failures: SlidingWindowLimiter,
+    clock: Clock,
+  ) {
+    this.confirmation = new PasswordConfirmation(
+      {
+        limiter: failures,
+        incorrect: {
+          status: HttpStatus.FORBIDDEN,
+          code: 'REAUTHENTICATION_FAILED',
+          message: REAUTHENTICATION_FAILED_REF,
+          field: 'actorPassword',
+        },
+        blocked: {
+          code: 'TOO_MANY_REAUTH_ATTEMPTS',
+          messageKey: 'admin:users.errors.tooManyReauthAttempts',
+        },
+        log: {
+          incorrect: ({ userId, requestId }) =>
+            `admin.users.reauth_failed userId=${userId} requestId=${requestId}`,
+          blocked: ({ userId, requestId }) =>
+            `admin.users.rate_limited limiter=reauth userId=${userId} requestId=${requestId}`,
+        },
+      },
+      users,
+      hasher,
+      clock,
+    );
+  }
 
   /**
    * Checks `password` against the actor's stored hash and returns that hash.
@@ -44,38 +69,11 @@ export class ActorReauthentication {
     password: string,
     requestId: string,
   ): Promise<string | null> {
-    const now = this.clock.now();
-    const limit = this.failures.peek(actorId, now);
-    if (!limit.allowed) {
-      if (limit.firstBlockInWindow) {
-        this.logger.warn(
-          `admin.users.rate_limited limiter=reauth userId=${actorId} requestId=${requestId}`,
-        );
-      }
-      const retryAfterSeconds = limit.retryAfterSeconds ?? 60;
-      throw new ApiException(
-        HttpStatus.TOO_MANY_REQUESTS,
-        'TOO_MANY_REAUTH_ATTEMPTS',
-        {
-          key: 'admin:users.errors.tooManyReauthAttempts',
-          params: { count: retryAfterMinutes(retryAfterSeconds) },
-        },
-        { retryAfterSeconds },
-      );
+    const result = await this.confirmation.confirm(actorId, password, requestId);
+    if (result.status === 'ok') {
+      return result.verifiedHash;
     }
-
-    const actor = await this.users.findActiveById(actorId);
-    if (actor === null) return null;
-
-    const verification = await this.hasher.verify(actor.password, password);
-    if (!verification.ok) {
-      this.failures.hit(actorId, now);
-      this.logger.warn(
-        `admin.users.reauth_failed userId=${actorId} requestId=${requestId}`,
-      );
-      throw reauthenticationFailed();
-    }
-    return actor.password;
+    return null;
   }
 }
 

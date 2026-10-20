@@ -12,6 +12,11 @@ export abstract class SlidingWindowLimiter {
    * count only failures (check first, `hit` when the attempt fails).
    */
   abstract peek(key: string, now: Date): SlidingWindowDecision;
+  /**
+   * Un-records the hit recorded for `key` at `at`.
+   * Does nothing if no matching hit is found.
+   */
+  abstract release(key: string, at: Date): void;
 }
 
 export interface InMemorySlidingWindowLimiterOptions {
@@ -34,6 +39,21 @@ export class InMemorySlidingWindowLimiter extends SlidingWindowLimiter {
 
   peek(key: string, now: Date): SlidingWindowDecision {
     return this.decide(key, now, false);
+  }
+
+  release(key: string, at: Date): void {
+    const existing = this.hits.get(key);
+    if (!existing) return;
+    const atMs = at.getTime();
+    const index = existing.indexOf(atMs);
+    if (index === -1) return;
+    existing.splice(index, 1);
+    if (existing.length === 0) {
+      this.hits.delete(key);
+      this.blockedKeys.delete(key);
+    } else if (existing.length < this.options.limit) {
+      this.blockedKeys.delete(key);
+    }
   }
 
   private decide(

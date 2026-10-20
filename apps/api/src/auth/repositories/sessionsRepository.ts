@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { IsNull, type DataSource } from 'typeorm';
+import { type DataSource, type EntityManager, IsNull } from 'typeorm';
 import { LoginAttempt } from '../entities/loginAttempt.entity.js';
 import { Session } from '../entities/session.entity.js';
 import { User } from '../entities/user.entity.js';
@@ -12,6 +12,37 @@ export class StaleCredentialsError extends Error {
   }
 }
 
+export interface NewSession {
+  userId: string;
+  tokenHash: string;
+  loginMedium: string;
+  ip: string;
+  userAgent: string | null;
+  createdAt: Date;
+  lastUsedAt: Date;
+  expiresAt: Date;
+  isResetOnly: boolean;
+}
+
+export async function insertSessionRow(
+  manager: EntityManager,
+  record: NewSession,
+): Promise<Session> {
+  const session = manager.create(Session, {
+    userId: record.userId,
+    tokenHash: record.tokenHash,
+    loginMedium: record.loginMedium,
+    ip: record.ip,
+    userAgent: record.userAgent,
+    createdAt: record.createdAt,
+    lastUsedAt: record.lastUsedAt,
+    expiresAt: record.expiresAt,
+    isResetOnly: record.isResetOnly,
+  });
+  await manager.insert(Session, session);
+  return session;
+}
+
 export interface SignInRecord {
   userId: string;
   verifiedHash: string;
@@ -20,11 +51,7 @@ export interface SignInRecord {
   userAgent: string | null;
   /** Replaces the stored hash when it used an outdated algorithm (R1). */
   rehashedPassword: string | null;
-  session: {
-    tokenHash: string;
-    expiresAt: Date;
-    isResetOnly: boolean;
-  };
+  session: NewSession;
   /** The attempt the rate limiter reserved; marked successful in the same transaction. */
   attempt: { id: string; outcome: LoginAttemptOutcome };
 }
@@ -77,18 +104,7 @@ export class TypeOrmSessionsRepository extends SessionsRepository {
       if (result.affected === 0) {
         throw new StaleCredentialsError();
       }
-      const session = manager.create(Session, {
-        userId: record.userId,
-        tokenHash: record.session.tokenHash,
-        loginMedium: 'email',
-        ip: record.ip,
-        userAgent: record.userAgent,
-        createdAt: record.at,
-        lastUsedAt: record.at,
-        expiresAt: record.session.expiresAt,
-        isResetOnly: record.session.isResetOnly,
-      });
-      await manager.insert(Session, session);
+      const session = await insertSessionRow(manager, record.session);
       await manager.update(
         LoginAttempt,
         { id: record.attempt.id },

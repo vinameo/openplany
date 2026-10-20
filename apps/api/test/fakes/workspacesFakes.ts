@@ -170,6 +170,8 @@ export class FakeSlugCheckRateLimiter extends SlidingWindowLimiter {
   peek(_key: string, _now: Date): SlidingWindowDecision {
     return this.decision;
   }
+
+  release(_key: string, _at: Date): void {}
 }
 
 export class FakeWorkspaceEvents extends WorkspaceEvents {
