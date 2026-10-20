@@ -78,8 +78,10 @@ export const vi: TranslatedCatalog = {
     "forgotPassword.documentTitle": "Quên mật khẩu · OpenPlany",
     "setPassword.title": "Đặt mật khẩu mới",
     "setPassword.subtitle": "Bạn cần đổi mật khẩu trước khi tiếp tục.",
-    "setPassword.body":
-      "Tính năng đổi mật khẩu tại đây chưa khả dụng. Hãy yêu cầu quản trị viên đặt lại mật khẩu cho bạn.",
+    "setPassword.body": "Nhập mật khẩu hiện tại, rồi chọn mật khẩu mới.",
+    "setPassword.submit": "Lưu mật khẩu mới",
+    "setPassword.expired":
+      "Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại để đặt mật khẩu mới.",
     "setPassword.backToSignIn": "Quay lại đăng nhập",
     "setPassword.documentTitle": "Đặt mật khẩu mới · OpenPlany",
     "errors.signInFailed": "Không thể đăng nhập. Vui lòng thử lại.",
@@ -660,15 +662,15 @@ export const vi: TranslatedCatalog = {
     "users.table.clearAll": "Xoá tìm kiếm và bộ lọc",
     "users.table.showing": "Đang hiện {{from}}–{{to}} trên {{total}}",
     "users.menu.edit": "Sửa người dùng",
-    "users.menu.changePassword": "Đổi mật khẩu",
+    "users.menu.changePassword": "Đặt mật khẩu mới",
     "users.edit.title": "Sửa người dùng",
     "users.edit.saved": "Đã lưu thay đổi của {{name}}.",
     "users.edit.reload": "Tải lại",
-    "users.password.title": "Đổi mật khẩu",
+    "users.password.title": "Đặt mật khẩu mới",
     "users.password.for": "Cho {{name}} ({{email}})",
     "users.password.lockoutNote":
       "Nếu {{name}} đang bị tạm khoá do đăng nhập sai nhiều lần, họ vẫn cần chờ hết thời gian khoá.",
-    "users.password.submit": "Đổi mật khẩu",
+    "users.password.submit": "Đặt mật khẩu mới",
     "users.password.changed":
       "Đã đổi mật khẩu. {{name}} đã bị đăng xuất khỏi mọi nơi.",
     "users.password.actorPassword": "Mật khẩu của bạn",
@@ -736,8 +738,7 @@ export const vi: TranslatedCatalog = {
     "password.close": "Đóng đổi mật khẩu",
     "password.changed":
       "Đã đổi mật khẩu. Bạn đã bị đăng xuất khỏi các thiết bị khác.",
-    "password.errors.failed":
-      "Không thể đổi mật khẩu. Vui lòng thử lại.",
+    "password.errors.failed": "Không thể đổi mật khẩu. Vui lòng thử lại.",
     "notifications.updated": "Đã cập nhật hồ sơ",
     "errors.saveFailed": "Không thể lưu hồ sơ của bạn. Vui lòng thử lại.",
     "validation.enterFirstName": "Nhập tên của bạn",

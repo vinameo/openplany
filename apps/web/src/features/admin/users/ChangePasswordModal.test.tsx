@@ -103,7 +103,7 @@ describe("ChangePasswordModal", () => {
     renderChangePasswordModal({ opened: true });
 
     expect(
-      await screen.findByRole("dialog", { name: "Change password" }),
+      await screen.findByRole("dialog", { name: "Set new password" }),
     ).toBeInTheDocument();
 
     expect(
@@ -187,7 +187,7 @@ describe("ChangePasswordModal", () => {
     await user.type(passwordInput, "BrandNewSecret123!");
     await user.type(confirmInput, "BrandNewSecret123!");
 
-    const submitBtn = screen.getByRole("button", { name: "Change password" });
+    const submitBtn = screen.getByRole("button", { name: "Set new password" });
     expect(submitBtn).toBeEnabled();
     await user.click(submitBtn);
 
@@ -224,8 +224,14 @@ describe("ChangePasswordModal", () => {
       },
     });
 
-    await user.type(await screen.findByLabelText(/^Password/i), "BrandNewSecret123!");
-    await user.type(screen.getByLabelText(/^Confirm password/i), "BrandNewSecret123!");
+    await user.type(
+      await screen.findByLabelText(/^Password/i),
+      "BrandNewSecret123!",
+    );
+    await user.type(
+      screen.getByLabelText(/^Confirm password/i),
+      "BrandNewSecret123!",
+    );
     const actorInput = screen.getByLabelText(/^Your password/i);
     expect(actorInput).toHaveAttribute("autocomplete", "current-password");
     expect(
@@ -235,13 +241,15 @@ describe("ChangePasswordModal", () => {
     ).toBeInTheDocument();
 
     // Required while shown: Save stays off, blur explains why.
-    expect(screen.getByRole("button", { name: "Change password" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Set new password" }),
+    ).toBeDisabled();
     await user.click(actorInput);
     await user.tab();
     expect(await screen.findByText("Enter your password")).toBeInTheDocument();
 
     await user.type(actorInput, "KaiOwnSecret1!");
-    await user.click(screen.getByRole("button", { name: "Change password" }));
+    await user.click(screen.getByRole("button", { name: "Set new password" }));
     await waitFor(() => {
       expect(putBody).toEqual({
         password: "BrandNewSecret123!",
@@ -262,15 +270,23 @@ describe("ChangePasswordModal", () => {
       },
     });
 
-    await user.type(await screen.findByLabelText(/^Password/i), "BrandNewSecret123!");
-    await user.type(screen.getByLabelText(/^Confirm password/i), "BrandNewSecret123!");
+    await user.type(
+      await screen.findByLabelText(/^Password/i),
+      "BrandNewSecret123!",
+    );
+    await user.type(
+      screen.getByLabelText(/^Confirm password/i),
+      "BrandNewSecret123!",
+    );
     expect(screen.queryByLabelText(/^Your password/i)).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Change password" }));
+    await user.click(screen.getByRole("button", { name: "Set new password" }));
 
     expect(await screen.findByLabelText(/^Your password/i)).toBeInTheDocument();
     expect(
-      screen.getByText("Enter your password to change another instance admin's password."),
+      screen.getByText(
+        "Enter your password to change another instance admin's password.",
+      ),
     ).toBeInTheDocument();
   });
 
@@ -285,12 +301,20 @@ describe("ChangePasswordModal", () => {
       },
     });
 
-    await user.type(await screen.findByLabelText(/^Password/i), "BrandNewSecret123!");
-    await user.type(screen.getByLabelText(/^Confirm password/i), "BrandNewSecret123!");
+    await user.type(
+      await screen.findByLabelText(/^Password/i),
+      "BrandNewSecret123!",
+    );
+    await user.type(
+      screen.getByLabelText(/^Confirm password/i),
+      "BrandNewSecret123!",
+    );
     await user.type(screen.getByLabelText(/^Your password/i), "wrong-guess");
-    await user.click(screen.getByRole("button", { name: "Change password" }));
+    await user.click(screen.getByRole("button", { name: "Set new password" }));
 
-    expect(await screen.findByText("Your password is incorrect.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Your password is incorrect."),
+    ).toBeInTheDocument();
   });
 
   it("AC-18: renders alert if server returns CANNOT_CHANGE_OWN_PASSWORD", async () => {
@@ -299,7 +323,11 @@ describe("ChangePasswordModal", () => {
       opened: true,
       extraMocks: {
         "PUT /api/admin/users/user-nam-1/password": () =>
-          apiError(403, "CANNOT_CHANGE_OWN_PASSWORD", "Cannot change own password"),
+          apiError(
+            403,
+            "CANNOT_CHANGE_OWN_PASSWORD",
+            "Cannot change own password",
+          ),
       },
     });
 
@@ -309,7 +337,7 @@ describe("ChangePasswordModal", () => {
     await user.type(passwordInput, "ValidPassword123!");
     await user.type(confirmInput, "ValidPassword123!");
 
-    await user.click(screen.getByRole("button", { name: "Change password" }));
+    await user.click(screen.getByRole("button", { name: "Set new password" }));
 
     expect(
       await screen.findByText("You can't change your own password here."),
@@ -327,9 +355,7 @@ describe("ChangePasswordModal", () => {
     await user.click(screen.getByRole("button", { name: "Cancel" }));
 
     // Discard guard prompt appears
-    expect(
-      await screen.findByText(/discard changes\?/i),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/discard changes\?/i)).toBeInTheDocument();
 
     // Click Keep editing -> prompt dismisses, modal stays
     await user.click(screen.getByRole("button", { name: "Keep editing" }));
@@ -346,10 +372,12 @@ describe("ChangePasswordModal", () => {
     const user = userEvent.setup();
     const { onClose } = renderChangePasswordModal({ opened: true });
 
-    await screen.findByRole("dialog", { name: "Change password" });
+    await screen.findByRole("dialog", { name: "Set new password" });
     await user.click(screen.getByRole("button", { name: "Cancel" }));
 
-    expect(screen.queryByText("Discard unsaved changes?")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Discard unsaved changes?"),
+    ).not.toBeInTheDocument();
     expect(onClose).toHaveBeenCalled();
   });
 
@@ -369,7 +397,7 @@ describe("ChangePasswordModal", () => {
     await user.type(passwordInput, "ValidPassword123!");
     await user.type(confirmInput, "ValidPassword123!");
 
-    await user.click(screen.getByRole("button", { name: "Change password" }));
+    await user.click(screen.getByRole("button", { name: "Set new password" }));
 
     await waitFor(() => {
       expect(showNotificationSpy).toHaveBeenCalledWith(
@@ -401,7 +429,7 @@ describe("ChangePasswordModal", () => {
     await user.type(passwordInput, "ValidPassword123!");
     await user.type(confirmInput, "ValidPassword123!");
 
-    await user.click(screen.getByRole("button", { name: "Change password" }));
+    await user.click(screen.getByRole("button", { name: "Set new password" }));
 
     expect(
       await screen.findByText(

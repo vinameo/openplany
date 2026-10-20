@@ -118,9 +118,14 @@ describe("CreateWorkspaceRoute", () => {
           reason: null,
         }),
       "POST /api/workspaces": () =>
-        apiError(409, "SLUG_ALREADY_EXISTS", "This URL is already taken. Choose another one.", {
-          fields: { slug: "This URL is already taken. Choose another one." },
-        }),
+        apiError(
+          409,
+          "SLUG_ALREADY_EXISTS",
+          "This URL is already taken. Choose another one.",
+          {
+            fields: { slug: "This URL is already taken. Choose another one." },
+          },
+        ),
     });
 
     const { user } = renderRoute();
@@ -170,7 +175,9 @@ describe("CreateWorkspaceRoute", () => {
     await user.click(screen.getByRole("button", { name: "Create workspace" }));
 
     expect(
-      await screen.findByText(/You've created several workspaces recently. Try again in 5 minutes./i),
+      await screen.findByText(
+        /You've created several workspaces recently. Try again in 5 minutes./i,
+      ),
     ).toBeInTheDocument();
   });
 
@@ -185,5 +192,17 @@ describe("CreateWorkspaceRoute", () => {
     await user.click(goBackBtn);
 
     expect(router.state.location.pathname).toBe("/");
+  });
+
+  it("AC-28: renders user account menu in top bar", async () => {
+    mockFetch({
+      "GET /api/auth/session": () => jsonResponse(200, adminSession()),
+    });
+
+    renderRoute();
+
+    expect(
+      await screen.findByRole("button", { name: /account menu/i }),
+    ).toBeInTheDocument();
   });
 });

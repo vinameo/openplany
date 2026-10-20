@@ -79,8 +79,10 @@ export const en = {
     "setPassword.title": "Set a new password",
     "setPassword.subtitle":
       "Your password has to be changed before you continue.",
-    "setPassword.body":
-      "Changing it here isn't available yet. Ask your admin to reset your password.",
+    "setPassword.body": "Enter your current password, then choose a new one.",
+    "setPassword.submit": "Save new password",
+    "setPassword.expired":
+      "Your session expired. Sign in again to set a new password.",
     "setPassword.backToSignIn": "Back to sign in",
     "setPassword.documentTitle": "Set a new password · OpenPlany",
     "errors.signInFailed": "Couldn't sign in. Please try again.",
@@ -698,15 +700,15 @@ export const en = {
     "users.table.clearAll": "Clear search and filters",
     "users.table.showing": "Showing {{from}}–{{to}} of {{total}}",
     "users.menu.edit": "Edit user",
-    "users.menu.changePassword": "Change password",
+    "users.menu.changePassword": "Set new password",
     "users.edit.title": "Edit user",
     "users.edit.saved": "Changes to {{name}} saved.",
     "users.edit.reload": "Reload",
-    "users.password.title": "Change password",
+    "users.password.title": "Set new password",
     "users.password.for": "For {{name}} ({{email}})",
     "users.password.lockoutNote":
       "If {{name}} is locked out after too many failed sign-ins, they still need to wait for the lockout to end.",
-    "users.password.submit": "Change password",
+    "users.password.submit": "Set new password",
     "users.password.changed":
       "Password changed. {{name}} has been signed out everywhere.",
     "users.password.actorPassword": "Your password",

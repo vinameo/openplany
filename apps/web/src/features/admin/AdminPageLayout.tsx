@@ -4,6 +4,7 @@ import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { ColorSchemeToggle } from "@repo/ui";
 import { ArrowLeftIcon } from "../workspaces/icons";
+import { UserMenu } from "../profile/UserMenu";
 import classes from "./AdminPageLayout.module.css";
 
 export interface AdminPageLayoutProps {
@@ -52,6 +53,7 @@ export function AdminPageLayout({
           labelLight={t("common:theme.switchToLight")}
           labelDark={t("common:theme.switchToDark")}
         />
+        <UserMenu />
       </div>
 
       <main
