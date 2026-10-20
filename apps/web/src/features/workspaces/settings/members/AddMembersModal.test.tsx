@@ -33,6 +33,7 @@ function renderModal({
     signIn: vi.fn(),
     signOut: vi.fn(),
     updateUser: vi.fn(),
+    replaceSession: vi.fn(),
     expireSession: vi.fn(),
   };
 
@@ -400,6 +401,7 @@ describe("AddMembersModal", () => {
       signIn: vi.fn(),
       signOut: vi.fn(),
       updateUser: vi.fn(),
+      replaceSession: vi.fn(),
       expireSession: vi.fn(),
     };
     const ws = makeWorkspace({ id: "ws-1", slug: "openstudy", name: "OpenStudy", role: "admin" });

@@ -723,7 +723,21 @@ export const vi: TranslatedCatalog = {
     "form.email": "Email",
     "form.emailDescription": "Liên hệ quản trị viên để đổi email của bạn.",
     "modal.closeProfile": "Đóng hồ sơ",
-    "userButton.ariaLabel": "Chỉnh sửa hồ sơ – {{name}}",
+    "userMenu.ariaLabel": "Menu tài khoản – {{name}}",
+    "userMenu.editProfile": "Sửa hồ sơ",
+    "userMenu.changePassword": "Đổi mật khẩu",
+    "password.title": "Đổi mật khẩu",
+    "password.currentPassword": "Mật khẩu hiện tại",
+    "password.newPassword": "Mật khẩu mới",
+    "password.confirmNewPassword": "Xác nhận mật khẩu mới",
+    "password.note":
+      "Bạn vẫn đăng nhập ở đây. Bạn sẽ bị đăng xuất trên mọi thiết bị khác.",
+    "password.submit": "Đổi mật khẩu",
+    "password.close": "Đóng đổi mật khẩu",
+    "password.changed":
+      "Đã đổi mật khẩu. Bạn đã bị đăng xuất khỏi các thiết bị khác.",
+    "password.errors.failed":
+      "Không thể đổi mật khẩu. Vui lòng thử lại.",
     "notifications.updated": "Đã cập nhật hồ sơ",
     "errors.saveFailed": "Không thể lưu hồ sơ của bạn. Vui lòng thử lại.",
     "validation.enterFirstName": "Nhập tên của bạn",

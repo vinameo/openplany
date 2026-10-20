@@ -766,7 +766,21 @@ export const en = {
     "form.email": "Email",
     "form.emailDescription": "Contact your admin to change your email.",
     "modal.closeProfile": "Close profile",
-    "userButton.ariaLabel": "Edit profile – {{name}}",
+    "userMenu.ariaLabel": "Account menu – {{name}}",
+    "userMenu.editProfile": "Edit profile",
+    "userMenu.changePassword": "Change password",
+    "password.title": "Change password",
+    "password.currentPassword": "Current password",
+    "password.newPassword": "New password",
+    "password.confirmNewPassword": "Confirm new password",
+    "password.note":
+      "You'll stay signed in here. You'll be signed out on every other device.",
+    "password.submit": "Change password",
+    "password.close": "Close change password",
+    "password.changed":
+      "Password changed. You've been signed out on other devices.",
+    "password.errors.failed":
+      "Couldn't change your password. Please try again.",
     "notifications.updated": "Profile updated",
     "errors.saveFailed": "Couldn't save your profile. Please try again.",
     "validation.enterFirstName": "Enter your first name",

@@ -11,7 +11,6 @@ import {
   PlusIcon,
   SettingsIcon,
   ShieldIcon,
-  SignOutIcon,
   UsersIcon,
 } from "../icons";
 import { useWorkspaces } from "../useWorkspaces";
@@ -28,7 +27,7 @@ export function WorkspaceSwitcher({
 }: WorkspaceSwitcherProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { state: authState, signOut } = useAuth();
+  const { state: authState } = useAuth();
   const { state: wsState } = useWorkspaces();
 
   const userEmail =
@@ -48,14 +47,6 @@ export function WorkspaceSwitcher({
     (wsState.status === "ready" ? workspaces[0] : undefined);
 
   if (!activeWs) return null;
-
-  async function handleSignOut() {
-    try {
-      await signOut();
-    } catch (err: unknown) {
-      console.error("Sign-out error", err);
-    }
-  }
 
   const origin =
     typeof window !== "undefined" && window.location?.origin
@@ -178,14 +169,6 @@ export function WorkspaceSwitcher({
             </Menu.Item>
           </>
         )}
-
-        <Menu.Item
-          color="red"
-          leftSection={<SignOutIcon />}
-          onClick={() => void handleSignOut()}
-        >
-          <Text size="sm">{t("common:actions.signOut")}</Text>
-        </Menu.Item>
       </Menu.Dropdown>
     </Menu>
   );

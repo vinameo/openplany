@@ -124,7 +124,9 @@ describe("app routes", () => {
 
     renderApp("/");
 
-    await screen.findByRole("button", { name: "Sign out" });
+    await screen.findByRole("button", {
+      name: `Account menu – ${session.user.displayName}`,
+    });
     expect(screen.queryByText("Verify your email")).not.toBeInTheDocument();
   });
 
@@ -135,7 +137,12 @@ describe("app routes", () => {
     });
     const { user, router } = renderApp("/");
 
-    await user.click(await screen.findByRole("button", { name: "Sign out" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Account menu – An Nguyen" }),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Sign out" }),
+    );
 
     expect(await screen.findByLabelText(/email/i)).toBeInTheDocument();
     expect(router.state.location.pathname).toBe("/sign-in");

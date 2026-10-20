@@ -27,7 +27,10 @@ function renderApp() {
 
 async function openProfile(user: ReturnType<typeof userEvent.setup>) {
   await user.click(
-    await screen.findByRole("button", { name: "Edit profile – An Nguyen" }),
+    await screen.findByRole("button", { name: "Account menu – An Nguyen" }),
+  );
+  await user.click(
+    await screen.findByRole("menuitem", { name: "Edit profile" }),
   );
   return screen.findByRole("dialog", { name: "Profile" });
 }
@@ -108,7 +111,7 @@ describe("profile popup", () => {
     await user.click(screen.getByRole("button", { name: "Save changes" }));
 
     expect(
-      await screen.findByRole("button", { name: "Edit profile – Kai" }),
+      await screen.findByRole("button", { name: "Account menu – Kai" }),
     ).toBeInTheDocument();
     expect(await screen.findByText("Profile updated")).toBeInTheDocument();
     await waitFor(() =>

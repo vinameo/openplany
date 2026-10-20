@@ -1,12 +1,11 @@
-import { useState } from "react";
-import { Button, Container, Group, Image } from "@mantine/core";
+import { Container, Group, Image } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import type { WorkspaceResponse } from "@repo/contracts";
 import { ColorSchemeToggle } from "@repo/ui";
 import { LanguageMenu } from "../../i18n/LanguageMenu";
 import markUrl from "../../assets/openplany-mark.png";
 import { useAuth } from "../auth/useAuth";
-import { UserButton } from "../profile/UserButton";
+import { UserMenu } from "../profile/UserMenu";
 import { CreateWorkspaceButton } from "../workspaces/CreateWorkspaceButton";
 import { WorkspaceSwitcher } from "../workspaces/switcher/WorkspaceSwitcher";
 import { useWorkspaces } from "../workspaces/useWorkspaces";
@@ -25,23 +24,11 @@ export function AppHeader({
   variant = "default",
 }: AppHeaderProps) {
   const { t } = useTranslation();
-  const { state: authState, signOut } = useAuth();
+  const { state: authState } = useAuth();
   const { state: wsState } = useWorkspaces();
-  const [isSigningOut, setIsSigningOut] = useState(false);
   const isDesktop = useIsDesktop();
 
   if (authState.status !== "authenticated") return null;
-
-  async function handleSignOut() {
-    setIsSigningOut(true);
-    try {
-      await signOut();
-    } catch (error: unknown) {
-      console.error("Sign-out request failed", error);
-    } finally {
-      setIsSigningOut(false);
-    }
-  }
 
   const hasNoWorkspaces =
     wsState.status === "ready" && wsState.workspaces.length === 0;
@@ -78,17 +65,7 @@ export function AppHeader({
             labelLight={t("common:theme.switchToLight")}
             labelDark={t("common:theme.switchToDark")}
           />
-          <UserButton user={authState.session.user} />
-          {!currentWorkspace && (
-            <Button
-              variant="default"
-              size="xs"
-              loading={isSigningOut}
-              onClick={() => void handleSignOut()}
-            >
-              {t("common:actions.signOut")}
-            </Button>
-          )}
+          <UserMenu user={authState.session.user} />
         </Group>
       </Container>
     </header>

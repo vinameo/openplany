@@ -16,6 +16,7 @@ function authValue(state: AuthState): AuthContextValue {
     signIn: vi.fn(),
     signOut: vi.fn(),
     updateUser: vi.fn(),
+    replaceSession: vi.fn(),
     expireSession: vi.fn(),
   };
 }

@@ -12,6 +12,8 @@ export interface AuthContextValue {
   signOut: () => Promise<void>;
   /** Replaces the signed-in user with fresher data from the server. */
   updateUser: (user: AuthUser) => void;
+  /** Replaces the session with a fresh session (e.g. after password change). */
+  replaceSession: (session: AuthSession) => void;
   /** The server said 401: forget the session so RequireAuth sends us to sign-in. */
   expireSession: () => void;
 }

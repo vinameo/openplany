@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { authApi } from "./api/authApi";
-import type { AuthUser, SignInRequest } from "./api/authTypes";
+import type { AuthSession, AuthUser, SignInRequest } from "./api/authTypes";
 import {
   AuthContext,
   type AuthContextValue,
@@ -60,6 +60,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
             ? { status: "authenticated", session: { ...current.session, user } }
             : current,
         );
+      },
+      replaceSession(session: AuthSession) {
+        setState({ status: "authenticated", session });
       },
       expireSession() {
         setState({ status: "anonymous" });

@@ -30,7 +30,7 @@ afterEach(() => {
 });
 
 describe("AppHeader", () => {
-  it("AC 13: 0 workspaces shows 'Create workspace' link and 'Sign out' button when isInstanceAdmin is true", async () => {
+  it("AC 13: 0 workspaces shows 'Create workspace' link and Account menu when isInstanceAdmin is true", async () => {
     mockFetch({
       "GET /api/auth/session": () =>
         jsonResponse(
@@ -48,8 +48,11 @@ describe("AppHeader", () => {
     const links = await screen.findAllByRole("link", { name: /create workspace/i });
     expect(links.length).toBeGreaterThan(0);
     expect(
-      screen.getByRole("button", { name: /sign out/i }),
+      screen.getByRole("button", { name: /account menu/i }),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^sign out$/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("0 workspaces hides 'Create workspace' link when isInstanceAdmin is false", async () => {
@@ -67,9 +70,12 @@ describe("AppHeader", () => {
 
     renderHeader();
 
-    await screen.findByRole("button", { name: /sign out/i });
+    await screen.findByRole("button", { name: /account menu/i });
     expect(
       screen.queryByRole("link", { name: /create workspace/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^sign out$/i }),
     ).not.toBeInTheDocument();
   });
 
@@ -126,7 +132,7 @@ describe("AppHeader", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("AC-20: when not in a workspace, does not show command search button, retains Sign out", async () => {
+  it("AC-20: when not in a workspace, does not show command search button, hides standalone Sign out", async () => {
     mockFetch({
       "GET /api/auth/session": () =>
         jsonResponse(
@@ -141,7 +147,10 @@ describe("AppHeader", () => {
 
     renderHeader();
 
-    await screen.findByRole("button", { name: /sign out/i });
+    await screen.findByRole("button", { name: /account menu/i });
+    expect(
+      screen.queryByRole("button", { name: /^sign out$/i }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /search commands/i }),
     ).not.toBeInTheDocument();
