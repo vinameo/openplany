@@ -7,13 +7,17 @@ import {
   type Repository,
 } from 'typeorm';
 import { User } from '../../auth/entities/user.entity.js';
+import {
+  EmailAlreadyExistsError,
+  type LockedUserWrites,
+  LockedUsersRepository,
+} from '../../auth/repositories/lockedUsers.js';
 import { isUniqueViolation } from '../../common/databaseErrors.js';
 import {
   containsIgnoringCaseAndAccentsSql,
 } from '../../database/findOperators.js';
 import { matchesWhere } from '../../database/matchesWhere.js';
 import { addOrderByEmptyAndNullLast } from '../../database/sortHelpers.js';
-
 import {
   ADMIN_USERS_PAGE_SIZE,
   type AdminUserListQuery,
@@ -61,19 +65,6 @@ export interface CreatedUserRow {
   id: string;
   createdAt: Date;
 }
-
-import {
-  EmailAlreadyExistsError,
-  type LockedUserWrites,
-  LockedUsersRepository,
-  type UserChanges,
-} from '../../auth/repositories/lockedUsers.js';
-
-export {
-  EmailAlreadyExistsError,
-  type LockedUserWrites,
-  type UserChanges,
-};
 
 export interface LockedActorAndTarget {
   /** The rows locked FOR UPDATE, or null when absent. Actor = target → the same row. */

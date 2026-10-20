@@ -1,8 +1,8 @@
 import { IsNull, QueryFailedError, type Repository } from 'typeorm';
 import type { LockedUsersRepository } from '../../auth/repositories/lockedUsers.js';
 import type { User } from '../../auth/entities/user.entity.js';
+import { EmailAlreadyExistsError } from '../../auth/repositories/lockedUsers.js';
 import {
-  EmailAlreadyExistsError,
   LISTED_USER,
   type NewUser,
   TypeOrmAdminUsersRepository,

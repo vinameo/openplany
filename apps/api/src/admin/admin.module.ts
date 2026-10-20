@@ -7,12 +7,9 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module.js';
 import { User } from '../auth/entities/user.entity.js';
 import { NoStoreMiddleware } from '../auth/noStore.middleware.js';
+import { passwordConfirmationProvider } from '../auth/passwordConfirmation.js';
 import { InMemorySlidingWindowLimiter } from '../common/slidingWindowLimiter.js';
-import {
-  ActorReauthentication,
-  REAUTH_FAILURE_LIMIT,
-  REAUTH_FAILURE_WINDOW_MS,
-} from './actorReauthentication.js';
+import { ADMIN_REAUTH_CONFIRMATION_OPTIONS } from './adminReauthentication.js';
 import { UserEventsModule } from '../users/events/userEvents.module.js';
 import { AdminUsersController } from './adminUsers.controller.js';
 import { AdminUsersService } from './adminUsers.service.js';
@@ -28,7 +25,7 @@ import { TypeOrmRolePermissionsRepository } from './roles/repositories/typeOrmRo
 import { RolePermissionsWriteRateLimitGuard } from './roles/rolePermissionsWriteRateLimitGuard.js';
 import { ROLE_PERMISSIONS_WRITE_LIMITER } from './roles/tokens.js';
 import {
-  ADMIN_REAUTH_FAILURE_LIMITER,
+  ADMIN_REAUTH_CONFIRMATION,
   ADMIN_USERS_READ_LIMITER,
   ADMIN_USERS_WRITE_LIMITER,
   USER_CREATE_LIMITER,
@@ -61,7 +58,10 @@ import { RolesModule } from '../roles/roles.module.js';
   controllers: [AdminUsersController, AdminRolesController],
   providers: [
     AdminUsersService,
-    ActorReauthentication,
+    passwordConfirmationProvider(
+      ADMIN_REAUTH_CONFIRMATION,
+      ADMIN_REAUTH_CONFIRMATION_OPTIONS,
+    ),
     AdminRolesService,
     InstanceAdminGuard,
     UserCreateRateLimitGuard,
@@ -82,14 +82,6 @@ import { RolesModule } from '../roles/roles.module.js';
       provide: ADMIN_USERS_WRITE_LIMITER,
       useFactory: () =>
         new InMemorySlidingWindowLimiter({ limit: 60, windowMs: 600_000 }),
-    },
-    {
-      provide: ADMIN_REAUTH_FAILURE_LIMITER,
-      useFactory: () =>
-        new InMemorySlidingWindowLimiter({
-          limit: REAUTH_FAILURE_LIMIT,
-          windowMs: REAUTH_FAILURE_WINDOW_MS,
-        }),
     },
     {
       provide: ROLE_PERMISSIONS_WRITE_LIMITER,

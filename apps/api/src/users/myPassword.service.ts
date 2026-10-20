@@ -13,16 +13,12 @@ import { SessionIssuer } from '../auth/sessionIssuer.js';
 import { SessionsRepository } from '../auth/repositories/sessionsRepository.js';
 import { isUsableUser } from '../auth/repositories/usersRepository.js';
 import { hashSessionToken } from '../auth/authTokens.js';
+import type { RequestContext } from '../auth/requestContext.js';
+import type { UserChanges } from '../auth/repositories/lockedUsers.js';
 import { UserEvents } from './events/userEvents.js';
 import { isSameAsEmail, passwordSameAsEmail } from './passwordRules.js';
 import type { ChangeMyPasswordDto } from './dto/changeMyPassword.dto.js';
 import { MY_PASSWORD_CONFIRMATION } from './tokens.js';
-
-export interface RequestContext {
-  requestId: string;
-  ip: string;
-  userAgent: string | null;
-}
 
 export interface ChangeMyPasswordInput {
   userId: string;
@@ -42,6 +38,9 @@ class PasswordHashChangedError extends Error {
     super('Password hash changed concurrently');
   }
 }
+
+/** Why a change was refused with 401 (API B6 `reason=`). */
+type RefusalReason = 'unusable' | 'session_ended';
 
 @Injectable()
 export class MyPasswordService {
@@ -94,21 +93,10 @@ export class MyPasswordService {
       );
 
       if (confirmation.status === 'no-user') {
-        this.logger.warn(
-          `users.me.password.refused reason=unusable userId=${input.userId} requestId=${input.context.requestId}`,
-        );
-        throw new ApiException(HttpStatus.UNAUTHORIZED, 'UNAUTHENTICATED', {
-          key: 'errors:http.unauthenticated',
-        });
+        throw this.refused('unusable', input);
       }
-
       if (confirmation.status === 'not-signed-in') {
-        this.logger.warn(
-          `users.me.password.refused reason=session_ended userId=${input.userId} requestId=${input.context.requestId}`,
-        );
-        throw new ApiException(HttpStatus.UNAUTHORIZED, 'UNAUTHENTICATED', {
-          key: 'errors:http.unauthenticated',
-        });
+        throw this.refused('session_ended', input);
       }
 
       const verifiedHash = confirmation.verifiedHash;
@@ -118,6 +106,14 @@ export class MyPasswordService {
 
       // Step 4: Prepare new session
       const now = this.clock.now();
+      // Steps 10 and 13 write and return the same columns.
+      const passwordChange: UserChanges = {
+        password: newPasswordHash,
+        isPasswordAutoset: false,
+        isPasswordExpired: false,
+        isPasswordResetRequired: false,
+        updatedAt: now,
+      };
       const issued = this.sessionIssuer.issue({
         userId: input.userId,
         now,
@@ -135,14 +131,7 @@ export class MyPasswordService {
 
             // Step 6: Usable user check on locked row
             if (!row || !isUsableUser(row)) {
-              this.logger.warn(
-                `users.me.password.refused reason=unusable userId=${input.userId} requestId=${input.context.requestId}`,
-              );
-              throw new ApiException(
-                HttpStatus.UNAUTHORIZED,
-                'UNAUTHENTICATED',
-                { key: 'errors:http.unauthenticated' },
-              );
+              throw this.refused('unusable', input);
             }
 
             // Step 7: Current session still live
@@ -152,14 +141,7 @@ export class MyPasswordService {
               now,
             );
             if (currentSession === null) {
-              this.logger.warn(
-                `users.me.password.refused reason=session_ended userId=${input.userId} requestId=${input.context.requestId}`,
-              );
-              throw new ApiException(
-                HttpStatus.UNAUTHORIZED,
-                'UNAUTHENTICATED',
-                { key: 'errors:http.unauthenticated' },
-              );
+              throw this.refused('session_ended', input);
             }
 
             // Step 8: Password hash unchanged
@@ -183,13 +165,7 @@ export class MyPasswordService {
             }
 
             // Step 10: Update user row
-            await locked.writes.updateUser(input.userId, {
-              password: newPasswordHash,
-              isPasswordAutoset: false,
-              isPasswordExpired: false,
-              isPasswordResetRequired: false,
-              updatedAt: now,
-            });
+            await locked.writes.updateUser(input.userId, passwordChange);
 
             // Step 11: Revoke all existing sessions
             const revokedSessionCount = await locked.writes.revokeAllSessions(
@@ -200,13 +176,7 @@ export class MyPasswordService {
             // Step 12: Insert new session
             await locked.writes.insertSession(issued.record);
 
-            const updatedUser = Object.assign(new User(), row, {
-              password: newPasswordHash,
-              isPasswordAutoset: false,
-              isPasswordExpired: false,
-              isPasswordResetRequired: false,
-              updatedAt: now,
-            });
+            const updatedUser = Object.assign(new User(), row, passwordChange);
 
             return { updatedUser, revokedSessionCount };
           },
@@ -249,6 +219,19 @@ export class MyPasswordService {
     // Unreachable due to loop conditions and throws
     throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, 'INTERNAL_ERROR', {
       key: 'errors:http.internalError',
+    });
+  }
+
+  /** API B5 #7, #9, #10: 401, logged once with its reason (API B6). */
+  private refused(
+    reason: RefusalReason,
+    input: ChangeMyPasswordInput,
+  ): ApiException {
+    this.logger.warn(
+      `users.me.password.refused reason=${reason} userId=${input.userId} requestId=${input.context.requestId}`,
+    );
+    return new ApiException(HttpStatus.UNAUTHORIZED, 'UNAUTHENTICATED', {
+      key: 'errors:http.unauthenticated',
     });
   }
 }

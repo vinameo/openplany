@@ -10,7 +10,8 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ApiException } from '../common/apiException.js';
-import { AuthService, type RequestContext } from './auth.service.js';
+import { AuthService } from './auth.service.js';
+import { clientIp, requestContext } from './requestContext.js';
 import type { AuthSessionResponse } from './dto/authSessionResponse.dto.js';
 import { SignInDto } from './dto/signIn.dto.js';
 import { SessionCookie } from './sessionCookie.js';
@@ -69,17 +70,4 @@ export class AuthController {
     );
     this.sessionCookie.clear(response);
   }
-}
-
-function clientIp(request: Request): string {
-  // request.ip honours the 'trust proxy' setting (TRUST_PROXY).
-  return request.ip ?? request.socket.remoteAddress ?? 'unknown';
-}
-
-function requestContext(request: Request): RequestContext {
-  return {
-    requestId: request.requestId,
-    ip: clientIp(request),
-    userAgent: request.header('User-Agent') ?? null,
-  };
 }

@@ -1,11 +1,19 @@
-import { HttpStatus, Logger } from '@nestjs/common';
+import {
+  type FactoryProvider,
+  HttpStatus,
+  type InjectionToken,
+  Logger,
+} from '@nestjs/common';
 import type { MessageKey, MessageRef } from '@repo/contracts';
 import { retryAfterMinutes } from '../common/actorRateLimitGuard.js';
 import { ApiException, type ApiErrorCode } from '../common/apiException.js';
-import type { SlidingWindowLimiter } from '../common/slidingWindowLimiter.js';
-import type { Clock } from './clock.js';
-import type { PasswordHasher } from './passwordHasher.js';
-import type { UsersRepository } from './repositories/usersRepository.js';
+import {
+  InMemorySlidingWindowLimiter,
+  type SlidingWindowLimiter,
+} from '../common/slidingWindowLimiter.js';
+import { Clock } from './clock.js';
+import { PasswordHasher } from './passwordHasher.js';
+import { UsersRepository } from './repositories/usersRepository.js';
 
 export interface PasswordConfirmationConfig {
   limiter: SlidingWindowLimiter;
@@ -22,6 +30,42 @@ export interface PasswordConfirmationConfig {
   log: {
     incorrect: (info: { userId: string; requestId: string }) => string;
     blocked: (info: { userId: string; requestId: string }) => string;
+  };
+}
+
+/** What a caller decides per use: everything but the limiter it owns. */
+export type PasswordConfirmationOptions = Omit<
+  PasswordConfirmationConfig,
+  'limiter'
+> & {
+  /** Wrong passwords kept per user per window (API B2.1). */
+  failureLimit: { limit: number; windowMs: number };
+};
+
+/**
+ * The one way to wire a PasswordConfirmation (API B4.1): bound to `token`,
+ * with a failure limiter of its own that nothing else can reach, so two
+ * uses never share a lockout count (RQ INV-03).
+ */
+export function passwordConfirmationProvider(
+  token: InjectionToken,
+  options: PasswordConfirmationOptions,
+): FactoryProvider<PasswordConfirmation> {
+  const { failureLimit, ...config } = options;
+  return {
+    provide: token,
+    useFactory: (
+      users: UsersRepository,
+      hasher: PasswordHasher,
+      clock: Clock,
+    ) =>
+      new PasswordConfirmation(
+        { ...config, limiter: new InMemorySlidingWindowLimiter(failureLimit) },
+        users,
+        hasher,
+        clock,
+      ),
+    inject: [UsersRepository, PasswordHasher, Clock],
   };
 }
 

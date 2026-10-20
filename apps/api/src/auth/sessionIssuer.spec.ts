@@ -1,8 +1,8 @@
 import type { ConfigService } from '@nestjs/config';
 import { describe, expect, it } from 'vitest';
+import { MAX_USER_AGENT_LENGTH } from './requestContext.js';
 import {
   DAY_MS,
-  MAX_USER_AGENT_LENGTH,
   RESET_ONLY_SESSION_MS,
   SessionIssuer,
 } from './sessionIssuer.js';

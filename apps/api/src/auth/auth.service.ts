@@ -24,17 +24,8 @@ import {
   StaleCredentialsError,
 } from './repositories/sessionsRepository.js';
 import { UsersRepository } from './repositories/usersRepository.js';
-import {
-  DAY_MS,
-  MAX_USER_AGENT_LENGTH,
-  SessionIssuer,
-} from './sessionIssuer.js';
-
-export interface RequestContext {
-  requestId: string;
-  ip: string;
-  userAgent: string | null;
-}
+import { type RequestContext, truncateUserAgent } from './requestContext.js';
+import { DAY_MS, SessionIssuer } from './sessionIssuer.js';
 
 export interface SignInResult {
   body: AuthSessionResponse;
@@ -279,8 +270,4 @@ function invalidCredentials(): ApiException {
   return new ApiException(HttpStatus.UNAUTHORIZED, 'INVALID_CREDENTIALS', {
     key: 'auth:errors.invalidCredentials',
   });
-}
-
-function truncateUserAgent(userAgent: string | null): string | null {
-  return userAgent === null ? null : userAgent.slice(0, MAX_USER_AGENT_LENGTH);
 }

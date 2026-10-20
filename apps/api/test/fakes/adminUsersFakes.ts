@@ -1,12 +1,14 @@
 import type { User } from '../../src/auth/entities/user.entity.js';
 import {
+  EmailAlreadyExistsError,
+  type LockedUserWrites,
+  type UserChanges,
+} from '../../src/auth/repositories/lockedUsers.js';
+import {
   AdminUsersRepository,
   type CreatedUserRow,
-  EmailAlreadyExistsError,
   type LockedActorAndTarget,
-  type LockedUserWrites,
   type NewUser,
-  type UserChanges,
 } from '../../src/admin/repositories/adminUsersRepository.js';
 
 /**
