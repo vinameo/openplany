@@ -70,6 +70,7 @@ import { SessionIssuer } from './sessionIssuer.js';
     PasswordHasher,
     LockedUsersRepository,
     SessionIssuer,
+    SessionsRepository,
   ],
 })
 export class AuthModule implements NestModule {

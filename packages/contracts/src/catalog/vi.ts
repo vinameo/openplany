@@ -539,6 +539,14 @@ export const vi: TranslatedCatalog = {
     "errors.passwordsDoNotMatch": "Mật khẩu không khớp",
     "errors.passwordSameAsCurrent": "Hãy chọn mật khẩu khác mật khẩu hiện tại",
     "errors.hiddenChars": "Chứa ký tự không được phép",
+    "errors.currentPasswordRequired": "Nhập mật khẩu hiện tại",
+    "errors.currentPasswordIncorrect": "Mật khẩu hiện tại không đúng.",
+    "errors.tooManyPasswordAttempts_other":
+      "Bạn đã nhập sai mật khẩu quá nhiều lần. Hãy thử lại sau {{count}} phút.",
+    "errors.tooManyPasswordChanges_other":
+      "Bạn đã đổi mật khẩu quá nhiều lần. Hãy thử lại sau {{count}} phút.",
+    "errors.passwordChangedElsewhere":
+      "Mật khẩu của bạn vừa được đổi ở nơi khác. Vui lòng thử lại.",
     "form.passwordDescription": "Ít nhất {{min}} ký tự.",
     "form.showPassword": "Hiện mật khẩu",
     "form.confirmPasswordDescription": "Nhập lại mật khẩu để xác nhận.",

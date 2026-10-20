@@ -565,10 +565,21 @@ export const en = {
     "errors.passwordSameAsCurrent":
       "Choose a password different from your current one",
     "errors.hiddenChars": "Contains characters that aren't allowed",
+    "errors.currentPasswordRequired": "Enter your current password",
+    "errors.currentPasswordIncorrect": "Your current password is incorrect.",
+    "errors.tooManyPasswordAttempts_one":
+      "Too many incorrect passwords. Try again in {{count}} minute.",
+    "errors.tooManyPasswordAttempts_other":
+      "Too many incorrect passwords. Try again in {{count}} minutes.",
+    "errors.tooManyPasswordChanges_one":
+      "Too many password changes. Try again in {{count}} minute.",
+    "errors.tooManyPasswordChanges_other":
+      "Too many password changes. Try again in {{count}} minutes.",
+    "errors.passwordChangedElsewhere":
+      "Your password was just changed somewhere else. Please try again.",
     "form.passwordDescription": "At least {{min}} characters.",
     "form.showPassword": "Show password",
-    "form.confirmPasswordDescription":
-      "Re-enter the password to confirm.",
+    "form.confirmPasswordDescription": "Re-enter the password to confirm.",
   },
   admin: {
     title: "Admin",
