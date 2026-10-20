@@ -536,7 +536,12 @@ export const vi: TranslatedCatalog = {
     "errors.emailTaken": "Một người dùng có email này đã tồn tại",
     "errors.enterYourFirstName": "Nhập tên của bạn",
     "errors.passwordSameAsEmail": "Mật khẩu không được trùng với email",
+    "errors.passwordsDoNotMatch": "Mật khẩu không khớp",
+    "errors.passwordSameAsCurrent": "Hãy chọn mật khẩu khác mật khẩu hiện tại",
     "errors.hiddenChars": "Chứa ký tự không được phép",
+    "form.passwordDescription": "Ít nhất {{min}} ký tự.",
+    "form.showPassword": "Hiện mật khẩu",
+    "form.confirmPasswordDescription": "Nhập lại mật khẩu để xác nhận.",
   },
   admin: {
     title: "Quản trị",
@@ -671,10 +676,7 @@ export const vi: TranslatedCatalog = {
     "users.form.email": "Email",
     "users.form.emailDescription": "Họ sẽ đăng nhập bằng email này.",
     "users.form.password": "Mật khẩu",
-    "users.form.passwordDescription": "Ít nhất {{min}} ký tự.",
-    "users.form.showPassword": "Hiện mật khẩu",
     "users.form.confirmPassword": "Xác nhận mật khẩu",
-    "users.form.confirmPasswordDescription": "Nhập lại mật khẩu để xác nhận.",
     "users.form.submit": "Tạo người dùng",
     "users.notifications.createdTitle": "Đã tạo người dùng",
     "users.notifications.createdMessage":
@@ -699,7 +701,6 @@ export const vi: TranslatedCatalog = {
     "users.errors.reauthenticationFailed": "Mật khẩu của bạn không đúng.",
     "users.errors.tooManyReauthAttempts_other":
       "Bạn đã nhập sai mật khẩu quá nhiều lần. Hãy thử lại sau {{count}} phút.",
-    "users.validation.passwordsDoNotMatch": "Mật khẩu không khớp",
     "users.validation.actorPasswordRequired": "Nhập mật khẩu của bạn",
   },
   profile: {

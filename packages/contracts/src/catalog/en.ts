@@ -561,7 +561,14 @@ export const en = {
     "errors.emailTaken": "A user with this email already exists",
     "errors.enterYourFirstName": "Enter your first name",
     "errors.passwordSameAsEmail": "Password can't be the same as the email",
+    "errors.passwordsDoNotMatch": "Passwords don't match",
+    "errors.passwordSameAsCurrent":
+      "Choose a password different from your current one",
     "errors.hiddenChars": "Contains characters that aren't allowed",
+    "form.passwordDescription": "At least {{min}} characters.",
+    "form.showPassword": "Show password",
+    "form.confirmPasswordDescription":
+      "Re-enter the password to confirm.",
   },
   admin: {
     title: "Admin",
@@ -703,11 +710,7 @@ export const en = {
     "users.form.email": "Email",
     "users.form.emailDescription": "They'll sign in with this email.",
     "users.form.password": "Password",
-    "users.form.passwordDescription": "At least {{min}} characters.",
-    "users.form.showPassword": "Show password",
     "users.form.confirmPassword": "Confirm password",
-    "users.form.confirmPasswordDescription":
-      "Re-enter the password to confirm.",
     "users.form.submit": "Create user",
     "users.notifications.createdTitle": "User created",
     "users.notifications.createdMessage":
@@ -738,7 +741,6 @@ export const en = {
       "Too many incorrect passwords. Try again in {{count}} minute.",
     "users.errors.tooManyReauthAttempts_other":
       "Too many incorrect passwords. Try again in {{count}} minutes.",
-    "users.validation.passwordsDoNotMatch": "Passwords don't match",
     "users.validation.actorPasswordRequired": "Enter your password",
   },
   profile: {

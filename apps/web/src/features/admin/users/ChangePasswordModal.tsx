@@ -4,7 +4,7 @@ import type { AdminUserResponse } from '@repo/contracts';
 import { useTranslation } from 'react-i18next';
 import { DiscardChangesFooter } from '../../layout/DiscardChangesFooter';
 import { useDiscardGuard } from '../../layout/useDiscardGuard';
-import { NewPasswordFields } from './form/NewPasswordFields';
+import { NewPasswordFields } from '../../passwords/NewPasswordFields';
 import { useChangePasswordForm } from './useChangePasswordForm';
 import { adminUserLabel } from './userFieldValidation';
 import classes from './ChangePasswordModal.module.css';
@@ -105,7 +105,13 @@ function ChangePasswordModalContent({
           {t('admin:users.password.for', { name, email: user.email })}
         </Text>
 
-        <NewPasswordFields form={form} readOnly={isSubmitting} />
+        <NewPasswordFields
+          passwordProps={form.getInputProps('password')}
+          confirmProps={form.getInputProps('confirmPassword')}
+          passwordLabel={t('admin:users.form.password')}
+          confirmLabel={t('admin:users.form.confirmPassword')}
+          readOnly={isSubmitting}
+        />
 
         {needsActorPassword && (
           <PasswordInput
@@ -116,7 +122,7 @@ function ChangePasswordModalContent({
             withAsterisk
             autoComplete="current-password"
             visibilityToggleButtonProps={{
-              'aria-label': t('admin:users.form.showPassword'),
+              'aria-label': t('users:form.showPassword'),
             }}
             readOnly={isSubmitting}
             {...form.getInputProps('actorPassword')}
