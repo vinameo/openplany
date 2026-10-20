@@ -84,7 +84,7 @@ function ChangePasswordModalContent({
       opened={opened}
       onClose={requestClose}
       title={t('admin:users.password.title')}
-      size="md"
+      size="lg"
       radius="lg"
       padding="xl"
       fullScreen={isNarrow}
