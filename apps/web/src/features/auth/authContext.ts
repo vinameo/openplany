@@ -8,12 +8,17 @@ export type AuthState =
 
 export interface AuthContextValue {
   state: AuthState;
+  sessionEpoch: number;
   signIn: (values: SignInRequest) => Promise<AuthSession>;
   signOut: () => Promise<void>;
   /** Replaces the signed-in user with fresher data from the server. */
   updateUser: (user: AuthUser) => void;
-  /** The server said 401: forget the session so RequireAuth sends us to sign-in. */
+  /** Replaces the session with a fresh session (e.g. after password change). */
+  replaceSession: (session: AuthSession) => void;
+  /** The server said 401: rechecks session and resets epoch if kept, or clears session if expired. */
   expireSession: () => void;
+  /** Rechecks session with the server, coalescing calls and handling concurrent replaceSession. */
+  recheckSession: () => Promise<"kept" | "expired">;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);

@@ -78,8 +78,10 @@ export const vi: TranslatedCatalog = {
     "forgotPassword.documentTitle": "Quên mật khẩu · OpenPlany",
     "setPassword.title": "Đặt mật khẩu mới",
     "setPassword.subtitle": "Bạn cần đổi mật khẩu trước khi tiếp tục.",
-    "setPassword.body":
-      "Tính năng đổi mật khẩu tại đây chưa khả dụng. Hãy yêu cầu quản trị viên đặt lại mật khẩu cho bạn.",
+    "setPassword.body": "Nhập mật khẩu hiện tại, rồi chọn mật khẩu mới.",
+    "setPassword.submit": "Lưu mật khẩu mới",
+    "setPassword.expired":
+      "Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại để đặt mật khẩu mới.",
     "setPassword.backToSignIn": "Quay lại đăng nhập",
     "setPassword.documentTitle": "Đặt mật khẩu mới · OpenPlany",
     "errors.signInFailed": "Không thể đăng nhập. Vui lòng thử lại.",
@@ -536,7 +538,20 @@ export const vi: TranslatedCatalog = {
     "errors.emailTaken": "Một người dùng có email này đã tồn tại",
     "errors.enterYourFirstName": "Nhập tên của bạn",
     "errors.passwordSameAsEmail": "Mật khẩu không được trùng với email",
+    "errors.passwordsDoNotMatch": "Mật khẩu không khớp",
+    "errors.passwordSameAsCurrent": "Hãy chọn mật khẩu khác mật khẩu hiện tại",
     "errors.hiddenChars": "Chứa ký tự không được phép",
+    "errors.currentPasswordRequired": "Nhập mật khẩu hiện tại",
+    "errors.currentPasswordIncorrect": "Mật khẩu hiện tại không đúng.",
+    "errors.tooManyPasswordAttempts_other":
+      "Bạn đã nhập sai mật khẩu quá nhiều lần. Hãy thử lại sau {{count}} phút.",
+    "errors.tooManyPasswordChanges_other":
+      "Bạn đã đổi mật khẩu quá nhiều lần. Hãy thử lại sau {{count}} phút.",
+    "errors.passwordChangedElsewhere":
+      "Mật khẩu của bạn vừa được đổi ở nơi khác. Vui lòng thử lại.",
+    "form.passwordDescription": "Ít nhất {{min}} ký tự.",
+    "form.showPassword": "Hiện mật khẩu",
+    "form.confirmPasswordDescription": "Nhập lại mật khẩu để xác nhận.",
   },
   admin: {
     title: "Quản trị",
@@ -647,15 +662,15 @@ export const vi: TranslatedCatalog = {
     "users.table.clearAll": "Xoá tìm kiếm và bộ lọc",
     "users.table.showing": "Đang hiện {{from}}–{{to}} trên {{total}}",
     "users.menu.edit": "Sửa người dùng",
-    "users.menu.changePassword": "Đổi mật khẩu",
+    "users.menu.changePassword": "Đặt mật khẩu mới",
     "users.edit.title": "Sửa người dùng",
     "users.edit.saved": "Đã lưu thay đổi của {{name}}.",
     "users.edit.reload": "Tải lại",
-    "users.password.title": "Đổi mật khẩu",
+    "users.password.title": "Đặt mật khẩu mới",
     "users.password.for": "Cho {{name}} ({{email}})",
     "users.password.lockoutNote":
       "Nếu {{name}} đang bị tạm khoá do đăng nhập sai nhiều lần, họ vẫn cần chờ hết thời gian khoá.",
-    "users.password.submit": "Đổi mật khẩu",
+    "users.password.submit": "Đặt mật khẩu mới",
     "users.password.changed":
       "Đã đổi mật khẩu. {{name}} đã bị đăng xuất khỏi mọi nơi.",
     "users.password.actorPassword": "Mật khẩu của bạn",
@@ -671,10 +686,7 @@ export const vi: TranslatedCatalog = {
     "users.form.email": "Email",
     "users.form.emailDescription": "Họ sẽ đăng nhập bằng email này.",
     "users.form.password": "Mật khẩu",
-    "users.form.passwordDescription": "Ít nhất {{min}} ký tự.",
-    "users.form.showPassword": "Hiện mật khẩu",
     "users.form.confirmPassword": "Xác nhận mật khẩu",
-    "users.form.confirmPasswordDescription": "Nhập lại mật khẩu để xác nhận.",
     "users.form.submit": "Tạo người dùng",
     "users.notifications.createdTitle": "Đã tạo người dùng",
     "users.notifications.createdMessage":
@@ -699,7 +711,6 @@ export const vi: TranslatedCatalog = {
     "users.errors.reauthenticationFailed": "Mật khẩu của bạn không đúng.",
     "users.errors.tooManyReauthAttempts_other":
       "Bạn đã nhập sai mật khẩu quá nhiều lần. Hãy thử lại sau {{count}} phút.",
-    "users.validation.passwordsDoNotMatch": "Mật khẩu không khớp",
     "users.validation.actorPasswordRequired": "Nhập mật khẩu của bạn",
   },
   profile: {
@@ -714,7 +725,20 @@ export const vi: TranslatedCatalog = {
     "form.email": "Email",
     "form.emailDescription": "Liên hệ quản trị viên để đổi email của bạn.",
     "modal.closeProfile": "Đóng hồ sơ",
-    "userButton.ariaLabel": "Chỉnh sửa hồ sơ – {{name}}",
+    "userMenu.ariaLabel": "Menu tài khoản – {{name}}",
+    "userMenu.editProfile": "Sửa hồ sơ",
+    "userMenu.changePassword": "Đổi mật khẩu",
+    "password.title": "Đổi mật khẩu",
+    "password.currentPassword": "Mật khẩu hiện tại",
+    "password.newPassword": "Mật khẩu mới",
+    "password.confirmNewPassword": "Xác nhận mật khẩu mới",
+    "password.note":
+      "Bạn vẫn đăng nhập ở đây. Bạn sẽ bị đăng xuất trên mọi thiết bị khác.",
+    "password.submit": "Đổi mật khẩu",
+    "password.close": "Đóng đổi mật khẩu",
+    "password.changed":
+      "Đã đổi mật khẩu. Bạn đã bị đăng xuất khỏi các thiết bị khác.",
+    "password.errors.failed": "Không thể đổi mật khẩu. Vui lòng thử lại.",
     "notifications.updated": "Đã cập nhật hồ sơ",
     "errors.saveFailed": "Không thể lưu hồ sơ của bạn. Vui lòng thử lại.",
     "validation.enterFirstName": "Nhập tên của bạn",

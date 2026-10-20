@@ -478,7 +478,7 @@ describe("WorkspaceShell (desktop)", () => {
     ).toHaveFocus();
 
     await user.tab();
-    expect(screen.getByRole("button", { name: /edit profile/i })).toHaveFocus();
+    expect(screen.getByRole("button", { name: /account menu/i })).toHaveFocus();
 
     // Tab into sidebar
     await user.tab();

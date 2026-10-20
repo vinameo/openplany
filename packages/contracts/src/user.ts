@@ -8,15 +8,15 @@ export const USER_NAME_ALLOWED = /^[^\p{Cc}\p{Cf}]*$/u;
 
 /** NFC + trim. Same cleanup on web and server. */
 export function normalizeName(value: string): string {
-  return value.normalize('NFC').trim();
+  return value.normalize("NFC").trim();
 }
 
 /** "First Last" from normalized parts, skipping empty ones. "" when both are empty. */
 export function fullName(firstName: string, lastName: string): string {
   const parts = [normalizeName(firstName), normalizeName(lastName)].filter(
-    (part) => part !== '',
+    (part) => part !== "",
   );
-  return parts.join(' ');
+  return parts.join(" ");
 }
 
 export interface CreateUserRequest {
@@ -37,3 +37,7 @@ export interface CreatedUserResponse {
   createdAt: string; // ISO 8601
 }
 
+export interface ChangeMyPasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}

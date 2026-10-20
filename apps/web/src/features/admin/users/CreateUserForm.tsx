@@ -7,7 +7,7 @@ import {
 } from './useCreateUserForm';
 import { DisplayNameField, UserNameFields } from './form/UserNameFields';
 import { EmailField } from './form/EmailField';
-import { NewPasswordFields } from './form/NewPasswordFields';
+import { NewPasswordFields } from '../../passwords/NewPasswordFields';
 import classes from './CreateUserForm.module.css';
 
 export interface CreateUserFormProps {
@@ -44,8 +44,13 @@ function CreateUserFormView({
           <EmailField form={form} readOnly={isSubmitting} />
         </div>
 
-        <NewPasswordFields form={form} readOnly={isSubmitting} />
-
+        <NewPasswordFields
+          passwordProps={form.getInputProps('password')}
+          confirmProps={form.getInputProps('confirmPassword')}
+          passwordLabel={t('admin:users.form.password')}
+          confirmLabel={t('admin:users.form.confirmPassword')}
+          readOnly={isSubmitting}
+        />
         {submitError && (
           <Alert color="red" title={t('common:error')} role="alert">
             {submitError}

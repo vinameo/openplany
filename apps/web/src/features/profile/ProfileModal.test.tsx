@@ -27,7 +27,10 @@ function renderApp() {
 
 async function openProfile(user: ReturnType<typeof userEvent.setup>) {
   await user.click(
-    await screen.findByRole("button", { name: "Edit profile – An Nguyen" }),
+    await screen.findByRole("button", { name: "Account menu – An Nguyen" }),
+  );
+  await user.click(
+    await screen.findByRole("menuitem", { name: "Edit profile" }),
   );
   return screen.findByRole("dialog", { name: "Profile" });
 }
@@ -108,7 +111,7 @@ describe("profile popup", () => {
     await user.click(screen.getByRole("button", { name: "Save changes" }));
 
     expect(
-      await screen.findByRole("button", { name: "Edit profile – Kai" }),
+      await screen.findByRole("button", { name: "Account menu – Kai" }),
     ).toBeInTheDocument();
     expect(await screen.findByText("Profile updated")).toBeInTheDocument();
     await waitFor(() =>
@@ -183,8 +186,14 @@ describe("profile popup", () => {
   });
 
   it("sends the user to sign-in when the session has expired", async () => {
+    let sessionCall = 0;
     mockFetch({
-      [SESSION_ROUTE]: signedIn,
+      [SESSION_ROUTE]: () => {
+        sessionCall += 1;
+        return sessionCall === 1
+          ? signedIn()
+          : apiError(401, "UNAUTHENTICATED", "Sign in to continue");
+      },
       "PATCH /api/users/me": () =>
         apiError(401, "UNAUTHENTICATED", "Sign in to continue"),
     });

@@ -16,6 +16,7 @@ import {
 import { AuthService, type RequestContext } from './auth.service.js';
 import { hashEmail, hashSessionToken } from './authTokens.js';
 import type { User } from './entities/user.entity.js';
+import { SessionIssuer } from './sessionIssuer.js';
 
 const SECRET = 'test-secret-that-is-at-least-32-characters';
 const MINUTE = 60 * 1000;
@@ -41,6 +42,7 @@ async function setup(users: User[] = [makeUser()]) {
     SESSION_TTL_DAYS: 7,
     SESSION_ABSOLUTE_TTL_DAYS: 30,
   });
+  const sessionIssuer = new SessionIssuer(config);
   const service = new AuthService(
     deps.users,
     deps.sessions,
@@ -48,6 +50,7 @@ async function setup(users: User[] = [makeUser()]) {
     deps.hasher,
     deps.rateLimiter,
     deps.clock,
+    sessionIssuer,
     config,
   );
   await service.onModuleInit();
@@ -94,7 +97,7 @@ describe('AuthService', () => {
       expect(result.expiresAt).toEqual(new Date(NOW.getTime() + 7 * DAY));
       expect(sessions.signIns).toHaveLength(1);
       const [record] = sessions.signIns;
-      expect(record.session).toEqual({
+      expect(record.session).toMatchObject({
         tokenHash: hashSessionToken(result.token),
         expiresAt: result.expiresAt,
         isResetOnly: false,
@@ -360,20 +363,36 @@ describe('AuthService', () => {
   });
 
   describe('getSession', () => {
-    it('returns null when the token has no active session', async () => {
+    it('returns unusable when the token has no active session', async () => {
       const { service } = await setup();
 
-      expect(await service.getSession('token')).toBeNull();
+      expect(await service.getSession('token')).toEqual({ status: 'unusable' });
+    });
+
+    it('returns revoked when the session was revoked', async () => {
+      const { service, sessions } = await setup();
+      sessions.lookupResult = { status: 'revoked' };
+
+      expect(await service.getSession('token')).toEqual({ status: 'revoked' });
+    });
+
+    it('returns revoked when touch fails because session was revoked concurrently', async () => {
+      const { service, sessions, clock } = await setup();
+      sessions.active = { session: makeSession(), user: makeUser() };
+      clock.current = new Date(NOW.getTime() + 6 * MINUTE);
+      sessions.failTouch = true;
+
+      expect(await service.getSession('token')).toEqual({ status: 'revoked' });
     });
 
     it.each([
       ['inactive', { isActive: false }],
       ['masked', { maskedAt: NOW }],
-    ] as const)('returns null for a %s user', async (_label, overrides) => {
+    ] as const)('returns unusable for a %s user', async (_label, overrides) => {
       const { service, sessions } = await setup();
       sessions.active = { session: makeSession(), user: makeUser(overrides) };
 
-      expect(await service.getSession('token')).toBeNull();
+      expect(await service.getSession('token')).toEqual({ status: 'unusable' });
     });
 
     it('does not write when the session was used in the last 5 minutes', async () => {
@@ -382,8 +401,10 @@ describe('AuthService', () => {
       clock.current = new Date(NOW.getTime() + 4 * MINUTE);
 
       const result = await service.getSession('token');
-
-      expect(result?.renewedExpiresAt).toBeNull();
+      expect(result.status).toBe('active');
+      if (result.status === 'active') {
+        expect(result.renewedExpiresAt).toBeNull();
+      }
       expect(sessions.touches).toHaveLength(0);
     });
 
@@ -393,9 +414,12 @@ describe('AuthService', () => {
       clock.current = new Date(NOW.getTime() + 6 * MINUTE);
 
       const result = await service.getSession('token');
+      expect(result.status).toBe('active');
 
       const expected = new Date(clock.current.getTime() + 7 * DAY);
-      expect(result?.renewedExpiresAt).toEqual(expected);
+      if (result.status === 'active') {
+        expect(result.renewedExpiresAt).toEqual(expected);
+      }
       expect(sessions.touches[0].expiresAt).toEqual(expected);
     });
 
@@ -405,10 +429,13 @@ describe('AuthService', () => {
       clock.current = new Date(NOW.getTime() + 28 * DAY);
 
       const result = await service.getSession('token');
+      expect(result.status).toBe('active');
 
-      expect(result?.renewedExpiresAt).toEqual(
-        new Date(NOW.getTime() + 30 * DAY),
-      );
+      if (result.status === 'active') {
+        expect(result.renewedExpiresAt).toEqual(
+          new Date(NOW.getTime() + 30 * DAY),
+        );
+      }
     });
 
     it('never extends a reset-only session', async () => {
@@ -420,21 +447,50 @@ describe('AuthService', () => {
       clock.current = new Date(NOW.getTime() + 10 * MINUTE);
 
       const result = await service.getSession('token');
+      expect(result.status).toBe('active');
 
-      expect(result?.body.requiresPasswordReset).toBe(true);
+      if (result.status === 'active') {
+        expect(result.body.requiresPasswordReset).toBe(true);
+      }
       expect(sessions.touches).toHaveLength(0);
     });
   });
 
   describe('signOut', () => {
-    it('revokes the session behind the token', async () => {
+    it('revokes the session behind the token and logs auth.signed_out', async () => {
       const { service, sessions } = await setup();
+      sessions.revokeResultUserId = 'user-1';
+      const logSpy = vi.spyOn(
+        (service as unknown as { logger: { log: (msg: string) => void } })
+          .logger,
+        'log',
+      );
 
-      await service.signOut('token', '203.0.113.7');
+      await service.signOut('token', '203.0.113.7', 'req-123');
 
       expect(sessions.revocations).toEqual([
         { tokenHash: hashSessionToken('token'), ip: '203.0.113.7', now: NOW },
       ]);
+      expect(logSpy).toHaveBeenCalledWith(
+        'auth.signed_out userId=user-1 requestId=req-123',
+      );
+    });
+
+    it('does not log auth.signed_out when no session was revoked', async () => {
+      const { service, sessions } = await setup();
+      sessions.revokeResultUserId = null;
+      const logSpy = vi.spyOn(
+        (service as unknown as { logger: { log: (msg: string) => void } })
+          .logger,
+        'log',
+      );
+
+      await service.signOut('token', '203.0.113.7', 'req-123');
+
+      expect(sessions.revocations).toHaveLength(1);
+      expect(logSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining('auth.signed_out'),
+      );
     });
 
     it('does nothing without a token', async () => {

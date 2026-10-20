@@ -427,7 +427,11 @@ describe('Adversarial inputs (e2e)', () => {
     );
 
     const cookieFor = rotatingCookie(() => newWorkspaceAdmin(ws.id));
-    const valid = { fromRole: 'guest', role: 'member', projectRole: 'commenter' };
+    const valid = {
+      fromRole: 'guest',
+      role: 'member',
+      projectRole: 'commenter',
+    };
     await expectNoServerErrors(adversarialBodies(valid), async (body, i) =>
       http()
         .patch(`/api/workspaces/${ws.slug}/members/${targetUser.id}`)
@@ -517,31 +521,41 @@ describe('Adversarial inputs (e2e)', () => {
 
     // Missing role
     await http()
-      .get(`/api/workspaces/${ws.slug}/members/${targetUser.id}/role-change-preview`)
+      .get(
+        `/api/workspaces/${ws.slug}/members/${targetUser.id}/role-change-preview`,
+      )
       .set('Cookie', admin.cookie)
       .expect(400);
 
     // Invalid role
     await http()
-      .get(`/api/workspaces/${ws.slug}/members/${targetUser.id}/role-change-preview?role=xyz`)
+      .get(
+        `/api/workspaces/${ws.slug}/members/${targetUser.id}/role-change-preview?role=xyz`,
+      )
       .set('Cookie', admin.cookie)
       .expect(400);
 
     // Empty role
     await http()
-      .get(`/api/workspaces/${ws.slug}/members/${targetUser.id}/role-change-preview?role=`)
+      .get(
+        `/api/workspaces/${ws.slug}/members/${targetUser.id}/role-change-preview?role=`,
+      )
       .set('Cookie', admin.cookie)
       .expect(400);
 
     // Duplicate role
     await http()
-      .get(`/api/workspaces/${ws.slug}/members/${targetUser.id}/role-change-preview?role=member&role=guest`)
+      .get(
+        `/api/workspaces/${ws.slug}/members/${targetUser.id}/role-change-preview?role=member&role=guest`,
+      )
       .set('Cookie', admin.cookie)
       .expect(400);
 
     // Malformed userId
     await http()
-      .get(`/api/workspaces/${ws.slug}/members/not-a-uuid/role-change-preview?role=member`)
+      .get(
+        `/api/workspaces/${ws.slug}/members/not-a-uuid/role-change-preview?role=member`,
+      )
       .set('Cookie', admin.cookie)
       .expect(400);
   });
@@ -649,6 +663,91 @@ describe('Adversarial inputs (e2e)', () => {
     );
   });
 
+  it('PUT /users/me/password (AC-17)', async () => {
+    let currentUser = await newUser();
+    let count = 0;
+    const valid = {
+      currentPassword: DEFAULT_E2E_PASSWORD,
+      newPassword: 'BrandNewSecret999!',
+    };
+
+    await expectNoServerErrors(adversarialBodies(valid), async (body) => {
+      count++;
+      if (count % 4 === 0) {
+        currentUser = await newUser();
+      }
+      return http()
+        .put('/api/users/me/password')
+        .set('Cookie', currentUser.cookie)
+        .set('Origin', ORIGIN)
+        .send(body as object);
+    });
+
+    const invalidCases: Array<{ body: unknown; desc: string }> = [
+      { body: {}, desc: 'empty object' },
+      {
+        body: { currentPassword: 12345, newPassword: 'BrandNewSecret999!' },
+        desc: 'numeric current password',
+      },
+      {
+        body: { currentPassword: '', newPassword: 'BrandNewSecret999!' },
+        desc: 'empty current password',
+      },
+      {
+        body: {
+          currentPassword: 'a'.repeat(129),
+          newPassword: 'BrandNewSecret999!',
+        },
+        desc: '129 char current password',
+      },
+      {
+        body: { currentPassword: DEFAULT_E2E_PASSWORD, newPassword: 'short' },
+        desc: 'short new password',
+      },
+      {
+        body: {
+          currentPassword: DEFAULT_E2E_PASSWORD,
+          newPassword: 'a'.repeat(129),
+        },
+        desc: '129 char new password',
+      },
+      {
+        body: {
+          currentPassword: DEFAULT_E2E_PASSWORD,
+          newPassword: DEFAULT_E2E_PASSWORD,
+        },
+        desc: 'newPassword === currentPassword',
+      },
+      {
+        body: {
+          currentPassword: DEFAULT_E2E_PASSWORD,
+          newPassword: 'BrandNewSecret999!',
+          extraField: 'bad',
+        },
+        desc: 'whitelist violation',
+      },
+    ];
+
+    for (const testCase of invalidCases) {
+      const user = await newUser();
+      const res = await http()
+        .put('/api/users/me/password')
+        .set('Cookie', user.cookie)
+        .set('Origin', ORIGIN)
+        .send(testCase.body as object);
+
+      expect(res.status).toBeGreaterThanOrEqual(400);
+      expect(res.status).toBeLessThan(500);
+
+      // Verify password was NOT changed: original password still works for sign in
+      await http()
+        .post('/api/auth/sign-in')
+        .set('Origin', ORIGIN)
+        .send({ email: user.email, password: DEFAULT_E2E_PASSWORD })
+        .expect(200);
+    }
+  });
+
   it('runs adversarial inputs with Accept-Language: vi without 5xx', async () => {
     const user = await newUser();
     const valid = { email: user.email, password: 'Secret123!' };
@@ -686,4 +785,3 @@ describe('Adversarial inputs (e2e)', () => {
     );
   });
 });
-

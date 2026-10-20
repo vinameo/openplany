@@ -89,7 +89,7 @@ describe("WorkspaceSwitcher", () => {
     expect(screen.getByText("Admin · 1 member")).toBeInTheDocument();
     expect(screen.getByText("Admin · 5 members")).toBeInTheDocument();
     expect(screen.getByText("Create workspace")).toBeInTheDocument();
-    expect(screen.getByText("Sign out")).toBeInTheDocument();
+    expect(screen.queryByText("Sign out")).not.toBeInTheDocument();
 
     // Settings item is present with href="/acme-corp/settings", only under active workspace
     const settingsLink = screen.getByRole("menuitem", {
@@ -104,15 +104,14 @@ describe("WorkspaceSwitcher", () => {
     expect(screen.queryByText(/workspace invites/i)).not.toBeInTheDocument();
   });
 
-  it("AC 16: clicking Sign out invokes sign-out flow", async () => {
-    const fetchMock = mockFetch({
+  it("AC-02: does not show Sign out item in WorkspaceSwitcher menu", async () => {
+    mockFetch({
       "GET /api/auth/session": () => jsonResponse(200, makeSession()),
       "GET /api/workspaces": () =>
         jsonResponse(200, {
           workspaces: workspacesMock,
           lastWorkspaceSlug: "acme-corp",
         }),
-      "POST /api/auth/sign-out": () => new Response(null, { status: 204 }),
     });
 
     const { user } = renderSwitcher();
@@ -122,13 +121,7 @@ describe("WorkspaceSwitcher", () => {
     });
     await user.click(trigger);
 
-    const signOutItem = await screen.findByText("Sign out");
-    await user.click(signOutItem);
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/auth/sign-out",
-      expect.objectContaining({ method: "POST" }),
-    );
+    expect(screen.queryByText("Sign out")).not.toBeInTheDocument();
   });
 
   it("handles very long workspace name gracefully with ellipsis truncation classes", async () => {
@@ -188,7 +181,7 @@ describe("WorkspaceSwitcher", () => {
     expect(screen.queryByText("Users")).not.toBeInTheDocument();
   });
 
-  it("AC-02: shows 'Users' between 'Create workspace' and 'Sign out' when isInstanceAdmin is true", async () => {
+  it("AC-02: shows 'Users' after 'Create workspace' when isInstanceAdmin is true and omits Sign out", async () => {
     mockFetch({
       "GET /api/auth/session": () =>
         jsonResponse(
@@ -219,7 +212,7 @@ describe("WorkspaceSwitcher", () => {
     const signOutIndex = itemTexts.findIndex((t) => t?.includes("Sign out"));
 
     expect(usersIndex).toBeGreaterThan(createWsIndex);
-    expect(signOutIndex).toBeGreaterThan(usersIndex);
+    expect(signOutIndex).toBe(-1);
   });
 
   it("AC-18: clicking 'Users' item navigates to /users", async () => {
@@ -274,7 +267,7 @@ describe("WorkspaceSwitcher", () => {
     expect(router.state.location.pathname).toBe("/users");
   });
 
-  it("AC-12: shows 'Roles & Permissions' immediately after 'Users' and before 'Sign out' for instance admin, and clicking it navigates", async () => {
+  it("AC-12: shows 'Roles & Permissions' immediately after 'Users' for instance admin and omits Sign out, and clicking it navigates", async () => {
     mockFetch({
       "GET /api/auth/session": () =>
         jsonResponse(
@@ -332,7 +325,7 @@ describe("WorkspaceSwitcher", () => {
     const signOutIndex = itemTexts.findIndex((t) => t?.includes("Sign out"));
 
     expect(rolesIndex).toBe(usersIndex + 1);
-    expect(signOutIndex).toBe(rolesIndex + 1);
+    expect(signOutIndex).toBe(-1);
 
     const rolesItem = await screen.findByText("Roles & Permissions");
     await user.click(rolesItem);

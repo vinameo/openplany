@@ -4,9 +4,15 @@
   color: var(--mantine-color-dimmed);
 }
 
+.actions {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--mantine-spacing-xs);
+}
+
 .action {
   height: 48px;
-  margin-top: 28px;
   border-radius: 12px;
   font-size: 15px;
   font-weight: 500;

@@ -7,11 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { randomBytes } from 'node:crypto';
 import { ApiException } from '../common/apiException.js';
-import {
-  generateSessionToken,
-  hashEmail,
-  hashSessionToken,
-} from './authTokens.js';
+import { hashEmail, hashSessionToken } from './authTokens.js';
 import { Clock } from './clock.js';
 import {
   type AuthSessionResponse,
@@ -28,6 +24,11 @@ import {
   StaleCredentialsError,
 } from './repositories/sessionsRepository.js';
 import { UsersRepository } from './repositories/usersRepository.js';
+import {
+  DAY_MS,
+  MAX_USER_AGENT_LENGTH,
+  SessionIssuer,
+} from './sessionIssuer.js';
 
 export interface RequestContext {
   requestId: string;
@@ -43,17 +44,18 @@ export interface SignInResult {
   maxAgeMs: number;
 }
 
-export interface SessionResult {
-  body: AuthSessionResponse;
-  /** Set when the expiry slid, so the cookie must be refreshed. */
-  renewedExpiresAt: Date | null;
-  renewedMaxAgeMs: number | null;
-}
+export type SessionResult =
+  | {
+      status: 'active';
+      body: AuthSessionResponse;
+      /** Set when the expiry slid, so the cookie must be refreshed. */
+      renewedExpiresAt: Date | null;
+      renewedMaxAgeMs: number | null;
+    }
+  | { status: 'revoked' }
+  | { status: 'unusable' };
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-const RESET_ONLY_SESSION_MS = 15 * 60 * 1000;
 const SESSION_TOUCH_INTERVAL_MS = 5 * 60 * 1000;
-export const MAX_USER_AGENT_LENGTH = 512;
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -71,6 +73,7 @@ export class AuthService implements OnModuleInit {
     private readonly hasher: PasswordHasher,
     private readonly rateLimiter: LoginRateLimiter,
     private readonly clock: Clock,
+    private readonly sessionIssuer: SessionIssuer,
     config: ConfigService,
   ) {
     this.hmacSecret = config.getOrThrow<string>('AUTH_HMAC_SECRET');
@@ -155,9 +158,13 @@ export class AuthService implements OnModuleInit {
       ? await this.hasher.hash(dto.password)
       : null;
     const now = this.clock.now();
-    const maxAgeMs = resetOnly ? RESET_ONLY_SESSION_MS : this.sessionTtlMs;
-    const expiresAt = new Date(now.getTime() + maxAgeMs);
-    const token = generateSessionToken();
+    const issued = this.sessionIssuer.issue({
+      userId: user.id,
+      now,
+      resetOnly,
+      ip: context.ip,
+      userAgent: context.userAgent,
+    });
     const reason: LoginReason | null = resetOnly ? 'reset_required' : null;
 
     try {
@@ -168,11 +175,7 @@ export class AuthService implements OnModuleInit {
         ip: context.ip,
         userAgent,
         rehashedPassword,
-        session: {
-          tokenHash: hashSessionToken(token),
-          expiresAt,
-          isResetOnly: resetOnly,
-        },
+        session: issued.record,
         attempt: {
           id: limit.attemptId,
           outcome: { userId: user.id, result: 'success', reason },
@@ -192,20 +195,30 @@ export class AuthService implements OnModuleInit {
 
     return {
       body: toAuthSessionResponse(user, resetOnly),
-      token,
-      expiresAt,
-      maxAgeMs,
+      token: issued.token,
+      expiresAt: issued.record.expiresAt,
+      maxAgeMs: issued.maxAgeMs,
     };
   }
 
-  /** null when the cookie does not map to a usable session (api-spec 3.2). */
-  async getSession(token: string): Promise<SessionResult | null> {
+  /** Evaluates the session behind the cookie (api-spec B4.4, DB B4). */
+  async getSession(token: string): Promise<SessionResult> {
     const now = this.clock.now();
-    const active = await this.sessions.findActive(hashSessionToken(token), now);
-    if (active === null) return null;
+    const lookup = await this.sessions.lookupSession(
+      hashSessionToken(token),
+      now,
+    );
+    if (lookup.status === 'revoked') {
+      return { status: 'revoked' };
+    }
+    if (lookup.status !== 'active') {
+      return { status: 'unusable' };
+    }
 
-    const { session, user } = active;
-    if (!user.isActive || user.maskedAt !== null) return null;
+    const { session, user } = lookup;
+    if (!user.isActive || user.maskedAt !== null) {
+      return { status: 'unusable' };
+    }
 
     let renewedExpiresAt: Date | null = null;
     const stale =
@@ -217,10 +230,14 @@ export class AuthService implements OnModuleInit {
           session.createdAt.getTime() + this.sessionAbsoluteTtlMs,
         ),
       );
-      await this.sessions.touch(session, now, renewedExpiresAt);
+      const touched = await this.sessions.touch(session, now, renewedExpiresAt);
+      if (!touched) {
+        return { status: 'revoked' };
+      }
     }
 
     return {
+      status: 'active',
       body: toAuthSessionResponse(user, session.isResetOnly),
       renewedExpiresAt,
       renewedMaxAgeMs:
@@ -230,10 +247,23 @@ export class AuthService implements OnModuleInit {
     };
   }
 
-  /** Always succeeds: sign-out must work even with a broken session. */
-  async signOut(token: string | null, ip: string): Promise<void> {
+  /** Always succeeds: sign-out must work even with a broken session (api-spec B6). */
+  async signOut(
+    token: string | null,
+    ip: string,
+    requestId?: string,
+  ): Promise<void> {
     if (token === null) return;
-    await this.sessions.revoke(hashSessionToken(token), ip, this.clock.now());
+    const userId = await this.sessions.revoke(
+      hashSessionToken(token),
+      ip,
+      this.clock.now(),
+    );
+    if (userId !== null) {
+      this.logger.log(
+        `auth.signed_out userId=${userId} requestId=${requestId ?? '-'}`,
+      );
+    }
   }
 }
 

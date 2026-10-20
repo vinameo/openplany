@@ -7,6 +7,8 @@ import {
   PATH_METADATA,
 } from '@nestjs/common/constants.js';
 import { SessionGuard } from './auth/guards/sessionGuard.js';
+import { ALLOW_RESET_ONLY_KEY } from './auth/currentUser.decorator.js';
+import { MyPasswordChangeRateLimitGuard } from './users/myPasswordChangeRateLimitGuard.js';
 import { ProjectAccessGuard } from './projects/access/projectAccessGuard.js';
 import {
   PROJECT_PERMISSION_KEY,
@@ -47,6 +49,7 @@ interface Route {
   guards: unknown[];
   projectPermission?: unknown;
   workspacePermission?: unknown;
+  allowsResetOnly?: boolean;
 }
 
 function sourceFiles(dir: string, suffix: string): string[] {
@@ -100,6 +103,10 @@ async function collectRoutes(): Promise<Route[]> {
             WORKSPACE_PERMISSION_KEY,
             handler,
           ),
+          allowsResetOnly:
+            (Reflect.getMetadata(ALLOW_RESET_ONLY_KEY, handler) ??
+              Reflect.getMetadata(ALLOW_RESET_ONLY_KEY, exported) ??
+              false) === true,
         });
       }
     }
@@ -260,5 +267,17 @@ describe('Architecture', () => {
       expect(allowedLimiters).toContain(route.guards[1]);
       expect(route.guards[2]).toBe(InstanceAdminGuard);
     }
+  });
+
+  it('allows reset-only sessions exclusively on PUT /users/me/password with exact guard chain (AC-11)', () => {
+    const resetOnlyRoutes = routes.filter((r) => r.allowsResetOnly);
+    expect(resetOnlyRoutes.map((r) => r.key)).toEqual([
+      'PUT /users/me/password',
+    ]);
+    const route = resetOnlyRoutes[0];
+    expect(route?.guards).toEqual([
+      SessionGuard,
+      MyPasswordChangeRateLimitGuard,
+    ]);
   });
 });

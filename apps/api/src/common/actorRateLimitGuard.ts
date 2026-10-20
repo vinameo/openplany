@@ -11,7 +11,7 @@ import {
 import type { Request } from 'express';
 import type { MessageKey } from '@repo/contracts';
 import { Clock } from '../auth/clock.js';
-import { ApiException } from './apiException.js';
+import { ApiException, type ApiErrorCode } from './apiException.js';
 import { SlidingWindowLimiter } from './slidingWindowLimiter.js';
 
 /** Whole minutes to wait, as rate-limit sentences show it (`{{count}}`). */
@@ -22,6 +22,7 @@ export function retryAfterMinutes(retryAfterSeconds: number): number {
 export interface ActorRateLimitGuardOptions {
   limiterToken: InjectionToken;
   messageKey: MessageKey;
+  code?: ApiErrorCode;
   logLabel?: string;
   formatLog?: (info: { userId: string; requestId: string }) => string;
 }
@@ -61,7 +62,7 @@ export function createActorRateLimitGuard(
         const retryAfterSeconds = decision.retryAfterSeconds ?? 60;
         throw new ApiException(
           HttpStatus.TOO_MANY_REQUESTS,
-          'TOO_MANY_ATTEMPTS',
+          options.code ?? 'TOO_MANY_ATTEMPTS',
           {
             key: options.messageKey,
             params: { count: retryAfterMinutes(retryAfterSeconds) },

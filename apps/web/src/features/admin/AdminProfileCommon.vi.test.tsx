@@ -509,7 +509,11 @@ describe("Admin, Profile, and Common in Vietnamese (Ticket 09)", () => {
           jsonResponse(
             200,
             makeSession({
-              user: { ...makeSession().user, id: "admin-vi-user", isInstanceAdmin: true },
+              user: {
+                ...makeSession().user,
+                id: "admin-vi-user",
+                isInstanceAdmin: true,
+              },
             }),
           ),
         "GET /api/workspaces": () =>
@@ -550,7 +554,7 @@ describe("Admin, Profile, and Common in Vietnamese (Ticket 09)", () => {
       await user.click(actionMenuBtn);
 
       expect(screen.getByText("Sửa người dùng")).toBeInTheDocument();
-      expect(screen.getByText("Đổi mật khẩu")).toBeInTheDocument();
+      expect(screen.getByText("Đặt mật khẩu mới")).toBeInTheDocument();
 
       // Click Edit user
       await user.click(screen.getByText("Sửa người dùng"));
@@ -559,26 +563,36 @@ describe("Admin, Profile, and Common in Vietnamese (Ticket 09)", () => {
       ).toBeInTheDocument();
       expect(screen.getByLabelText(/^Tên\s*\*?$/i)).toHaveValue("An");
       expect(screen.getByLabelText(/^Họ$/i)).toHaveValue("Nguyen");
-      expect(screen.getByLabelText(/^Tên hiển thị\s*\*?$/i)).toHaveValue("An Nguyen");
-      expect(screen.getByLabelText(/^Email\s*\*?$/i)).toHaveValue("an@openplany.dev");
-      expect(screen.getByRole("button", { name: "Lưu thay đổi" })).toBeInTheDocument();
+      expect(screen.getByLabelText(/^Tên hiển thị\s*\*?$/i)).toHaveValue(
+        "An Nguyen",
+      );
+      expect(screen.getByLabelText(/^Email\s*\*?$/i)).toHaveValue(
+        "an@openplany.dev",
+      );
+      expect(
+        screen.getByRole("button", { name: "Lưu thay đổi" }),
+      ).toBeInTheDocument();
 
       // Close Edit modal
       await user.click(screen.getByRole("button", { name: "Huỷ" }));
 
       // Open Change password modal
       await user.click(actionMenuBtn);
-      await user.click(screen.getByText("Đổi mật khẩu"));
+      await user.click(screen.getByText("Đặt mật khẩu mới"));
       expect(
-        await screen.findByRole("heading", { name: "Đổi mật khẩu" }),
+        await screen.findByRole("heading", { name: "Đặt mật khẩu mới" }),
       ).toBeInTheDocument();
       expect(
-        screen.getByText(/Nếu An Nguyen đang bị tạm khoá do đăng nhập sai nhiều lần/),
+        screen.getByText(
+          /Nếu An Nguyen đang bị tạm khoá do đăng nhập sai nhiều lần/,
+        ),
       ).toBeInTheDocument();
       expect(screen.getByLabelText(/^Mật khẩu\s*\*?$/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/^Xác nhận mật khẩu\s*\*?$/i)).toBeInTheDocument();
       expect(
-        screen.getByRole("button", { name: "Đổi mật khẩu" }),
+        screen.getByLabelText(/^Xác nhận mật khẩu\s*\*?$/i),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Đặt mật khẩu mới" }),
       ).toBeInTheDocument();
     });
   });

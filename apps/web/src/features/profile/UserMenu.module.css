@@ -19,6 +19,25 @@
   white-space: nowrap;
 }
 
+.header {
+  padding: 8px 12px;
+  min-width: 0;
+}
+
+.headerName {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.headerEmail {
+  color: var(--mantine-color-dimmed);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @media (max-width: 767.98px) {
   .button {
     padding: 2px;

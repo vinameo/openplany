@@ -79,8 +79,10 @@ export const en = {
     "setPassword.title": "Set a new password",
     "setPassword.subtitle":
       "Your password has to be changed before you continue.",
-    "setPassword.body":
-      "Changing it here isn't available yet. Ask your admin to reset your password.",
+    "setPassword.body": "Enter your current password, then choose a new one.",
+    "setPassword.submit": "Save new password",
+    "setPassword.expired":
+      "Your session expired. Sign in again to set a new password.",
     "setPassword.backToSignIn": "Back to sign in",
     "setPassword.documentTitle": "Set a new password · OpenPlany",
     "errors.signInFailed": "Couldn't sign in. Please try again.",
@@ -561,7 +563,25 @@ export const en = {
     "errors.emailTaken": "A user with this email already exists",
     "errors.enterYourFirstName": "Enter your first name",
     "errors.passwordSameAsEmail": "Password can't be the same as the email",
+    "errors.passwordsDoNotMatch": "Passwords don't match",
+    "errors.passwordSameAsCurrent":
+      "Choose a password different from your current one",
     "errors.hiddenChars": "Contains characters that aren't allowed",
+    "errors.currentPasswordRequired": "Enter your current password",
+    "errors.currentPasswordIncorrect": "Your current password is incorrect.",
+    "errors.tooManyPasswordAttempts_one":
+      "Too many incorrect passwords. Try again in {{count}} minute.",
+    "errors.tooManyPasswordAttempts_other":
+      "Too many incorrect passwords. Try again in {{count}} minutes.",
+    "errors.tooManyPasswordChanges_one":
+      "Too many password changes. Try again in {{count}} minute.",
+    "errors.tooManyPasswordChanges_other":
+      "Too many password changes. Try again in {{count}} minutes.",
+    "errors.passwordChangedElsewhere":
+      "Your password was just changed somewhere else. Please try again.",
+    "form.passwordDescription": "At least {{min}} characters.",
+    "form.showPassword": "Show password",
+    "form.confirmPasswordDescription": "Re-enter the password to confirm.",
   },
   admin: {
     title: "Admin",
@@ -680,15 +700,15 @@ export const en = {
     "users.table.clearAll": "Clear search and filters",
     "users.table.showing": "Showing {{from}}–{{to}} of {{total}}",
     "users.menu.edit": "Edit user",
-    "users.menu.changePassword": "Change password",
+    "users.menu.changePassword": "Set new password",
     "users.edit.title": "Edit user",
     "users.edit.saved": "Changes to {{name}} saved.",
     "users.edit.reload": "Reload",
-    "users.password.title": "Change password",
+    "users.password.title": "Set new password",
     "users.password.for": "For {{name}} ({{email}})",
     "users.password.lockoutNote":
       "If {{name}} is locked out after too many failed sign-ins, they still need to wait for the lockout to end.",
-    "users.password.submit": "Change password",
+    "users.password.submit": "Set new password",
     "users.password.changed":
       "Password changed. {{name}} has been signed out everywhere.",
     "users.password.actorPassword": "Your password",
@@ -703,11 +723,7 @@ export const en = {
     "users.form.email": "Email",
     "users.form.emailDescription": "They'll sign in with this email.",
     "users.form.password": "Password",
-    "users.form.passwordDescription": "At least {{min}} characters.",
-    "users.form.showPassword": "Show password",
     "users.form.confirmPassword": "Confirm password",
-    "users.form.confirmPasswordDescription":
-      "Re-enter the password to confirm.",
     "users.form.submit": "Create user",
     "users.notifications.createdTitle": "User created",
     "users.notifications.createdMessage":
@@ -738,7 +754,6 @@ export const en = {
       "Too many incorrect passwords. Try again in {{count}} minute.",
     "users.errors.tooManyReauthAttempts_other":
       "Too many incorrect passwords. Try again in {{count}} minutes.",
-    "users.validation.passwordsDoNotMatch": "Passwords don't match",
     "users.validation.actorPasswordRequired": "Enter your password",
   },
   profile: {
@@ -753,7 +768,21 @@ export const en = {
     "form.email": "Email",
     "form.emailDescription": "Contact your admin to change your email.",
     "modal.closeProfile": "Close profile",
-    "userButton.ariaLabel": "Edit profile – {{name}}",
+    "userMenu.ariaLabel": "Account menu – {{name}}",
+    "userMenu.editProfile": "Edit profile",
+    "userMenu.changePassword": "Change password",
+    "password.title": "Change password",
+    "password.currentPassword": "Current password",
+    "password.newPassword": "New password",
+    "password.confirmNewPassword": "Confirm new password",
+    "password.note":
+      "You'll stay signed in here. You'll be signed out on every other device.",
+    "password.submit": "Change password",
+    "password.close": "Close change password",
+    "password.changed":
+      "Password changed. You've been signed out on other devices.",
+    "password.errors.failed":
+      "Couldn't change your password. Please try again.",
     "notifications.updated": "Profile updated",
     "errors.saveFailed": "Couldn't save your profile. Please try again.",
     "validation.enterFirstName": "Enter your first name",

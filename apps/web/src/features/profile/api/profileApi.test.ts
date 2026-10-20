@@ -67,4 +67,24 @@ describe("profileApi", () => {
       await expect(profileApi.getMe()).resolves.toEqual(user);
     });
   });
+
+  describe("changePassword", () => {
+    it("puts current and new password and returns the renewed session", async () => {
+      const session = makeSession();
+      const fetchMock = mockFetch({
+        "PUT /api/users/me/password": () => jsonResponse(200, session),
+      });
+
+      const body = {
+        currentPassword: "OldPassword123!",
+        newPassword: "NewPassword456!",
+      };
+      await expect(profileApi.changePassword(body)).resolves.toEqual(session);
+      expect(fetchMock.mock.calls[0][1]).toMatchObject({
+        method: "PUT",
+        body: JSON.stringify(body),
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+  });
 });

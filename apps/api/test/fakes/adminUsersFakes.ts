@@ -69,6 +69,8 @@ export class FakeAdminUsersRepository extends AdminUsersRepository {
         this.liveSessions.set(userId, 0);
         return Promise.resolve(count);
       },
+      findLiveSession: (_userId, _tokenHash) => Promise.resolve(null),
+      insertSession: (_session) => Promise.resolve(),
     };
     return work({ actor: find(actorId), target: find(targetId), writes });
   }

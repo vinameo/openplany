@@ -1,7 +1,5 @@
 import {
   EMAIL_MAX,
-  PASSWORD_MAX,
-  PASSWORD_MIN,
   USER_NAME_ALLOWED,
   USER_NAME_MAX,
   normalizeName,
@@ -9,6 +7,12 @@ import {
   type UpdateAdminUserRequest,
 } from "@repo/contracts";
 import { translate } from "../../../i18n/index.js";
+import {
+  validateConfirmPassword,
+  validatePassword,
+} from "../../passwords/passwordValidation.js";
+
+export { validateConfirmPassword, validatePassword };
 
 export type CreateUserField =
   | "firstName"
@@ -96,32 +100,6 @@ export function validateEmail(value: string): string | null {
   return null;
 }
 
-export function validatePassword(value: string, email?: string): string | null {
-  if (value.length < PASSWORD_MIN || value.length > PASSWORD_MAX) {
-    return translate("users:errors.passwordLength", {
-      min: PASSWORD_MIN,
-      max: PASSWORD_MAX,
-    });
-  }
-  if (
-    email &&
-    email.trim() !== "" &&
-    value.toLowerCase() === email.trim().toLowerCase()
-  ) {
-    return translate("users:errors.passwordSameAsEmail");
-  }
-  return null;
-}
-
-export function validateConfirmPassword(
-  confirmPassword: string,
-  password: string,
-): string | null {
-  if (confirmPassword === "" || confirmPassword !== password) {
-    return translate("admin:users.validation.passwordsDoNotMatch");
-  }
-  return null;
-}
 
 export function validateCreateUserField(
   field: CreateUserField,

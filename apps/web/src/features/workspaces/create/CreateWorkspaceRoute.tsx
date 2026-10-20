@@ -5,6 +5,7 @@ import { LanguageMenu } from "../../../i18n/LanguageMenu";
 import { useAuth } from "../../auth/useAuth";
 import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
 import { CreateWorkspaceForm } from "./CreateWorkspaceForm";
+import { UserMenu } from "../../profile/UserMenu";
 import classes from "./CreateWorkspaceRoute.module.css";
 
 export function CreateWorkspaceRoute() {
@@ -28,6 +29,7 @@ export function CreateWorkspaceRoute() {
           labelLight={t("common:theme.switchToLight")}
           labelDark={t("common:theme.switchToDark")}
         />
+        <UserMenu />
       </div>
       <main className={classes.main}>
         <CreateWorkspaceForm />
@@ -35,4 +37,3 @@ export function CreateWorkspaceRoute() {
     </div>
   );
 }
-

@@ -13,10 +13,9 @@ import {
   REAUTH_FAILURE_LIMIT,
   REAUTH_FAILURE_WINDOW_MS,
 } from './actorReauthentication.js';
+import { UserEventsModule } from '../users/events/userEvents.module.js';
 import { AdminUsersController } from './adminUsers.controller.js';
 import { AdminUsersService } from './adminUsers.service.js';
-import { LoggingUserEvents } from './events/loggingUserEvents.js';
-import { UserEvents } from './events/userEvents.js';
 import { InstanceAdminGuard } from './instanceAdminGuard.js';
 import {
   AdminUsersRepository,
@@ -50,6 +49,7 @@ import { RolesModule } from '../roles/roles.module.js';
   imports: [
     AuthModule,
     RolesModule,
+    UserEventsModule,
     TypeOrmModule.forFeature([
       User,
       Role,
@@ -101,7 +101,6 @@ import { RolesModule } from '../roles/roles.module.js';
       provide: RolePermissionsRepository,
       useClass: TypeOrmRolePermissionsRepository,
     },
-    { provide: UserEvents, useClass: LoggingUserEvents },
   ],
 })
 export class AdminModule implements NestModule {

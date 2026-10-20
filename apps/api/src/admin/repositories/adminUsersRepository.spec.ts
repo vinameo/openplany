@@ -1,4 +1,5 @@
-import { type DataSource, IsNull, QueryFailedError, type Repository } from 'typeorm';
+import { IsNull, QueryFailedError, type Repository } from 'typeorm';
+import type { LockedUsersRepository } from '../../auth/repositories/lockedUsers.js';
 import type { User } from '../../auth/entities/user.entity.js';
 import {
   EmailAlreadyExistsError,
@@ -30,10 +31,10 @@ describe('TypeOrmAdminUsersRepository', () => {
 
   function repoWith(
     insert: ReturnType<typeof vi.fn>,
-    dataSource = {} as DataSource,
+    lockedUsers = {} as LockedUsersRepository,
   ) {
     const users = { insert } as unknown as Repository<User>;
-    return new TypeOrmAdminUsersRepository(users, dataSource);
+    return new TypeOrmAdminUsersRepository(users, lockedUsers);
   }
 
   it('inserts user with every privilege flag false and returns id and createdAt', async () => {

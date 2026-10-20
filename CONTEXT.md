@@ -7,8 +7,24 @@ Self-hosted project management for tracking issues. One instance hosts many work
 ### People and accounts
 
 **User**:
-A person's account on this OpenPlany instance, identified by a unique email. Users are created by an instance admin; there is no self sign-up. An instance admin can change a User's name, email and password from the Users page.
-_Avoid_: Account, profile
+A person's account on this OpenPlany instance, identified by a unique email. Users are created by an instance admin; there is no self sign-up. A User can change their own Profile and password; an instance admin can change a User's name and email and set a new password from the Users page.
+_Avoid_: Account
+
+**Profile**:
+A User's own personal details that they edit themselves: first name, last name and display name. The email is shown but only an instance admin can change it.
+_Avoid_: Account settings, my account
+
+**Account menu**:
+The menu that opens from your avatar and name at the top right of every signed-in page. It holds Edit profile, Change password and Sign out.
+_Avoid_: User menu, profile menu
+
+**Change password**:
+A User replacing their own password from the Account menu. They must type their current password first. Every other place they were signed in is signed out; the device they used stays signed in. Distinct from an instance admin setting a new password on the Users page.
+_Avoid_: reset password (reserved for a future email-based flow)
+
+**Sign out**:
+Ending your session on this device. Offered only in the Account menu.
+_Avoid_: Log out, logout
 
 **Instance admin**:
 A User allowed to run the whole instance (create and edit Users, set a User's password, create workspaces, manage roles and permissions). Being an instance admin grants nothing inside a workspace.
@@ -27,7 +43,7 @@ The instance admin's page listing every User of the instance except bots and Ano
 _Avoid_: User management, admin panel
 
 **Re-authentication**:
-Typing your own password again to confirm it's you before a sensitive change. Required to set a new password for another Instance admin.
+Typing your own password again to confirm it's you before a sensitive change. Required to set a new password for another Instance admin, and to Change password.
 _Avoid_: step-up, sudo mode, confirm identity
 
 ### Workspaces
@@ -159,6 +175,11 @@ When Vietnamese is active, the UI and API errors are localized, while core syste
 | | Login lockout → **Tạm khoá** |
 | | Account created → **Ngày tạo tài khoản** |
 | | Users (trang) → **Người dùng** |
+| | Profile → **Hồ sơ** |
+| | Account menu → **Menu tài khoản** |
+| | Change password → **Đổi mật khẩu** |
+| | Set new password → **Đặt mật khẩu mới** |
+| | Sign out → **Đăng xuất** |
 
 All translations address the user politely as "bạn". User-supplied content (such as project names, descriptions, and user names), time zone identifiers, server logs, and logos remain untranslated.
 

@@ -11,6 +11,7 @@ import { User } from '../auth/entities/user.entity.js';
 import { PasswordHasher } from '../auth/passwordHasher.js';
 import { UsersRepository } from '../auth/repositories/usersRepository.js';
 import { ApiException } from '../common/apiException.js';
+import { isSameAsEmail, passwordSameAsEmail } from '../users/passwordRules.js';
 import {
   ActorReauthentication,
   reauthenticationFailed,
@@ -42,24 +43,10 @@ function emailAlreadyExists(): ApiException {
   );
 }
 
-function passwordSameAsEmail(): ApiException {
-  return new ApiException(
-    HttpStatus.BAD_REQUEST,
-    'VALIDATION_ERROR',
-    { key: 'errors:checkHighlightedFields' },
-    { fields: { password: { key: 'users:errors.passwordSameAsEmail' } } },
-  );
-}
-
 function userNotFound(): ApiException {
   return new ApiException(HttpStatus.NOT_FOUND, 'USER_NOT_FOUND', {
     key: 'admin:users.errors.userNotFound',
   });
-}
-
-/** Case-insensitive, as the API compares emails everywhere (S1, DB B6 step 4). */
-function isSameAsEmail(password: string, email: string | null): boolean {
-  return password.toLowerCase() === (email ?? '').toLowerCase();
 }
 
 const EDITABLE_FIELDS = [

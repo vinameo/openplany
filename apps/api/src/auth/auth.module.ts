@@ -29,7 +29,12 @@ import {
   TypeOrmUsersRepository,
   UsersRepository,
 } from './repositories/usersRepository.js';
+import {
+  LockedUsersRepository,
+  TypeOrmLockedUsersRepository,
+} from './repositories/lockedUsers.js';
 import { SessionCookie } from './sessionCookie.js';
+import { SessionIssuer } from './sessionIssuer.js';
 
 @Module({
   imports: [TypeOrmModule.forFeature([User, Session, LoginAttempt])],
@@ -39,12 +44,17 @@ import { SessionCookie } from './sessionCookie.js';
     AuthDataRetentionService,
     SessionCookie,
     SessionGuard,
+    SessionIssuer,
     { provide: APP_GUARD, useClass: OriginGuard },
     { provide: Clock, useClass: SystemClock },
     { provide: PasswordHasher, useClass: Argon2PasswordHasher },
     { provide: LoginRateLimiter, useClass: DbLoginRateLimiter },
     { provide: UsersRepository, useClass: TypeOrmUsersRepository },
     { provide: SessionsRepository, useClass: TypeOrmSessionsRepository },
+    {
+      provide: LockedUsersRepository,
+      useClass: TypeOrmLockedUsersRepository,
+    },
     {
       provide: LoginAttemptsRepository,
       useClass: TypeOrmLoginAttemptsRepository,
@@ -58,6 +68,9 @@ import { SessionCookie } from './sessionCookie.js';
     UsersRepository,
     Clock,
     PasswordHasher,
+    LockedUsersRepository,
+    SessionIssuer,
+    SessionsRepository,
   ],
 })
 export class AuthModule implements NestModule {

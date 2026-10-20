@@ -17,6 +17,7 @@ import {
 import { AuthService } from '../auth.service.js';
 import { AllowResetOnlySession } from '../currentUser.decorator.js';
 import { SessionCookie } from '../sessionCookie.js';
+import { SessionIssuer } from '../sessionIssuer.js';
 import { SessionGuard } from './sessionGuard.js';
 
 const COOKIE = 'op_session';
@@ -46,6 +47,7 @@ function setup() {
     new FakePasswordHasher(),
     new FakeRateLimiter(),
     new FakeClock(),
+    new SessionIssuer(config),
     config,
   );
   const guard = new SessionGuard(
@@ -114,6 +116,43 @@ describe('SessionGuard', () => {
       'UNAUTHENTICATED',
     );
     expect(clearCookie).toHaveBeenCalledWith(COOKIE, expect.any(Object));
+  });
+
+  it('does not clear a cookie that maps to a revoked session (AC-27)', async () => {
+    const { guard, sessions } = setup();
+    sessions.lookupResult = { status: 'revoked' };
+    const { context, clearCookie } = contextFor(PlainController, {
+      [COOKIE]: 'revoked-token',
+    });
+
+    await expectApiError(
+      guard.canActivate(context),
+      HttpStatus.UNAUTHORIZED,
+      'UNAUTHENTICATED',
+    );
+    expect(clearCookie).not.toHaveBeenCalled();
+  });
+
+  it('does not refresh or clear cookie when touch fails due to concurrent revocation', async () => {
+    const { guard, sessions } = setup();
+    sessions.active = {
+      session: makeSession({
+        lastUsedAt: new Date(NOW.getTime() - 10 * 60_000),
+      }),
+      user: makeUser(),
+    };
+    sessions.failTouch = true;
+    const { context, cookie, clearCookie } = contextFor(PlainController, {
+      [COOKIE]: 'token',
+    });
+
+    await expectApiError(
+      guard.canActivate(context),
+      HttpStatus.UNAUTHORIZED,
+      'UNAUTHENTICATED',
+    );
+    expect(cookie).not.toHaveBeenCalled();
+    expect(clearCookie).not.toHaveBeenCalled();
   });
 
   it('attaches the user of a live session to the request', async () => {

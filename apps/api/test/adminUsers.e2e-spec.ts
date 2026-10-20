@@ -1895,6 +1895,35 @@ describe('Admin Users (e2e)', () => {
       expect(blocked.body.message).toMatch(/^Too many incorrect passwords\. Try again in \d+ minutes?\.$/);
     });
 
+    it('AC-32: 8 concurrent requests with wrong actorPassword -> at most 5 verified, rest 429 TOO_MANY_REAUTH_ATTEMPTS', async () => {
+      await createDbUser('kai-parallel@openplany.dev', true);
+      const kaiCookie = await signInCookie('kai-parallel@openplany.dev');
+      const binhId = await createDbUser('binh-parallel@openplany.dev', true);
+      const put = (actorPassword: string) =>
+        http()
+          .put(`/api/admin/users/${binhId}/password`)
+          .set('Origin', ORIGIN)
+          .set('Cookie', kaiCookie)
+          .send({ password: 'NewSecret456!', actorPassword });
+
+      const responses = await Promise.all(
+        Array.from({ length: 8 }, (_, i) => put(`wrong-parallel-${i}`)),
+      );
+
+      const forbidden = responses.filter((r) => r.status === 403);
+      const tooMany = responses.filter((r) => r.status === 429);
+
+      expect(forbidden.length).toBeLessThanOrEqual(5);
+      expect(forbidden.length + tooMany.length).toBe(8);
+      expect(tooMany.length).toBeGreaterThanOrEqual(3);
+      for (const res of forbidden) {
+        expect(res.body.code).toBe('REAUTHENTICATION_FAILED');
+      }
+      for (const res of tooMany) {
+        expect(res.body.code).toBe('TOO_MANY_REAUTH_ATTEMPTS');
+      }
+    });
+
     it('DB B7: one lock order (users → sessions), so touch and logout never deadlock with a password change', async () => {
       const namId = await createDbUser('nam-lock@openplany.dev', false);
       const namCookie = await signInCookie('nam-lock@openplany.dev');
