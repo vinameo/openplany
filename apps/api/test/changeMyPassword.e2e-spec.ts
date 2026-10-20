@@ -830,6 +830,9 @@ describe('PUT /api/users/me/password (e2e)', () => {
       .getRepository(Session)
       .findOneByOrFail({ userId });
     const initialExpiresAt = sessionBefore.expiresAt.getTime();
+    const { lastActive: lastActiveBefore } = await e2e.dataSource
+      .getRepository(User)
+      .findOneByOrFail({ id: userId });
 
     // Acquire lock on users row in a separate transaction, then change password and commit
     const queryRunner = e2e.dataSource.createQueryRunner();
@@ -874,6 +877,12 @@ describe('PUT /api/users/me/password (e2e)', () => {
         .getRepository(Session)
         .findOneByOrFail({ id: sessionBefore.id });
       expect(sessionAfter.expiresAt.getTime()).toBe(initialExpiresAt);
+
+      // The refused request is not recorded as activity.
+      const userAfter = await e2e.dataSource
+        .getRepository(User)
+        .findOneByOrFail({ id: userId });
+      expect(userAfter.lastActive?.getTime()).toBe(lastActiveBefore?.getTime());
     } finally {
       await queryRunner.release();
     }

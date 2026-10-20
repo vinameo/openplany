@@ -1,14 +1,11 @@
 import { translate } from "../../i18n/language";
+import { retryAfterMinutes } from "../../lib/apiClient";
 
-/**
- * Formats rate limit countdown message.
- * n = max(1, ceil(seconds / 60))
- * 90 -> 2 minutes, 30 -> 1 minute, null -> 1 minute, 600 -> 10 minutes.
- */
+/** Rate limit message with the minutes to wait (`retryAfterMinutes`). */
 export function tooManyChangesMessage(retryAfterSeconds: number | null): string {
-  const seconds = retryAfterSeconds ?? 60;
-  const minutes = Math.max(1, Math.ceil(seconds / 60));
-  return translate("settings:messages.tooManyChanges", { count: minutes });
+  return translate("settings:messages.tooManyChanges", {
+    count: retryAfterMinutes(retryAfterSeconds),
+  });
 }
 
 export const SETTINGS_MESSAGES = {

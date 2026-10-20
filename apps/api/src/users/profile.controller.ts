@@ -19,16 +19,13 @@ import type {
   AuthUserResponse,
 } from '../auth/dto/authSessionResponse.dto.js';
 import { SessionGuard } from '../auth/guards/sessionGuard.js';
+import { requestContext } from '../auth/requestContext.js';
 import { SessionCookie } from '../auth/sessionCookie.js';
 import { ChangeMyPasswordDto } from './dto/changeMyPassword.dto.js';
 import { UpdateProfileDto } from './dto/updateProfile.dto.js';
 import { MyPasswordChangeRateLimitGuard } from './myPasswordChangeRateLimitGuard.js';
 import { MyPasswordService } from './myPassword.service.js';
 import { ProfileService } from './profile.service.js';
-
-function clientIp(request: Request): string {
-  return request.ip ?? request.socket.remoteAddress ?? 'unknown';
-}
 
 @Controller('users/me')
 @UseGuards(SessionGuard)
@@ -68,11 +65,7 @@ export class ProfileController {
       userId,
       currentToken,
       dto,
-      context: {
-        requestId: request.requestId,
-        ip: clientIp(request),
-        userAgent: request.header('User-Agent') ?? null,
-      },
+      context: requestContext(request),
     });
     this.sessionCookie.set(response, result.token, result.maxAgeMs);
     return result.body;

@@ -2,10 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { generateSessionToken, hashSessionToken } from './authTokens.js';
 import type { NewSession } from './repositories/sessionsRepository.js';
+import { truncateUserAgent } from './requestContext.js';
 
 export const DAY_MS = 24 * 60 * 60 * 1000;
 export const RESET_ONLY_SESSION_MS = 15 * 60 * 1000;
-export const MAX_USER_AGENT_LENGTH = 512;
 
 export interface IssuedSession {
   token: string;
@@ -32,10 +32,7 @@ export class SessionIssuer {
     const expiresAt = new Date(input.now.getTime() + maxAgeMs);
     const token = generateSessionToken();
     const tokenHash = hashSessionToken(token);
-    const userAgent =
-      input.userAgent === null
-        ? null
-        : input.userAgent.slice(0, MAX_USER_AGENT_LENGTH);
+    const userAgent = truncateUserAgent(input.userAgent);
 
     return {
       token,

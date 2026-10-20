@@ -80,8 +80,6 @@ export function UserPlusIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-export { SignOutIcon } from "../profile/icons";
-
 export function SettingsIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg

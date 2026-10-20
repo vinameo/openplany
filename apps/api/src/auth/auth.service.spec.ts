@@ -13,7 +13,8 @@ import {
   NOW,
   RESERVED_ATTEMPT_ID,
 } from '../../test/fakes/authFakes.js';
-import { AuthService, type RequestContext } from './auth.service.js';
+import { AuthService } from './auth.service.js';
+import type { RequestContext } from './requestContext.js';
 import { hashEmail, hashSessionToken } from './authTokens.js';
 import type { User } from './entities/user.entity.js';
 import { SessionIssuer } from './sessionIssuer.js';

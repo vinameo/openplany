@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import type {
   AdminUserListQuery,
   AdminUserListResponse,
@@ -8,28 +8,29 @@ import type {
 import { ADMIN_USERS_PAGE_SIZE } from '@repo/contracts';
 import { Clock } from '../auth/clock.js';
 import { User } from '../auth/entities/user.entity.js';
+import { PasswordConfirmation } from '../auth/passwordConfirmation.js';
 import { PasswordHasher } from '../auth/passwordHasher.js';
 import { UsersRepository } from '../auth/repositories/usersRepository.js';
 import { ApiException } from '../common/apiException.js';
 import { isSameAsEmail, passwordSameAsEmail } from '../users/passwordRules.js';
-import {
-  ActorReauthentication,
-  reauthenticationFailed,
-} from './actorReauthentication.js';
+import { reauthenticationFailed } from './adminReauthentication.js';
 import { type ChangeUserPasswordDto } from './dto/changeUserPassword.dto.js';
 import { type CreateUserDto } from './dto/createUser.dto.js';
 import { toAdminUserResponse } from './dto/adminUserResponse.dto.js';
 import { toCreatedUserResponse } from './dto/createdUserResponse.dto.js';
 import { type UpdateAdminUserDto } from './dto/updateAdminUser.dto.js';
-import { UserEvents } from './events/userEvents.js';
+import { UserEvents } from '../users/events/userEvents.js';
 import {
-  AdminUsersRepository,
   EmailAlreadyExistsError,
-  isActiveInstanceAdmin,
-  isListedUser,
   type LockedUserWrites,
   type UserChanges,
+} from '../auth/repositories/lockedUsers.js';
+import {
+  AdminUsersRepository,
+  isActiveInstanceAdmin,
+  isListedUser,
 } from './repositories/adminUsersRepository.js';
+import { ADMIN_REAUTH_CONFIRMATION } from './tokens.js';
 import { generateUsername } from './username.js';
 
 const EMAIL_ALREADY_EXISTS_REF = { key: 'errors:emailAlreadyExists' } as const;
@@ -95,7 +96,8 @@ export class AdminUsersService {
     private readonly hasher: PasswordHasher,
     private readonly events: UserEvents,
     private readonly clock: Clock,
-    private readonly reauthentication: ActorReauthentication,
+    @Inject(ADMIN_REAUTH_CONFIRMATION)
+    private readonly reauthentication: PasswordConfirmation,
   ) {}
 
   async list(query: AdminUserListQuery): Promise<AdminUserListResponse> {
@@ -206,14 +208,18 @@ export class AdminUsersService {
 
     // Slow work before the transaction: check the actor's own password
     // (step-up, API B7) and hash the new one.
-    const verifiedActorHash =
+    // null: no actor password, or no active actor; the locked-row checks
+    // answer 403 REAUTHENTICATION_REQUIRED / FORBIDDEN.
+    const confirmation =
       dto.actorPassword === undefined
         ? null
-        : await this.reauthentication.verify(
+        : await this.reauthentication.confirm(
             actorId,
             dto.actorPassword,
             requestId,
           );
+    const verifiedActorHash =
+      confirmation?.status === 'ok' ? confirmation.verifiedHash : null;
     const passwordHash = await this.hasher.hash(dto.password);
     const now = this.clock.now();
 

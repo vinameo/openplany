@@ -35,6 +35,17 @@ export class ApiRequestError extends Error {
   }
 }
 
+/**
+ * Whole minutes to wait, as every rate-limit sentence shows it (`{{count}}`):
+ * at least 1, rounded up; a missing value counts as one minute.
+ * 90 → 2, 30 → 1, null → 1, 600 → 10.
+ */
+export function retryAfterMinutes(
+  retryAfterSeconds: number | null | undefined,
+): number {
+  return Math.max(1, Math.ceil((retryAfterSeconds ?? 60) / 60));
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }

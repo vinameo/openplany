@@ -8,11 +8,12 @@ import {
 } from '../../test/fakes/authFakes.js';
 import type { User } from '../auth/entities/user.entity.js';
 import type { UsersRepository } from '../auth/repositories/usersRepository.js';
+import { PasswordConfirmation } from '../auth/passwordConfirmation.js';
 import { InMemorySlidingWindowLimiter } from '../common/slidingWindowLimiter.js';
 import {
-  ActorReauthentication,
+  ADMIN_REAUTH_CONFIRMATION_OPTIONS,
   REAUTH_FAILURE_LIMIT,
-} from './actorReauthentication.js';
+} from './adminReauthentication.js';
 import { AdminUsersService } from './adminUsers.service.js';
 import type { CreateUserDto } from './dto/createUser.dto.js';
 import type {
@@ -20,11 +21,9 @@ import type {
   UserPasswordChangedEvent,
   UserUpdatedEvent,
   UserEvents,
-} from './events/userEvents.js';
-import {
-  EmailAlreadyExistsError,
-  type NewUser,
-} from './repositories/adminUsersRepository.js';
+} from '../users/events/userEvents.js';
+import { EmailAlreadyExistsError } from '../auth/repositories/lockedUsers.js';
+import type { NewUser } from './repositories/adminUsersRepository.js';
 
 describe('AdminUsersService', () => {
   const sampleDto = {
@@ -102,13 +101,14 @@ describe('AdminUsersService', () => {
 
     const clock = new FakeClock(new Date('2026-10-09T10:00:00.000Z'));
 
-    const reauthentication = new ActorReauthentication(
+    const { failureLimit, ...reauthConfig } = ADMIN_REAUTH_CONFIRMATION_OPTIONS;
+    const reauthentication = new PasswordConfirmation(
+      {
+        ...reauthConfig,
+        limiter: new InMemorySlidingWindowLimiter(failureLimit),
+      },
       usersRepo,
       hasher,
-      new InMemorySlidingWindowLimiter({
-        limit: REAUTH_FAILURE_LIMIT,
-        windowMs: 15 * 60 * 1000,
-      }),
       clock,
     );
 

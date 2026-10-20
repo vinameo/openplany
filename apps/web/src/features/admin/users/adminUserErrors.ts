@@ -1,4 +1,4 @@
-import { ApiRequestError } from "../../../lib/apiClient";
+import { ApiRequestError, retryAfterMinutes } from "../../../lib/apiClient";
 import { translate } from "../../../i18n/index.js";
 
 export type AdminUserErrorContext =
@@ -140,7 +140,7 @@ export function parseAdminUserError(
         message: rateLimitMessage(
           error.code,
           context,
-          Math.max(1, Math.ceil(retryAfterSeconds / 60)),
+          retryAfterMinutes(retryAfterSeconds),
         ),
         retryAfterSeconds,
       };

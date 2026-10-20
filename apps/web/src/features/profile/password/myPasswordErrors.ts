@@ -1,4 +1,4 @@
-import { ApiRequestError } from "../../../lib/apiClient";
+import { ApiRequestError, retryAfterMinutes } from "../../../lib/apiClient";
 
 export type MyPasswordErrorResolution =
   | { kind: "unauthenticated" }
@@ -69,24 +69,20 @@ export function resolveMyPasswordError(
     }
 
     if (error.code === "TOO_MANY_PASSWORD_ATTEMPTS") {
-      const count = Math.max(
-        1,
-        Math.ceil((error.retryAfterSeconds ?? 60) / 60),
-      );
       return {
         kind: "submitError",
-        submitError: t("users:errors.tooManyPasswordAttempts", { count }),
+        submitError: t("users:errors.tooManyPasswordAttempts", {
+          count: retryAfterMinutes(error.retryAfterSeconds),
+        }),
       };
     }
 
     if (error.code === "TOO_MANY_PASSWORD_CHANGES") {
-      const count = Math.max(
-        1,
-        Math.ceil((error.retryAfterSeconds ?? 60) / 60),
-      );
       return {
         kind: "submitError",
-        submitError: t("users:errors.tooManyPasswordChanges", { count }),
+        submitError: t("users:errors.tooManyPasswordChanges", {
+          count: retryAfterMinutes(error.retryAfterSeconds),
+        }),
       };
     }
 
