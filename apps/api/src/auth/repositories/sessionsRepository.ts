@@ -168,14 +168,25 @@ export class TypeOrmSessionsRepository extends SessionsRepository {
 
   async touch(session: Session, now: Date, expiresAt: Date): Promise<boolean> {
     return this.dataSource.transaction(async (manager) => {
-      // Throttled like the session itself: one users write per 5 minutes at most.
-      await manager.update(User, session.userId, { lastActive: now });
+      // Lock the users row first (lock order) without writing it, so a
+      // session revoked meanwhile does not record a refused request as
+      // activity (RQ INV-12).
+      await manager.findOne(User, {
+        select: { id: true },
+        where: { id: session.userId },
+        lock: { mode: 'pessimistic_write' },
+      });
       const result = await manager.update(
         Session,
         { id: session.id, revokedAt: IsNull() },
         { lastUsedAt: now, expiresAt },
       );
-      return (result.affected ?? 0) > 0;
+      const touched = (result.affected ?? 0) > 0;
+      if (touched) {
+        // Throttled like the session itself: one users write per 5 minutes at most.
+        await manager.update(User, session.userId, { lastActive: now });
+      }
+      return touched;
     });
   }
 
