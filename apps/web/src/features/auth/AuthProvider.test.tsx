@@ -259,6 +259,134 @@ describe("AuthProvider", () => {
       );
     });
 
+    it("makes one decision when several components call it at once (INV-16)", async () => {
+      const session = makeSession();
+      let resolveRecheck!: (res: Response) => void;
+      let sessionCalls = 0;
+      mockFetch({
+        "GET /api/auth/session": () => {
+          sessionCalls += 1;
+          if (sessionCalls === 1) return jsonResponse(200, session);
+          return new Promise<Response>((resolve) => {
+            resolveRecheck = resolve;
+          });
+        },
+      });
+      const consoleErrorSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+
+      const { result } = renderHook(() => useAuth(), {
+        wrapper: AuthProvider,
+      });
+      await waitFor(() => {
+        expect(result.current.state.status).toBe("authenticated");
+      });
+
+      // Three requests in flight all get 401 together.
+      act(() => {
+        result.current.expireSession();
+        result.current.expireSession();
+        result.current.expireSession();
+      });
+      await act(async () => {
+        resolveRecheck(jsonResponse(200, session));
+      });
+
+      await waitFor(() => {
+        expect(result.current.sessionEpoch).toBe(1);
+      });
+      expect(result.current.state.status).toBe("authenticated");
+      expect(sessionCalls).toBe(2);
+      expect(consoleErrorSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining("loop detected"),
+      );
+    });
+
+    it("neither remounts nor opens the loop window when replaceSession wins", async () => {
+      const session = makeSession();
+      let resolveRecheck!: (res: Response) => void;
+      let sessionCalls = 0;
+      mockFetch({
+        "GET /api/auth/session": () => {
+          sessionCalls += 1;
+          if (sessionCalls === 2) {
+            return new Promise<Response>((resolve) => {
+              resolveRecheck = resolve;
+            });
+          }
+          return jsonResponse(200, session);
+        },
+      });
+
+      const { result } = renderHook(() => useAuth(), {
+        wrapper: AuthProvider,
+      });
+      await waitFor(() => {
+        expect(result.current.state.status).toBe("authenticated");
+      });
+
+      // An old request's 401 starts a recheck; the password change lands meanwhile.
+      act(() => {
+        result.current.expireSession();
+      });
+      act(() => {
+        result.current.replaceSession(makeSession());
+      });
+      await act(async () => {
+        resolveRecheck(apiError(401, "UNAUTHENTICATED", "Revoked"));
+      });
+
+      expect(result.current.state.status).toBe("authenticated");
+      expect(result.current.sessionEpoch).toBe(0);
+
+      // Another old 401 two seconds later is a fresh decision, not a loop.
+      vi.setSystemTime(Date.now() + 2_000);
+      act(() => {
+        result.current.expireSession();
+      });
+      await waitFor(() => {
+        expect(result.current.sessionEpoch).toBe(1);
+      });
+      expect(result.current.state.status).toBe("authenticated");
+    });
+
+    it("does not remount after signOut ran during the recheck", async () => {
+      const session = makeSession();
+      let resolveRecheck!: (res: Response) => void;
+      let sessionCalls = 0;
+      mockFetch({
+        "GET /api/auth/session": () => {
+          sessionCalls += 1;
+          if (sessionCalls === 1) return jsonResponse(200, session);
+          return new Promise<Response>((resolve) => {
+            resolveRecheck = resolve;
+          });
+        },
+        "POST /api/auth/sign-out": () => new Response(null, { status: 204 }),
+      });
+
+      const { result } = renderHook(() => useAuth(), {
+        wrapper: AuthProvider,
+      });
+      await waitFor(() => {
+        expect(result.current.state.status).toBe("authenticated");
+      });
+
+      act(() => {
+        result.current.expireSession();
+      });
+      await act(async () => {
+        await result.current.signOut();
+      });
+      await act(async () => {
+        resolveRecheck(jsonResponse(200, session));
+      });
+
+      expect(result.current.state.status).toBe("anonymous");
+      expect(result.current.sessionEpoch).toBe(0);
+    });
+
     it("allows another sessionEpoch increment after 10 seconds", async () => {
       const session = makeSession();
       mockFetch({
