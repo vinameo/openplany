@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
@@ -10,19 +9,10 @@ import {
   Textarea,
   TextInput,
 } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
-import {
-  normalizeWorkItemDescription,
-  normalizeWorkItemTitle,
-  workItemDescriptionProblem,
-  workItemTitleProblem,
-  type ProjectListItem,
-} from "@repo/contracts";
-import { ApiRequestError } from "../../../lib/apiClient";
-import { translateRef } from "../../../i18n/language";
+import type { ProjectListItem } from "@repo/contracts";
 import { useIsDesktop } from "../../layout/useIsDesktop";
 import { ProjectIcon } from "../../projects/ProjectIcon";
-import { useCreateWorkItem } from "../api/useCreateWorkItem";
+import { useCreateWorkItemForm } from "./useCreateWorkItemForm";
 import classes from "./CreateWorkItemModal.module.css";
 
 export interface CreateWorkItemModalProps {
@@ -42,76 +32,24 @@ export function CreateWorkItemModal({
 }: CreateWorkItemModalProps) {
   const { t } = useTranslation();
   const isDesktop = useIsDesktop();
-  const createMutation = useCreateWorkItem();
 
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [titleError, setTitleError] = useState<string | null>(null);
-  const [descriptionError, setDescriptionError] = useState<string | null>(null);
-  const [serverError, setServerError] = useState<string | null>(null);
-  const [idempotencyKey, setIdempotencyKey] = useState<string>(() =>
-    crypto.randomUUID(),
-  );
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setServerError(null);
-
-    const titleProb = workItemTitleProblem(title);
-    if (titleProb) {
-      setTitleError(translateRef(t, titleProb));
-      return;
-    }
-    setTitleError(null);
-
-    const descProb = workItemDescriptionProblem(description);
-    if (descProb) {
-      setDescriptionError(translateRef(t, descProb));
-      return;
-    }
-    setDescriptionError(null);
-
-    const normTitle = normalizeWorkItemTitle(title);
-    const normDesc = normalizeWorkItemDescription(description);
-
-    try {
-      const res = await createMutation.mutateAsync({
-        slug,
-        identifier: project.identifier,
-        body: {
-          title: normTitle,
-          description: normDesc,
-          idempotencyKey,
-        },
-      });
-
-      notifications.show({
-        title: t("workItem:create.created", { key: res.workItem.key }),
-        message: res.workItem.title,
-      });
-
-      onClose();
-    } catch (err) {
-      if (err instanceof ApiRequestError) {
-        if (err.status === 403) {
-          setServerError(t("workItem:errors.createForbidden"));
-          reloadProject?.();
-        } else if (err.status === 404) {
-          setServerError(t("workItem:errors.projectGone"));
-          reloadProject?.();
-        } else if (err.code === "WORK_ITEM_REQUEST_REUSED") {
-          setServerError(t("workItem:errors.requestReused"));
-          setIdempotencyKey(crypto.randomUUID());
-        } else {
-          setServerError(t("workItem:errors.generic"));
-        }
-      } else {
-        setServerError(t("workItem:errors.generic"));
-      }
-    }
-  };
-
-  const isSaving = createMutation.isPending;
+  const {
+    title,
+    setTitle,
+    description,
+    setDescription,
+    titleError,
+    descriptionError,
+    serverError,
+    isSaving,
+    isSaveLocked,
+    handleSubmit,
+  } = useCreateWorkItemForm({
+    slug,
+    project,
+    onSuccess: onClose,
+    reloadProject,
+  });
 
   return (
     <Modal
@@ -154,10 +92,7 @@ export function CreateWorkItemModal({
             placeholder={t("workItem:fields.title")}
             aria-label={t("workItem:fields.title")}
             value={title}
-            onChange={(e) => {
-              setTitle(e.currentTarget.value);
-              if (titleError) setTitleError(null);
-            }}
+            onChange={(e) => setTitle(e.currentTarget.value)}
             error={titleError}
             readOnly={isSaving}
           />
@@ -167,26 +102,20 @@ export function CreateWorkItemModal({
             placeholder={t("workItem:fields.descriptionPlaceholder")}
             aria-label={t("workItem:fields.descriptionLabel")}
             value={description}
-            onChange={(e) => {
-              setDescription(e.currentTarget.value);
-              if (descriptionError) setDescriptionError(null);
-            }}
+            onChange={(e) => setDescription(e.currentTarget.value)}
             error={descriptionError}
             rows={5}
             readOnly={isSaving}
           />
 
           <Group justify="flex-end" className={classes.footer}>
-            <Button
-              variant="default"
-              onClick={onClose}
-              disabled={isSaving}
-            >
+            <Button variant="default" onClick={onClose} disabled={isSaving}>
               {t("workItem:create.discard")}
             </Button>
             <Button
               type="submit"
               loading={isSaving}
+              disabled={isSaving || isSaveLocked}
             >
               {t("workItem:create.save")}
             </Button>
