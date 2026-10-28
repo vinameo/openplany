@@ -1,5 +1,6 @@
 import { ProjectGeneralSettingsPage } from "./general/ProjectGeneralSettingsPage";
 import { ProjectMembersSettingsPage } from "./members/ProjectMembersSettingsPage";
+import { ProjectStatesPage } from "./states/ProjectStatesPage";
 import { ProjectSettingsIndexRedirect } from "./ProjectSettingsIndexRedirect";
 import { ProjectSettingsLayout } from "./ProjectSettingsLayout";
 import { ProjectSettingsSectionNotFound } from "./ProjectSettingsSectionNotFound";
@@ -21,8 +22,13 @@ export function ProjectMembersSettingsRoute() {
   );
 }
 
+export function ProjectStatesSettingsRoute() {
+  return <ProjectStatesPage />;
+}
+
 export {
   ProjectSettingsIndexRedirect,
   ProjectSettingsLayout,
   ProjectSettingsSectionNotFound,
+  ProjectStatesPage,
 };

@@ -1,0 +1,187 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-width: 880px;
+  width: 100%;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.headerTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.description {
+  color: var(--mantine-color-dimmed);
+  font-size: 0.875rem;
+  line-height: 1.4;
+  flex: 1;
+  min-width: 240px;
+}
+
+.countText {
+  color: var(--mantine-color-dimmed);
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.inheritedNote {
+  font-size: 0.875rem;
+}
+
+.groupSection {
+  border: 1px solid var(--mantine-color-default-border);
+  border-radius: var(--mantine-radius-md);
+  overflow: hidden;
+  background-color: var(--mantine-color-body);
+}
+
+.groupHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.625rem 1rem;
+  background-color: var(--mantine-color-default-hover);
+  border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.groupTitle {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--mantine-color-dimmed);
+  margin: 0;
+}
+
+.groupList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.stateRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.625rem 1rem;
+  border-bottom: 1px solid var(--mantine-color-default-border);
+  gap: 0.75rem;
+}
+
+.stateRow:last-child {
+  border-bottom: none;
+}
+
+.stateRowLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.stateName {
+  font-size: 0.875rem;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.levelBadge {
+  font-size: 0.6875rem;
+}
+
+.stateRowRight {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-shrink: 0;
+}
+
+.workItemCount {
+  font-size: 0.8125rem;
+  color: var(--mantine-color-dimmed);
+  white-space: nowrap;
+}
+
+/* Inline row form */
+.formRow {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--mantine-color-default-border);
+  background-color: var(--mantine-color-default-hover);
+}
+
+.formContent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.formFieldsDesktop {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.formNameField {
+  flex: 2;
+  min-width: 160px;
+}
+
+.formGroupField {
+  flex: 1;
+  min-width: 140px;
+}
+
+.formColorField {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+}
+
+.formActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+/* Mobile layout (< 768px) */
+@media (max-width: 48em) {
+  .stateRow {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.375rem;
+  }
+
+  .stateRowLeft {
+    width: 100%;
+  }
+
+  .stateRowRight {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .formFieldsDesktop {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .formNameField,
+  .formGroupField {
+    width: 100%;
+  }
+}

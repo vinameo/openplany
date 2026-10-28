@@ -160,20 +160,20 @@ export const appRoutes: RouteObject[] = [
                       {
                         path: "settings",
                         lazy: () =>
-                          import(
-                            "./features/projects/settings/settingsRoutes"
-                          ).then((m) => ({
-                            Component: m.ProjectSettingsLayout,
-                          })),
+                          import("./features/projects/settings/settingsRoutes").then(
+                            (m) => ({
+                              Component: m.ProjectSettingsLayout,
+                            }),
+                          ),
                         children: [
                           {
                             index: true,
                             lazy: () =>
-                              import(
-                                "./features/projects/settings/settingsRoutes"
-                              ).then((m) => ({
-                                Component: m.ProjectSettingsIndexRedirect,
-                              })),
+                              import("./features/projects/settings/settingsRoutes").then(
+                                (m) => ({
+                                  Component: m.ProjectSettingsIndexRedirect,
+                                }),
+                              ),
                           },
                           {
                             path: "general",
@@ -181,11 +181,11 @@ export const appRoutes: RouteObject[] = [
                               settingsSection: "general",
                             } satisfies SettingsSectionHandle,
                             lazy: () =>
-                              import(
-                                "./features/projects/settings/settingsRoutes"
-                              ).then((m) => ({
-                                Component: m.ProjectGeneralSettingsRoute,
-                              })),
+                              import("./features/projects/settings/settingsRoutes").then(
+                                (m) => ({
+                                  Component: m.ProjectGeneralSettingsRoute,
+                                }),
+                              ),
                           },
                           {
                             path: "members",
@@ -193,20 +193,32 @@ export const appRoutes: RouteObject[] = [
                               settingsSection: "members",
                             } satisfies SettingsSectionHandle,
                             lazy: () =>
-                              import(
-                                "./features/projects/settings/settingsRoutes"
-                              ).then((m) => ({
-                                Component: m.ProjectMembersSettingsRoute,
-                              })),
+                              import("./features/projects/settings/settingsRoutes").then(
+                                (m) => ({
+                                  Component: m.ProjectMembersSettingsRoute,
+                                }),
+                              ),
+                          },
+                          {
+                            path: "states",
+                            handle: {
+                              settingsSection: "states",
+                            } satisfies SettingsSectionHandle,
+                            lazy: () =>
+                              import("./features/projects/settings/settingsRoutes").then(
+                                (m) => ({
+                                  Component: m.ProjectStatesSettingsRoute,
+                                }),
+                              ),
                           },
                           {
                             path: "*",
                             lazy: () =>
-                              import(
-                                "./features/projects/settings/settingsRoutes"
-                              ).then((m) => ({
-                                Component: m.ProjectSettingsSectionNotFound,
-                              })),
+                              import("./features/projects/settings/settingsRoutes").then(
+                                (m) => ({
+                                  Component: m.ProjectSettingsSectionNotFound,
+                                }),
+                              ),
                           },
                         ],
                       },
@@ -214,7 +226,6 @@ export const appRoutes: RouteObject[] = [
                   },
                 ],
               },
-
             ],
           },
         ],

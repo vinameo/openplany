@@ -1,8 +1,46 @@
-import type { StateListResponse } from "@repo/contracts";
+import type {
+  CreateStateRequest,
+  StateListResponse,
+  StateMutationResponse,
+  UpdateStateRequest,
+} from "@repo/contracts";
 import { request } from "../../../lib/apiClient";
 import { projectApiPath } from "../../projects/api/projectApiPath";
+import { workspaceApiPath } from "../../workspaces/api/workspaceApiPath";
 
 export const statesApi = {
+  listWorkspaceStates: (
+    slug: string,
+    signal?: AbortSignal,
+  ): Promise<StateListResponse> =>
+    request<StateListResponse>(`${workspaceApiPath(slug)}/states`, {
+      signal,
+    }),
+
+  createWorkspaceState: (
+    slug: string,
+    body: CreateStateRequest,
+  ): Promise<StateMutationResponse> =>
+    request<StateMutationResponse>(`${workspaceApiPath(slug)}/states`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
+
+  updateWorkspaceState: (
+    slug: string,
+    stateId: string,
+    body: UpdateStateRequest,
+  ): Promise<StateMutationResponse> =>
+    request<StateMutationResponse>(
+      `${workspaceApiPath(slug)}/states/${encodeURIComponent(stateId)}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      },
+    ),
+
   listProjectStates: (
     slug: string,
     identifier: string,
@@ -11,4 +49,33 @@ export const statesApi = {
     request<StateListResponse>(`${projectApiPath(slug, identifier)}/states`, {
       signal,
     }),
+
+  createProjectState: (
+    slug: string,
+    identifier: string,
+    body: CreateStateRequest,
+  ): Promise<StateMutationResponse> =>
+    request<StateMutationResponse>(
+      `${projectApiPath(slug, identifier)}/states`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      },
+    ),
+
+  updateProjectState: (
+    slug: string,
+    identifier: string,
+    stateId: string,
+    body: UpdateStateRequest,
+  ): Promise<StateMutationResponse> =>
+    request<StateMutationResponse>(
+      `${projectApiPath(slug, identifier)}/states/${encodeURIComponent(stateId)}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      },
+    ),
 };

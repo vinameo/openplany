@@ -3,7 +3,7 @@ import type {
   SettingsGroup,
   SettingsSection,
 } from "../../settings/settingsNavigation";
-import { SettingsIcon, UsersIcon } from "../../workspaces/icons";
+import { SettingsIcon, StatesIcon, UsersIcon } from "../../workspaces/icons";
 
 export const PROJECT_SETTINGS_GROUPS = [
   { key: "general", labelKey: "project:settings.groups.general" },
@@ -12,8 +12,7 @@ export const PROJECT_SETTINGS_GROUPS = [
 export type ProjectSettingsGroup =
   (typeof PROJECT_SETTINGS_GROUPS)[number]["key"];
 
-export interface ProjectSettingsSection
-  extends SettingsSection<EnforcedProjectPermission> {
+export interface ProjectSettingsSection extends SettingsSection<EnforcedProjectPermission> {
   key: string;
   group: ProjectSettingsGroup;
   label?: string;
@@ -36,5 +35,12 @@ export const PROJECT_SETTINGS_SECTIONS: readonly ProjectSettingsSection[] = [
     labelKey: "project:settings.sections.members",
     icon: UsersIcon,
     viewPermission: "project.members.view",
+  },
+  {
+    key: "states",
+    group: "general",
+    labelKey: "project:settings.sections.states",
+    icon: StatesIcon,
+    viewPermission: "project.states.view",
   },
 ];
