@@ -10,6 +10,15 @@ export const stateKeys = {
     [...stateKeys.workspaceProjects(slug), "project", identifier] as const,
 };
 
+export function useWorkspaceStatesQuery(slug: string, enabled = true) {
+  return useQuery({
+    queryKey: stateKeys.workspace(slug),
+    queryFn: ({ signal }) => statesApi.listWorkspaceStates(slug, signal),
+    staleTime: 30_000,
+    enabled,
+  });
+}
+
 export function useProjectStatesQuery(
   slug: string,
   identifier: string,

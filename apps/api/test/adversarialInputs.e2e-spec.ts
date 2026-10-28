@@ -516,6 +516,93 @@ describe('Adversarial inputs (e2e)', () => {
     );
   });
 
+  it('POST /workspaces/:slug/states', async () => {
+    const ws = await seedWorkspace();
+    const cookieFor = rotatingCookie(() => newWorkspaceAdmin(ws.id));
+    const valid = {
+      name: 'Adversarial Workspace State',
+      group: 'active',
+      color: '#3E7BD6',
+    };
+    await expectNoServerErrors(adversarialBodies(valid), async (body, i) =>
+      http()
+        .post(`/api/workspaces/${ws.slug}/states`)
+        .set('Cookie', await cookieFor(i))
+        .set('Origin', ORIGIN)
+        .send(body as object),
+    );
+  });
+
+  it('PATCH /workspaces/:slug/states/:stateId', async () => {
+    const ws = await seedWorkspace();
+    const admin = await newWorkspaceAdmin(ws.id);
+    const createdState = await http()
+      .post(`/api/workspaces/${ws.slug}/states`)
+      .set('Cookie', admin.cookie)
+      .set('Origin', ORIGIN)
+      .send({
+        name: 'Initial State',
+        group: 'planned',
+        color: '#5B6B82',
+      })
+      .expect(201);
+    const stateId = createdState.body.state.id as string;
+
+    const cookieFor = rotatingCookie(() => newWorkspaceAdmin(ws.id));
+    const valid = {
+      name: 'Patched State',
+      group: 'active',
+      color: '#2F9E6E',
+      confirmGroupChange: true,
+    };
+    await expectNoServerErrors(adversarialBodies(valid), async (body, i) =>
+      http()
+        .patch(`/api/workspaces/${ws.slug}/states/${stateId}`)
+        .set('Cookie', await cookieFor(i))
+        .set('Origin', ORIGIN)
+        .send(body as object),
+    );
+  });
+
+  it('DELETE /workspaces/:slug/states/:stateId', async () => {
+    const ws = await seedWorkspace();
+    const cookieFor = rotatingCookie(() => newWorkspaceAdmin(ws.id));
+
+    const badQueries = [
+      'replacementStateId=not-a-uuid',
+      'replacementStateId=123',
+      'replacementStateId=a&replacementStateId=b',
+      'force=1',
+      'unknownParam=value',
+    ];
+
+    for (let i = 0; i < badQueries.length; i++) {
+      const q = badQueries[i];
+      const res = await http()
+        .delete(
+          `/api/workspaces/${ws.slug}/states/00000000-0000-0000-0000-000000000001?${q}`,
+        )
+        .set('Cookie', await cookieFor(i))
+        .set('Origin', ORIGIN);
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe('VALIDATION_ERROR');
+    }
+
+    const [defaultTodo] = await e2e.dataSource.query<{ id: string }[]>(
+      `SELECT id FROM work_item_states WHERE default_key = 'todo'`,
+    );
+
+    await expectNoServerErrors(adversarialBodies({}), async (body, i) =>
+      http()
+        .delete(
+          `/api/workspaces/${ws.slug}/states/00000000-0000-0000-0000-000000000001?replacementStateId=${defaultTodo.id}`,
+        )
+        .set('Cookie', await cookieFor(i + badQueries.length))
+        .set('Origin', ORIGIN)
+        .send(body as object),
+    );
+  });
+
   it('POST /workspaces/:slug/projects/:identifier/members role range and membership constraints (API B5)', async () => {
     const ws = await seedWorkspace();
     const admin = await newWorkspaceAdmin(ws.id);

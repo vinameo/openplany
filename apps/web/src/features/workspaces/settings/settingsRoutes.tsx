@@ -5,6 +5,7 @@ import { SettingsSectionRoute } from "./SettingsSectionRoute";
 import { WorkspaceSettingsLayout } from "./WorkspaceSettingsLayout";
 
 import { MembersSettingsPage } from "./members/MembersSettingsPage";
+import { WorkspaceStatesPage } from "./states/WorkspaceStatesPage";
 
 export function GeneralSettingsRoute() {
   return (
@@ -22,10 +23,13 @@ export function MembersSettingsRoute() {
   );
 }
 
+export function WorkspaceStatesSettingsRoute() {
+  return <WorkspaceStatesPage />;
+}
+
 export {
   SettingsIndexRedirect,
   SettingsSectionNotFound,
   WorkspaceSettingsLayout,
+  WorkspaceStatesPage,
 };
-
-

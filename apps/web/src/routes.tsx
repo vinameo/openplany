@@ -127,6 +127,18 @@ export const appRoutes: RouteObject[] = [
                               ),
                           },
                           {
+                            path: "states",
+                            handle: {
+                              settingsSection: "states",
+                            } satisfies SettingsSectionHandle,
+                            lazy: () =>
+                              import("./features/workspaces/settings/settingsRoutes").then(
+                                (m) => ({
+                                  Component: m.WorkspaceStatesSettingsRoute,
+                                }),
+                              ),
+                          },
+                          {
                             path: "*",
                             lazy: () =>
                               import("./features/workspaces/settings/settingsRoutes").then(

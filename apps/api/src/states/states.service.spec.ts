@@ -45,13 +45,30 @@ describe('StatesService', () => {
     deletedAt: null,
   };
 
+  const workspaceState: WorkItemState = {
+    id: '22222222-2222-4222-8222-222222222222',
+    level: 'workspace',
+    defaultKey: null,
+    workspaceId: 'ws-1',
+    projectId: null,
+    name: 'QA',
+    group: 'active',
+    color: '#3E7BD6',
+    createdById: 'user-1',
+    updatedById: 'user-1',
+    deletedById: null,
+    createdAt: fixedNow,
+    updatedAt: fixedNow,
+    deletedAt: null,
+  };
+
   function createService(
     states: WorkItemState[] = [],
     countsMap = new Map<string, number>(),
   ) {
     const workItemCounts = vi.fn().mockResolvedValue(countsMap);
     const catalog: StateCatalog = {
-      workspaceLevel: vi.fn(),
+      workspaceLevel: vi.fn().mockResolvedValue(states),
       effectiveFor: vi.fn().mockResolvedValue(states),
       lockEffectiveState: vi.fn(),
       lockReplacement: vi.fn(),
@@ -108,6 +125,57 @@ describe('StatesService', () => {
       workItemCounts,
     };
   }
+
+  describe('listForWorkspace', () => {
+    it('returns workspace states with ownCount, ownMax, and initialStateId', async () => {
+      const { service } = createService([defaultBacklog, workspaceState]);
+
+      const res = await service.listForWorkspace({
+        workspaceId: 'ws-1',
+        canManage: false,
+      });
+
+      expect(res.ownCount).toBe(1);
+      expect(res.ownMax).toBe(50);
+      expect(res.initialStateId).toBe('backlog-id');
+      expect(res.states).toHaveLength(2);
+      expect(res.states[0]).toEqual({
+        id: 'backlog-id',
+        name: 'Backlog',
+        group: 'backlog',
+        color: '#8E98A8',
+        level: 'default',
+      });
+      expect(res.states[0]?.workItemCount).toBeUndefined();
+      expect(res.states[1]?.workItemCount).toBeUndefined();
+    });
+
+    it('includes workItemCount when canManage is true, scoped to workspace', async () => {
+      const counts = new Map<string, number>([
+        ['backlog-id', 7],
+        ['22222222-2222-4222-8222-222222222222', 3],
+      ]);
+      const { service, workItemCounts } = createService(
+        [defaultBacklog, workspaceState],
+        counts,
+      );
+
+      const res = await service.listForWorkspace({
+        workspaceId: 'ws-1',
+        canManage: true,
+      });
+
+      expect(workItemCounts).toHaveBeenCalledWith(expect.anything(), {
+        stateIds: ['backlog-id', '22222222-2222-4222-8222-222222222222'],
+        scope: {
+          level: 'workspace',
+          workspaceId: 'ws-1',
+        },
+      });
+      expect(res.states[0]?.workItemCount).toBe(7);
+      expect(res.states[1]?.workItemCount).toBe(3);
+    });
+  });
 
   describe('listForProject', () => {
     it('returns effective states with ownCount, ownMax, and initialStateId', async () => {

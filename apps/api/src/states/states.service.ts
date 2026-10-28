@@ -22,6 +22,11 @@ export interface ListProjectStatesInput {
   canManage: boolean;
 }
 
+export interface ListWorkspaceStatesInput {
+  workspaceId: string;
+  canManage: boolean;
+}
+
 export interface CreateStateInput {
   scope: StateScope;
   actorId: string;
@@ -57,6 +62,41 @@ export class StatesService {
     private readonly events: StateEvents,
     private readonly clock: Clock,
   ) {}
+
+  async listForWorkspace(
+    input: ListWorkspaceStatesInput,
+  ): Promise<StateListResponse> {
+    const states = await this.catalog.workspaceLevel(this.dataSource.manager, {
+      workspaceId: input.workspaceId,
+    });
+
+    const initialState =
+      states.find(
+        (s) => s.level === 'default' && s.defaultKey === INITIAL_STATE_KEY,
+      ) ?? states[0];
+
+    const ownCount = states.filter((s) => s.level === 'workspace').length;
+
+    let counts: Map<string, number> | undefined;
+    if (input.canManage && states.length > 0) {
+      counts = await this.catalog.workItemCounts(this.dataSource.manager, {
+        stateIds: states.map((s) => s.id),
+        scope: {
+          level: 'workspace',
+          workspaceId: input.workspaceId,
+        },
+      });
+    }
+
+    return {
+      states: states.map((s) =>
+        toStateResponse(s, counts ? (counts.get(s.id) ?? 0) : undefined),
+      ),
+      ownCount,
+      ownMax: WORKSPACE_STATES_MAX,
+      initialStateId: initialState ? initialState.id : '',
+    };
+  }
 
   async listForProject(
     input: ListProjectStatesInput,
@@ -123,24 +163,10 @@ export class StatesService {
         };
 
       case 'workspace_gone':
-        throw new ApiException(HttpStatus.NOT_FOUND, 'NOT_FOUND', {
-          key: 'errors:http.notFound',
-        });
-
       case 'project_gone':
-        throw new ApiException(HttpStatus.NOT_FOUND, 'PROJECT_NOT_FOUND', {
-          key: 'project:errors.notFound',
-        });
-
       case 'forbidden':
-        throw new ApiException(HttpStatus.FORBIDDEN, 'FORBIDDEN', {
-          key: 'errors:forbidden',
-        });
-
       case 'actor_inactive':
-        throw new ApiException(HttpStatus.UNAUTHORIZED, 'UNAUTHENTICATED', {
-          key: 'errors:http.unauthenticated',
-        });
+        this.throwScopeStatus(result.status);
 
       case 'limit_reached':
         if (input.scope.level === 'workspace') {
@@ -163,31 +189,10 @@ export class StatesService {
         );
 
       case 'name_taken':
-        throw new ApiException(
-          HttpStatus.CONFLICT,
-          'STATE_NAME_TAKEN',
-          { key: 'state:errors.nameTaken' },
-          { fields: { name: { key: 'state:errors.nameTaken' } } },
-        );
+        this.throwNameTaken();
 
       case 'name_taken_in_projects':
-        throw new ApiException(
-          HttpStatus.CONFLICT,
-          'STATE_NAME_TAKEN_IN_PROJECTS',
-          {
-            key: 'state:errors.nameTakenInProjects',
-            params: { count: result.count },
-          },
-          {
-            count: result.count,
-            fields: {
-              name: {
-                key: 'state:errors.nameTakenInProjects',
-                params: { count: result.count },
-              },
-            },
-          },
-        );
+        this.throwNameTaken(result.count);
     }
   }
 
@@ -228,24 +233,10 @@ export class StatesService {
         };
 
       case 'workspace_gone':
-        throw new ApiException(HttpStatus.NOT_FOUND, 'NOT_FOUND', {
-          key: 'errors:http.notFound',
-        });
-
       case 'project_gone':
-        throw new ApiException(HttpStatus.NOT_FOUND, 'PROJECT_NOT_FOUND', {
-          key: 'project:errors.notFound',
-        });
-
       case 'forbidden':
-        throw new ApiException(HttpStatus.FORBIDDEN, 'FORBIDDEN', {
-          key: 'errors:forbidden',
-        });
-
       case 'actor_inactive':
-        throw new ApiException(HttpStatus.UNAUTHORIZED, 'UNAUTHENTICATED', {
-          key: 'errors:http.unauthenticated',
-        });
+        this.throwScopeStatus(result.status);
 
       case 'not_found':
         throw new ApiException(HttpStatus.NOT_FOUND, 'STATE_NOT_FOUND', {
@@ -253,31 +244,10 @@ export class StatesService {
         });
 
       case 'name_taken':
-        throw new ApiException(
-          HttpStatus.CONFLICT,
-          'STATE_NAME_TAKEN',
-          { key: 'state:errors.nameTaken' },
-          { fields: { name: { key: 'state:errors.nameTaken' } } },
-        );
+        this.throwNameTaken();
 
       case 'name_taken_in_projects':
-        throw new ApiException(
-          HttpStatus.CONFLICT,
-          'STATE_NAME_TAKEN_IN_PROJECTS',
-          {
-            key: 'state:errors.nameTakenInProjects',
-            params: { count: result.count },
-          },
-          {
-            count: result.count,
-            fields: {
-              name: {
-                key: 'state:errors.nameTakenInProjects',
-                params: { count: result.count },
-              },
-            },
-          },
-        );
+        this.throwNameTaken(result.count);
 
       case 'group_change_unconfirmed':
         throw new ApiException(
@@ -328,24 +298,10 @@ export class StatesService {
       }
 
       case 'workspace_gone':
-        throw new ApiException(HttpStatus.NOT_FOUND, 'NOT_FOUND', {
-          key: 'errors:http.notFound',
-        });
-
       case 'project_gone':
-        throw new ApiException(HttpStatus.NOT_FOUND, 'PROJECT_NOT_FOUND', {
-          key: 'project:errors.notFound',
-        });
-
       case 'forbidden':
-        throw new ApiException(HttpStatus.FORBIDDEN, 'FORBIDDEN', {
-          key: 'errors:forbidden',
-        });
-
       case 'actor_inactive':
-        throw new ApiException(HttpStatus.UNAUTHORIZED, 'UNAUTHENTICATED', {
-          key: 'errors:http.unauthenticated',
-        });
+        this.throwScopeStatus(result.status);
 
       case 'not_found':
         throw new ApiException(HttpStatus.NOT_FOUND, 'STATE_NOT_FOUND', {
@@ -366,5 +322,56 @@ export class StatesService {
           { key: 'state:errors.replacementInvalid' },
         );
     }
+  }
+
+  private throwScopeStatus(
+    status: 'workspace_gone' | 'project_gone' | 'forbidden' | 'actor_inactive',
+  ): never {
+    switch (status) {
+      case 'workspace_gone':
+        throw new ApiException(HttpStatus.NOT_FOUND, 'NOT_FOUND', {
+          key: 'errors:http.notFound',
+        });
+      case 'project_gone':
+        throw new ApiException(HttpStatus.NOT_FOUND, 'PROJECT_NOT_FOUND', {
+          key: 'project:errors.notFound',
+        });
+      case 'forbidden':
+        throw new ApiException(HttpStatus.FORBIDDEN, 'FORBIDDEN', {
+          key: 'errors:forbidden',
+        });
+      case 'actor_inactive':
+        throw new ApiException(HttpStatus.UNAUTHORIZED, 'UNAUTHENTICATED', {
+          key: 'errors:http.unauthenticated',
+        });
+    }
+  }
+
+  private throwNameTaken(count?: number): never {
+    if (count !== undefined) {
+      throw new ApiException(
+        HttpStatus.CONFLICT,
+        'STATE_NAME_TAKEN_IN_PROJECTS',
+        {
+          key: 'state:errors.nameTakenInProjects',
+          params: { count },
+        },
+        {
+          count,
+          fields: {
+            name: {
+              key: 'state:errors.nameTakenInProjects',
+              params: { count },
+            },
+          },
+        },
+      );
+    }
+    throw new ApiException(
+      HttpStatus.CONFLICT,
+      'STATE_NAME_TAKEN',
+      { key: 'state:errors.nameTaken' },
+      { fields: { name: { key: 'state:errors.nameTaken' } } },
+    );
   }
 }

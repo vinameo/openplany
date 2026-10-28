@@ -29,6 +29,104 @@ function insertStateIntoList(
   return result;
 }
 
+export function useCreateWorkspaceStateMutation(slug: string) {
+  const queryClient = useQueryClient();
+  const queryKey = stateKeys.workspace(slug);
+
+  return useMutation({
+    mutationFn: (body: CreateStateRequest) =>
+      statesApi.createWorkspaceState(slug, body),
+    onSuccess: (res) => {
+      queryClient.setQueryData<StateListResponse>(queryKey, (old) => {
+        if (!old) return old;
+        const newStates = insertStateIntoList(old.states, res.state);
+        return {
+          ...old,
+          states: newStates,
+          ownCount: old.ownCount + 1,
+        };
+      });
+      void queryClient.invalidateQueries({
+        queryKey: stateKeys.workspaceProjects(slug),
+      });
+    },
+    onError: (err) => {
+      if (err instanceof ApiRequestError && err.code === "STATE_NAME_TAKEN") {
+        void queryClient.invalidateQueries({ queryKey });
+      }
+    },
+  });
+}
+
+function applyStateUpdateToQueryData(
+  old: StateListResponse | undefined,
+  updated: StateResponse,
+): StateListResponse | undefined {
+  if (!old) return old;
+  const oldIndex = old.states.findIndex((s) => s.id === updated.id);
+  if (oldIndex === -1) return old;
+  const oldState = old.states[oldIndex]!;
+
+  if (oldState.group === updated.group) {
+    const newStates = [...old.states];
+    newStates[oldIndex] = updated;
+    return { ...old, states: newStates };
+  }
+
+  const filtered = old.states.filter((s) => s.id !== updated.id);
+  const newStates = insertStateIntoList(filtered, updated);
+  return { ...old, states: newStates };
+}
+
+export function useUpdateWorkspaceStateMutation(slug: string) {
+  const queryClient = useQueryClient();
+  const queryKey = stateKeys.workspace(slug);
+
+  return useMutation({
+    mutationFn: ({
+      stateId,
+      body,
+    }: {
+      stateId: string;
+      body: UpdateStateRequest;
+    }) => statesApi.updateWorkspaceState(slug, stateId, body),
+    onSuccess: (res) => {
+      queryClient.setQueryData<StateListResponse>(queryKey, (old) =>
+        applyStateUpdateToQueryData(old, res.state),
+      );
+      void queryClient.invalidateQueries({
+        queryKey: stateKeys.workspaceProjects(slug),
+      });
+    },
+    onError: (err) => {
+      if (err instanceof ApiRequestError && err.code === "STATE_NAME_TAKEN") {
+        void queryClient.invalidateQueries({ queryKey });
+      }
+    },
+  });
+}
+
+export function useDeleteWorkspaceStateMutation(slug: string) {
+  const queryClient = useQueryClient();
+  const queryKey = stateKeys.workspace(slug);
+
+  return useMutation({
+    mutationFn: ({
+      stateId,
+      replacementStateId,
+    }: {
+      stateId: string;
+      replacementStateId?: string;
+    }) => statesApi.deleteWorkspaceState(slug, stateId, replacementStateId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey });
+      void queryClient.invalidateQueries({
+        queryKey: stateKeys.workspaceProjects(slug),
+      });
+    },
+  });
+}
+
 export function useCreateProjectStateMutation(
   slug: string,
   identifier: string,
@@ -74,23 +172,9 @@ export function useUpdateProjectStateMutation(
       body: UpdateStateRequest;
     }) => statesApi.updateProjectState(slug, identifier, stateId, body),
     onSuccess: (res) => {
-      queryClient.setQueryData<StateListResponse>(queryKey, (old) => {
-        if (!old) return old;
-        const updated = res.state;
-        const oldIndex = old.states.findIndex((s) => s.id === updated.id);
-        if (oldIndex === -1) return old;
-        const oldState = old.states[oldIndex]!;
-
-        if (oldState.group === updated.group) {
-          const newStates = [...old.states];
-          newStates[oldIndex] = updated;
-          return { ...old, states: newStates };
-        }
-
-        const filtered = old.states.filter((s) => s.id !== updated.id);
-        const newStates = insertStateIntoList(filtered, updated);
-        return { ...old, states: newStates };
-      });
+      queryClient.setQueryData<StateListResponse>(queryKey, (old) =>
+        applyStateUpdateToQueryData(old, res.state),
+      );
     },
     onError: (err) => {
       if (err instanceof ApiRequestError && err.code === "STATE_NAME_TAKEN") {

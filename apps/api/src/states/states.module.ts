@@ -11,6 +11,7 @@ import { ProjectsModule } from '../projects/projects.module.js';
 import { WorkspacesModule } from '../workspaces/workspaces.module.js';
 import { WorkItemState } from './entities/workItemState.entity.js';
 import { ProjectStatesController } from './projectStates.controller.js';
+import { WorkspaceStatesController } from './workspaceStates.controller.js';
 import { StatesRepository } from './repositories/states.repository.js';
 import { TypeOrmStatesRepository } from './repositories/typeOrmStates.repository.js';
 import { StateCatalog, TypeOrmStateCatalog } from './stateCatalog.js';
@@ -25,7 +26,7 @@ import { STATE_WRITE_LIMITER } from './tokens.js';
     WorkspacesModule,
     ProjectsModule,
   ],
-  controllers: [ProjectStatesController],
+  controllers: [WorkspaceStatesController, ProjectStatesController],
   providers: [
     StatesService,
     {
@@ -60,6 +61,8 @@ import { STATE_WRITE_LIMITER } from './tokens.js';
 })
 export class StatesModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(NoStoreMiddleware).forRoutes(ProjectStatesController);
+    consumer
+      .apply(NoStoreMiddleware)
+      .forRoutes(WorkspaceStatesController, ProjectStatesController);
   }
 }
