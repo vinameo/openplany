@@ -24,6 +24,7 @@ import {
   PROJECT_PERMISSION_KEY,
   ProjectPermissionGuard,
 } from './projectPermissionGuard.js';
+import { WRITE_LIMIT_KEY, type WriteLimit } from './writeLimit.js';
 
 export type ProjectRequirement =
   | EnforcedProjectPermission
@@ -95,21 +96,26 @@ function toDecorators(
  * the project access check (and its guard order) lives in one place.
  * Without a permission, any viewer who can access the project passes.
  */
-export function ProjectRead(
-  requirement?: ProjectRequirement,
-): MethodDecorator {
+export function ProjectRead(requirement?: ProjectRequirement): MethodDecorator {
   return applyDecorators(...toDecorators(projectReadGuards(requirement)));
+}
+
+export interface ProjectWriteOptions {
+  writeLimit?: WriteLimit;
 }
 
 /** Every write under /api/workspaces/:slug/projects/:identifier uses this. */
 export function ProjectWrite(
   requirement: ProjectRequirement,
+  options?: ProjectWriteOptions,
 ): MethodDecorator {
-  return applyDecorators(
-    ...toDecorators(projectReadGuards(requirement), [
-      WorkspaceWriteRateLimitGuard,
-    ]),
-  );
+  const decorators = toDecorators(projectReadGuards(requirement), [
+    WorkspaceWriteRateLimitGuard,
+  ]);
+  if (options?.writeLimit !== undefined) {
+    decorators.push(SetMetadata(WRITE_LIMIT_KEY, options.writeLimit));
+  }
+  return applyDecorators(...decorators);
 }
 
 /**

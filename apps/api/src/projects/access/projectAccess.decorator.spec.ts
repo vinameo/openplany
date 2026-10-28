@@ -1,4 +1,3 @@
-
 import { GUARDS_METADATA } from '@nestjs/common/constants.js';
 import { describe, expect, it } from 'vitest';
 import { WORKSPACE_PERMISSION_KEY } from '../../workspaces/workspaceAccess.decorator.js';
@@ -12,6 +11,7 @@ import {
   ProjectRead,
   ProjectWrite,
 } from './projectAccess.decorator.js';
+import { WRITE_LIMIT_KEY, type WriteLimit } from './writeLimit.js';
 import { ProjectAccessGuard } from './projectAccessGuard.js';
 import {
   PROJECT_PERMISSION_KEY,
@@ -224,6 +224,30 @@ describe('ProjectAccess decorators (BA ADR-04, ADR-07, API B3, B7, INV-02)', () 
         WorkspacePermissionGuard,
       ]);
     });
+
+    it('4. ProjectWrite with writeLimit options attaches WRITE_LIMIT_KEY metadata', () => {
+      const customLimit: WriteLimit = {
+        limiterToken: 'CUSTOM_TOKEN',
+        bucket: 'work_item_create',
+        message: { key: 'errors:tooManyWorkspaceWrites' },
+      };
+
+      class TestController {
+        @ProjectWrite('project.settings.update', { writeLimit: customLimit })
+        create() {}
+      }
+
+      const descriptor = Object.getOwnPropertyDescriptor(
+        TestController.prototype,
+        'create',
+      )!;
+
+      const writeLimitMeta = Reflect.getMetadata(
+        WRITE_LIMIT_KEY,
+        descriptor.value,
+      );
+      expect(writeLimitMeta).toEqual(customLimit);
+    });
   });
 
   describe('projectReadGuards helper', () => {
@@ -332,5 +356,3 @@ describe('ProjectAccess decorators (BA ADR-04, ADR-07, API B3, B7, INV-02)', () 
     });
   });
 });
-
-

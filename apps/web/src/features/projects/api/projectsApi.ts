@@ -7,6 +7,7 @@ import type {
   UpdateProjectResponse,
 } from "@repo/contracts";
 import { request } from "../../../lib/apiClient";
+import { projectApiPath } from "./projectApiPath";
 
 export const projectsApi = {
   list: (slug: string, signal?: AbortSignal) =>
@@ -16,10 +17,7 @@ export const projectsApi = {
     ),
 
   get: (slug: string, identifier: string, signal?: AbortSignal) =>
-    request<ProjectResponse>(
-      `/api/workspaces/${encodeURIComponent(slug)}/projects/${encodeURIComponent(identifier)}`,
-      { signal },
-    ),
+    request<ProjectResponse>(projectApiPath(slug, identifier), { signal }),
 
   create: (slug: string, body: CreateProjectRequest, signal?: AbortSignal) =>
     request<CreateProjectResponse>(
@@ -38,19 +36,16 @@ export const projectsApi = {
     body: UpdateProjectRequest,
     signal?: AbortSignal,
   ) =>
-    request<UpdateProjectResponse>(
-      `/api/workspaces/${encodeURIComponent(slug)}/projects/${encodeURIComponent(identifier)}`,
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-        signal,
-      },
-    ),
+    request<UpdateProjectResponse>(projectApiPath(slug, identifier), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal,
+    }),
 
   delete: (slug: string, identifier: string, signal?: AbortSignal) =>
-    request<void>(
-      `/api/workspaces/${encodeURIComponent(slug)}/projects/${encodeURIComponent(identifier)}`,
-      { method: "DELETE", signal },
-    ),
+    request<void>(projectApiPath(slug, identifier), {
+      method: "DELETE",
+      signal,
+    }),
 };

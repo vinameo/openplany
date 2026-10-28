@@ -17,11 +17,18 @@ export const PROJECT_MEMBER_AVATAR_LIMIT = 5;
 export const PROJECT_MEMBER_PREVIEW_MAX = 20;
 
 /**
+ * Multi-line text allowed chars: tab, line feed and carriage return are allowed;
+ * every other control character (including NUL, which PostgreSQL text
+ * columns reject) is not.
+ */
+export const MULTILINE_TEXT_ALLOWED_CHARS = /^(?:[\t\n\r]|[^\p{Cc}])*$/u;
+
+/**
  * Description is multi-line: tab, line feed and carriage return are allowed;
  * every other control character (including NUL, which PostgreSQL text
  * columns reject) is not.
  */
-export const PROJECT_DESCRIPTION_ALLOWED_CHARS = /^(?:[\t\n\r]|[^\p{Cc}])*$/u;
+export const PROJECT_DESCRIPTION_ALLOWED_CHARS = MULTILINE_TEXT_ALLOWED_CHARS;
 
 /** 65 icons. Tabler kebab-case names. */
 export const PROJECT_ICON_NAMES = [
@@ -284,7 +291,9 @@ export function projectNameProblem(name: string): MessageRef | null {
 }
 
 /** Lỗi đầu tiên của mô tả, hoặc null. */
-export function projectDescriptionProblem(description: string): MessageRef | null {
+export function projectDescriptionProblem(
+  description: string,
+): MessageRef | null {
   if (!description) {
     return null;
   }

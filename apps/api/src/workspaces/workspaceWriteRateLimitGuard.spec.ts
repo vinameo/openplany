@@ -1,7 +1,12 @@
-import { type ExecutionContext, HttpStatus } from '@nestjs/common';
-import { describe, expect, it } from 'vitest';
+import { type ExecutionContext, HttpStatus, Logger } from '@nestjs/common';
+import type { ModuleRef, Reflector } from '@nestjs/core';
+import { describe, expect, it, vi } from 'vitest';
 import { FakeClock } from '../../test/fakes/authFakes.js';
 import { InMemorySlidingWindowLimiter } from '../common/slidingWindowLimiter.js';
+import {
+  WRITE_LIMIT_KEY,
+  type WriteLimit,
+} from '../projects/access/writeLimit.js';
 import { WorkspaceWriteRateLimitGuard } from './workspaceWriteRateLimitGuard.js';
 
 describe('WorkspaceWriteRateLimitGuard', () => {
@@ -64,5 +69,113 @@ describe('WorkspaceWriteRateLimitGuard', () => {
     // user-2 is unaffected
     expect(guard.canActivate(makeCtx('user-2', 'ws-a'))).toBe(true);
   });
-});
 
+  it('logs bucket=workspace_write by default when rejecting', () => {
+    const limiter = new InMemorySlidingWindowLimiter({
+      limit: 1,
+      windowMs: 600_000,
+    });
+    const clock = new FakeClock();
+    const guard = new WorkspaceWriteRateLimitGuard(limiter, clock);
+    const warnSpy = vi
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => {});
+
+    const ctx = {
+      switchToHttp: () => ({
+        getRequest: () => ({
+          auth: { userId: 'user-default' },
+          requestId: 'req-def',
+        }),
+      }),
+    } as unknown as ExecutionContext;
+
+    expect(guard.canActivate(ctx)).toBe(true);
+    expect(() => guard.canActivate(ctx)).toThrow();
+    expect(warnSpy).toHaveBeenCalledWith(
+      'workspace.write.rate_limited userId=user-default bucket=workspace_write requestId=req-def',
+    );
+    warnSpy.mockRestore();
+  });
+
+  it('selects custom limiter, bucket and message when handler has WriteLimit metadata', () => {
+    const defaultLimiter = new InMemorySlidingWindowLimiter({
+      limit: 10,
+      windowMs: 600_000,
+    });
+    const customLimiter = new InMemorySlidingWindowLimiter({
+      limit: 1,
+      windowMs: 600_000,
+    });
+    const clock = new FakeClock();
+    const CUSTOM_TOKEN = Symbol('CUSTOM_LIMITER');
+    const writeLimit: WriteLimit = {
+      limiterToken: CUSTOM_TOKEN,
+      bucket: 'custom_bucket',
+      message: { key: 'errors:tooManyWorkspaceWrites' },
+    };
+
+    const handler = () => {};
+    const reflector = {
+      get: vi.fn((key: string, target: unknown) => {
+        if (key === WRITE_LIMIT_KEY && target === handler) {
+          return writeLimit;
+        }
+        return undefined;
+      }),
+    } as unknown as Reflector;
+
+    const getLimiter = vi.fn((token: unknown) => {
+      if (token === CUSTOM_TOKEN) {
+        return customLimiter;
+      }
+      throw new Error('Unknown token');
+    });
+    const moduleRef = {
+      get: getLimiter,
+    } as unknown as ModuleRef;
+
+    const guard = new WorkspaceWriteRateLimitGuard(
+      defaultLimiter,
+      clock,
+      reflector,
+      moduleRef,
+    );
+    const warnSpy = vi
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => {});
+    const defaultHitSpy = vi.spyOn(defaultLimiter, 'hit');
+    const customHitSpy = vi.spyOn(customLimiter, 'hit');
+
+    const ctx = {
+      getHandler: () => handler,
+      switchToHttp: () => ({
+        getRequest: () => ({
+          auth: { userId: 'user-custom' },
+          requestId: 'req-cust',
+        }),
+      }),
+    } as unknown as ExecutionContext;
+
+    // First request passes custom limiter
+    expect(guard.canActivate(ctx)).toBe(true);
+    expect(getLimiter).toHaveBeenCalledWith(CUSTOM_TOKEN, { strict: false });
+    expect(customHitSpy).toHaveBeenCalledTimes(1);
+    expect(defaultHitSpy).not.toHaveBeenCalled();
+
+    // Second request rejected by custom limiter with custom message and bucket
+    expect(() => guard.canActivate(ctx)).toThrowError(
+      expect.objectContaining({
+        status: HttpStatus.TOO_MANY_REQUESTS,
+        code: 'TOO_MANY_ATTEMPTS',
+        messageRef: { key: 'errors:tooManyWorkspaceWrites' },
+      }),
+    );
+    expect(customHitSpy).toHaveBeenCalledTimes(2);
+    expect(defaultHitSpy).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledWith(
+      'workspace.write.rate_limited userId=user-custom bucket=custom_bucket requestId=req-cust',
+    );
+    warnSpy.mockRestore();
+  });
+});

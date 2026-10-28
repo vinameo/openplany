@@ -7,11 +7,12 @@ import type {
   ProjectMemberCandidateListResponse,
   ProjectMemberListResponse,
 } from "@repo/contracts";
+import { projectApiPath } from "./projectApiPath";
 
 export const projectMembersApi = {
   list: (slug: string, identifier: string, signal?: AbortSignal) =>
     request<ProjectMemberListResponse>(
-      `/api/workspaces/${encodeURIComponent(slug)}/projects/${encodeURIComponent(identifier)}/members`,
+      `${projectApiPath(slug, identifier)}/members`,
       { signal },
     ),
 
@@ -22,7 +23,7 @@ export const projectMembersApi = {
     signal?: AbortSignal,
   ) =>
     request<ProjectMemberCandidateListResponse>(
-      `/api/workspaces/${encodeURIComponent(slug)}/projects/${encodeURIComponent(identifier)}/member-candidates?email=${encodeURIComponent(email)}`,
+      `${projectApiPath(slug, identifier)}/member-candidates?email=${encodeURIComponent(email)}`,
       { signal },
     ),
 
@@ -33,7 +34,7 @@ export const projectMembersApi = {
     signal?: AbortSignal,
   ) =>
     request<AddProjectMembersResponse>(
-      `/api/workspaces/${encodeURIComponent(slug)}/projects/${encodeURIComponent(identifier)}/members`,
+      `${projectApiPath(slug, identifier)}/members`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -50,7 +51,7 @@ export const projectMembersApi = {
     signal?: AbortSignal,
   ) =>
     request<ChangeProjectRoleResponse>(
-      `/api/workspaces/${encodeURIComponent(slug)}/projects/${encodeURIComponent(identifier)}/members/${encodeURIComponent(userId)}`,
+      `${projectApiPath(slug, identifier)}/members/${encodeURIComponent(userId)}`,
       {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
