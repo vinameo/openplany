@@ -12,7 +12,10 @@ import type { Request } from 'express';
 import { Clock } from '../auth/clock.js';
 import { ApiException } from '../common/apiException.js';
 import { SlidingWindowLimiter } from '../common/slidingWindowLimiter.js';
-import { WRITE_LIMIT_KEY, type WriteLimit } from '../projects/access/writeLimit.js';
+import {
+  WRITE_LIMIT_KEY,
+  type WriteLimit,
+} from '../projects/access/writeLimit.js';
 import { WORKSPACE_WRITE_LIMITER } from './tokens.js';
 
 @Injectable()
@@ -34,11 +37,9 @@ export class WorkspaceWriteRateLimitGuard implements CanActivate {
     const userId = request.auth?.userId;
 
     if (!userId) {
-      throw new ApiException(
-        HttpStatus.UNAUTHORIZED,
-        'UNAUTHENTICATED',
-        { key: 'errors:http.unauthenticated' },
-      );
+      throw new ApiException(HttpStatus.UNAUTHORIZED, 'UNAUTHENTICATED', {
+        key: 'errors:http.unauthenticated',
+      });
     }
 
     const handler = context.getHandler?.();
@@ -62,9 +63,15 @@ export class WorkspaceWriteRateLimitGuard implements CanActivate {
 
     const decision = limiter.hit(userId, this.clock.now());
     if (!decision.allowed) {
-      this.logger.warn(
-        `workspace.write.rate_limited userId=${userId} bucket=${bucket} requestId=${request.requestId ?? ''}`,
-      );
+      const shouldLog =
+        !writeLimit?.logOncePerWindow || decision.firstBlockInWindow;
+      if (shouldLog) {
+        const eventName =
+          writeLimit?.logEvent ?? 'workspace.write.rate_limited';
+        this.logger.warn(
+          `${eventName} userId=${userId} bucket=${bucket} requestId=${request.requestId ?? ''}`,
+        );
+      }
       throw new ApiException(
         HttpStatus.TOO_MANY_REQUESTS,
         'TOO_MANY_ATTEMPTS',

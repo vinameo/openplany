@@ -178,4 +178,96 @@ describe('WorkspaceWriteRateLimitGuard', () => {
     );
     warnSpy.mockRestore();
   });
+
+  it('logs custom logEvent when configured on writeLimit', () => {
+    const limiter = new InMemorySlidingWindowLimiter({
+      limit: 1,
+      windowMs: 600_000,
+    });
+    const clock = new FakeClock();
+    const CUSTOM_TOKEN = Symbol('CUSTOM');
+    const writeLimit: WriteLimit = {
+      limiterToken: CUSTOM_TOKEN,
+      bucket: 'state_write',
+      message: { key: 'errors:tooManyWorkspaceWrites' },
+      logEvent: 'state.write.rate_limited',
+    };
+    const handler = () => {};
+    const reflector = {
+      get: (k: string, t: unknown) =>
+        k === WRITE_LIMIT_KEY && t === handler ? writeLimit : undefined,
+    } as unknown as Reflector;
+    const moduleRef = { get: () => limiter } as unknown as ModuleRef;
+    const guard = new WorkspaceWriteRateLimitGuard(
+      limiter,
+      clock,
+      reflector,
+      moduleRef,
+    );
+    const warnSpy = vi
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => {});
+    const ctx = {
+      getHandler: () => handler,
+      switchToHttp: () => ({
+        getRequest: () => ({
+          auth: { userId: 'u1' },
+          requestId: 'req1',
+        }),
+      }),
+    } as unknown as ExecutionContext;
+
+    expect(guard.canActivate(ctx)).toBe(true);
+    expect(() => guard.canActivate(ctx)).toThrow();
+    expect(warnSpy).toHaveBeenCalledWith(
+      'state.write.rate_limited userId=u1 bucket=state_write requestId=req1',
+    );
+    warnSpy.mockRestore();
+  });
+
+  it('logs only once per window when logOncePerWindow is true', () => {
+    const limiter = new InMemorySlidingWindowLimiter({
+      limit: 1,
+      windowMs: 600_000,
+    });
+    const clock = new FakeClock();
+    const CUSTOM_TOKEN = Symbol('CUSTOM');
+    const writeLimit: WriteLimit = {
+      limiterToken: CUSTOM_TOKEN,
+      bucket: 'state_write',
+      message: { key: 'errors:tooManyWorkspaceWrites' },
+      logEvent: 'state.write.rate_limited',
+      logOncePerWindow: true,
+    };
+    const handler = () => {};
+    const reflector = {
+      get: (k: string, t: unknown) =>
+        k === WRITE_LIMIT_KEY && t === handler ? writeLimit : undefined,
+    } as unknown as Reflector;
+    const moduleRef = { get: () => limiter } as unknown as ModuleRef;
+    const guard = new WorkspaceWriteRateLimitGuard(
+      limiter,
+      clock,
+      reflector,
+      moduleRef,
+    );
+    const warnSpy = vi
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => {});
+    const ctx = {
+      getHandler: () => handler,
+      switchToHttp: () => ({
+        getRequest: () => ({
+          auth: { userId: 'u1' },
+          requestId: 'req1',
+        }),
+      }),
+    } as unknown as ExecutionContext;
+
+    expect(guard.canActivate(ctx)).toBe(true);
+    expect(() => guard.canActivate(ctx)).toThrow(); // 1st blocked hit -> logs
+    expect(() => guard.canActivate(ctx)).toThrow(); // 2nd blocked hit -> does not log again
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    warnSpy.mockRestore();
+  });
 });

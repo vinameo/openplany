@@ -33,3 +33,14 @@
     max-width: 100%;
   }
 }
+
+.loadingContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 0;
+}
+
+.errorAlert {
+  margin-top: 8px;
+}
