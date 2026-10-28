@@ -1,10 +1,14 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -22,6 +26,7 @@ import type { AccessibleProject } from '../projects/access/projectAccessResolver
 import { CurrentWorkspace } from '../workspaces/currentWorkspace.decorator.js';
 import type { MemberWorkspace } from '../workspaces/repositories/workspaces.repository.js';
 import { CreateStateDto } from './dto/createState.dto.js';
+import { DeleteStateQueryDto } from './dto/deleteStateQuery.dto.js';
 import { UpdateStateDto } from './dto/updateState.dto.js';
 import { StatesService } from './states.service.js';
 import { STATE_WRITE_LIMIT } from './tokens.js';
@@ -87,6 +92,30 @@ export class ProjectStatesController {
       actorId: userId,
       stateId,
       dto,
+      requestId: req.requestId,
+    });
+  }
+
+  @Delete(`projects/:${PROJECT_ROUTE_PARAM}/states/:stateId`)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ProjectWrite('project.states.manage', { writeLimit: STATE_WRITE_LIMIT })
+  async remove(
+    @CurrentWorkspace() ws: MemberWorkspace,
+    @CurrentProject() project: AccessibleProject,
+    @CurrentUserId() userId: string,
+    @Param('stateId') stateId: string,
+    @Query() query: DeleteStateQueryDto,
+    @Req() req: Request & { requestId?: string },
+  ): Promise<void> {
+    await this.service.remove({
+      scope: {
+        level: 'project',
+        workspaceId: ws.id,
+        projectId: project.project.id,
+      },
+      actorId: userId,
+      stateId,
+      replacementStateId: query.replacementStateId,
       requestId: req.requestId,
     });
   }

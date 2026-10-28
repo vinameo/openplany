@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import type {
   CreateStateRequest,
   StateGroup,
+  StateResponse,
   UpdateStateRequest,
 } from "@repo/contracts";
 import { SettingsSectionFrame } from "../../../settings/SettingsSectionFrame";
@@ -16,10 +17,12 @@ import { ProjectSettingsTitle } from "../ProjectSettingsTitle";
 import { useProjectStatesQuery } from "../../../states/api/stateQueries";
 import {
   useCreateProjectStateMutation,
+  useDeleteProjectStateMutation,
   useUpdateProjectStateMutation,
 } from "../../../states/api/useStateMutations";
 import { parseStateError } from "../../../states/stateErrors";
 import { ChangeStateGroupModal } from "../../../states/ChangeStateGroupModal";
+import { DeleteStateModal } from "../../../states/DeleteStateModal";
 import { StateList } from "../../../states/list/StateList";
 
 export function ProjectStatesPage() {
@@ -36,6 +39,7 @@ export function ProjectStatesPage() {
     count: number;
     pendingPatch: UpdateStateRequest;
   } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<StateResponse | null>(null);
 
   const canView = project?.permissions.includes("project.states.view") ?? false;
   const canManage =
@@ -56,6 +60,10 @@ export function ProjectStatesPage() {
     projectIdentifier,
   );
   const updateMutation = useUpdateProjectStateMutation(
+    workspace.slug,
+    projectIdentifier,
+  );
+  const deleteMutation = useDeleteProjectStateMutation(
     workspace.slug,
     projectIdentifier,
   );
@@ -136,6 +144,17 @@ export function ProjectStatesPage() {
     }
   };
 
+  const handleDeleteConfirm = async (
+    targetStateId: string,
+    replacementStateId?: string,
+  ) => {
+    await deleteMutation.mutateAsync({
+      stateId: targetStateId,
+      replacementStateId,
+    });
+    setDeleteTarget(null);
+  };
+
   const serverAlert = serverError ? (
     <Alert
       color="red"
@@ -169,9 +188,14 @@ export function ProjectStatesPage() {
               ownMax={statesQuery.data.ownMax}
               onCreate={handleCreate}
               onUpdate={handleUpdate}
+              onDelete={(state) => setDeleteTarget(state)}
               inheritedNote={inheritedNote}
               serverAlert={serverAlert}
-              isSaving={createMutation.isPending || updateMutation.isPending}
+              isSaving={
+                createMutation.isPending ||
+                updateMutation.isPending ||
+                deleteMutation.isPending
+              }
               serverFieldError={fieldErrors.name}
             />
 
@@ -183,6 +207,22 @@ export function ProjectStatesPage() {
               isPending={updateMutation.isPending}
               onConfirm={handleConfirmChangeGroup}
               onCancel={() => setChangeGroupState(null)}
+            />
+
+            <DeleteStateModal
+              opened={deleteTarget !== null}
+              targetState={deleteTarget}
+              availableStates={statesQuery.data.states}
+              isPending={deleteMutation.isPending}
+              onConfirm={handleDeleteConfirm}
+              onCancel={() => setDeleteTarget(null)}
+              onRefetch={async () => {
+                await statesQuery.refetch();
+              }}
+              onNotFound={(msg) => {
+                setDeleteTarget(null);
+                setServerError(msg);
+              }}
             />
           </>
         )}

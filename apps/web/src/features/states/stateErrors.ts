@@ -8,6 +8,8 @@ export interface StateErrorResult {
   isNotFound?: boolean;
   isGroupChangeUnconfirmed?: boolean;
   unconfirmedCount?: number;
+  isReplacementRequired?: boolean;
+  isReplacementInvalid?: boolean;
   isPermissionLost?: boolean;
 }
 
@@ -59,6 +61,18 @@ export function parseStateError(
         return {
           message: t("state:errors.notFound"),
           isNotFound: true,
+        };
+
+      case "STATE_REPLACEMENT_REQUIRED":
+        return {
+          message: t("state:errors.replacementRequired"),
+          isReplacementRequired: true,
+        };
+
+      case "STATE_REPLACEMENT_INVALID":
+        return {
+          message: t("state:errors.replacementInvalid"),
+          isReplacementInvalid: true,
         };
 
       case "TOO_MANY_ATTEMPTS": {

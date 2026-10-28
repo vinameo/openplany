@@ -48,7 +48,30 @@ export type UpdateStateRepoResult =
   | { status: 'name_taken_in_projects'; count: number }
   | { status: 'group_change_unconfirmed'; count: number };
 
+export interface RemoveStateRepoInput {
+  scope: StateScope;
+  actorId: string;
+  stateId: string;
+  replacementStateId?: string;
+  now: Date;
+}
+
+export type RemoveStateRepoResult =
+  | {
+      status: 'deleted';
+      state: WorkItemState;
+      movedWorkItems: number;
+    }
+  | { status: 'workspace_gone' }
+  | { status: 'project_gone' }
+  | { status: 'forbidden' }
+  | { status: 'actor_inactive' }
+  | { status: 'not_found' }
+  | { status: 'replacement_required' }
+  | { status: 'replacement_invalid' };
+
 export abstract class StatesRepository {
   abstract create(input: CreateStateRepoInput): Promise<CreateStateRepoResult>;
   abstract update(input: UpdateStateRepoInput): Promise<UpdateStateRepoResult>;
+  abstract remove(input: RemoveStateRepoInput): Promise<RemoveStateRepoResult>;
 }

@@ -37,6 +37,14 @@ export interface UpdateStateInput {
   requestId?: string;
 }
 
+export interface RemoveStateInput {
+  scope: StateScope;
+  actorId: string;
+  stateId: string;
+  replacementStateId?: string;
+  requestId?: string;
+}
+
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -280,6 +288,82 @@ export class StatesService {
             params: { count: result.count },
           },
           { count: result.count },
+        );
+    }
+  }
+
+  async remove(input: RemoveStateInput): Promise<void> {
+    if (!UUID_REGEX.test(input.stateId)) {
+      throw new ApiException(HttpStatus.NOT_FOUND, 'STATE_NOT_FOUND', {
+        key: 'state:errors.notFound',
+      });
+    }
+
+    const startTime = this.clock.now();
+    const result = await this.repository.remove({
+      scope: input.scope,
+      actorId: input.actorId,
+      stateId: input.stateId,
+      replacementStateId: input.replacementStateId,
+      now: startTime,
+    });
+
+    switch (result.status) {
+      case 'deleted': {
+        const durationMs = this.clock.now().getTime() - startTime.getTime();
+        this.events.deleted({
+          workspaceId: input.scope.workspaceId,
+          projectId:
+            input.scope.level === 'project' ? input.scope.projectId : undefined,
+          stateId: result.state.id,
+          level: result.state.level,
+          group: result.state.group,
+          actorId: input.actorId,
+          replacementStateId: input.replacementStateId,
+          movedWorkItems: result.movedWorkItems,
+          durationMs,
+          requestId: input.requestId,
+        });
+        return;
+      }
+
+      case 'workspace_gone':
+        throw new ApiException(HttpStatus.NOT_FOUND, 'NOT_FOUND', {
+          key: 'errors:http.notFound',
+        });
+
+      case 'project_gone':
+        throw new ApiException(HttpStatus.NOT_FOUND, 'PROJECT_NOT_FOUND', {
+          key: 'project:errors.notFound',
+        });
+
+      case 'forbidden':
+        throw new ApiException(HttpStatus.FORBIDDEN, 'FORBIDDEN', {
+          key: 'errors:forbidden',
+        });
+
+      case 'actor_inactive':
+        throw new ApiException(HttpStatus.UNAUTHORIZED, 'UNAUTHENTICATED', {
+          key: 'errors:http.unauthenticated',
+        });
+
+      case 'not_found':
+        throw new ApiException(HttpStatus.NOT_FOUND, 'STATE_NOT_FOUND', {
+          key: 'state:errors.notFound',
+        });
+
+      case 'replacement_required':
+        throw new ApiException(
+          HttpStatus.CONFLICT,
+          'STATE_REPLACEMENT_REQUIRED',
+          { key: 'state:errors.replacementRequired' },
+        );
+
+      case 'replacement_invalid':
+        throw new ApiException(
+          HttpStatus.CONFLICT,
+          'STATE_REPLACEMENT_INVALID',
+          { key: 'state:errors.replacementInvalid' },
         );
     }
   }

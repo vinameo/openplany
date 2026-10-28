@@ -41,6 +41,22 @@ export const statesApi = {
       },
     ),
 
+  deleteWorkspaceState: (
+    slug: string,
+    stateId: string,
+    replacementStateId?: string,
+  ): Promise<void> => {
+    const params = new URLSearchParams();
+    if (replacementStateId) {
+      params.set("replacementStateId", replacementStateId);
+    }
+    const query = params.toString() ? `?${params.toString()}` : "";
+    return request<void>(
+      `${workspaceApiPath(slug)}/states/${encodeURIComponent(stateId)}${query}`,
+      { method: "DELETE" },
+    );
+  },
+
   listProjectStates: (
     slug: string,
     identifier: string,
@@ -78,4 +94,21 @@ export const statesApi = {
         body: JSON.stringify(body),
       },
     ),
+
+  deleteProjectState: (
+    slug: string,
+    identifier: string,
+    stateId: string,
+    replacementStateId?: string,
+  ): Promise<void> => {
+    const params = new URLSearchParams();
+    if (replacementStateId) {
+      params.set("replacementStateId", replacementStateId);
+    }
+    const query = params.toString() ? `?${params.toString()}` : "";
+    return request<void>(
+      `${projectApiPath(slug, identifier)}/states/${encodeURIComponent(stateId)}${query}`,
+      { method: "DELETE" },
+    );
+  },
 };

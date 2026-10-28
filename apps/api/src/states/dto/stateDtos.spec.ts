@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ApiException } from '../../common/apiException.js';
 import { createValidationPipe } from '../../common/validation.js';
 import { CreateStateDto } from './createState.dto.js';
+import { DeleteStateQueryDto } from './deleteStateQuery.dto.js';
 import { UpdateStateDto } from './updateState.dto.js';
 
 describe('State DTOs validation (API B3, B4)', () => {
@@ -132,5 +133,38 @@ describe('State DTOs validation (API B3, B4)', () => {
     expect(await validateUpdate({ name: 'Testing' })).toEqual({});
     expect(await validateUpdate({ group: 'planned' })).toEqual({});
     expect(await validateUpdate({ color: '#2F9E6E' })).toEqual({});
+  });
+
+  async function validateDeleteQuery(
+    payload: unknown,
+  ): Promise<Record<string, string>> {
+    try {
+      await pipe.transform(payload, {
+        type: 'query',
+        metatype: DeleteStateQueryDto,
+      });
+      return {};
+    } catch (err) {
+      if (err instanceof ApiException) {
+        return err.getEnglishFields() ?? {};
+      }
+      throw err;
+    }
+  }
+
+  it('accepts valid DeleteStateQueryDto with or without replacementStateId', async () => {
+    expect(await validateDeleteQuery({})).toEqual({});
+    expect(
+      await validateDeleteQuery({
+        replacementStateId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      }),
+    ).toEqual({});
+  });
+
+  it('rejects invalid replacementStateId with replacementInvalidFormat', async () => {
+    const fields = await validateDeleteQuery({ replacementStateId: 'abc' });
+    expect(fields.replacementStateId).toBe(
+      'Choose a state to move work items to',
+    );
   });
 });

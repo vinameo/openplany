@@ -5,13 +5,17 @@ import { acquireTransactionLock } from '../../database/advisoryLock.js';
 import { runTransactionWithRetry } from '../../database/transactionRetry.js';
 import { lockProjectForActor } from '../../projects/access/lockProjectForActor.js';
 import { ProjectAccessResolver } from '../../projects/access/projectAccessResolver.js';
+import { Project } from '../../projects/entities/project.entity.js';
 import { lockWorkspaceForActor } from '../../workspaces/access/lockWorkspaceForActor.js';
+import { WorkItem } from '../../workItems/entities/workItem.entity.js';
 import { WorkItemState } from '../entities/workItemState.entity.js';
 import { StateCatalog, type StateScope } from '../stateCatalog.js';
 import {
   StatesRepository,
   type CreateStateRepoInput,
   type CreateStateRepoResult,
+  type RemoveStateRepoInput,
+  type RemoveStateRepoResult,
   type UpdateStateRepoInput,
   type UpdateStateRepoResult,
 } from './states.repository.js';
@@ -283,6 +287,115 @@ export class TypeOrmStatesRepository implements StatesRepository {
           state: saved,
           count: liveCount,
           changed,
+        };
+      },
+      { maxAttempts: 3, onRetry: () => {} },
+    );
+  }
+
+  async remove(input: RemoveStateRepoInput): Promise<RemoveStateRepoResult> {
+    return await runTransactionWithRetry(
+      this.dataSource,
+      async (manager) => {
+        // Step A1 & A2: Lock and verify manage permission
+        const auth = await this.lockAndAuthorize(
+          manager,
+          input.scope,
+          input.actorId,
+        );
+        if (auth.status !== 'ok') {
+          return auth;
+        }
+
+        // Step A3: Acquire workspace-level advisory lock
+        await acquireTransactionLock(
+          manager,
+          'work-item-states',
+          input.scope.workspaceId,
+        );
+
+        // Step X1: Lock own state
+        const targetState = await this.catalog.lockOwnState(
+          manager,
+          input.scope,
+          input.stateId,
+        );
+        if (targetState === null) {
+          return { status: 'not_found' };
+        }
+
+        // Step X2: Validate replacementStateId if provided
+        let replacementState: WorkItemState | null = null;
+        if (input.replacementStateId !== undefined) {
+          if (input.replacementStateId === targetState.id) {
+            return { status: 'replacement_invalid' };
+          }
+          replacementState = await this.catalog.lockReplacement(
+            manager,
+            input.scope,
+            input.replacementStateId,
+          );
+          if (replacementState === null) {
+            return { status: 'replacement_invalid' };
+          }
+        }
+
+        // Step X3: Count live work items at target state
+        const counts = await this.catalog.workItemCounts(manager, {
+          stateIds: [targetState.id],
+          scope: input.scope,
+        });
+        const liveCount = counts.get(targetState.id) ?? 0;
+        if (liveCount > 0 && !input.replacementStateId) {
+          return { status: 'replacement_required' };
+        }
+
+        // Step X4: Move live work items if count > 0
+        let movedWorkItems = 0;
+        if (liveCount > 0 && replacementState) {
+          const pSub = manager
+            .createQueryBuilder(Project, 'p')
+            .select('p.id')
+            .where('p.workspaceId = :workspaceId', {
+              workspaceId: input.scope.workspaceId,
+            })
+            .andWhere('p.deletedAt IS NULL')
+            .getQuery();
+
+          const updateQb = manager
+            .createQueryBuilder()
+            .update(WorkItem)
+            .set({ stateId: replacementState.id })
+            .where('workspace_id = :workspaceId', {
+              workspaceId: input.scope.workspaceId,
+            })
+            .andWhere('state_id = :targetStateId', {
+              targetStateId: targetState.id,
+            })
+            .andWhere('deleted_at IS NULL')
+            .andWhere(`project_id IN (${pSub})`);
+
+          if (input.scope.level === 'project') {
+            updateQb.andWhere('project_id = :projectId', {
+              projectId: input.scope.projectId,
+            });
+          }
+
+          const updateResult = await updateQb.execute();
+          movedWorkItems = updateResult.affected ?? liveCount;
+        }
+
+        // Step X5: Soft delete target state
+        targetState.deletedAt = input.now;
+        targetState.deletedById = input.actorId;
+        targetState.updatedAt = input.now;
+        await manager.save(WorkItemState, targetState);
+
+        // Step X6: Commit -> deleted
+        return {
+          status: 'deleted',
+          state: targetState,
+          movedWorkItems,
         };
       },
       { maxAttempts: 3, onRetry: () => {} },

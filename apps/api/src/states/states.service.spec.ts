@@ -66,9 +66,11 @@ describe('StatesService', () => {
 
     const createRepo = vi.fn();
     const updateRepo = vi.fn();
+    const removeRepo = vi.fn();
     const repository: StatesRepository = {
       create: createRepo,
       update: updateRepo,
+      remove: removeRepo,
     };
 
     const onCreated = vi.fn();
@@ -97,6 +99,7 @@ describe('StatesService', () => {
       repository,
       createRepo,
       updateRepo,
+      removeRepo,
       events,
       onCreated,
       onUpdated,
@@ -451,6 +454,174 @@ describe('StatesService', () => {
       ).rejects.toMatchObject({
         status: 409,
         code: 'STATE_NAME_TAKEN',
+      });
+    });
+  });
+
+  describe('remove outcomes (DB B3.2, API B5)', () => {
+    it('successfully deletes a state and emits state.deleted event', async () => {
+      const { service, removeRepo, onDeleted } = createService();
+      removeRepo.mockResolvedValue({
+        status: 'deleted',
+        state: projectState,
+        movedWorkItems: 4,
+      });
+
+      await service.remove({
+        scope: { level: 'project', workspaceId: 'ws-1', projectId: 'proj-1' },
+        actorId: 'user-1',
+        stateId: projectState.id,
+        replacementStateId: defaultBacklog.id,
+        requestId: 'req-del-1',
+      });
+
+      expect(removeRepo).toHaveBeenCalledWith({
+        scope: { level: 'project', workspaceId: 'ws-1', projectId: 'proj-1' },
+        actorId: 'user-1',
+        stateId: projectState.id,
+        replacementStateId: defaultBacklog.id,
+        now: fixedNow,
+      });
+
+      expect(onDeleted).toHaveBeenCalledWith({
+        workspaceId: 'ws-1',
+        projectId: 'proj-1',
+        stateId: projectState.id,
+        level: projectState.level,
+        group: projectState.group,
+        actorId: 'user-1',
+        replacementStateId: defaultBacklog.id,
+        movedWorkItems: 4,
+        durationMs: expect.any(Number),
+        requestId: 'req-del-1',
+      });
+    });
+
+    it('rejects invalid stateId UUID with 404 STATE_NOT_FOUND', async () => {
+      const { service } = createService();
+
+      await expect(
+        service.remove({
+          scope: { level: 'project', workspaceId: 'ws-1', projectId: 'proj-1' },
+          actorId: 'user-1',
+          stateId: 'not-a-uuid',
+        }),
+      ).rejects.toMatchObject({
+        status: 404,
+        code: 'STATE_NOT_FOUND',
+      });
+    });
+
+    it('maps workspace_gone to 404 NOT_FOUND', async () => {
+      const { service, removeRepo } = createService();
+      removeRepo.mockResolvedValue({ status: 'workspace_gone' });
+
+      await expect(
+        service.remove({
+          scope: { level: 'project', workspaceId: 'ws-1', projectId: 'proj-1' },
+          actorId: 'user-1',
+          stateId: projectState.id,
+        }),
+      ).rejects.toMatchObject({
+        status: 404,
+        code: 'NOT_FOUND',
+      });
+    });
+
+    it('maps project_gone to 404 PROJECT_NOT_FOUND', async () => {
+      const { service, removeRepo } = createService();
+      removeRepo.mockResolvedValue({ status: 'project_gone' });
+
+      await expect(
+        service.remove({
+          scope: { level: 'project', workspaceId: 'ws-1', projectId: 'proj-1' },
+          actorId: 'user-1',
+          stateId: projectState.id,
+        }),
+      ).rejects.toMatchObject({
+        status: 404,
+        code: 'PROJECT_NOT_FOUND',
+      });
+    });
+
+    it('maps forbidden to 403 FORBIDDEN', async () => {
+      const { service, removeRepo } = createService();
+      removeRepo.mockResolvedValue({ status: 'forbidden' });
+
+      await expect(
+        service.remove({
+          scope: { level: 'project', workspaceId: 'ws-1', projectId: 'proj-1' },
+          actorId: 'user-1',
+          stateId: projectState.id,
+        }),
+      ).rejects.toMatchObject({
+        status: 403,
+        code: 'FORBIDDEN',
+      });
+    });
+
+    it('maps actor_inactive to 401 UNAUTHENTICATED', async () => {
+      const { service, removeRepo } = createService();
+      removeRepo.mockResolvedValue({ status: 'actor_inactive' });
+
+      await expect(
+        service.remove({
+          scope: { level: 'project', workspaceId: 'ws-1', projectId: 'proj-1' },
+          actorId: 'user-1',
+          stateId: projectState.id,
+        }),
+      ).rejects.toMatchObject({
+        status: 401,
+        code: 'UNAUTHENTICATED',
+      });
+    });
+
+    it('maps not_found to 404 STATE_NOT_FOUND', async () => {
+      const { service, removeRepo } = createService();
+      removeRepo.mockResolvedValue({ status: 'not_found' });
+
+      await expect(
+        service.remove({
+          scope: { level: 'project', workspaceId: 'ws-1', projectId: 'proj-1' },
+          actorId: 'user-1',
+          stateId: projectState.id,
+        }),
+      ).rejects.toMatchObject({
+        status: 404,
+        code: 'STATE_NOT_FOUND',
+      });
+    });
+
+    it('maps replacement_required to 409 STATE_REPLACEMENT_REQUIRED', async () => {
+      const { service, removeRepo } = createService();
+      removeRepo.mockResolvedValue({ status: 'replacement_required' });
+
+      await expect(
+        service.remove({
+          scope: { level: 'project', workspaceId: 'ws-1', projectId: 'proj-1' },
+          actorId: 'user-1',
+          stateId: projectState.id,
+        }),
+      ).rejects.toMatchObject({
+        status: 409,
+        code: 'STATE_REPLACEMENT_REQUIRED',
+      });
+    });
+
+    it('maps replacement_invalid to 409 STATE_REPLACEMENT_INVALID', async () => {
+      const { service, removeRepo } = createService();
+      removeRepo.mockResolvedValue({ status: 'replacement_invalid' });
+
+      await expect(
+        service.remove({
+          scope: { level: 'project', workspaceId: 'ws-1', projectId: 'proj-1' },
+          actorId: 'user-1',
+          stateId: projectState.id,
+          replacementStateId: 'bad-replacement-uuid',
+        }),
+      ).rejects.toMatchObject({
+        status: 409,
+        code: 'STATE_REPLACEMENT_INVALID',
       });
     });
   });

@@ -417,4 +417,58 @@ describe("ProjectStatesPage", () => {
       expect(getStatesCallCount).toBeGreaterThan(1);
     });
   });
+
+  it("opens DeleteStateModal on delete click and sends DELETE with replacementStateId (AC-24)", async () => {
+    const user = userEvent.setup();
+    let deleteCalled = false;
+
+    renderStatesApp({
+      extraRoutes: {
+        "GET /api/workspaces/the-firsts/projects/TFP11/states": () => {
+          return jsonResponse(200, sampleStatesResponse);
+        },
+        "DELETE /api/workspaces/the-firsts/projects/TFP11/states/proj-review":
+          () => {
+            deleteCalled = true;
+            return jsonResponse(204, null);
+          },
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("state-menu-proj-review")).toBeInTheDocument();
+    });
+
+    // Open menu and click Delete
+    await user.click(screen.getByTestId("state-menu-proj-review"));
+    await user.click(screen.getByTestId("state-menu-delete"));
+
+    // Delete modal opens
+    await waitFor(() => {
+      expect(screen.getByTestId("delete-state-modal")).toBeInTheDocument();
+    });
+    expect(screen.getByText('Delete "Review"?')).toBeInTheDocument();
+
+    // Confirm deletion
+    await user.click(screen.getByTestId("delete-state-confirm-button"));
+
+    await waitFor(() => {
+      expect(deleteCalled).toBe(true);
+    });
+
+    const deleteCall = vi
+      .mocked(fetch)
+      .mock.calls.find((call) => call[1]?.method === "DELETE");
+    expect(deleteCall).toBeDefined();
+    expect(String(deleteCall?.[0])).toContain(
+      "replacementStateId=def-in-progress",
+    );
+
+    // Modal closes
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId("delete-state-modal"),
+      ).not.toBeInTheDocument();
+    });
+  });
 });

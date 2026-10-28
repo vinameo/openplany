@@ -99,3 +99,30 @@ export function useUpdateProjectStateMutation(
     },
   });
 }
+
+export function useDeleteProjectStateMutation(
+  slug: string,
+  identifier: string,
+) {
+  const queryClient = useQueryClient();
+  const queryKey = stateKeys.project(slug, identifier);
+
+  return useMutation({
+    mutationFn: ({
+      stateId,
+      replacementStateId,
+    }: {
+      stateId: string;
+      replacementStateId?: string;
+    }) =>
+      statesApi.deleteProjectState(
+        slug,
+        identifier,
+        stateId,
+        replacementStateId,
+      ),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey });
+    },
+  });
+}

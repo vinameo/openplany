@@ -251,4 +251,32 @@ describe("StateList", () => {
     // Discard footer appears
     expect(screen.getByText("Discard changes?")).toBeInTheDocument();
   });
+
+  it("triggers onDelete with state when Delete is clicked in menu", async () => {
+    const user = userEvent.setup();
+    const onDelete = vi.fn();
+
+    render(
+      <AppUiProvider>
+        <StateList
+          states={sampleStates}
+          ownLevel="project"
+          canManage={true}
+          ownCount={1}
+          ownMax={50}
+          onCreate={vi.fn()}
+          onUpdate={vi.fn()}
+          onDelete={onDelete}
+        />
+      </AppUiProvider>,
+    );
+
+    const menuBtn = screen.getByTestId("state-menu-proj-review");
+    await user.click(menuBtn);
+
+    const deleteItem = screen.getByTestId("state-menu-delete");
+    await user.click(deleteItem);
+
+    expect(onDelete).toHaveBeenCalledWith(sampleStates[4]);
+  });
 });
