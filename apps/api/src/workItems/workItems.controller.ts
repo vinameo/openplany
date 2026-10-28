@@ -47,6 +47,7 @@ export class WorkItemsController {
       title: dto.title,
       description: dto.description ?? '',
       idempotencyKey: dto.idempotencyKey,
+      stateId: dto.stateId,
       requestId: req.requestId,
     });
 

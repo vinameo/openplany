@@ -44,6 +44,15 @@ export const API_ERROR_CODES = [
   'UNSUPPORTED_MEDIA_TYPE',
   'MALFORMED_BODY',
   'WORK_ITEM_REQUEST_REUSED',
+  'STATE_NOT_FOUND',
+  'STATE_NAME_TAKEN',
+  'STATE_NAME_TAKEN_IN_PROJECTS',
+  'WORKSPACE_STATE_LIMIT_REACHED',
+  'PROJECT_STATE_LIMIT_REACHED',
+  'STATE_REPLACEMENT_REQUIRED',
+  'STATE_REPLACEMENT_INVALID',
+  'STATE_UNAVAILABLE',
+  'STATE_GROUP_CHANGE_UNCONFIRMED',
   'INTERNAL_ERROR',
 ] as const;
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number];
@@ -56,6 +65,7 @@ export interface ApiErrorBody {
   requestId: string;
   fields?: Record<string, string>;
   retryAfterSeconds?: number;
+  count?: number;
 }
 
 /**
@@ -87,6 +97,7 @@ export function resolveApiFields(
 export interface ApiExceptionOptions {
   fields?: Record<string, ApiFieldError>;
   retryAfterSeconds?: number;
+  count?: number;
 }
 
 /** An HttpException that carries a machine-readable `code` for the client. */
@@ -95,6 +106,7 @@ export class ApiException extends HttpException {
   readonly fieldErrors?: Record<string, ApiFieldError>;
   readonly fields?: Record<string, string>;
   readonly retryAfterSeconds?: number;
+  readonly count?: number;
 
   constructor(
     status: HttpStatus,
@@ -108,6 +120,7 @@ export class ApiException extends HttpException {
     this.fieldErrors = options.fields;
     this.fields = resolveApiFields(options.fields, DEFAULT_LANGUAGE);
     this.retryAfterSeconds = options.retryAfterSeconds;
+    this.count = options.count;
   }
 
   getEnglishFields(): Record<string, string> | undefined {

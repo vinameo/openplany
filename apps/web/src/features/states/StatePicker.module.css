@@ -1,0 +1,28 @@
+.chipButton {
+  font-weight: 500;
+  border-style: solid;
+  color: var(--mantine-color-dimmed);
+}
+
+.chipButton:hover:not(:disabled) {
+  background-color: var(--mantine-color-gray-1);
+}
+
+.optionRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: var(--mantine-spacing-xs);
+}
+
+.optionLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+}
+
+.checkIcon {
+  color: var(--mantine-primary-color-filled);
+  flex-shrink: 0;
+}

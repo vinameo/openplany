@@ -6,6 +6,7 @@ export const PERMISSION_GROUP_KEYS = {
   "workspace.settings": "permissionGroups:workspace.settings",
   "workspace.members": "permissionGroups:workspace.members",
   "workspace.projects": "permissionGroups:workspace.projects",
+  "workspace.states": "permissionGroups:workspace.states",
   "workspace.delete": "permissionGroups:workspace.delete",
 
   // Project groups

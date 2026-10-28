@@ -534,6 +534,7 @@ describe('WorkspaceMembers (e2e)', () => {
       .set('Cookie', adminCookie)
       .expect(200);
     expect(adminWsRes.body.permissions).toEqual([
+      'workspace.settings.view',
       'workspace.settings.update',
       'workspace.members.view',
       'workspace.members.email.view',
@@ -541,21 +542,25 @@ describe('WorkspaceMembers (e2e)', () => {
       'workspace.members.role.update',
       'workspace.projects.create',
       'workspace.projects.delete',
+      'workspace.states.manage',
     ]);
 
-    // Member has 1 permission
+    // Member has permissions
     const memberWsRes = await http()
       .get(`/api/workspaces/${workspace.slug}`)
       .set('Cookie', memberCookie)
       .expect(200);
-    expect(memberWsRes.body.permissions).toEqual(['workspace.members.view']);
+    expect(memberWsRes.body.permissions).toEqual([
+      'workspace.settings.view',
+      'workspace.members.view',
+    ]);
 
-    // Guest has 0 permissions
+    // Guest has permissions
     const guestWsRes = await http()
       .get(`/api/workspaces/${workspace.slug}`)
       .set('Cookie', guestCookie)
       .expect(200);
-    expect(guestWsRes.body.permissions).toEqual([]);
+    expect(guestWsRes.body.permissions).toEqual(['workspace.settings.view']);
   });
 
   it('4. AC-05: Admin adds 3 users (admin, member, guest) -> 201, correct order, with email; users see workspace at GET /workspaces', async () => {

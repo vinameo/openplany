@@ -14,6 +14,7 @@ export interface CreateWorkItemServiceInput {
   title: string;
   description: string;
   idempotencyKey: string;
+  stateId?: string;
   requestId?: string;
 }
 
@@ -41,6 +42,7 @@ export class WorkItemsService {
       title: input.title,
       description: input.description,
       idempotencyKey: input.idempotencyKey,
+      stateId: input.stateId,
       now,
     });
 
@@ -110,6 +112,11 @@ export class WorkItemsService {
             key: 'workItem:errors.requestReused',
           },
         );
+
+      case 'state_unavailable':
+        throw new ApiException(HttpStatus.CONFLICT, 'STATE_UNAVAILABLE', {
+          key: 'workItem:errors.stateUnavailable',
+        });
     }
   }
 }

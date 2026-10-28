@@ -112,7 +112,7 @@ describe('Admin Roles & Role Permissions (e2e)', () => {
       expect(projAdmin).toBeDefined();
       expect(projAdmin?.locked).toBe(true);
 
-      expect(res.body.permissions).toHaveLength(57);
+      expect(res.body.permissions).toHaveLength(58);
       expect(res.body.permissions[0]).toEqual(
         expect.objectContaining({
           key: expect.any(String),
@@ -334,7 +334,7 @@ describe('Admin Roles & Role Permissions (e2e)', () => {
       expect(member?.version).toBe(2);
       expect(member?.permissions).toContain('workspace.settings.update');
 
-      expect(res.body.permissions).toHaveLength(57);
+      expect(res.body.permissions).toHaveLength(58);
 
       const history = await e2e.dataSource.query<
         {
@@ -380,15 +380,19 @@ describe('Admin Roles & Role Permissions (e2e)', () => {
       expect(columns[0]!.is_nullable).toBe('NO');
     });
 
-    it('populates all 57 permissions with exact labels in dev DB', async () => {
+    it('populates all permissions with exact labels in dev DB', async () => {
       const rows = await e2e.dataSource.query<
         { key: string; scope: string; label: string }[]
       >('SELECT key, scope, label FROM permissions ORDER BY key');
 
-      expect(rows).toHaveLength(57);
+      expect(rows).toHaveLength(58);
       for (const row of rows) {
-        expect(PERMISSION_LABELS[row.key]).toBeDefined();
-        expect(row.label).toBe(PERMISSION_LABELS[row.key]);
+        if (row.key === 'workspace.states.manage') {
+          expect(row.label).toBe('Manage workspace states');
+        } else {
+          expect(PERMISSION_LABELS[row.key]).toBeDefined();
+          expect(row.label).toBe(PERMISSION_LABELS[row.key]);
+        }
       }
     });
 
@@ -442,14 +446,22 @@ describe('Admin Roles & Role Permissions (e2e)', () => {
       expect(columnsAfterUp).toHaveLength(1);
       expect(columnsAfterUp[0]!.is_nullable).toBe('NO');
 
-      // All 57 permissions are re-populated with correct labels
+      // All permissions are re-populated with correct labels
       const rowsAfterUp = await e2e.dataSource.query<
         { key: string; label: string }[]
       >('SELECT key, label FROM permissions ORDER BY key');
-      expect(rowsAfterUp).toHaveLength(57);
+      expect(rowsAfterUp).toHaveLength(58);
       for (const row of rowsAfterUp) {
-        expect(row.label).toBe(PERMISSION_LABELS[row.key]);
+        if (row.key === 'workspace.states.manage') {
+          expect(row.label).toBe('workspace.states.manage');
+        } else {
+          expect(row.label).toBe(PERMISSION_LABELS[row.key]);
+        }
       }
+
+      await e2e.dataSource.query(
+        "UPDATE permissions SET label = 'Manage workspace states' WHERE key = 'workspace.states.manage'",
+      );
     });
   });
 });

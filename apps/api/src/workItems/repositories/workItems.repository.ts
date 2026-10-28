@@ -7,6 +7,7 @@ export interface CreateWorkItemRepoInput {
   title: string;
   description: string;
   idempotencyKey: string;
+  stateId?: string;
   now: Date;
 }
 
@@ -16,7 +17,8 @@ export type CreateWorkItemRepoResult =
   | { status: 'project_gone' }
   | { status: 'forbidden' }
   | { status: 'actor_inactive' }
-  | { status: 'key_reused' };
+  | { status: 'key_reused' }
+  | { status: 'state_unavailable' };
 
 export abstract class WorkItemsRepository {
   abstract create(
