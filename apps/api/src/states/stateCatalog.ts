@@ -92,7 +92,11 @@ export class TypeOrmStateCatalog implements StateCatalog {
   ): Promise<WorkItemState[]> {
     const where: FindOptionsWhere<WorkItemState>[] = [
       { level: 'default', deletedAt: IsNull() },
-      { level: 'workspace', workspaceId: scope.workspaceId, deletedAt: IsNull() },
+      {
+        level: 'workspace',
+        workspaceId: scope.workspaceId,
+        deletedAt: IsNull(),
+      },
     ];
     const states = await manager.find(WorkItemState, { where });
     return states.sort(compareStates);
@@ -104,7 +108,11 @@ export class TypeOrmStateCatalog implements StateCatalog {
   ): Promise<WorkItemState[]> {
     const where: FindOptionsWhere<WorkItemState>[] = [
       { level: 'default', deletedAt: IsNull() },
-      { level: 'workspace', workspaceId: scope.workspaceId, deletedAt: IsNull() },
+      {
+        level: 'workspace',
+        workspaceId: scope.workspaceId,
+        deletedAt: IsNull(),
+      },
       {
         level: 'project',
         workspaceId: scope.workspaceId,
@@ -237,7 +245,9 @@ export class TypeOrmStateCatalog implements StateCatalog {
         .createQueryBuilder(WorkItemState, 's')
         .select('COUNT(DISTINCT s.projectId)', 'count')
         .where('s.level = :level', { level: 'project' })
-        .andWhere('s.workspaceId = :workspaceId', { workspaceId: scope.workspaceId })
+        .andWhere('s.workspaceId = :workspaceId', {
+          workspaceId: scope.workspaceId,
+        })
         .andWhere('s.deletedAt IS NULL')
         .andWhere('lower(s.name) = :name', { name: lowerName })
         .andWhere((sub) => {
@@ -245,7 +255,9 @@ export class TypeOrmStateCatalog implements StateCatalog {
             .subQuery()
             .select('p.id')
             .from(Project, 'p')
-            .where('p.workspaceId = :workspaceId', { workspaceId: scope.workspaceId })
+            .where('p.workspaceId = :workspaceId', {
+              workspaceId: scope.workspaceId,
+            })
             .andWhere('p.deletedAt IS NULL')
             .getQuery();
           return `s.projectId IN ${pSub}`;
@@ -339,7 +351,10 @@ export class TypeOrmStateCatalog implements StateCatalog {
 
     qb.groupBy('wi.stateId');
 
-    const rows = await qb.getRawMany<{ stateId: string; count: string | number }>();
+    const rows = await qb.getRawMany<{
+      stateId: string;
+      count: string | number;
+    }>();
     for (const row of rows) {
       result.set(row.stateId, Number(row.count));
     }

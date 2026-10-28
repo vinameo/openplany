@@ -381,6 +381,85 @@ describe('Adversarial inputs (e2e)', () => {
     );
   });
 
+  it('POST /workspaces/:slug/projects/:identifier/states', async () => {
+    const ws = await seedWorkspace();
+    const admin = await newWorkspaceAdmin(ws.id);
+    const created = await http()
+      .post(`/api/workspaces/${ws.slug}/projects`)
+      .set('Cookie', admin.cookie)
+      .set('Origin', ORIGIN)
+      .send({
+        name: 'States Target',
+        identifier: 'STT',
+        description: 'Initial',
+        icon: { name: DEFAULT_PROJECT_ICON, color: DEFAULT_PROJECT_ICON_COLOR },
+        coverKey: DEFAULT_PROJECT_COVER,
+      })
+      .expect(201);
+    const identifier = created.body.project.identifier as string;
+
+    const cookieFor = rotatingCookie(() => newWorkspaceAdmin(ws.id));
+    const valid = {
+      name: 'Adversarial State',
+      group: 'active',
+      color: '#3E7BD6',
+    };
+    await expectNoServerErrors(adversarialBodies(valid), async (body, i) =>
+      http()
+        .post(`/api/workspaces/${ws.slug}/projects/${identifier}/states`)
+        .set('Cookie', await cookieFor(i))
+        .set('Origin', ORIGIN)
+        .send(body as object),
+    );
+  });
+
+  it('PATCH /workspaces/:slug/projects/:identifier/states/:stateId', async () => {
+    const ws = await seedWorkspace();
+    const admin = await newWorkspaceAdmin(ws.id);
+    const createdProject = await http()
+      .post(`/api/workspaces/${ws.slug}/projects`)
+      .set('Cookie', admin.cookie)
+      .set('Origin', ORIGIN)
+      .send({
+        name: 'States Patch Target',
+        identifier: 'SPT',
+        description: 'Initial',
+        icon: { name: DEFAULT_PROJECT_ICON, color: DEFAULT_PROJECT_ICON_COLOR },
+        coverKey: DEFAULT_PROJECT_COVER,
+      })
+      .expect(201);
+    const identifier = createdProject.body.project.identifier as string;
+
+    const createdState = await http()
+      .post(`/api/workspaces/${ws.slug}/projects/${identifier}/states`)
+      .set('Cookie', admin.cookie)
+      .set('Origin', ORIGIN)
+      .send({
+        name: 'Initial State',
+        group: 'planned',
+        color: '#5B6B82',
+      })
+      .expect(201);
+    const stateId = createdState.body.state.id as string;
+
+    const cookieFor = rotatingCookie(() => newWorkspaceAdmin(ws.id));
+    const valid = {
+      name: 'Patched State',
+      group: 'active',
+      color: '#2F9E6E',
+      confirmGroupChange: true,
+    };
+    await expectNoServerErrors(adversarialBodies(valid), async (body, i) =>
+      http()
+        .patch(
+          `/api/workspaces/${ws.slug}/projects/${identifier}/states/${stateId}`,
+        )
+        .set('Cookie', await cookieFor(i))
+        .set('Origin', ORIGIN)
+        .send(body as object),
+    );
+  });
+
   it('POST /workspaces/:slug/projects/:identifier/members role range and membership constraints (API B5)', async () => {
     const ws = await seedWorkspace();
     const admin = await newWorkspaceAdmin(ws.id);
