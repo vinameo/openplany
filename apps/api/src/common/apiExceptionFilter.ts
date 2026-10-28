@@ -25,6 +25,8 @@ const DEFAULT_CODES: Partial<Record<number, ApiErrorCode>> = {
   [HttpStatus.BAD_REQUEST]: 'VALIDATION_ERROR',
   [HttpStatus.UNAUTHORIZED]: 'UNAUTHENTICATED',
   [HttpStatus.NOT_FOUND]: 'NOT_FOUND',
+  [HttpStatus.PAYLOAD_TOO_LARGE]: 'PAYLOAD_TOO_LARGE',
+  [HttpStatus.UNSUPPORTED_MEDIA_TYPE]: 'UNSUPPORTED_MEDIA_TYPE',
 };
 
 /** Sentence for a Nest HttpException outside the default language (API B5.3). */
@@ -32,8 +34,60 @@ const HTTP_ERROR_KEYS: Partial<Record<ApiErrorCode, MessageKey>> = {
   VALIDATION_ERROR: 'errors:http.validationError',
   UNAUTHENTICATED: 'errors:http.unauthenticated',
   NOT_FOUND: 'errors:http.notFound',
+  PAYLOAD_TOO_LARGE: 'errors:payloadTooLarge',
+  UNSUPPORTED_MEDIA_TYPE: 'errors:unsupportedMediaType',
+  MALFORMED_BODY: 'errors:malformedBody',
 };
 const INTERNAL_ERROR_KEY: MessageKey = 'errors:http.internalError';
+
+interface BodyParserHttpError extends Error {
+  status?: number;
+  statusCode?: number;
+  type?: string;
+  expose?: boolean;
+}
+
+function isBodyParserError(err: unknown): err is BodyParserHttpError {
+  if (typeof err !== 'object' || err === null || !(err instanceof Error)) {
+    return false;
+  }
+  const candidate = err as BodyParserHttpError;
+  const status = candidate.status ?? candidate.statusCode;
+  return (
+    candidate.expose === true &&
+    typeof status === 'number' &&
+    status >= 400 &&
+    status < 500
+  );
+}
+
+function mapBodyParserError(err: BodyParserHttpError): {
+  statusCode: number;
+  code: ApiErrorCode;
+  messageKey: MessageKey;
+} {
+  const type = err.type ?? '';
+  if (type === 'entity.too.large') {
+    return {
+      statusCode: HttpStatus.PAYLOAD_TOO_LARGE,
+      code: 'PAYLOAD_TOO_LARGE',
+      messageKey: 'errors:payloadTooLarge',
+    };
+  }
+  if (type === 'charset.unsupported' || type === 'encoding.unsupported') {
+    return {
+      statusCode: HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+      code: 'UNSUPPORTED_MEDIA_TYPE',
+      messageKey: 'errors:unsupportedMediaType',
+    };
+  }
+  const status = err.status ?? err.statusCode ?? HttpStatus.BAD_REQUEST;
+  return {
+    statusCode: status,
+    code: 'MALFORMED_BODY',
+    messageKey: 'errors:malformedBody',
+  };
+}
 
 /**
  * Renders every error in the api-spec 2.1 shape.
@@ -105,6 +159,18 @@ export class ApiExceptionFilter implements ExceptionFilter {
         statusCode,
         code,
         message,
+        requestId,
+      };
+    }
+    if (isBodyParserError(exception)) {
+      const mapped = mapBodyParserError(exception);
+      this.logger.warn(
+        `http.body_rejected type=${exception.type ?? ''} status=${mapped.statusCode} requestId=${requestId}`,
+      );
+      return {
+        statusCode: mapped.statusCode,
+        code: mapped.code,
+        message: translateMessageRef({ key: mapped.messageKey }, lang),
         requestId,
       };
     }

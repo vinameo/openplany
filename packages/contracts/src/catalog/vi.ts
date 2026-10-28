@@ -124,6 +124,9 @@ export const vi: TranslatedCatalog = {
     tooManyRolePermissionUpdates:
       "Quá nhiều lượt cập nhật quyền vai trò. Thử lại sau.",
     tooManyWorkspaceWrites: "Quá nhiều thay đổi. Thử lại sau.",
+    payloadTooLarge: "Yêu cầu quá lớn.",
+    unsupportedMediaType: "Định dạng yêu cầu này không được hỗ trợ.",
+    malformedBody: "Không đọc được yêu cầu.",
     memberUserIdParam: "Nhập một ID thành viên hợp lệ",
     "http.validationError": "Dữ liệu gửi lên không hợp lệ",
     "http.unauthenticated": "Đăng nhập để tiếp tục",

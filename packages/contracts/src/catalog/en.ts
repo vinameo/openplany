@@ -129,6 +129,9 @@ export const en = {
     tooManyRolePermissionUpdates:
       "Too many role permission updates. Try again later.",
     tooManyWorkspaceWrites: "Too many changes. Try again later.",
+    payloadTooLarge: "The request is too large.",
+    unsupportedMediaType: "This request format isn't supported.",
+    malformedBody: "The request couldn't be read.",
     memberUserIdParam: "Enter a valid member ID",
     "http.validationError": "Validation failed",
     "http.unauthenticated": "Sign in to continue",
