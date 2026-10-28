@@ -379,6 +379,44 @@ describe('Adversarial inputs (e2e)', () => {
         .set('Origin', ORIGIN)
         .send(body as object),
     );
+
+    // Explicit API B4 rows 22 & 23: stateId adversarial validation
+    const badStateIds = ['abc', null, 123, true, {}, []];
+    for (const badStateId of badStateIds) {
+      const res = await http()
+        .post(`/api/workspaces/${ws.slug}/projects/${identifier}/work-items`)
+        .set('Cookie', admin.cookie)
+        .set('Origin', ORIGIN)
+        .send({
+          title: 'Adversarial stateId',
+          description: 'Desc',
+          idempotencyKey: crypto.randomUUID(),
+          stateId: badStateId,
+        });
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe('VALIDATION_ERROR');
+      expect(res.body.fields?.stateId).toBe('Choose a state from the list');
+    }
+
+    // API B4 row 23: stateId of deleted state, other project, or non-existent UUID -> 409 STATE_UNAVAILABLE
+    const unavailableStateIds = [
+      '00000000-0000-0000-0000-000000000000',
+      crypto.randomUUID(),
+    ];
+    for (const unavailId of unavailableStateIds) {
+      const res = await http()
+        .post(`/api/workspaces/${ws.slug}/projects/${identifier}/work-items`)
+        .set('Cookie', admin.cookie)
+        .set('Origin', ORIGIN)
+        .send({
+          title: 'Unavailable stateId',
+          description: 'Desc',
+          idempotencyKey: crypto.randomUUID(),
+          stateId: unavailId,
+        });
+      expect(res.status).toBe(409);
+      expect(res.body.code).toBe('STATE_UNAVAILABLE');
+    }
   });
 
   it('POST /workspaces/:slug/projects/:identifier/states', async () => {
