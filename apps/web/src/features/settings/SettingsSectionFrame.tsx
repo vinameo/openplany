@@ -1,5 +1,5 @@
 import type { ComponentType, ReactNode, SVGProps } from "react";
-import { Alert, Text } from "@mantine/core";
+import { Alert, Button, Loader, Stack, Text } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import classes from "./SettingsSectionFrame.module.css";
 
@@ -8,6 +8,10 @@ export interface SettingsSectionFrameProps {
   label: string;
   allowed: boolean;
   children: ReactNode;
+  status?: "ready" | "loading" | "error";
+  errorMessage?: string;
+  retryLabel?: string;
+  onRetry?: () => void;
 }
 
 export function SettingsSectionFrame({
@@ -15,8 +19,50 @@ export function SettingsSectionFrame({
   label,
   allowed,
   children,
+  status = "ready",
+  errorMessage,
+  retryLabel,
+  onRetry,
 }: SettingsSectionFrameProps) {
   const { t } = useTranslation();
+
+  let body: ReactNode;
+  if (!allowed) {
+    body = (
+      <Alert
+        color="red"
+        title={t("settings:section.accessDenied")}
+        role="alert"
+      >
+        {t("settings:section.noAccess")}
+      </Alert>
+    );
+  } else if (status === "loading") {
+    body = (
+      <div
+        className={classes.loadingContainer}
+        role="status"
+        aria-label={t("common:loading", "Loading…")}
+      >
+        <Loader size="sm" />
+      </div>
+    );
+  } else if (status === "error") {
+    body = (
+      <Alert color="red" role="alert" className={classes.errorAlert}>
+        <Stack gap="xs" align="flex-start">
+          <Text size="sm">{errorMessage ?? t("errors:genericError")}</Text>
+          {onRetry && (
+            <Button variant="default" size="xs" onClick={onRetry}>
+              {retryLabel ?? t("common:actions.tryAgain", "Try again")}
+            </Button>
+          )}
+        </Stack>
+      </Alert>
+    );
+  } else {
+    body = children;
+  }
 
   return (
     <>
@@ -24,15 +70,7 @@ export function SettingsSectionFrame({
         <Icon width={16} height={16} />
         <Text className={classes.sectionTitle}>{label}</Text>
       </div>
-      <div className={classes.sectionBody}>
-        {allowed ? (
-          children
-        ) : (
-          <Alert color="red" title={t("settings:section.accessDenied")} role="alert">
-            {t("settings:section.noAccess")}
-          </Alert>
-        )}
-      </div>
+      <div className={classes.sectionBody}>{body}</div>
     </>
   );
 }

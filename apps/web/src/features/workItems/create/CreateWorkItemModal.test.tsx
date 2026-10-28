@@ -412,9 +412,14 @@ describe("CreateWorkItemModal", () => {
       screen.getByPlaceholderText("Click to add description"),
     ).toBeInTheDocument();
 
-    // 7 disabled property chips in exact D2 order with D3 neutral labels
+    // State chip renders StatePicker (locked showing Backlog without project.states.view)
+    const stateButton = screen.getByTestId("state-picker-no-permission");
+    expect(stateButton).toBeInTheDocument();
+    expect(stateButton).toBeDisabled();
+    expect(stateButton).toHaveTextContent("Backlog");
+
+    // 6 disabled property chips in exact D2 order with D3 neutral labels
     const expectedChips = [
-      "State",
       "Priority",
       "Assignees",
       "Labels",

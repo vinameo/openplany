@@ -27,10 +27,21 @@ describe("settingsSections", () => {
   });
 
   it("AC-17: members section is visible with workspace.members.view and hidden without", () => {
-    expect(visibleSettingsSections([]).map((s) => s.key)).not.toContain("members");
+    expect(visibleSettingsSections([]).map((s) => s.key)).not.toContain(
+      "members",
+    );
     expect(
       visibleSettingsSections(["workspace.members.view"]).map((s) => s.key),
     ).toContain("members");
+  });
+
+  it("AC-01: states section is visible with workspace.settings.view and hidden without", () => {
+    expect(visibleSettingsSections([]).map((s) => s.key)).not.toContain(
+      "states",
+    );
+    expect(
+      visibleSettingsSections(["workspace.settings.view"]).map((s) => s.key),
+    ).toContain("states");
   });
 
   it("WEB-13: viewPermission rejects non-enforced permissions at compile-time", () => {

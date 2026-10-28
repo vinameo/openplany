@@ -83,5 +83,14 @@ export class CreateWorkItemDto implements CreateWorkItemRequest {
     message: validationMessage('workItem:errors.requestKeyInvalid'),
   })
   idempotencyKey!: string;
+
+  @ValidateIf(isProvided)
+  @IsUUID('all', {
+    message: validationMessage('workItem:errors.stateInvalid'),
+  })
+  @IsString({
+    message: validationMessage('workItem:errors.stateInvalid'),
+  })
+  stateId?: string;
 }
 

@@ -1,26 +1,36 @@
 import { Button } from "@mantine/core";
 import { useTranslation } from "react-i18next";
+import type { ProjectListItem } from "@repo/contracts";
 import { ComingSoonHint } from "../../layout/ComingSoonHint";
+import { StatePicker } from "../../states/StatePicker";
 import {
   AddParentIcon,
   AssigneeIcon,
   CalendarDueIcon,
   CalendarIcon,
   PriorityIcon,
-  StateIcon,
   TagIcon,
 } from "./icons";
 import classes from "./WorkItemPropertyChips.module.css";
 
-export function WorkItemPropertyChips() {
+export interface WorkItemPropertyChipsProps {
+  slug: string;
+  project: ProjectListItem;
+  selectedStateId: string | null;
+  onSelectState: (stateId: string) => void;
+  disabled?: boolean;
+}
+
+export function WorkItemPropertyChips({
+  slug,
+  project,
+  selectedStateId,
+  onSelectState,
+  disabled = false,
+}: WorkItemPropertyChipsProps) {
   const { t } = useTranslation();
 
-  const chips = [
-    {
-      id: "state",
-      label: t("workItem:properties.state"),
-      icon: <StateIcon />,
-    },
+  const otherChips = [
     {
       id: "priority",
       label: t("workItem:properties.priority"),
@@ -55,7 +65,14 @@ export function WorkItemPropertyChips() {
 
   return (
     <div className={classes.chipsRow}>
-      {chips.map((chip) => (
+      <StatePicker
+        slug={slug}
+        project={project}
+        value={selectedStateId}
+        onChange={onSelectState}
+        disabled={disabled}
+      />
+      {otherChips.map((chip) => (
         <ComingSoonHint key={chip.id}>
           {(trigger) => (
             <Button

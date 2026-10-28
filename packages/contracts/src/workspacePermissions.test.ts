@@ -28,10 +28,10 @@ describe('workspacePermissions', () => {
         'workspace.settings.update',
         'workspace.delete',
       ]),
-    ).toEqual(['workspace.settings.update']);
+    ).toEqual(['workspace.settings.view', 'workspace.settings.update']);
     expect(
       enforcedWorkspacePermissions([
-        'workspace.settings.view',
+        'workspace.unrecognized.custom',
         'workspace.members.view',
       ]),
     ).toEqual(['workspace.members.view']);
@@ -44,16 +44,19 @@ describe('workspacePermissions', () => {
         'workspace.settings.update',
         'workspace.projects.create',
         'workspace.projects.delete',
+        'workspace.states.manage',
       ]),
     ).toEqual([
+      'workspace.settings.view',
       'workspace.settings.update',
       'workspace.members.view',
       'workspace.members.email.view',
       'workspace.members.role.update',
       'workspace.projects.create',
       'workspace.projects.delete',
+      'workspace.states.manage',
     ]);
-    expect(enforcedWorkspacePermissions(['workspace.settings.view'])).toEqual([]);
+    expect(enforcedWorkspacePermissions(['workspace.delete'])).toEqual([]);
     expect(enforcedWorkspacePermissions([])).toEqual([]);
   });
 });

@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useQueryClient } from "@tanstack/react-query";
 import { notifications } from "@mantine/notifications";
 import {
   normalizeWorkItemDescription,
@@ -11,14 +12,16 @@ import {
 import { ApiRequestError, retryAfterMinutes } from "../../../lib/apiClient";
 import { translateRef } from "../../../i18n/language";
 import { useCreateWorkItem } from "../api/useCreateWorkItem";
+import { stateKeys } from "../../states/api/stateQueries";
 
 export function createContentFingerprint(
   title: string,
   description: string,
+  stateId?: string | null,
 ): string {
   const normTitle = normalizeWorkItemTitle(title);
   const normDesc = normalizeWorkItemDescription(description);
-  return JSON.stringify([normTitle, normDesc]);
+  return JSON.stringify([normTitle, normDesc, stateId ?? ""]);
 }
 
 export interface UseCreateWorkItemFormOptions {
@@ -35,10 +38,12 @@ export function useCreateWorkItemForm({
   reloadProject,
 }: UseCreateWorkItemFormOptions) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const createMutation = useCreateWorkItem();
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [selectedStateId, setSelectedStateId] = useState<string | null>(null);
   const [titleError, setTitleError] = useState<string | null>(null);
   const [descriptionError, setDescriptionError] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -54,6 +59,7 @@ export function useCreateWorkItemForm({
   const resetForm = () => {
     setTitle("");
     setDescription("");
+    setSelectedStateId(null);
     setTitleError(null);
     setDescriptionError(null);
     setServerError(null);
@@ -89,7 +95,11 @@ export function useCreateWorkItemForm({
 
     const normTitle = normalizeWorkItemTitle(title);
     const normDesc = normalizeWorkItemDescription(description);
-    const fingerprint = createContentFingerprint(title, description);
+    const fingerprint = createContentFingerprint(
+      title,
+      description,
+      selectedStateId,
+    );
 
     let key = idempotencyMapRef.current.get(fingerprint);
     if (!key) {
@@ -107,6 +117,7 @@ export function useCreateWorkItemForm({
           title: normTitle,
           description: normDesc,
           idempotencyKey: key,
+          ...(selectedStateId ? { stateId: selectedStateId } : {}),
         },
       });
 
@@ -121,6 +132,7 @@ export function useCreateWorkItemForm({
       if (createMore) {
         setTitle("");
         setDescription("");
+        setSelectedStateId(null);
         setTitleError(null);
         setDescriptionError(null);
         setServerError(null);
@@ -147,6 +159,13 @@ export function useCreateWorkItemForm({
           // Bỏ khoá của dấu vân hiện tại, nội dung giữ
           idempotencyMapRef.current.delete(fingerprint);
           setServerError(t("workItem:errors.requestReused"));
+        } else if (err.code === "STATE_UNAVAILABLE") {
+          setSelectedStateId(null);
+          idempotencyMapRef.current.delete(fingerprint);
+          setServerError(t("workItem:errors.stateUnavailable"));
+          queryClient.invalidateQueries({
+            queryKey: stateKeys.project(slug, project.identifier),
+          });
         } else if (err.status === 400 && err.fields) {
           let fieldMatched = false;
           if (err.fields.title) {
@@ -176,7 +195,8 @@ export function useCreateWorkItemForm({
     }
   };
 
-  const hasChanges = title.length > 0 || description.length > 0;
+  const hasChanges =
+    title.length > 0 || description.length > 0 || selectedStateId !== null;
   const isSaving = createMutation.isPending;
 
   return {
@@ -190,6 +210,8 @@ export function useCreateWorkItemForm({
       setDescription(val);
       if (descriptionError) setDescriptionError(null);
     },
+    selectedStateId,
+    setSelectedStateId,
     titleError,
     descriptionError,
     serverError,

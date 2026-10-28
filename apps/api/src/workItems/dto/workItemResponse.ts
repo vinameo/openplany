@@ -11,6 +11,7 @@ export function toWorkItemResponse(
     key: workItemKey(projectIdentifier, row.number),
     title: row.title,
     description: row.description,
+    stateId: row.stateId,
     createdById: row.createdById,
     createdAt: row.createdAt.toISOString(),
   };

@@ -42,6 +42,8 @@ export function CreateWorkItemModal({
     setTitle,
     description,
     setDescription,
+    selectedStateId,
+    setSelectedStateId,
     titleError,
     descriptionError,
     serverError,
@@ -126,7 +128,13 @@ export function CreateWorkItemModal({
             readOnly={isSaving}
           />
 
-          <WorkItemPropertyChips />
+          <WorkItemPropertyChips
+            slug={slug}
+            project={project}
+            selectedStateId={selectedStateId}
+            onSelectState={setSelectedStateId}
+            disabled={isSaving}
+          />
 
           {isConfirmingDiscard ? (
             <DiscardChangesFooter

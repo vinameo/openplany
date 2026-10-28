@@ -238,6 +238,7 @@ export const en = {
     "settings.groups.administration": "Administration",
     "settings.sections.general": "General",
     "settings.sections.members": "Members",
+    "settings.sections.states": "States",
     "settings.sidebar.navLabel": "Workspace settings",
     "settings.sidebar.heading": "Workspace settings",
     "settings.sidebar.backLabel": "Back to workspace",
@@ -382,6 +383,7 @@ export const en = {
     "settings.groups.general": "General",
     "settings.sections.general": "General",
     "settings.sections.members": "Members",
+    "settings.sections.states": "States",
     "settings.documentTitle": "{{project}} settings",
     "settings.documentTitleWithSection": "{{section}} · {{project}} settings",
     "settings.notFound.title": "Settings page not found",
@@ -852,11 +854,13 @@ export const en = {
     "workspace.projects.delete": "Delete projects",
     "workspace.settings.update": "Edit workspace settings",
     "workspace.settings.view": "View workspace settings",
+    "workspace.states.manage": "Manage workspace states",
   },
   permissionGroups: {
     "workspace.settings": "Settings",
     "workspace.members": "Members",
     "workspace.projects": "Projects",
+    "workspace.states": "States",
     "workspace.delete": "Workspace",
     "project.settings": "Project",
     "project.archive": "Project",
@@ -932,6 +936,93 @@ export const en = {
       "Too many requests. Try again in {{count}} minutes.",
     "errors.requestReused":
       "Something changed while saving. Save again to create the work item.",
+    "errors.stateUnavailable":
+      "This state is no longer available. Choose another state.",
+    "errors.stateInvalid": "Choose a state from the list",
     "errors.generic": "Couldn't create the work item. Try again.",
+  },
+  state: {
+    "page.workspaceDescription":
+      "Workflow steps every project in this workspace uses.",
+    "page.projectDescription":
+      "Workflow steps of this project. Default and workspace states can't be changed here.",
+    "page.editInWorkspace": "Edit in workspace settings",
+    "page.workspaceCount": "{{count}} of {{max}} workspace states",
+    "page.projectCount": "{{count}} of {{max}} project states",
+    "groups.backlog": "Backlog",
+    "groups.planned": "Planned",
+    "groups.active": "Active",
+    "groups.finished": "Finished",
+    "groups.cancelled": "Cancelled",
+    "levels.default": "Default",
+    "levels.workspace": "From workspace",
+    "list.addState": "Add state",
+    "list.workItemCount_one": "{{count}} work item",
+    "list.workItemCount_other": "{{count}} work items",
+    "list.limitReached": "You've reached the limit of {{max}} states.",
+    "form.name": "Name",
+    "form.color": "Color",
+    "form.group": "Group",
+    "form.save": "Save",
+    "form.cancel": "Cancel",
+    "menu.edit": "Edit",
+    "menu.delete": "Delete",
+    "delete.title": 'Delete "{{name}}"?',
+    "delete.empty": "This can't be undone.",
+    "delete.moveTo_one":
+      "{{count}} work item is in this state. Move it to:",
+    "delete.moveTo_other":
+      "{{count}} work items are in this state. Move them to:",
+    "delete.confirm": "Delete state",
+    "changeGroup.title": 'Change group of "{{name}}"?',
+    "changeGroup.body_one":
+      "{{count}} work item in this state will count as {{group}}.",
+    "changeGroup.body_other":
+      "{{count}} work items in this state will count as {{group}}.",
+    "page.loadFailed": "Couldn't load states.",
+    "page.retry": "Try again",
+    "list.actionsFor": "Actions for {{name}}",
+    "changeGroup.confirm": "Change group",
+    "picker.search": "Search",
+    "picker.empty": "No states found",
+    "picker.noPermission":
+      "You don't have permission to view this project's states.",
+    "picker.loadFailed":
+      "Couldn't load states. The work item will be created in Backlog.",
+    "errors.nameRequired": "Enter a name",
+    "errors.nameTooLong": "Name must be at most {{max}} characters",
+    "errors.nameHiddenChars":
+      "Name can't contain line breaks or hidden characters",
+    "errors.nameInvalid": "Enter the name as text",
+    "errors.groupInvalid": "Choose a group",
+    "errors.colorInvalid": "Choose a color from the list",
+    "errors.nothingToChange": "Change at least one field",
+    "errors.replacementInvalidFormat":
+      "Choose a state to move work items to",
+    "errors.notFound": "This state no longer exists.",
+    "errors.nameTaken": "A state with this name already exists.",
+    "errors.nameTakenInProjects_one":
+      "{{count}} project already has a state with this name. Rename it there first.",
+    "errors.nameTakenInProjects_other":
+      "{{count}} projects already have a state with this name. Rename it there first.",
+    "errors.workspaceLimitReached":
+      "This workspace already has {{max}} states of its own.",
+    "errors.projectLimitReached":
+      "This project already has {{max}} states of its own.",
+    "errors.replacementRequired":
+      "Work items were added to this state. Choose a state to move them to.",
+    "errors.replacementInvalid":
+      "The state you chose is no longer available. Choose another.",
+    "errors.tooManyChanges_one":
+      "You're changing states too quickly. Try again in {{count}} minute.",
+    "errors.tooManyChanges_other":
+      "You're changing states too quickly. Try again in {{count}} minutes.",
+    "errors.groupChangeUnconfirmed_one":
+      "Confirm the group change: {{count}} work item is in this state.",
+    "errors.groupChangeUnconfirmed_other":
+      "Confirm the group change: {{count}} work items are in this state.",
+    "picker.initialFallback": "Backlog",
+    "errors.confirmInvalid": "Confirm the change again.",
+    "errors.generic": "Couldn't save the state. Try again.",
   },
 } as const;

@@ -10,6 +10,7 @@ import { ProjectsModule } from './projects/projects.module.js';
 import { UsersModule } from './users/users.module.js';
 import { WorkspacesModule } from './workspaces/workspaces.module.js';
 import { WorkItemsModule } from './workItems/workItems.module.js';
+import { StatesModule } from './states/states.module.js';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { WorkItemsModule } from './workItems/workItems.module.js';
     WorkspacesModule,
     ProjectsModule,
     WorkItemsModule,
+    StatesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -9,6 +9,7 @@ import { NoStoreMiddleware } from '../auth/noStore.middleware.js';
 import { InMemorySlidingWindowLimiter } from '../common/slidingWindowLimiter.js';
 import { ProjectsModule } from '../projects/projects.module.js';
 import { WorkspacesModule } from '../workspaces/workspaces.module.js';
+import { StatesModule } from '../states/states.module.js';
 import { WorkItem } from './entities/workItem.entity.js';
 import { LoggingWorkItemEvents } from './events/loggingWorkItemEvents.js';
 import { WorkItemEvents } from './events/workItemEvents.js';
@@ -24,6 +25,7 @@ import { WorkItemsService } from './workItems.service.js';
     AuthModule,
     WorkspacesModule,
     ProjectsModule,
+    StatesModule,
   ],
   controllers: [WorkItemsController],
   providers: [

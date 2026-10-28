@@ -9,6 +9,7 @@ export interface ApiErrorBody {
   requestId: string;
   fields?: Record<string, string>;
   retryAfterSeconds?: number;
+  count?: number;
 }
 
 export const GENERIC_ERROR_KEY: MessageKey = "errors:genericError";
@@ -19,11 +20,12 @@ export class ApiRequestError extends Error {
   readonly code: string;
   readonly fields: Record<string, string>;
   readonly retryAfterSeconds: number | null;
+  readonly count: number | null;
 
   constructor(
     status: number,
     body: Pick<ApiErrorBody, "code" | "message"> &
-      Partial<Pick<ApiErrorBody, "fields" | "retryAfterSeconds">>,
+      Partial<Pick<ApiErrorBody, "fields" | "retryAfterSeconds" | "count">>,
     options?: ErrorOptions,
   ) {
     super(body.message, options);
@@ -32,6 +34,7 @@ export class ApiRequestError extends Error {
     this.code = body.code;
     this.fields = body.fields ?? {};
     this.retryAfterSeconds = body.retryAfterSeconds ?? null;
+    this.count = body.count ?? null;
   }
 }
 

@@ -31,6 +31,8 @@ describe('projectPermissions', () => {
         'project.settings.update',
         'project.members.manage',
         'project.members.view',
+        'project.states.view',
+        'project.states.manage',
         'project.archive',
       ]),
     ).toEqual([
@@ -38,6 +40,8 @@ describe('projectPermissions', () => {
       'project.members.manage',
       'project.settings.view',
       'project.settings.update',
+      'project.states.view',
+      'project.states.manage',
     ]);
   });
 

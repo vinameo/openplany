@@ -290,11 +290,36 @@ describe('Architecture', () => {
   it('restricts work_item_create write limit exclusively to POST /workspaces/:slug/projects/:identifier/work-items (RQ R-07, AC-30)', () => {
     const routesWithWorkItemLimit = routes.filter(
       (r) =>
-        (r.writeLimit as WriteLimit | undefined)?.bucket ===
-        'work_item_create',
+        (r.writeLimit as WriteLimit | undefined)?.bucket === 'work_item_create',
     );
     expect(routesWithWorkItemLimit.map((r) => r.key)).toEqual([
       'POST /workspaces/:slug/projects/:identifier/work-items',
     ]);
+  });
+
+  it('restricts state_write bucket exclusively to state routes and enforces it on all non-GET state routes (API B2.2)', () => {
+    const isStateRoutePath = (path: string): boolean =>
+      path === '/workspaces/:slug/states' ||
+      path.startsWith('/workspaces/:slug/states/') ||
+      path === '/workspaces/:slug/projects/:identifier/states' ||
+      path.startsWith('/workspaces/:slug/projects/:identifier/states/');
+
+    const routesWithStateLimit = routes.filter(
+      (r) => (r.writeLimit as WriteLimit | undefined)?.bucket === 'state_write',
+    );
+    expect(routesWithStateLimit.length).toBeGreaterThan(0);
+    for (const route of routesWithStateLimit) {
+      expect(isStateRoutePath(route.path)).toBe(true);
+    }
+
+    const nonGetStateRoutes = routes.filter(
+      (r) => !r.key.startsWith('GET ') && isStateRoutePath(r.path),
+    );
+    expect(nonGetStateRoutes.length).toBeGreaterThan(0);
+    for (const route of nonGetStateRoutes) {
+      expect((route.writeLimit as WriteLimit | undefined)?.bucket).toBe(
+        'state_write',
+      );
+    }
   });
 });

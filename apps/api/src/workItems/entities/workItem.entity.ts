@@ -11,6 +11,9 @@ export class WorkItem {
   @Column({ name: 'project_id', type: 'uuid' })
   projectId!: string;
 
+  @Column({ name: 'state_id', type: 'uuid' })
+  stateId!: string;
+
   @Column({ name: 'number', type: 'integer' })
   number!: number;
 

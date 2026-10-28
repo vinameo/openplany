@@ -9,4 +9,6 @@ export interface WriteLimit {
   limiterToken: LimiterToken;
   bucket: string;
   message: MessageRef;
+  logEvent?: string;
+  logOncePerWindow?: boolean;
 }

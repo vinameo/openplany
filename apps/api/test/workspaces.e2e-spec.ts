@@ -487,6 +487,7 @@ describe('Workspaces (e2e)', () => {
       expect(res.body.name).toBe('OpenStudy Team');
       expect(res.body.slug).toBe('openstudy');
       expect(res.body.permissions).toEqual([
+        'workspace.settings.view',
         'workspace.settings.update',
         'workspace.members.view',
         'workspace.members.email.view',
@@ -494,6 +495,7 @@ describe('Workspaces (e2e)', () => {
         'workspace.members.role.update',
         'workspace.projects.create',
         'workspace.projects.delete',
+        'workspace.states.manage',
       ]);
       expect(res.body.updatedAt).toBeDefined();
 
@@ -802,6 +804,7 @@ describe('Workspaces (e2e)', () => {
         .set('Cookie', ownerCookie)
         .expect(200);
       expect(ownerRes.body.permissions).toEqual([
+        'workspace.settings.view',
         'workspace.settings.update',
         'workspace.members.view',
         'workspace.members.email.view',
@@ -809,6 +812,7 @@ describe('Workspaces (e2e)', () => {
         'workspace.members.role.update',
         'workspace.projects.create',
         'workspace.projects.delete',
+        'workspace.states.manage',
       ]);
       expect(ownerRes.body.updatedAt).toBeDefined();
 
@@ -816,7 +820,10 @@ describe('Workspaces (e2e)', () => {
         .get('/api/workspaces/ws-get-perm')
         .set('Cookie', memberCookie)
         .expect(200);
-      expect(memberRes.body.permissions).toEqual(['workspace.members.view']);
+      expect(memberRes.body.permissions).toEqual([
+        'workspace.settings.view',
+        'workspace.members.view',
+      ]);
       expect(memberRes.body.updatedAt).toBeDefined();
     });
 
@@ -832,6 +839,7 @@ describe('Workspaces (e2e)', () => {
       // Default state: Admin has 5 permissions, Member has workspace.members.view
       let adminRes = await http().get('/api/workspaces/ws-perm-db').set('Cookie', adminCookie).expect(200);
       expect(adminRes.body.permissions).toEqual([
+        'workspace.settings.view',
         'workspace.settings.update',
         'workspace.members.view',
         'workspace.members.email.view',
@@ -839,9 +847,13 @@ describe('Workspaces (e2e)', () => {
         'workspace.members.role.update',
         'workspace.projects.create',
         'workspace.projects.delete',
+        'workspace.states.manage',
       ]);
       let memberRes = await http().get('/api/workspaces/ws-perm-db').set('Cookie', memberCookie).expect(200);
-      expect(memberRes.body.permissions).toEqual(['workspace.members.view']);
+      expect(memberRes.body.permissions).toEqual([
+        'workspace.settings.view',
+        'workspace.members.view',
+      ]);
 
       // 1. Revoke workspace.settings.update from Admin in DB
       await e2e.dataSource.query(
@@ -851,12 +863,14 @@ describe('Workspaces (e2e)', () => {
       // Admin immediately loses settings.update permission in GET response
       adminRes = await http().get('/api/workspaces/ws-perm-db').set('Cookie', adminCookie).expect(200);
       expect(adminRes.body.permissions).toEqual([
+        'workspace.settings.view',
         'workspace.members.view',
         'workspace.members.email.view',
         'workspace.members.add',
         'workspace.members.role.update',
         'workspace.projects.create',
         'workspace.projects.delete',
+        'workspace.states.manage',
       ]);
 
       // Admin trying to update workspace settings gets 403 FORBIDDEN immediately
@@ -875,6 +889,7 @@ describe('Workspaces (e2e)', () => {
       // Member immediately gets permission in GET response
       memberRes = await http().get('/api/workspaces/ws-perm-db').set('Cookie', memberCookie).expect(200);
       expect(memberRes.body.permissions).toEqual([
+        'workspace.settings.view',
         'workspace.settings.update',
         'workspace.members.view',
       ]);
@@ -896,6 +911,7 @@ describe('Workspaces (e2e)', () => {
       );
       memberRes = await http().get('/api/workspaces/ws-perm-db').set('Cookie', memberCookie).expect(200);
       expect(memberRes.body.permissions).toEqual([
+        'workspace.settings.view',
         'workspace.settings.update',
         'workspace.members.view',
       ]);

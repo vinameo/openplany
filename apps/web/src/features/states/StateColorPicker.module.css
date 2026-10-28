@@ -1,0 +1,57 @@
+.picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+@media (max-width: 48em) {
+  .picker {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+    width: 100%;
+  }
+}
+
+.swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition:
+    transform 0.1s ease,
+    box-shadow 0.1s ease;
+}
+
+.swatch:hover:not(:disabled) {
+  transform: scale(1.15);
+}
+
+.swatch:focus-visible {
+  outline: 2px solid var(--mantine-color-blue-filled);
+  outline-offset: 2px;
+}
+
+.swatch:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.swatchSelected {
+  box-shadow:
+    0 0 0 2px var(--mantine-color-body),
+    0 0 0 4px var(--mantine-color-blue-filled);
+}
+
+.indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}

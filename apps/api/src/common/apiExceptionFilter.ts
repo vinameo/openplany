@@ -139,6 +139,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
         ...(exception.retryAfterSeconds !== undefined && {
           retryAfterSeconds: exception.retryAfterSeconds,
         }),
+        ...(exception.count !== undefined && { count: exception.count }),
       };
     }
     if (exception instanceof HttpException) {

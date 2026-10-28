@@ -37,6 +37,7 @@ describe('WorkItemsService', () => {
     id: 'wi-1',
     workspaceId: 'ws-1',
     projectId: 'proj-1',
+    stateId: 'state-1',
     number: 1,
     title: 'Fix login',
     description: '## Steps',
@@ -104,6 +105,7 @@ describe('WorkItemsService', () => {
       key: 'OPS-1',
       title: 'Fix login',
       description: '## Steps',
+      stateId: 'state-1',
       createdById: 'user-1',
       createdAt: fixedNow.toISOString(),
     });
@@ -231,5 +233,25 @@ describe('WorkItemsService', () => {
       'user-1',
       'req-reused',
     );
+  });
+
+  it('throws 409 STATE_UNAVAILABLE when repository returns state_unavailable', async () => {
+    const { service } = setup({ status: 'state_unavailable' });
+
+    await expect(
+      service.create({
+        workspaceId: 'ws-1',
+        project,
+        actorId: 'user-1',
+        title: 'Fix login',
+        description: '## Steps',
+        idempotencyKey: 'key-1',
+        stateId: 'deleted-state-id',
+      }),
+    ).rejects.toMatchObject({
+      status: HttpStatus.CONFLICT,
+      code: 'STATE_UNAVAILABLE',
+      messageRef: { key: 'workItem:errors.stateUnavailable' },
+    });
   });
 });

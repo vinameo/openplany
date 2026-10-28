@@ -15,6 +15,7 @@ import { DEFAULT_PROJECT_ACCESS_POLICIES } from '@repo/contracts/testing';
 import { MIGRATION_PROJECT_ROLE_RANK } from '../src/database/migrations/1791610200000-ApplyProjectAccessPolicies.js';
 import { EnableUnaccent1791610400000 } from '../src/database/migrations/1791610400000-EnableUnaccent.js';
 import { CreateWorkItems1791610500000 } from '../src/database/migrations/1791610500000-CreateWorkItems.js';
+import { CreateWorkItemStates1791610600000 } from '../src/database/migrations/1791610600000-CreateWorkItemStates.js';
 
 /**
  * Migrations meet real data (CLAUDE.md §8 design pass): the newest migrations
@@ -23,7 +24,7 @@ import { CreateWorkItems1791610500000 } from '../src/database/migrations/1791610
  * must equal a fresh database built up to that version, and the final schema
  * must equal the start. A new migration is the newest one, so it is covered.
  */
-const ROUNDTRIP_COUNT = 6;
+const ROUNDTRIP_COUNT = 7;
 
 const MIGRATIONS_DIR = join(import.meta.dirname, '../src/database/migrations');
 
@@ -205,10 +206,39 @@ describe('Migrations (e2e)', () => {
        VALUES ('project', 'viewer', 'project.workitems.view', 'granted', $1, 'req-viewer-1')`,
       [ownerId],
     );
+
+    // Realistic state rows: workspace level, project level, soft-deleted project state
     await e2e.dataSource.query(
-      `INSERT INTO work_items (workspace_id, project_id, number, title, description, idempotency_key, created_by_id, created_at, updated_at)
-       VALUES ($1, $2, 1, 'Initial work item', '## Notes', gen_random_uuid(), $3, now(), now())`,
-      [ws.id, active!.id, ownerId],
+      `INSERT INTO work_item_states (level, workspace_id, name, state_group, color, created_at, updated_at)
+       VALUES ('workspace', $1, 'QA', 'active', '#E08A1E', now(), now())`,
+      [ws.id],
+    );
+    const [prjState] = await e2e.dataSource.query<{ id: string }[]>(
+      `INSERT INTO work_item_states (level, workspace_id, project_id, name, state_group, color, created_at, updated_at)
+       VALUES ('project', $1, $2, 'Review', 'active', '#3E7BD6', now(), now()) RETURNING id`,
+      [ws.id, active!.id],
+    );
+    await e2e.dataSource.query(
+      `INSERT INTO work_item_states (level, workspace_id, project_id, name, state_group, color, created_at, updated_at, deleted_at)
+       VALUES ('project', $1, $2, 'Old Review', 'active', '#B05A5A', now(), now(), now())`,
+      [ws.id, active!.id],
+    );
+
+    // Realistic permission grant: instance admin granted workspace.states.manage to member
+    await e2e.dataSource.query(
+      `INSERT INTO role_permissions (scope, role_key, permission_key, created_at)
+       VALUES ('workspace', 'member', 'workspace.states.manage', now())`,
+    );
+    await e2e.dataSource.query(
+      `INSERT INTO role_permission_history (scope, role_key, permission_key, change_type, actor_id, request_id, created_at)
+       VALUES ('workspace', 'member', 'workspace.states.manage', 'granted', $1, 'req-grant-states-1', now())`,
+      [ownerId],
+    );
+
+    await e2e.dataSource.query(
+      `INSERT INTO work_items (workspace_id, project_id, number, title, description, idempotency_key, created_by_id, created_at, updated_at, state_id)
+       VALUES ($1, $2, 1, 'Initial work item', '## Notes', gen_random_uuid(), $3, now(), now(), $4)`,
+      [ws.id, active!.id, ownerId, prjState!.id],
     );
 
     // reference[i] = schema of a fresh database with the newest
@@ -344,7 +374,8 @@ describe('Migrations (e2e)', () => {
       [wsId, project!.id, ownerId],
     );
 
-    // Revert CreateWorkItems, EnableUnaccent, AddProjectRoleChangedHistory, ApplyProjectAccessPolicies, CreateProjectAccessPolicies and RenameProjectGuestToViewer so AddProjectMemberJoinedAt is the last applied migration
+    // Revert CreateWorkItemStates, CreateWorkItems, EnableUnaccent, AddProjectRoleChangedHistory, ApplyProjectAccessPolicies, CreateProjectAccessPolicies and RenameProjectGuestToViewer so AddProjectMemberJoinedAt is the last applied migration
+    await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
@@ -459,7 +490,8 @@ describe('Migrations (e2e)', () => {
       [wsId, project!.id, ownerId],
     );
 
-    // Revert CreateWorkItems, EnableUnaccent and AddProjectRoleChangedHistory so ApplyProjectAccessPolicies is the last applied migration
+    // Revert CreateWorkItemStates, CreateWorkItems, EnableUnaccent and AddProjectRoleChangedHistory so ApplyProjectAccessPolicies is the last applied migration
+    await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
@@ -480,7 +512,8 @@ describe('Migrations (e2e)', () => {
   });
 
   it('AC-16: refuses to revert CreateProjectAccessPolicies if workspace_role_applied role history rows exist', async () => {
-    // 1. Revert CreateWorkItems, EnableUnaccent, AddProjectRoleChangedHistory and ApplyProjectAccessPolicies first (when no later changes exist, they revert cleanly)
+    // 1. Revert CreateWorkItemStates, CreateWorkItems, EnableUnaccent, AddProjectRoleChangedHistory and ApplyProjectAccessPolicies first (when no later changes exist, they revert cleanly)
+    await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
@@ -528,7 +561,8 @@ describe('Migrations (e2e)', () => {
   });
 
   it('AC-13, AC-14, AC-15: ApplyProjectAccessPolicies updates the 6 input rows and down() restores them', async () => {
-    // 1. Revert CreateWorkItems, EnableUnaccent, AddProjectRoleChangedHistory and ApplyProjectAccessPolicies first
+    // 1. Revert CreateWorkItemStates, CreateWorkItems, EnableUnaccent, AddProjectRoleChangedHistory and ApplyProjectAccessPolicies first
+    await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
@@ -701,6 +735,7 @@ describe('Migrations (e2e)', () => {
       await migrationsDs.undoLastMigration({ transaction: 'each' });
       await migrationsDs.undoLastMigration({ transaction: 'each' });
       await migrationsDs.undoLastMigration({ transaction: 'each' });
+      await migrationsDs.undoLastMigration({ transaction: 'each' });
 
       const rowsAfterDown = await migrationsDs.query<
         { member_id: string; role: string; is_active: boolean }[]
@@ -777,7 +812,8 @@ describe('Migrations (e2e)', () => {
       [wsId, pId, memberUser, ownerId],
     );
 
-    // Revert CreateWorkItems and EnableUnaccent so AddProjectRoleChangedHistory is the last applied migration
+    // Revert CreateWorkItemStates, CreateWorkItems and EnableUnaccent so AddProjectRoleChangedHistory is the last applied migration
+    await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
 
@@ -818,7 +854,8 @@ describe('Migrations (e2e)', () => {
     );
 
     // Live round-trip on database
-    // Revert CreateWorkItems first so EnableUnaccent is the last applied migration
+    // Revert CreateWorkItemStates, CreateWorkItems and EnableUnaccent
+    await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
     const droppedExt = await migrationsDs.query(
@@ -850,6 +887,7 @@ describe('Migrations (e2e)', () => {
 
     // Live round-trip on database
     await migrationsDs.undoLastMigration({ transaction: 'each' });
+    await migrationsDs.undoLastMigration({ transaction: 'each' });
     const droppedTable = await migrationsDs.query(
       `SELECT 1 FROM information_schema.tables WHERE table_name = 'work_items'`,
     );
@@ -860,6 +898,119 @@ describe('Migrations (e2e)', () => {
       `SELECT 1 FROM information_schema.tables WHERE table_name = 'work_items'`,
     );
     expect(createdTable).toHaveLength(1);
+  });
+
+  it('CreateWorkItemStates: rejects when table/column/permission already exists and supports up/down round-trip with backfill (DB B2, AC-38)', async () => {
+    // 1. Unit pre-check tests
+    const tableExistsRunner = {
+      query: vi.fn().mockImplementation((sql: string) => {
+        if (sql.includes("table_name = 'work_item_states'")) {
+          return [{ '?column?': 1 }];
+        }
+        return [];
+      }),
+    };
+    const migration = new CreateWorkItemStates1791610600000();
+    await expect(
+      migration.up(tableExistsRunner as unknown as import('typeorm').QueryRunner),
+    ).rejects.toThrow('Cannot create work_item_states: table already exists.');
+
+    const colExistsRunner = {
+      query: vi.fn().mockImplementation((sql: string) => {
+        if (sql.includes("column_name = 'state_id'")) {
+          return [{ '?column?': 1 }];
+        }
+        return [];
+      }),
+    };
+    await expect(
+      migration.up(colExistsRunner as unknown as import('typeorm').QueryRunner),
+    ).rejects.toThrow('Cannot create work_items.state_id: column already exists.');
+
+    const permExistsRunner = {
+      query: vi.fn().mockImplementation((sql: string) => {
+        if (sql.includes("key = 'workspace.states.manage'")) {
+          return [{ '?column?': 1 }];
+        }
+        return [];
+      }),
+    };
+    await expect(
+      migration.up(permExistsRunner as unknown as import('typeorm').QueryRunner),
+    ).rejects.toThrow(
+      'Cannot add permission workspace.states.manage: permission already exists.',
+    );
+
+    // 2. Live round-trip on database
+    // Revert CreateWorkItemStates
+    await migrationsDs.undoLastMigration({ transaction: 'each' });
+
+    // Verify work_item_states table is dropped
+    const droppedTable = await migrationsDs.query(
+      `SELECT 1 FROM information_schema.tables WHERE table_name = 'work_item_states'`,
+    );
+    expect(droppedTable).toHaveLength(0);
+
+    // Verify state_id column is dropped from work_items
+    const droppedCol = await migrationsDs.query(
+      `SELECT 1 FROM information_schema.columns WHERE table_name = 'work_items' AND column_name = 'state_id'`,
+    );
+    expect(droppedCol).toHaveLength(0);
+
+    // Verify permissions dropped
+    const droppedPerm = await migrationsDs.query(
+      `SELECT 1 FROM permissions WHERE key = 'workspace.states.manage'`,
+    );
+    expect(droppedPerm).toHaveLength(0);
+
+    // Insert a work item without state_id (feature 20 state)
+    const ownerId = await createUser(e2e, 'mig-backfill@openplany.dev', {
+      is_superuser: true,
+    });
+    const created = await request(e2e.app.getHttpServer())
+      .post('/api/workspaces')
+      .set('Cookie', await signInCookie(e2e, 'mig-backfill@openplany.dev'))
+      .set('Origin', DEFAULT_E2E_ORIGIN)
+      .send({ name: 'Mig Backfill', slug: 'mig-bf', organizationSize: '2-10' })
+      .expect(201);
+    const wsId = created.body.id as string;
+    const [project] = await e2e.dataSource.query<{ id: string }[]>(
+      `INSERT INTO projects (workspace_id, name, identifier, icon_name, icon_color, cover_key, timezone)
+       VALUES ($1, 'Mig BF Project', 'MBF', 'square-check', '#868E96', 'cover-01', 'UTC') RETURNING id`,
+      [wsId],
+    );
+    const [insertedWi] = await e2e.dataSource.query<{ id: string }[]>(
+      `INSERT INTO work_items (workspace_id, project_id, number, title, description, idempotency_key, created_by_id, created_at, updated_at)
+       VALUES ($1, $2, 1, 'Pre-migration item', 'Backfill test', gen_random_uuid(), $3, now(), now()) RETURNING id`,
+      [wsId, project!.id, ownerId],
+    );
+
+    // Re-apply CreateWorkItemStates
+    await migrationsDs.runMigrations({ transaction: 'each' });
+
+    // Verify 5 default rows exist
+    const defaultStates = await migrationsDs.query<{ default_key: string; name: string }[]>(
+      `SELECT default_key, name FROM work_item_states WHERE level = 'default' ORDER BY default_key`,
+    );
+    expect(defaultStates).toHaveLength(5);
+    const backlogId = (
+      await migrationsDs.query<{ id: string }[]>(
+        `SELECT id FROM work_item_states WHERE default_key = 'backlog'`,
+      )
+    )[0]!.id;
+
+    // Verify work item was backfilled with Backlog's state ID (AC-38)
+    const backfilledWi = await migrationsDs.query<{ state_id: string }[]>(
+      `SELECT state_id FROM work_items WHERE id = $1`,
+      [insertedWi!.id],
+    );
+    expect(backfilledWi[0]!.state_id).toBe(backlogId);
+
+    // Verify permission was seeded
+    const perm = await migrationsDs.query<{ key: string }[]>(
+      `SELECT key FROM permissions WHERE key = 'workspace.states.manage'`,
+    );
+    expect(perm).toHaveLength(1);
   });
 });
 
