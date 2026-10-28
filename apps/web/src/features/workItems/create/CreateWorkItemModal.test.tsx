@@ -4,8 +4,10 @@ import { notifications } from "@mantine/notifications";
 import { AppUiProvider } from "@repo/ui";
 import type { ProjectListItem } from "@repo/contracts";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { setLanguage } from "../../../i18n/language";
 import { apiError, jsonResponse, mockFetch } from "../../../test/fetchMock";
+import { stubMatchMedia } from "../../../test/mediaQuery";
 import { CreateWorkItemModal } from "./CreateWorkItemModal";
 
 const mockProject: ProjectListItem = {
@@ -31,6 +33,9 @@ afterEach(() => {
 });
 
 describe("CreateWorkItemModal", () => {
+  beforeEach(() => {
+    stubMatchMedia(true);
+  });
   function renderModal(
     props: {
       opened?: boolean;
@@ -382,5 +387,267 @@ describe("CreateWorkItemModal", () => {
     await waitFor(() => {
       expect(onClose).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it("AC-01: renders modal with project chip, title autofocus, description tabs and note, 7 property chips, create more switch off, discard and save buttons", () => {
+    stubMatchMedia(true);
+    renderModal();
+
+    expect(screen.getByText("Create new work item")).toBeInTheDocument();
+    // Non-interactive project chip
+    const chip = screen.getByLabelText("Project: Operations");
+    expect(chip).toBeInTheDocument();
+    expect(chip.tagName.toLowerCase()).not.toBe("button");
+
+    // Title input with data-autofocus
+    const titleInput = screen.getByPlaceholderText("Title");
+    expect(titleInput).toBeInTheDocument();
+    expect(titleInput).toHaveAttribute("data-autofocus");
+
+    // Description Write/Preview tabs, placeholder, "Markdown supported"
+    expect(screen.getByRole("tab", { name: "Write" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Preview" })).toBeInTheDocument();
+    expect(screen.getByText("Markdown supported")).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText("Click to add description"),
+    ).toBeInTheDocument();
+
+    // 7 disabled property chips in exact D2 order with D3 neutral labels
+    const expectedChips = [
+      "State",
+      "Priority",
+      "Assignees",
+      "Labels",
+      "Start date",
+      "Due date",
+      "Add parent",
+    ];
+    expectedChips.forEach((label) => {
+      expect(screen.getByRole("button", { name: label })).toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
+    });
+
+    // Create more switch off
+    const createMoreSwitch = screen.getByRole("switch", {
+      name: "Create more",
+    });
+    expect(createMoreSwitch).not.toBeChecked();
+
+    // Discard and Save buttons
+    expect(screen.getByRole("button", { name: "Discard" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+  });
+
+  it("AC-08: with Create more enabled, saving shows toast, keeps modal open, empties fields, focuses title, keeps switch enabled, and next save uses fresh key", async () => {
+    const notifySpy = vi.spyOn(notifications, "show");
+    const sentRequests: Array<{
+      title: string;
+      description: string;
+      idempotencyKey: string;
+    }> = [];
+
+    mockFetch({
+      "POST /api/workspaces/acme/projects/OPS/work-items": (init) => {
+        const body = JSON.parse(init?.body as string);
+        sentRequests.push(body);
+        const number = sentRequests.length;
+        return jsonResponse(201, {
+          workItem: {
+            id: `wi-${number}`,
+            number,
+            key: `OPS-${number}`,
+            title: body.title,
+            description: body.description,
+            createdById: "user-1",
+            createdAt: new Date().toISOString(),
+          },
+          replayed: false,
+        });
+      },
+    });
+
+    const { user, onClose } = renderModal();
+
+    const titleInput = screen.getByPlaceholderText("Title");
+    const descInput = screen.getByPlaceholderText("Click to add description");
+    const createMoreSwitch = screen.getByRole("switch", {
+      name: "Create more",
+    });
+    const saveButton = screen.getByRole("button", { name: "Save" });
+
+    // Enable Create more
+    await user.click(createMoreSwitch);
+    expect(createMoreSwitch).toBeChecked();
+
+    // Fill first work item
+    await user.type(titleInput, "Issue One");
+    await user.type(descInput, "Description One");
+    await user.click(saveButton);
+
+    await waitFor(() => {
+      expect(notifySpy).toHaveBeenCalledWith({
+        title: "OPS-1 created",
+        message: "Issue One",
+      });
+    });
+
+    // Modal must NOT close
+    expect(onClose).not.toHaveBeenCalled();
+
+    // Fields emptied and title focused
+    expect(titleInput).toHaveValue("");
+    expect(descInput).toHaveValue("");
+    expect(titleInput).toHaveFocus();
+
+    // Switch stays checked
+    expect(createMoreSwitch).toBeChecked();
+
+    // Second work item
+    await user.type(titleInput, "Issue Two");
+    await user.type(descInput, "Description Two");
+    await user.click(saveButton);
+
+    await waitFor(() => {
+      expect(notifySpy).toHaveBeenCalledWith({
+        title: "OPS-2 created",
+        message: "Issue Two",
+      });
+    });
+
+    expect(sentRequests).toHaveLength(2);
+    expect(sentRequests[0].idempotencyKey).not.toBe(
+      sentRequests[1].idempotencyKey,
+    );
+  });
+
+  it("AC-18: asks before discarding changes; Keep editing retains content; Discard closes immediately when empty", async () => {
+    // Sub-case 1: Closing when empty -> closes immediately without prompt
+    const { user, onClose } = renderModal();
+    const discardButton = screen.getByRole("button", { name: "Discard" });
+    await user.click(discardButton);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("AC-18: prompts confirmation when dirty; Keep editing keeps content; Discard closes", async () => {
+    const { user, onClose } = renderModal();
+    const titleInput = screen.getByPlaceholderText("Title");
+    const discardButton = screen.getByRole("button", { name: "Discard" });
+
+    await user.type(titleInput, "Unsaved Work");
+    await user.click(discardButton);
+
+    // Confirmation appears
+    expect(
+      await screen.findByText("Discard unsaved changes?"),
+    ).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+
+    // Click "Keep editing"
+    const keepEditingButton = screen.getByRole("button", {
+      name: "Keep editing",
+    });
+    await user.click(keepEditingButton);
+
+    // Confirmation gone, text still there
+    expect(
+      screen.queryByText("Discard unsaved changes?"),
+    ).not.toBeInTheDocument();
+    expect(titleInput).toHaveValue("Unsaved Work");
+    expect(onClose).not.toHaveBeenCalled();
+
+    // Click Discard again, then confirm discard
+    await user.click(screen.getByRole("button", { name: "Discard" }));
+    const confirmDiscardBtn = await screen.findByRole("button", {
+      name: "Discard",
+    });
+    await user.click(confirmDiscardBtn);
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("AC-24: formats 429 TOO_MANY_ATTEMPTS with retryAfterMinutes in alert and preserves content", async () => {
+    mockFetch({
+      "POST /api/workspaces/acme/projects/OPS/work-items": () =>
+        new Response(
+          JSON.stringify({
+            status: 429,
+            code: "TOO_MANY_ATTEMPTS",
+            message: "Too many attempts",
+            retryAfterSeconds: 120,
+          }),
+          {
+            status: 429,
+            headers: {
+              "Content-Type": "application/json",
+              "Retry-After": "120",
+            },
+          },
+        ),
+    });
+
+    const { user } = renderModal();
+    const titleInput = screen.getByPlaceholderText("Title");
+    await user.type(titleInput, "Rate limited title");
+
+    const saveButton = screen.getByRole("button", { name: "Save" });
+    await user.click(saveButton);
+
+    expect(
+      await screen.findByText("Too many requests. Try again in 2 minutes."),
+    ).toBeInTheDocument();
+    expect(titleInput).toHaveValue("Rate limited title");
+  });
+
+  it("AC-20: renders Vietnamese copy when i18n language is vi", async () => {
+    setLanguage("vi");
+
+    try {
+      renderModal();
+
+      expect(screen.getByText("Tạo công việc mới")).toBeInTheDocument();
+      expect(screen.getByLabelText("Dự án: Operations")).toBeInTheDocument();
+      expect(screen.getByPlaceholderText("Tiêu đề")).toBeInTheDocument();
+      expect(
+        screen.getByPlaceholderText("Nhấn để thêm mô tả"),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: "Viết" })).toBeInTheDocument();
+      expect(
+        screen.getByRole("tab", { name: "Xem trước" }),
+      ).toBeInTheDocument();
+      expect(screen.getByText("Hỗ trợ Markdown")).toBeInTheDocument();
+
+      const expectedViChips = [
+        "Trạng thái",
+        "Mức ưu tiên",
+        "Người thực hiện",
+        "Nhãn",
+        "Ngày bắt đầu",
+        "Hạn chót",
+        "Thêm công việc cha",
+      ];
+      expectedViChips.forEach((label) => {
+        expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
+      });
+
+      expect(
+        screen.getByRole("switch", { name: "Tạo tiếp" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Huỷ bỏ" }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Lưu" })).toBeInTheDocument();
+    } finally {
+      setLanguage("en");
+    }
+  });
+
+  it("AC-22: sets fullScreen on narrow screens (< 768px)", () => {
+    stubMatchMedia(false); // Mobile / narrow screen
+    renderModal();
+
+    const content = document.querySelector(".mantine-Modal-content");
+    expect(content).toHaveAttribute("data-full-screen", "true");
   });
 });

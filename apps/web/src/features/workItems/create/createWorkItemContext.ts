@@ -17,4 +17,3 @@ export function useCreateWorkItemModal(): CreateWorkItemContextValue {
   }
   return ctx;
 }
-

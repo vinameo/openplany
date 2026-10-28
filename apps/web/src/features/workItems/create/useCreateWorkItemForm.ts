@@ -43,6 +43,9 @@ export function useCreateWorkItemForm({
   const [descriptionError, setDescriptionError] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSaveLocked, setIsSaveLocked] = useState(false);
+  const [createMore, setCreateMore] = useState(false);
+
+  const titleInputRef = useRef<HTMLInputElement>(null);
 
   // Map of content fingerprint -> idempotency key for this modal session
   const idempotencyMapRef = useRef<Map<string, string>>(new Map());
@@ -55,6 +58,7 @@ export function useCreateWorkItemForm({
     setDescriptionError(null);
     setServerError(null);
     setIsSaveLocked(false);
+    setCreateMore(false);
     idempotencyMapRef.current.clear();
   };
 
@@ -113,7 +117,17 @@ export function useCreateWorkItemForm({
 
       // Clear the map on success for next creation
       idempotencyMapRef.current.clear();
-      onSuccess?.();
+
+      if (createMore) {
+        setTitle("");
+        setDescription("");
+        setTitleError(null);
+        setDescriptionError(null);
+        setServerError(null);
+        titleInputRef.current?.focus();
+      } else {
+        onSuccess?.();
+      }
     } catch (err) {
       if (err instanceof ApiRequestError) {
         if (err.status === 403) {
@@ -181,6 +195,9 @@ export function useCreateWorkItemForm({
     serverError,
     isSaving,
     isSaveLocked,
+    createMore,
+    setCreateMore,
+    titleInputRef,
     hasChanges,
     handleSubmit,
     resetForm,

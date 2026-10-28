@@ -5,13 +5,17 @@ import {
   Group,
   Modal,
   Stack,
+  Switch,
   Text,
   TextInput,
 } from "@mantine/core";
 import type { ProjectListItem } from "@repo/contracts";
 import { MarkdownEditor } from "../../markdown/MarkdownEditor";
 import { useIsDesktop } from "../../layout/useIsDesktop";
+import { useDiscardGuard } from "../../layout/useDiscardGuard";
+import { DiscardChangesFooter } from "../../layout/DiscardChangesFooter";
 import { ProjectIcon } from "../../projects/ProjectIcon";
+import { WorkItemPropertyChips } from "./WorkItemPropertyChips";
 import { useCreateWorkItemForm } from "./useCreateWorkItemForm";
 import classes from "./CreateWorkItemModal.module.css";
 
@@ -43,6 +47,10 @@ export function CreateWorkItemModal({
     serverError,
     isSaving,
     isSaveLocked,
+    createMore,
+    setCreateMore,
+    titleInputRef,
+    hasChanges,
     handleSubmit,
   } = useCreateWorkItemForm({
     slug,
@@ -51,12 +59,17 @@ export function CreateWorkItemModal({
     reloadProject,
   });
 
+  const { isConfirmingDiscard, keepEditingRef, requestClose, cancelDiscard } =
+    useDiscardGuard({
+      hasChanges,
+      isSaving,
+      onDiscard: onClose,
+    });
+
   return (
     <Modal
       opened={opened}
-      onClose={() => {
-        if (!isSaving) onClose();
-      }}
+      onClose={requestClose}
       title={
         <Text fw={600} size="lg" id="create-work-item-title">
           {t("workItem:create.title")}
@@ -66,6 +79,12 @@ export function CreateWorkItemModal({
       fullScreen={!isDesktop}
       size="lg"
       centered
+      closeOnEscape={!isSaving}
+      closeOnClickOutside={!isSaving}
+      closeButtonProps={{
+        disabled: isSaving,
+        "aria-label": t("common:actions.close"),
+      }}
     >
       <form onSubmit={handleSubmit}>
         <Stack gap="md">
@@ -88,6 +107,7 @@ export function CreateWorkItemModal({
           </div>
 
           <TextInput
+            ref={titleInputRef}
             data-autofocus
             placeholder={t("workItem:fields.title")}
             aria-label={t("workItem:fields.title")}
@@ -106,18 +126,42 @@ export function CreateWorkItemModal({
             readOnly={isSaving}
           />
 
-          <Group justify="flex-end" className={classes.footer}>
-            <Button variant="default" onClick={onClose} disabled={isSaving}>
-              {t("workItem:create.discard")}
-            </Button>
-            <Button
-              type="submit"
-              loading={isSaving}
-              disabled={isSaving || isSaveLocked}
-            >
-              {t("workItem:create.save")}
-            </Button>
-          </Group>
+          <WorkItemPropertyChips />
+
+          {isConfirmingDiscard ? (
+            <DiscardChangesFooter
+              title={t("profile:discardModal.title")}
+              keepEditingRef={keepEditingRef}
+              onKeepEditing={cancelDiscard}
+              onDiscard={onClose}
+              className={classes.discardFooter}
+            />
+          ) : (
+            <Group justify="space-between" className={classes.footer}>
+              <Switch
+                label={t("workItem:create.createMore")}
+                checked={createMore}
+                onChange={(e) => setCreateMore(e.currentTarget.checked)}
+                disabled={isSaving}
+              />
+              <Group gap="sm">
+                <Button
+                  variant="default"
+                  onClick={requestClose}
+                  disabled={isSaving}
+                >
+                  {t("workItem:create.discard")}
+                </Button>
+                <Button
+                  type="submit"
+                  loading={isSaving}
+                  disabled={isSaving || isSaveLocked}
+                >
+                  {t("workItem:create.save")}
+                </Button>
+              </Group>
+            </Group>
+          )}
         </Stack>
       </form>
     </Modal>
