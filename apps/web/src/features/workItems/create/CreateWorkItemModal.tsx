@@ -6,10 +6,10 @@ import {
   Modal,
   Stack,
   Text,
-  Textarea,
   TextInput,
 } from "@mantine/core";
 import type { ProjectListItem } from "@repo/contracts";
+import { MarkdownEditor } from "../../markdown/MarkdownEditor";
 import { useIsDesktop } from "../../layout/useIsDesktop";
 import { ProjectIcon } from "../../projects/ProjectIcon";
 import { useCreateWorkItemForm } from "./useCreateWorkItemForm";
@@ -97,14 +97,12 @@ export function CreateWorkItemModal({
             readOnly={isSaving}
           />
 
-          <Textarea
+          <MarkdownEditor
             label={t("workItem:fields.descriptionLabel")}
             placeholder={t("workItem:fields.descriptionPlaceholder")}
-            aria-label={t("workItem:fields.descriptionLabel")}
             value={description}
-            onChange={(e) => setDescription(e.currentTarget.value)}
+            onChange={setDescription}
             error={descriptionError}
-            rows={5}
             readOnly={isSaving}
           />
 
