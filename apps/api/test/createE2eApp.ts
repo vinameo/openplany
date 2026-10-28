@@ -30,7 +30,7 @@ export async function createE2eApp(): Promise<E2eApp> {
     dataSource,
     reset: async () => {
       await dataSource.query(
-        'TRUNCATE project_member_role_history, project_members, projects, role_permission_history, workspace_member_role_history, workspace_members, workspaces, login_attempts, sessions, users',
+        'TRUNCATE work_items, project_member_role_history, project_members, projects, role_permission_history, workspace_member_role_history, workspace_members, workspaces, login_attempts, sessions, users',
       );
       await dataSource.query('DELETE FROM role_permissions');
       await dataSource.query(

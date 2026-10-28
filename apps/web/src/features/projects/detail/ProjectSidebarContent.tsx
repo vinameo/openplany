@@ -12,7 +12,7 @@ import type { MessageKey } from "@repo/contracts";
 import { ComingSoonHint } from "../../layout/ComingSoonHint";
 import { useCurrentWorkspace } from "../../workspaces/currentWorkspace/useCurrentWorkspace";
 import { HomeIcon, SettingsIcon } from "../../workspaces/icons";
-import { NewWorkItemButton } from "../../workspaces/shell/NewWorkItemButton";
+import { ProjectNewWorkItemButton } from "./ProjectNewWorkItemButton";
 import { SidebarCollapseButton } from "../../workspaces/shell/SidebarCollapseButton";
 import { SidebarNavItem } from "../../workspaces/shell/SidebarNavItem";
 import classes from "../../workspaces/shell/sidebarContent.module.css";
@@ -84,7 +84,7 @@ export function ProjectSidebarContent() {
         className={classes.scrollArea}
       >
         <div className={classes.scrollContent}>
-          <NewWorkItemButton />
+          <ProjectNewWorkItemButton />
 
           <ul role="list" className={classes.navList}>
             {visibleItems.map((item) => {

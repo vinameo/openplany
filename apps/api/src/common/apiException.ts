@@ -43,6 +43,7 @@ export const API_ERROR_CODES = [
   'PAYLOAD_TOO_LARGE',
   'UNSUPPORTED_MEDIA_TYPE',
   'MALFORMED_BODY',
+  'WORK_ITEM_REQUEST_REUSED',
   'INTERNAL_ERROR',
 ] as const;
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number];

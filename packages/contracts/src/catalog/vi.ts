@@ -840,4 +840,47 @@ export const vi: TranslatedCatalog = {
     "section.accessDenied": "Truy cập bị từ chối",
     "section.noAccess": "Bạn không có quyền truy cập trang này.",
   },
+  workItem: {
+    "create.title": "Tạo công việc mới",
+    "create.projectChip": "Dự án: {{name}}",
+    "fields.title": "Tiêu đề",
+    "fields.descriptionPlaceholder": "Nhấn để thêm mô tả",
+    "fields.descriptionLabel": "Mô tả",
+    "markdown.write": "Viết",
+    "markdown.preview": "Xem trước",
+    "markdown.supported": "Hỗ trợ Markdown",
+    "markdown.nothingToPreview": "Chưa có gì để xem trước",
+    "properties.state": "Trạng thái",
+    "properties.priority": "Mức ưu tiên",
+    "properties.assignees": "Người thực hiện",
+    "properties.labels": "Nhãn",
+    "properties.startDate": "Ngày bắt đầu",
+    "properties.dueDate": "Hạn chót",
+    "properties.addParent": "Thêm công việc cha",
+    "create.createMore": "Tạo tiếp",
+    "create.discard": "Huỷ bỏ",
+    "create.save": "Lưu",
+    "create.created": "Đã tạo {{key}}",
+    "create.noPermission":
+      "Bạn không có quyền tạo công việc trong dự án này.",
+    "errors.titleRequired": "Hãy nhập tiêu đề",
+    "errors.titleTooLong": "Tiêu đề tối đa {{max}} ký tự",
+    "errors.titleHiddenChars":
+      "Tiêu đề không được chứa xuống dòng hay ký tự ẩn",
+    "errors.descriptionInvalid": "Hãy nhập mô tả dạng văn bản",
+    "errors.descriptionTooLong": "Mô tả tối đa {{max}} ký tự",
+    "errors.descriptionHiddenChars":
+      "Mô tả không được chứa ký tự điều khiển ẩn",
+    "errors.requestKeyInvalid": "Hãy tải lại trang rồi thử lại.",
+    "errors.createForbidden":
+      "Bạn không còn quyền tạo công việc trong dự án này.",
+    "errors.projectGone": "Dự án này không còn tồn tại.",
+    "errors.tooManyCreates":
+      "Bạn đang tạo công việc quá nhanh. Hãy thử lại sau.",
+    "errors.tooManyRequests_other":
+      "Quá nhiều yêu cầu. Hãy thử lại sau {{count}} phút.",
+    "errors.requestReused":
+      "Có thay đổi trong lúc lưu. Hãy lưu lại để tạo công việc.",
+    "errors.generic": "Không tạo được công việc. Hãy thử lại.",
+  },
 };

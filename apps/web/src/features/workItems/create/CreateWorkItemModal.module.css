@@ -1,0 +1,19 @@
+.projectChip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+  padding: 4px 10px;
+  border-radius: var(--mantine-radius-sm);
+  background-color: var(--mantine-color-gray-1);
+  font-size: var(--mantine-font-size-sm);
+  color: var(--mantine-color-dark-4);
+  width: fit-content;
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--mantine-spacing-sm);
+  margin-top: var(--mantine-spacing-md);
+}
+

@@ -43,4 +43,7 @@ export class Project {
 
   @Column({ type: 'varchar', length: 64, nullable: true })
   timezone!: string | null;
+
+  @Column({ name: 'last_work_item_number', type: 'integer', default: 0 })
+  lastWorkItemNumber!: number;
 }
