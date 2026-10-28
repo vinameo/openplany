@@ -85,7 +85,7 @@ _Avoid_: Inactive member (that would be a Former member)
 One of a team's projects: a place inside one workspace where a group of people track work items together. Every project belongs to exactly one workspace and has a name that is unique within it. A project is private: only its project members and the Workspace Admins can see it; nobody can join one on their own. Members and Guests of the workspace see only the projects they were added to.
 
 **Project ID**:
-The short uppercase code of a project, unique within its workspace and never reused there, even after the project is deleted, that will prefix its work items' numbers (for example `OPS-12`). Suggested from the project name when the project is created. It appears in project URLs (`/<workspace>/projects/OPS`).
+The short uppercase code of a project, unique within its workspace and never reused there, even after the project is deleted, that prefixes its work items' numbers (for example `OPS-12`). Suggested from the project name when the project is created. It appears in project URLs (`/<workspace>/projects/OPS`).
 _Avoid_: Key, prefix, identifier (in user-facing text)
 
 **Project member**:
@@ -112,8 +112,12 @@ The first page a person lands on when opening a project. Distinct from the works
 _Avoid_: Project overview, project dashboard
 
 **Work item**:
-One unit of work tracked inside a project, whatever its kind. It is what people create, assign and move through states.
+One unit of work tracked inside a project, whatever its kind. It has a title and a description written in Markdown; projects will later add sections of their own. It is what people create, assign and move through states.
 _Avoid_: Issue, ticket
+
+**Work item number**:
+The number that identifies a work item, written after its project's Project ID (`OPS-12`). Each project counts from 1 in the order its work items are created; a number is never given twice, even after a work item is deleted.
+_Avoid_: ID, key, ticket number
 
 ### Roles and permissions
 
@@ -168,7 +172,10 @@ When Vietnamese is active, the UI and API errors are localized, while core syste
 | Admin, Member, Guest | Members → **Thành viên** |
 | Project Admin, Contributor, Commenter, Viewer | Settings → **Cài đặt** |
 | Project ID | Work item → **Công việc** |
-| OpenPlany | Joining date → **Ngày tham gia** |
+| Work item number (dạng `OPS-12`) | Title → **Tiêu đề** |
+| OpenPlany | Description → **Mô tả** |
+| | Create more → **Tạo tiếp** |
+| | Joining date → **Ngày tham gia** |
 | | Permission → **Quyền** |
 | | Role → **Vai trò** |
 | | Deactivated account → **Đã vô hiệu hoá** |
