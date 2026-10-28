@@ -119,6 +119,17 @@ _Avoid_: Issue, ticket
 The number that identifies a work item, written after its project's Project ID (`OPS-12`). Each project counts from 1 in the order its work items are created; a number is never given twice, even after a work item is deleted.
 _Avoid_: ID, key, ticket number
 
+**State**:
+A step in a work item's life, such as Backlog or In Progress. Every work item is in exactly one state. A project's states are OpenPlany's five default states, the states its workspace adds, and the states the project adds itself; each level can only change its own states, and nobody can change the defaults.
+_Avoid_: Status
+
+**State group**:
+One of five fixed kinds every state belongs to: Backlog, Planned, Active, Finished, Cancelled. It tells OpenPlany what a state means, whatever its name.
+_Avoid_: Category, type
+
+**Default state**:
+One of the five states every project has: Backlog, Todo, In Progress, Done, Cancelled. Their names stay in English in every language, and they cannot be changed or deleted.
+
 ### Roles and permissions
 
 **Project access policy**:
@@ -166,27 +177,29 @@ OpenPlany supports English (`en`, default) and Vietnamese (`vi`). Interface lang
 
 When Vietnamese is active, the UI and API errors are localized, while core system domain terms remain verbatim in English:
 
-| Keep in English (Giữ tiếng Anh) | Vietnamese Translation (Dịch) |
-| -------------------------------- | ----------------------------- |
-| Workspace, Workspace Admin, Instance admin | Project → **Dự án** |
-| Admin, Member, Guest | Members → **Thành viên** |
-| Project Admin, Contributor, Commenter, Viewer | Settings → **Cài đặt** |
-| Project ID | Work item → **Công việc** |
-| Work item number (dạng `OPS-12`) | Title → **Tiêu đề** |
-| OpenPlany | Description → **Mô tả** |
-| | Create more → **Tạo tiếp** |
-| | Joining date → **Ngày tham gia** |
-| | Permission → **Quyền** |
-| | Role → **Vai trò** |
-| | Deactivated account → **Đã vô hiệu hoá** |
-| | Login lockout → **Tạm khoá** |
-| | Account created → **Ngày tạo tài khoản** |
-| | Users (trang) → **Người dùng** |
-| | Profile → **Hồ sơ** |
-| | Account menu → **Menu tài khoản** |
-| | Change password → **Đổi mật khẩu** |
-| | Set new password → **Đặt mật khẩu mới** |
-| | Sign out → **Đăng xuất** |
+| Keep in English (Giữ tiếng Anh)                                | Vietnamese Translation (Dịch)                                                                                                              |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Workspace, Workspace Admin, Instance admin                     | Project → **Dự án**                                                                                                                        |
+| Admin, Member, Guest                                           | Members → **Thành viên**                                                                                                                   |
+| Project Admin, Contributor, Commenter, Viewer                  | Settings → **Cài đặt**                                                                                                                     |
+| Project ID                                                     | Work item → **Công việc**                                                                                                                  |
+| Work item number (dạng `OPS-12`)                               | Title → **Tiêu đề**                                                                                                                        |
+| OpenPlany                                                      | Description → **Mô tả**                                                                                                                    |
+| 5 default states (Backlog, Todo, In Progress, Done, Cancelled) | State → **Trạng thái**                                                                                                                     |
+|                                                                | State group → **Loại**                                                                                                                     |
+|                                                                | State groups: Backlog → **Tồn đọng**, Planned → **Chưa bắt đầu**, Active → **Đang làm**, Finished → **Hoàn thành**, Cancelled → **Đã huỷ** |
+|                                                                | Create more → **Tạo tiếp**                                                                                                                 |
+|                                                                | Joining date → **Ngày tham gia**                                                                                                           |
+|                                                                | Permission → **Quyền**                                                                                                                     |
+|                                                                | Role → **Vai trò**                                                                                                                         |
+|                                                                | Deactivated account → **Đã vô hiệu hoá**                                                                                                   |
+|                                                                | Login lockout → **Tạm khoá**                                                                                                               |
+|                                                                | Account created → **Ngày tạo tài khoản**                                                                                                   |
+|                                                                | Users (trang) → **Người dùng**                                                                                                             |
+|                                                                | Profile → **Hồ sơ**                                                                                                                        |
+|                                                                | Account menu → **Menu tài khoản**                                                                                                          |
+|                                                                | Change password → **Đổi mật khẩu**                                                                                                         |
+|                                                                | Set new password → **Đặt mật khẩu mới**                                                                                                    |
+|                                                                | Sign out → **Đăng xuất**                                                                                                                   |
 
 All translations address the user politely as "bạn". User-supplied content (such as project names, descriptions, and user names), time zone identifiers, server logs, and logos remain untranslated.
-
