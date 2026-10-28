@@ -14,6 +14,7 @@ import { PROJECT_ROLE_RANK } from '@repo/contracts';
 import { DEFAULT_PROJECT_ACCESS_POLICIES } from '@repo/contracts/testing';
 import { MIGRATION_PROJECT_ROLE_RANK } from '../src/database/migrations/1791610200000-ApplyProjectAccessPolicies.js';
 import { EnableUnaccent1791610400000 } from '../src/database/migrations/1791610400000-EnableUnaccent.js';
+import { CreateWorkItems1791610500000 } from '../src/database/migrations/1791610500000-CreateWorkItems.js';
 
 /**
  * Migrations meet real data (CLAUDE.md §8 design pass): the newest migrations
@@ -204,6 +205,11 @@ describe('Migrations (e2e)', () => {
        VALUES ('project', 'viewer', 'project.workitems.view', 'granted', $1, 'req-viewer-1')`,
       [ownerId],
     );
+    await e2e.dataSource.query(
+      `INSERT INTO work_items (workspace_id, project_id, number, title, description, idempotency_key, created_by_id, created_at, updated_at)
+       VALUES ($1, $2, 1, 'Initial work item', '## Notes', gen_random_uuid(), $3, now(), now())`,
+      [ws.id, active!.id, ownerId],
+    );
 
     // reference[i] = schema of a fresh database with the newest
     // ROUNDTRIP_COUNT - i migrations not yet applied.
@@ -338,7 +344,8 @@ describe('Migrations (e2e)', () => {
       [wsId, project!.id, ownerId],
     );
 
-    // Revert EnableUnaccent, AddProjectRoleChangedHistory, ApplyProjectAccessPolicies, CreateProjectAccessPolicies and RenameProjectGuestToViewer so AddProjectMemberJoinedAt is the last applied migration
+    // Revert CreateWorkItems, EnableUnaccent, AddProjectRoleChangedHistory, ApplyProjectAccessPolicies, CreateProjectAccessPolicies and RenameProjectGuestToViewer so AddProjectMemberJoinedAt is the last applied migration
+    await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
@@ -452,7 +459,8 @@ describe('Migrations (e2e)', () => {
       [wsId, project!.id, ownerId],
     );
 
-    // Revert EnableUnaccent and AddProjectRoleChangedHistory so ApplyProjectAccessPolicies is the last applied migration
+    // Revert CreateWorkItems, EnableUnaccent and AddProjectRoleChangedHistory so ApplyProjectAccessPolicies is the last applied migration
+    await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
     const schemaBefore = await schemaSnapshot(migrationsDs);
@@ -472,7 +480,8 @@ describe('Migrations (e2e)', () => {
   });
 
   it('AC-16: refuses to revert CreateProjectAccessPolicies if workspace_role_applied role history rows exist', async () => {
-    // 1. Revert EnableUnaccent, AddProjectRoleChangedHistory and ApplyProjectAccessPolicies first (when no later changes exist, they revert cleanly)
+    // 1. Revert CreateWorkItems, EnableUnaccent, AddProjectRoleChangedHistory and ApplyProjectAccessPolicies first (when no later changes exist, they revert cleanly)
+    await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
@@ -519,7 +528,8 @@ describe('Migrations (e2e)', () => {
   });
 
   it('AC-13, AC-14, AC-15: ApplyProjectAccessPolicies updates the 6 input rows and down() restores them', async () => {
-    // 1. Revert EnableUnaccent, AddProjectRoleChangedHistory and ApplyProjectAccessPolicies first
+    // 1. Revert CreateWorkItems, EnableUnaccent, AddProjectRoleChangedHistory and ApplyProjectAccessPolicies first
+    await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
@@ -690,6 +700,7 @@ describe('Migrations (e2e)', () => {
       await migrationsDs.undoLastMigration({ transaction: 'each' });
       await migrationsDs.undoLastMigration({ transaction: 'each' });
       await migrationsDs.undoLastMigration({ transaction: 'each' });
+      await migrationsDs.undoLastMigration({ transaction: 'each' });
 
       const rowsAfterDown = await migrationsDs.query<
         { member_id: string; role: string; is_active: boolean }[]
@@ -766,7 +777,8 @@ describe('Migrations (e2e)', () => {
       [wsId, pId, memberUser, ownerId],
     );
 
-    // Revert EnableUnaccent so AddProjectRoleChangedHistory is the last applied migration
+    // Revert CreateWorkItems and EnableUnaccent so AddProjectRoleChangedHistory is the last applied migration
+    await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
 
     try {
@@ -806,6 +818,8 @@ describe('Migrations (e2e)', () => {
     );
 
     // Live round-trip on database
+    // Revert CreateWorkItems first so EnableUnaccent is the last applied migration
+    await migrationsDs.undoLastMigration({ transaction: 'each' });
     await migrationsDs.undoLastMigration({ transaction: 'each' });
     const droppedExt = await migrationsDs.query(
       `SELECT 1 FROM pg_extension WHERE extname = 'unaccent'`,
@@ -817,6 +831,35 @@ describe('Migrations (e2e)', () => {
       `SELECT 1 FROM pg_extension WHERE extname = 'unaccent'`,
     );
     expect(createdExt).toHaveLength(1);
+  });
+
+  it('CreateWorkItems: rejects when table already exists and supports up/down round-trip (DB B2)', async () => {
+    // Unit pre-check test: throws specific error if work_items already exists
+    const fakeQueryRunner = {
+      query: vi.fn().mockImplementation((sql: string) => {
+        if (sql.includes('SELECT 1 FROM information_schema.tables')) {
+          return [{ '?column?': 1 }];
+        }
+        return [];
+      }),
+    };
+    const migration = new CreateWorkItems1791610500000();
+    await expect(
+      migration.up(fakeQueryRunner as unknown as import('typeorm').QueryRunner),
+    ).rejects.toThrow('Cannot create work_items: table already exists.');
+
+    // Live round-trip on database
+    await migrationsDs.undoLastMigration({ transaction: 'each' });
+    const droppedTable = await migrationsDs.query(
+      `SELECT 1 FROM information_schema.tables WHERE table_name = 'work_items'`,
+    );
+    expect(droppedTable).toHaveLength(0);
+
+    await migrationsDs.runMigrations({ transaction: 'each' });
+    const createdTable = await migrationsDs.query(
+      `SELECT 1 FROM information_schema.tables WHERE table_name = 'work_items'`,
+    );
+    expect(createdTable).toHaveLength(1);
   });
 });
 

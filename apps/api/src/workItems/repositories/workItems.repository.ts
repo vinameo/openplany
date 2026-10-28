@@ -1,0 +1,26 @@
+import type { WorkItem } from '../entities/workItem.entity.js';
+
+export interface CreateWorkItemRepoInput {
+  workspaceId: string;
+  projectId: string;
+  actorId: string;
+  title: string;
+  description: string;
+  idempotencyKey: string;
+  now: Date;
+}
+
+export type CreateWorkItemRepoResult =
+  | { status: 'created'; workItem: WorkItem }
+  | { status: 'replayed'; workItem: WorkItem }
+  | { status: 'project_gone' }
+  | { status: 'forbidden' }
+  | { status: 'actor_inactive' }
+  | { status: 'key_reused' };
+
+export abstract class WorkItemsRepository {
+  abstract create(
+    input: CreateWorkItemRepoInput,
+  ): Promise<CreateWorkItemRepoResult>;
+}
+

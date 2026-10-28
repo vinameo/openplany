@@ -9,6 +9,7 @@ import { DatabaseModule } from './database/database.module.js';
 import { ProjectsModule } from './projects/projects.module.js';
 import { UsersModule } from './users/users.module.js';
 import { WorkspacesModule } from './workspaces/workspaces.module.js';
+import { WorkItemsModule } from './workItems/workItems.module.js';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { WorkspacesModule } from './workspaces/workspaces.module.js';
     UsersModule,
     WorkspacesModule,
     ProjectsModule,
+    WorkItemsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

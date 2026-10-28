@@ -1,0 +1,16 @@
+.chipsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mantine-spacing-xs);
+  align-items: center;
+}
+
+.chipButton {
+  font-weight: 500;
+  border-style: solid;
+  color: var(--mantine-color-dimmed);
+}
+
+.chipButton:hover {
+  background-color: var(--mantine-color-gray-1);
+}

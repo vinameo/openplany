@@ -9,7 +9,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { ApiException } from './apiException.js';
 import { ApiExceptionFilter } from './apiExceptionFilter.js';
 
-function createMockHost(req: Partial<Request>, res: Partial<Response>): ArgumentsHost {
+function createMockHost(
+  req: Partial<Request>,
+  res: Partial<Response>,
+): ArgumentsHost {
   return {
     switchToHttp: () => ({
       getRequest: () => req as Request,
@@ -171,7 +174,9 @@ describe('ApiExceptionFilter (API B2.1, B4, B5.1, B5.3, INV-05, INV-07, AC-16)',
 
   it('logs unhandled 5xx errors in English without header values (INV-07, AC-16)', () => {
     const filter = new ApiExceptionFilter();
-    const loggerSpy = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+    const loggerSpy = vi
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => {});
 
     const acceptLanguageHeader = 'vi;q=1.0,fr;q=0.5';
     const req: Partial<Request> = {
@@ -200,5 +205,181 @@ describe('ApiExceptionFilter (API B2.1, B4, B5.1, B5.3, INV-05, INV-07, AC-16)',
     expect(logStack).not.toContain(acceptLanguageHeader);
 
     loggerSpy.mockRestore();
+  });
+
+  describe('body-parser http-errors mapping (API B2.2, INV-16, AC-33, AC-36)', () => {
+    function makeHttpError(
+      status: number,
+      type?: string,
+      message = 'body error',
+    ): Error {
+      const err = new Error(message) as Error & {
+        status: number;
+        statusCode: number;
+        type?: string;
+        expose: boolean;
+      };
+      err.status = status;
+      err.statusCode = status;
+      err.type = type;
+      err.expose = true;
+      return err;
+    }
+
+    it('maps entity.too.large to 413 PAYLOAD_TOO_LARGE and logs warn', () => {
+      const filter = new ApiExceptionFilter();
+      const warnSpy = vi
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation(() => {});
+      const errorSpy = vi
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation(() => {});
+
+      let jsonResult: unknown;
+      let statusCode: number | undefined;
+      const res: Partial<Response> = {
+        status: vi.fn().mockImplementation((code: number) => {
+          statusCode = code;
+          return res;
+        }),
+        setHeader: vi.fn(),
+        vary: vi.fn(),
+        json: vi.fn().mockImplementation((val: unknown) => {
+          jsonResult = val;
+          return res;
+        }),
+      };
+      const req: Partial<Request> = {
+        requestId: 'req-large',
+        headers: { 'accept-language': 'en' },
+      };
+
+      const err = makeHttpError(
+        413,
+        'entity.too.large',
+        'request entity too large',
+      );
+      filter.catch(err, createMockHost(req, res));
+
+      expect(statusCode).toBe(413);
+      expect(jsonResult).toEqual({
+        statusCode: 413,
+        code: 'PAYLOAD_TOO_LARGE',
+        message: 'The request is too large.',
+        requestId: 'req-large',
+      });
+      expect(warnSpy).toHaveBeenCalledWith(
+        'http.body_rejected type=entity.too.large status=413 requestId=req-large',
+      );
+      expect(errorSpy).not.toHaveBeenCalled();
+
+      warnSpy.mockRestore();
+      errorSpy.mockRestore();
+    });
+
+    it('translates PAYLOAD_TOO_LARGE message according to Accept-Language', () => {
+      const filter = new ApiExceptionFilter();
+      vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+
+      let jsonResult: unknown;
+      const res: Partial<Response> = {
+        status: vi.fn().mockReturnThis(),
+        setHeader: vi.fn(),
+        vary: vi.fn(),
+        json: vi.fn().mockImplementation((val: unknown) => {
+          jsonResult = val;
+          return res;
+        }),
+      };
+      const reqVi: Partial<Request> = {
+        requestId: 'req-large-vi',
+        headers: { 'accept-language': 'vi' },
+      };
+
+      const err = makeHttpError(413, 'entity.too.large');
+      filter.catch(err, createMockHost(reqVi, res));
+
+      expect(jsonResult).toEqual({
+        statusCode: 413,
+        code: 'PAYLOAD_TOO_LARGE',
+        message: 'Yêu cầu quá lớn.',
+        requestId: 'req-large-vi',
+      });
+    });
+
+    it('maps charset.unsupported and encoding.unsupported to 415 UNSUPPORTED_MEDIA_TYPE', () => {
+      const filter = new ApiExceptionFilter();
+      vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+
+      let jsonResult: unknown;
+      let statusCode: number | undefined;
+      const res: Partial<Response> = {
+        status: vi.fn().mockImplementation((code: number) => {
+          statusCode = code;
+          return res;
+        }),
+        setHeader: vi.fn(),
+        vary: vi.fn(),
+        json: vi.fn().mockImplementation((val: unknown) => {
+          jsonResult = val;
+          return res;
+        }),
+      };
+      const req: Partial<Request> = {
+        requestId: 'req-encoding',
+        headers: { 'accept-language': 'en' },
+      };
+
+      const err = makeHttpError(
+        415,
+        'encoding.unsupported',
+        'unsupported content encoding',
+      );
+      filter.catch(err, createMockHost(req, res));
+
+      expect(statusCode).toBe(415);
+      expect(jsonResult).toEqual({
+        statusCode: 415,
+        code: 'UNSUPPORTED_MEDIA_TYPE',
+        message: "This request format isn't supported.",
+        requestId: 'req-encoding',
+      });
+    });
+
+    it('maps other 4xx body-parser errors to MALFORMED_BODY with original status', () => {
+      const filter = new ApiExceptionFilter();
+      vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+
+      let jsonResult: unknown;
+      let statusCode: number | undefined;
+      const res: Partial<Response> = {
+        status: vi.fn().mockImplementation((code: number) => {
+          statusCode = code;
+          return res;
+        }),
+        setHeader: vi.fn(),
+        vary: vi.fn(),
+        json: vi.fn().mockImplementation((val: unknown) => {
+          jsonResult = val;
+          return res;
+        }),
+      };
+      const req: Partial<Request> = {
+        requestId: 'req-gzip',
+        headers: { 'accept-language': 'en' },
+      };
+
+      // Decompression error / broken gzip (type is undefined or zlib error)
+      const err = makeHttpError(400, undefined, 'incorrect header check');
+      filter.catch(err, createMockHost(req, res));
+
+      expect(statusCode).toBe(400);
+      expect(jsonResult).toEqual({
+        statusCode: 400,
+        code: 'MALFORMED_BODY',
+        message: "The request couldn't be read.",
+        requestId: 'req-gzip',
+      });
+    });
   });
 });

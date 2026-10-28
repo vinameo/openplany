@@ -71,3 +71,4 @@ export * from "./workspaceRoleChange.js";
 export * from "./languages.js";
 export * from "./catalog/index.js";
 export * from "./adminUsers.js";
+export * from "./workItem.js";

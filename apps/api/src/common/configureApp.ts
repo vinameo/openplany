@@ -35,6 +35,7 @@ export function configureApp(app: INestApplication): void {
   expressApp.set('trust proxy', trustProxy);
   app.use(requestIdMiddleware);
   app.use(languageMiddleware);
+  expressApp.useBodyParser('json', { limit: '512kb' });
   app.setGlobalPrefix('api');
   app.use(helmet());
   app.use(cookieParser());

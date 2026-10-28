@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "../../auth/AuthProvider";
 import { appRoutes } from "../../../routes";
 import { makeSession } from "../../../test/authFixtures";
-import { jsonResponse, mockFetch } from "../../../test/fetchMock";
+import { apiError, jsonResponse, mockFetch } from "../../../test/fetchMock";
 import { stubMatchMedia } from "../../../test/mediaQuery";
 import { makeWorkspace } from "../../workspaces/test/workspaceFixtures";
 
@@ -504,7 +504,6 @@ describe("ProjectLayout (Ticket 04 tracer bullet)", () => {
     }
   });
 
-
   it("AC-07: breadcrumb current page 'Home' has aria-current='page' and is not a link", async () => {
     renderProjectApp();
 
@@ -669,6 +668,109 @@ describe("ProjectLayout (Ticket 04 tracer bullet)", () => {
       .map(([url]) => String(url))
       .filter((url) => url.includes("/second-ws/projects/TFP11"));
     expect(secondWsProjectDetailCalls).toHaveLength(0);
+  });
+
+  it("AC-35: modal survives project reload to 403 without unmounting or losing typed text; closing reveals 403 page", async () => {
+    stubMatchMedia(true);
+    const user = userEvent.setup();
+    let projectGetStatus = 200;
+
+    const router = createMemoryRouter(appRoutes, {
+      initialEntries: ["/the-firsts/projects/TFP11"],
+    });
+
+    mockFetch({
+      "GET /api/auth/session": () => jsonResponse(200, makeSession()),
+      "GET /api/workspaces": () =>
+        jsonResponse(200, {
+          workspaces: [testWorkspace],
+          lastWorkspaceSlug: "the-firsts",
+        }),
+      "GET /api/workspaces/the-firsts": () => jsonResponse(200, testWorkspace),
+      "GET /api/workspaces/the-firsts/projects/TFP11": () => {
+        if (projectGetStatus === 403) {
+          return jsonResponse(403, {
+            code: "FORBIDDEN",
+            message: "Access denied",
+          });
+        }
+        return jsonResponse(200, {
+          project: {
+            ...sampleProject,
+            permissions: ["project.workitems.create"],
+          },
+        });
+      },
+      "GET /api/workspaces/the-firsts/projects": () =>
+        jsonResponse(200, {
+          projects: [sampleProject],
+          total: 1,
+          truncated: false,
+        }),
+      "POST /api/workspaces/the-firsts/projects/TFP11/work-items": () => {
+        projectGetStatus = 403;
+        return apiError(
+          403,
+          "FORBIDDEN",
+          "You can no longer create work items in this project.",
+        );
+      },
+    });
+
+    render(
+      <AppUiProvider>
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
+      </AppUiProvider>,
+    );
+
+    // Wait for project shell and New work item button in sidebar
+    const newWorkItemBtn = await screen.findByRole("button", {
+      name: "New work item",
+    });
+    await user.click(newWorkItemBtn);
+
+    // Modal opens
+    expect(await screen.findByText("Create new work item")).toBeInTheDocument();
+
+    const titleInput = screen.getByPlaceholderText("Title");
+    const descInput = screen.getByPlaceholderText("Click to add description");
+    const saveButton = screen.getByRole("button", { name: "Save" });
+
+    // User types long description and title
+    await user.type(titleInput, "Important Feature");
+    await user.type(descInput, "A very detailed description of the task.");
+
+    // User clicks Save -> API returns 403 -> reloadProject is called -> project query refetches and gets 403
+    await user.click(saveButton);
+
+    // Alert appears in modal
+    expect(
+      await screen.findByText(
+        "You can no longer create work items in this project.",
+      ),
+    ).toBeInTheDocument();
+
+    // Verify modal and form content are still mounted and intact!
+    expect(titleInput).toHaveValue("Important Feature");
+    expect(descInput).toHaveValue("A very detailed description of the task.");
+    expect(saveButton).toBeDisabled();
+
+    // Close modal by clicking Discard (since dirty, prompts discard confirmation)
+    const discardButton = screen.getByRole("button", { name: "Discard" });
+    await user.click(discardButton);
+    const confirmDiscardBtn = await screen.findByRole("button", {
+      name: "Discard",
+    });
+    await user.click(confirmDiscardBtn);
+
+    // Once modal is closed, the underlying page is the 403 Forbidden page!
+    expect(await screen.findByText("403")).toBeInTheDocument();
+    expect(screen.getByText("Forbidden")).toBeInTheDocument();
+    expect(
+      screen.getByText("You don't have access to this project."),
+    ).toBeInTheDocument();
   });
 });
 

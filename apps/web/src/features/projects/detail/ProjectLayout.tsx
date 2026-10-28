@@ -8,6 +8,7 @@ import {
 } from "react-router";
 import { useCurrentWorkspace } from "../../workspaces/currentWorkspace/useCurrentWorkspace";
 import { WorkspaceChrome } from "../../workspaces/shell/WorkspaceChrome";
+import { CreateWorkItemProvider } from "../../workItems/create/CreateWorkItemProvider";
 import { canonicalProjectIdentifier, projectPath } from "../projectPaths";
 import {
   CurrentProjectContext,
@@ -60,20 +61,25 @@ export function ProjectLayout() {
     );
   }
 
+  let body: React.ReactNode;
   if (canonical.kind === "invalid" || state.status === "not_found") {
-    return <ProjectErrorPage status={404} />;
-  }
-
-  if (state.status === "forbidden") {
-    return <ProjectErrorPage status={403} />;
+    body = <ProjectErrorPage status={404} />;
+  } else if (state.status === "forbidden") {
+    body = <ProjectErrorPage status={403} />;
+  } else {
+    body = (
+      <CurrentProjectContext value={contextValue}>
+        <WorkspaceChrome>
+          <Outlet />
+        </WorkspaceChrome>
+      </CurrentProjectContext>
+    );
   }
 
   return (
-    <CurrentProjectContext value={contextValue}>
-      <WorkspaceChrome>
-        <Outlet />
-      </WorkspaceChrome>
-    </CurrentProjectContext>
+    <CreateWorkItemProvider slug={workspace.slug} reloadProject={reload}>
+      {body}
+    </CreateWorkItemProvider>
   );
 }
 

@@ -14,6 +14,10 @@ import {
   PROJECT_PERMISSION_KEY,
   ProjectPermissionGuard,
 } from './projects/access/projectPermissionGuard.js';
+import {
+  WRITE_LIMIT_KEY,
+  type WriteLimit,
+} from './projects/access/writeLimit.js';
 import { WORKSPACE_PERMISSION_KEY } from './workspaces/workspaceAccess.decorator.js';
 import { WorkspaceMemberGuard } from './workspaces/workspaceMemberGuard.js';
 import { WorkspacePermissionGuard } from './workspaces/workspacePermissionGuard.js';
@@ -49,6 +53,7 @@ interface Route {
   guards: unknown[];
   projectPermission?: unknown;
   workspacePermission?: unknown;
+  writeLimit?: unknown;
   allowsResetOnly?: boolean;
 }
 
@@ -103,6 +108,7 @@ async function collectRoutes(): Promise<Route[]> {
             WORKSPACE_PERMISSION_KEY,
             handler,
           ),
+          writeLimit: Reflect.getMetadata(WRITE_LIMIT_KEY, handler),
           allowsResetOnly:
             (Reflect.getMetadata(ALLOW_RESET_ONLY_KEY, handler) ??
               Reflect.getMetadata(ALLOW_RESET_ONLY_KEY, exported) ??
@@ -278,6 +284,17 @@ describe('Architecture', () => {
     expect(route?.guards).toEqual([
       SessionGuard,
       MyPasswordChangeRateLimitGuard,
+    ]);
+  });
+
+  it('restricts work_item_create write limit exclusively to POST /workspaces/:slug/projects/:identifier/work-items (RQ R-07, AC-30)', () => {
+    const routesWithWorkItemLimit = routes.filter(
+      (r) =>
+        (r.writeLimit as WriteLimit | undefined)?.bucket ===
+        'work_item_create',
+    );
+    expect(routesWithWorkItemLimit.map((r) => r.key)).toEqual([
+      'POST /workspaces/:slug/projects/:identifier/work-items',
     ]);
   });
 });

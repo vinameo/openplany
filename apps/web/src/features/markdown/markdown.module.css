@@ -1,0 +1,91 @@
+.editorRoot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mantine-spacing-xs);
+}
+
+.tabList {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.supportedText {
+  color: var(--mantine-color-dimmed);
+  font-size: var(--mantine-font-size-xs);
+}
+
+.previewContainer {
+  min-height: 140px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding: var(--mantine-spacing-sm);
+  border: 1px solid var(--mantine-color-default-border);
+  border-radius: var(--mantine-radius-sm);
+  background-color: var(--mantine-color-body);
+  font-size: var(--mantine-font-size-sm);
+  line-height: var(--mantine-line-height-md);
+  color: var(--mantine-color-text);
+  word-break: break-word;
+}
+
+.emptyText {
+  color: var(--mantine-color-dimmed);
+  font-size: var(--mantine-font-size-sm);
+  font-style: italic;
+}
+
+.tableWrapper {
+  width: 100%;
+  overflow-x: auto;
+  margin: var(--mantine-spacing-sm) 0;
+}
+
+.tableWrapper table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--mantine-font-size-sm);
+}
+
+.tableWrapper th,
+.tableWrapper td {
+  border: 1px solid var(--mantine-color-default-border);
+  padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+  text-align: left;
+}
+
+.tableWrapper th {
+  background-color: var(--mantine-color-default-hover);
+  font-weight: 600;
+}
+
+.previewContainer pre {
+  background-color: var(--mantine-color-default-hover);
+  padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+  border-radius: var(--mantine-radius-sm);
+  overflow-x: auto;
+}
+
+.previewContainer code {
+  font-family: var(--mantine-font-family-monospace);
+  font-size: 0.9em;
+}
+
+.previewContainer ul,
+.previewContainer ol {
+  padding-left: var(--mantine-spacing-lg);
+  margin: var(--mantine-spacing-xs) 0;
+}
+
+.previewContainer blockquote {
+  border-left: 3px solid var(--mantine-color-default-border);
+  margin: var(--mantine-spacing-xs) 0;
+  padding-left: var(--mantine-spacing-sm);
+  color: var(--mantine-color-dimmed);
+}
+
+.previewContainer a {
+  color: var(--mantine-color-blue-filled);
+  text-decoration: underline;
+}
+

@@ -129,6 +129,9 @@ export const en = {
     tooManyRolePermissionUpdates:
       "Too many role permission updates. Try again later.",
     tooManyWorkspaceWrites: "Too many changes. Try again later.",
+    payloadTooLarge: "The request is too large.",
+    unsupportedMediaType: "This request format isn't supported.",
+    malformedBody: "The request couldn't be read.",
     memberUserIdParam: "Enter a valid member ID",
     "http.validationError": "Validation failed",
     "http.unauthenticated": "Sign in to continue",
@@ -884,5 +887,51 @@ export const en = {
     "nav.chooseSectionPlaceholder": "Choose a section",
     "section.accessDenied": "Access Denied",
     "section.noAccess": "You don't have access to this page.",
+  },
+  workItem: {
+    "create.title": "Create new work item",
+    "create.projectChip": "Project: {{name}}",
+    "fields.title": "Title",
+    "fields.descriptionPlaceholder": "Click to add description",
+    "fields.descriptionLabel": "Description",
+    "markdown.write": "Write",
+    "markdown.preview": "Preview",
+    "markdown.supported": "Markdown supported",
+    "markdown.nothingToPreview": "Nothing to preview",
+    "properties.state": "State",
+    "properties.priority": "Priority",
+    "properties.assignees": "Assignees",
+    "properties.labels": "Labels",
+    "properties.startDate": "Start date",
+    "properties.dueDate": "Due date",
+    "properties.addParent": "Add parent",
+    "create.createMore": "Create more",
+    "create.discard": "Discard",
+    "create.save": "Save",
+    "create.created": "{{key}} created",
+    "create.noPermission":
+      "You don't have permission to create work items in this project.",
+    "errors.titleRequired": "Enter a title",
+    "errors.titleTooLong": "Title must be at most {{max}} characters",
+    "errors.titleHiddenChars":
+      "Title can't contain line breaks or hidden characters",
+    "errors.descriptionInvalid": "Enter the description as text",
+    "errors.descriptionTooLong":
+      "Description must be at most {{max}} characters",
+    "errors.descriptionHiddenChars":
+      "Description can't contain hidden control characters",
+    "errors.requestKeyInvalid": "Reload the page and try again.",
+    "errors.createForbidden":
+      "You can no longer create work items in this project.",
+    "errors.projectGone": "This project no longer exists.",
+    "errors.tooManyCreates":
+      "You're creating work items too quickly. Try again later.",
+    "errors.tooManyRequests_one":
+      "Too many requests. Try again in {{count}} minute.",
+    "errors.tooManyRequests_other":
+      "Too many requests. Try again in {{count}} minutes.",
+    "errors.requestReused":
+      "Something changed while saving. Save again to create the work item.",
+    "errors.generic": "Couldn't create the work item. Try again.",
   },
 } as const;
