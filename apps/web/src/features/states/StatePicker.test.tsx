@@ -218,6 +218,25 @@ describe("StatePicker", () => {
     expect(onChange).toHaveBeenCalledWith("state-done");
   });
 
+  it("opens a dropdown wider than the chip so state names stay on one line", async () => {
+    mockFetch({
+      "GET /api/workspaces/acme/projects/OPS/states": () =>
+        jsonResponse(200, mockDefaultStates),
+    });
+
+    const { user } = renderPicker();
+    await user.click(await screen.findByTestId("state-picker-button"));
+
+    // Its own 240px (15rem), not the chip's width
+    expect(screen.getByTestId("state-picker-dropdown").style.width).toContain(
+      "15rem",
+    );
+    expect(screen.getByText("In Progress")).toHaveAttribute(
+      "title",
+      "In Progress",
+    );
+  });
+
   it("renders grouped list when custom states exist (AC-05)", async () => {
     const customStatesData: StateListResponse = {
       states: [

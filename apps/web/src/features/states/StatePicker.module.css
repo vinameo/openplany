@@ -20,6 +20,13 @@
   display: flex;
   align-items: center;
   gap: var(--mantine-spacing-xs);
+  min-width: 0;
+}
+
+/* Up to 50 workspace + 50 project states: scroll instead of growing off-screen. */
+.options {
+  max-height: 280px;
+  overflow-y: auto;
 }
 
 .checkIcon {
