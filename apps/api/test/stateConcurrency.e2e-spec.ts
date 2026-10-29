@@ -14,6 +14,7 @@ import {
   signInCookie,
   DEFAULT_E2E_ORIGIN as ORIGIN,
 } from './helpers/e2eUsers.js';
+import { insertWorkItem } from './helpers/e2eWorkItems.js';
 
 describe('State Concurrency & Lock Graph (e2e)', () => {
   let e2e: E2eApp;
@@ -644,11 +645,16 @@ describe('State Concurrency & Lock Graph (e2e)', () => {
 
         // Insert a work item in stateId within queryRunner transaction (simulating create committing its work item)
         const wiId = crypto.randomUUID();
-        await queryRunner.query(
-          `INSERT INTO work_items (id, workspace_id, project_id, state_id, number, title, description, idempotency_key, created_by_id, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, 1, 'Order 1 Project Item', 'Desc', $5, $6, NOW(), NOW())`,
-          [wiId, ws.id, project.id, stateId, crypto.randomUUID(), ws.owner.id],
-        );
+        await insertWorkItem(queryRunner, {
+          id: wiId,
+          workspaceId: ws.id,
+          projectId: project.id,
+          stateId,
+          number: 1,
+          title: 'Order 1 Project Item',
+          description: 'Desc',
+          createdById: ws.owner.id,
+        });
 
         // Commit queryRunner transaction
         await queryRunner.commitTransaction();

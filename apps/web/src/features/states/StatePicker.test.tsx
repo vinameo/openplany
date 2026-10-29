@@ -131,7 +131,7 @@ describe("StatePicker", () => {
 
     const btn = screen.getByTestId("state-picker-no-permission");
     expect(btn).toBeInTheDocument();
-    expect(btn).toBeDisabled();
+    expect(btn).toHaveAttribute("aria-disabled", "true");
     expect(btn).toHaveTextContent("Backlog");
     expect(fetchCalled).toBe(false);
 
@@ -143,7 +143,7 @@ describe("StatePicker", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders disabled fallback with loadFailed tooltip when fetching states fails", async () => {
+  it("renders aria-disabled fallback with loadFailed tooltip when fetching states fails", async () => {
     mockFetch({
       "GET /api/workspaces/acme/projects/OPS/states": () => {
         return jsonResponse(500, { message: "Internal server error" });
@@ -154,7 +154,7 @@ describe("StatePicker", () => {
 
     const btn = await screen.findByTestId("state-picker-load-failed");
     expect(btn).toBeInTheDocument();
-    expect(btn).toBeDisabled();
+    expect(btn).toHaveAttribute("aria-disabled", "true");
     expect(btn).toHaveTextContent("Backlog");
 
     await user.hover(btn);
@@ -163,6 +163,46 @@ describe("StatePicker", () => {
         "Couldn't load states. The work item will be created in Backlog.",
       ),
     ).toBeInTheDocument();
+  });
+
+  it("focuses locked chip with Tab and shows tooltip; Enter, Space, and click do not open dropdown (AC-24)", async () => {
+    mockFetch({
+      "GET /api/workspaces/acme/projects/OPS/states": () => {
+        return jsonResponse(500, { message: "Internal server error" });
+      },
+    });
+
+    const { user } = renderPicker();
+
+    const btn = await screen.findByTestId("state-picker-load-failed");
+    expect(btn).toBeInTheDocument();
+
+    // Tab reaches the locked chip and focuses it
+    await user.tab();
+    expect(btn).toHaveFocus();
+
+    // Tooltip is displayed upon focus
+    expect(
+      await screen.findByText(
+        "Couldn't load states. The work item will be created in Backlog.",
+      ),
+    ).toBeInTheDocument();
+
+    // Enter / Space / Click do not open dropdown
+    await user.keyboard("{Enter}");
+    expect(
+      screen.queryByTestId("state-picker-dropdown"),
+    ).not.toBeInTheDocument();
+
+    await user.keyboard(" ");
+    expect(
+      screen.queryByTestId("state-picker-dropdown"),
+    ).not.toBeInTheDocument();
+
+    await user.click(btn);
+    expect(
+      screen.queryByTestId("state-picker-dropdown"),
+    ).not.toBeInTheDocument();
   });
 
   it("renders flat list when only default states exist, supports search, and selects option (AC-05, AC-28)", async () => {
@@ -266,5 +306,40 @@ describe("StatePicker", () => {
     // Group header Active is present
     expect(screen.getByText("Active")).toBeInTheDocument();
     expect(screen.getByTestId("state-option-state-review")).toBeInTheDocument();
+  });
+
+  it("filters states using NFC normalization for combining characters (AC-29)", async () => {
+    const customStatesData: StateListResponse = {
+      states: [
+        ...mockDefaultStates.states,
+        {
+          id: "state-tiendo",
+          name: "Tiến độ",
+          group: "active",
+          color: "#7A5CC7",
+          level: "project",
+        },
+      ],
+      initialStateId: "state-backlog",
+      ownCount: 1,
+      ownMax: 20,
+    };
+
+    mockFetch({
+      "GET /api/workspaces/acme/projects/OPS/states": () =>
+        jsonResponse(200, customStatesData),
+    });
+
+    const { user } = renderPicker();
+    const button = await screen.findByTestId("state-picker-button");
+    await user.click(button);
+
+    const searchInput = screen.getByTestId("state-picker-search");
+    // Type using NFD decomposed characters
+    const nfdQuery = "tiến".normalize("NFD");
+    await user.type(searchInput, nfdQuery);
+
+    expect(screen.getByTestId("state-option-state-tiendo")).toBeInTheDocument();
+    expect(screen.queryByTestId("state-option-state-backlog")).toBeNull();
   });
 });

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_STATE_KEYS,
   INITIAL_STATE_KEY,
+  LEVELS,
   PROJECT_STATES_MAX,
   STATE_COLORS,
   STATE_ERROR_CODES,
@@ -25,6 +26,8 @@ describe("state contracts", () => {
   });
 
   it("defines 3 levels", () => {
+    expect(LEVELS).toEqual(["default", "workspace", "project"]);
+    expect(STATE_LEVELS).toBe(LEVELS);
     expect(STATE_LEVELS).toEqual(["default", "workspace", "project"]);
   });
 

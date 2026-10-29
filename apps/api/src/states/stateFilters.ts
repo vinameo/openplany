@@ -1,30 +1,31 @@
 import {
-  IsNull,
   type EntityManager,
   type FindOptionsWhere,
   type ObjectLiteral,
   type SelectQueryBuilder,
 } from 'typeorm';
+import {
+  defaultLevelRows,
+  LIVE_ROW,
+  ownLevelRows,
+  ownProjectLevelRows,
+  ownWorkspaceLevelRows,
+  visibleLevelRows,
+} from '../database/levels.js';
 import { Project } from '../projects/entities/project.entity.js';
 import { WorkItem } from '../workItems/entities/workItem.entity.js';
 import type { WorkItemState } from './entities/workItemState.entity.js';
 import type { StateScope } from './stateCatalog.js';
 
-export const LIVE_STATE = { deletedAt: IsNull() } as const;
+export const LIVE_STATE = LIVE_ROW;
 
-export const DEFAULT_STATES: FindOptionsWhere<WorkItemState> = {
-  level: 'default',
-  ...LIVE_STATE,
-};
+export const DEFAULT_STATES: FindOptionsWhere<WorkItemState> =
+  defaultLevelRows<WorkItemState>();
 
 export function ownWorkspaceStates(
   workspaceId: string,
 ): FindOptionsWhere<WorkItemState> {
-  return {
-    level: 'workspace',
-    workspaceId,
-    ...LIVE_STATE,
-  };
+  return ownWorkspaceLevelRows<WorkItemState>(workspaceId);
 }
 
 /** Live project-level states of every project in a workspace. */
@@ -34,7 +35,7 @@ export function projectStatesOf(
   return {
     level: 'project',
     workspaceId,
-    ...LIVE_STATE,
+    ...LIVE_ROW,
   };
 }
 
@@ -42,14 +43,12 @@ export function ownProjectStates(scope: {
   workspaceId: string;
   projectId: string;
 }): FindOptionsWhere<WorkItemState> {
-  return { ...projectStatesOf(scope.workspaceId), projectId: scope.projectId };
+  return ownProjectLevelRows<WorkItemState>(scope);
 }
 
 /** Live states the scope's own level manages (workspace or project). */
 export function ownStates(scope: StateScope): FindOptionsWhere<WorkItemState> {
-  return scope.level === 'workspace'
-    ? ownWorkspaceStates(scope.workspaceId)
-    : ownProjectStates(scope);
+  return ownLevelRows<WorkItemState>(scope);
 }
 
 /**
@@ -59,11 +58,7 @@ export function ownStates(scope: StateScope): FindOptionsWhere<WorkItemState> {
 export function visibleStates(
   scope: StateScope,
 ): FindOptionsWhere<WorkItemState>[] {
-  const where = [DEFAULT_STATES, ownWorkspaceStates(scope.workspaceId)];
-  if (scope.level === 'project') {
-    where.push(ownProjectStates(scope));
-  }
-  return where;
+  return visibleLevelRows<WorkItemState>(scope);
 }
 
 /** Subquery of the ids of live projects in a workspace, for `IN (...)` filters. */
