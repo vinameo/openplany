@@ -275,4 +275,78 @@ describe("useCreateWorkItemForm priority handling", () => {
       queryKey: ["priorities", "project", "acme", "OPS"],
     });
   });
+
+  it("generates a new idempotency key when changing priority and omits priorityId when selecting None (AC-11, RQ D14, D30)", async () => {
+    const sentRequests: Array<{ idempotencyKey: string; priorityId?: string }> =
+      [];
+
+    mockFetch({
+      "POST /api/workspaces/acme/projects/OPS/work-items": async (init) => {
+        const body = JSON.parse(init?.body as string);
+        sentRequests.push(body);
+        return jsonResponse(201, {
+          workItem: {
+            id: `wi-${sentRequests.length}`,
+            number: sentRequests.length,
+            key: `OPS-${sentRequests.length}`,
+            title: body.title,
+            description: "",
+            priorityId: body.priorityId ?? "prio-none",
+            createdById: "user-1",
+            createdAt: new Date().toISOString(),
+          },
+        });
+      },
+    });
+
+    const { result } = renderHook(
+      () =>
+        useCreateWorkItemForm({
+          slug: "acme",
+          project: mockProject,
+        }),
+      { wrapper },
+    );
+
+    // 1. Submit with High priority
+    act(() => {
+      result.current.setTitle("Dynamic Priority Task");
+      result.current.setSelectedPriorityId("prio-high");
+    });
+    await act(async () => {
+      await result.current.handleSubmit();
+    });
+
+    expect(sentRequests[0]).toMatchObject({
+      priorityId: "prio-high",
+    });
+
+    // 2. Submit with Low priority -> new idempotency key
+    act(() => {
+      result.current.setSelectedPriorityId("prio-low");
+    });
+    await act(async () => {
+      await result.current.handleSubmit();
+    });
+
+    expect(sentRequests[1]).toMatchObject({
+      priorityId: "prio-low",
+    });
+    expect(sentRequests[1].idempotencyKey).not.toBe(
+      sentRequests[0].idempotencyKey,
+    );
+
+    // 3. Reset back to None (null) -> omits priorityId
+    act(() => {
+      result.current.setSelectedPriorityId(null);
+    });
+    await act(async () => {
+      await result.current.handleSubmit();
+    });
+
+    expect(sentRequests[2].priorityId).toBeUndefined();
+    expect(sentRequests[2].idempotencyKey).not.toBe(
+      sentRequests[1].idempotencyKey,
+    );
+  });
 });

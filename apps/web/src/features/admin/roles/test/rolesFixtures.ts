@@ -62,6 +62,11 @@ export const DEFAULT_PERMISSION_ITEMS: PermissionItem[] = [
     scope: "workspace",
     label: "Delete projects",
   },
+  {
+    key: "workspace.states.manage",
+    scope: "workspace",
+    label: "Manage workspace states",
+  },
 
   // Project permissions (45)
   {

@@ -5,6 +5,8 @@ import {
   type RoleResponse,
   type RoleScope,
   type UpdateRolePermissionsRequest,
+  ENFORCED_PROJECT_PERMISSIONS,
+  ENFORCED_WORKSPACE_PERMISSIONS,
   isRoleLocked,
   PERMISSION_GRANT_PROBLEM_REFS,
   permissionGrantProblem,
@@ -127,7 +129,10 @@ export function buildPermissionMatrix(
 
   for (const perm of catalog) {
     const label = labelMap.get(perm) ?? perm;
-    const enforced = perm === "workspace.settings.update";
+    const enforced =
+      scope === "workspace"
+        ? (ENFORCED_WORKSPACE_PERMISSIONS as readonly string[]).includes(perm)
+        : (ENFORCED_PROJECT_PERMISSIONS as readonly string[]).includes(perm);
 
     const cells: MatrixCell[] = orderedRoles.map((role) => {
       const roleId: RoleId = `${role.ref.scope}.${role.ref.key}`;

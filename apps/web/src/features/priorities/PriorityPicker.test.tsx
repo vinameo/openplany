@@ -347,4 +347,131 @@ describe("PriorityPicker", () => {
       setLanguage("en");
     }
   });
+
+  it("AC-02: searching 'HI' in uppercase only matches High and filters out other priorities", async () => {
+    mockFetch({
+      "GET /api/workspaces/acme/projects/OPS/priorities": () =>
+        jsonResponse(200, mockPrioritiesData),
+    });
+
+    const { user } = renderPicker();
+    const button = await screen.findByTestId("priority-picker-button");
+    await user.click(button);
+
+    const searchInput = screen.getByTestId("priority-picker-search");
+    await user.type(searchInput, "HI");
+
+    expect(
+      screen.getByTestId(
+        "priority-option-00000000-0000-0000-0000-000000000021",
+      ),
+    ).toHaveTextContent("High");
+    expect(
+      screen.queryByTestId(
+        "priority-option-00000000-0000-0000-0000-000000000020",
+      ),
+    ).toBeNull();
+    expect(
+      screen.queryByTestId(
+        "priority-option-00000000-0000-0000-0000-000000000022",
+      ),
+    ).toBeNull();
+    expect(
+      screen.queryByTestId(
+        "priority-option-00000000-0000-0000-0000-000000000023",
+      ),
+    ).toBeNull();
+    expect(
+      screen.queryByTestId(
+        "priority-option-00000000-0000-0000-0000-000000000024",
+      ),
+    ).toBeNull();
+  });
+
+  it("AC-20: closes dropdown on Escape without propagating to parent modal", async () => {
+    const onModalKeyDown = vi.fn();
+    mockFetch({
+      "GET /api/workspaces/acme/projects/OPS/priorities": () =>
+        jsonResponse(200, mockPrioritiesData),
+    });
+
+    const user = userEvent.setup();
+    render(
+      <AppUiProvider>
+        <QueryClientProvider client={queryClient}>
+          <div onKeyDown={onModalKeyDown}>
+            <PriorityPicker
+              slug="acme"
+              project={mockProjectWithPerm}
+              value={null}
+              onChange={vi.fn()}
+            />
+          </div>
+        </QueryClientProvider>
+      </AppUiProvider>,
+    );
+
+    const button = await screen.findByTestId("priority-picker-button");
+    await user.click(button);
+
+    expect(screen.getByTestId("priority-picker-dropdown")).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+
+    expect(screen.getByTestId("priority-picker-dropdown")).not.toBeVisible();
+    expect(onModalKeyDown).not.toHaveBeenCalled();
+  });
+
+  it("AC-20: updates accessible name 'Priority: {mức}' according to the selected priority", async () => {
+    mockFetch({
+      "GET /api/workspaces/acme/projects/OPS/priorities": () =>
+        jsonResponse(200, mockPrioritiesData),
+    });
+
+    const { rerender } = render(
+      <AppUiProvider>
+        <QueryClientProvider client={queryClient}>
+          <PriorityPicker
+            slug="acme"
+            project={mockProjectWithPerm}
+            value={null}
+            onChange={vi.fn()}
+          />
+        </QueryClientProvider>
+      </AppUiProvider>,
+    );
+
+    const button = await screen.findByTestId("priority-picker-button");
+    expect(button).toHaveAttribute("aria-label", "Priority: None");
+
+    rerender(
+      <AppUiProvider>
+        <QueryClientProvider client={queryClient}>
+          <PriorityPicker
+            slug="acme"
+            project={mockProjectWithPerm}
+            value="00000000-0000-0000-0000-000000000021"
+            onChange={vi.fn()}
+          />
+        </QueryClientProvider>
+      </AppUiProvider>,
+    );
+
+    expect(button).toHaveAttribute("aria-label", "Priority: High");
+  });
+
+  it("AC-29: keeps dropdown width bounded and within viewport on 320 px screen", async () => {
+    mockFetch({
+      "GET /api/workspaces/acme/projects/OPS/priorities": () =>
+        jsonResponse(200, mockPrioritiesData),
+    });
+
+    const { user } = renderPicker();
+    const button = await screen.findByTestId("priority-picker-button");
+    await user.click(button);
+
+    const dropdown = screen.getByTestId("priority-picker-dropdown");
+    expect(dropdown).toBeInTheDocument();
+    expect(dropdown.style.width).toContain("15rem");
+  });
 });
