@@ -1,4 +1,4 @@
-import type { WriteLimit } from '../projects/access/writeLimit.js';
+import type { WriteLimit } from '../common/writeLimit.js';
 
 export const STATE_WRITE_LIMITER = Symbol('STATE_WRITE_LIMITER');
 

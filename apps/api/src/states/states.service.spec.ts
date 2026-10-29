@@ -97,6 +97,7 @@ describe('StatesService', () => {
       created: onCreated,
       updated: onUpdated,
       deleted: onDeleted,
+      writeRetried: vi.fn(),
     };
 
     const clock: Clock = {

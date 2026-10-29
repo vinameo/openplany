@@ -34,10 +34,19 @@ export interface StateDeletedEvent {
   requestId?: string;
 }
 
+export interface StateWriteRetriedEvent {
+  operation: 'create' | 'update' | 'delete';
+  workspaceId: string;
+  projectId?: string;
+  attempt: number;
+}
+
 export abstract class StateEvents {
   abstract created(event: StateCreatedEvent): void;
   abstract updated(event: StateUpdatedEvent): void;
   abstract deleted(event: StateDeletedEvent): void;
+  /** A state write transaction hit a deadlock or serialization failure and runs again. */
+  abstract writeRetried(event: StateWriteRetriedEvent): void;
 }
 
 @Injectable()
@@ -91,6 +100,18 @@ export class LoggingStateEvents extends StateEvents {
         movedWorkItems: event.movedWorkItems,
         durationMs: event.durationMs,
         requestId: event.requestId ?? '',
+      }),
+    );
+  }
+
+  writeRetried(event: StateWriteRetriedEvent): void {
+    this.logger.warn(
+      JSON.stringify({
+        event: 'state.write.retry',
+        operation: event.operation,
+        workspaceId: event.workspaceId,
+        ...(event.projectId !== undefined && { projectId: event.projectId }),
+        attempt: event.attempt,
       }),
     );
   }
