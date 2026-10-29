@@ -117,6 +117,12 @@ describe("RolesAndPermissionsRoute", { timeout: 15000 }, () => {
     // "Not enforced yet" badge next to Delete workspace
     const deleteRow = screen.getByRole("row", { name: /Delete workspace/i });
     expect(within(deleteRow).getByText("Not enforced yet")).toBeInTheDocument();
+
+    // Manage workspace states is enforced (AC-25)
+    const statesManageRow = screen.getByRole("row", {
+      name: /Manage workspace states/i,
+    });
+    expect(within(statesManageRow).queryByText("Not enforced yet")).toBeNull();
   });
 
   it("opens Project roles tab when URL has ?tab=project, and falls back to workspace on unknown param", async () => {
@@ -144,6 +150,30 @@ describe("RolesAndPermissionsRoute", { timeout: 15000 }, () => {
         level: 2,
         name: "Project permissions",
       }),
+    ).toBeInTheDocument();
+
+    await screen.findByRole("table", {
+      name: "Project permissions by role",
+    });
+
+    // Enforced project permissions don't have "Not enforced yet" badge (AC-25)
+    const workItemsViewRow = screen.getByRole("row", {
+      name: /View work items/i,
+    });
+    expect(within(workItemsViewRow).queryByText("Not enforced yet")).toBeNull();
+
+    const statesViewRow = screen.getByRole("row", { name: /View states/i });
+    expect(within(statesViewRow).queryByText("Not enforced yet")).toBeNull();
+
+    const statesManageRow = screen.getByRole("row", {
+      name: /^Manage states/i,
+    });
+    expect(within(statesManageRow).queryByText("Not enforced yet")).toBeNull();
+
+    // Unenforced project permission still has "Not enforced yet" (AC-25)
+    const labelsViewRow = screen.getByRole("row", { name: /View labels/i });
+    expect(
+      within(labelsViewRow).getByText("Not enforced yet"),
     ).toBeInTheDocument();
 
     expect(projectRouter.state.location.search).toBe("?tab=project");

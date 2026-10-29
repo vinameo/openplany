@@ -11,6 +11,69 @@ export interface E2eApp {
   reset: () => Promise<void>;
 }
 
+export interface TableWithDefaults {
+  table: string;
+  trigger: string;
+  columns: string[];
+}
+
+export const TABLES_WITH_DEFAULTS: TableWithDefaults[] = [
+  {
+    table: 'work_item_states',
+    trigger: 'work_item_states_protect_defaults',
+    columns: [
+      'id',
+      'level',
+      'default_key',
+      'workspace_id',
+      'project_id',
+      'name',
+      'state_group',
+      'color',
+      'created_by_id',
+      'updated_by_id',
+      'deleted_by_id',
+      'created_at',
+      'updated_at',
+      'deleted_at',
+    ],
+  },
+  {
+    table: 'work_item_priorities',
+    trigger: 'work_item_priorities_protect_defaults',
+    columns: [
+      'id',
+      'level',
+      'default_key',
+      'workspace_id',
+      'project_id',
+      'name',
+      'priority_band',
+      'color',
+      'created_by_id',
+      'updated_by_id',
+      'deleted_by_id',
+      'created_at',
+      'updated_at',
+      'deleted_at',
+    ],
+  },
+];
+
+const BASE_TRUNCATE_TABLES = [
+  'work_items',
+  'project_member_role_history',
+  'project_members',
+  'projects',
+  'role_permission_history',
+  'workspace_member_role_history',
+  'workspace_members',
+  'workspaces',
+  'login_attempts',
+  'sessions',
+  'users',
+];
+
 /** The real AppModule plus the main.ts setup, which Test.createTestingModule skips. */
 export async function createE2eApp(): Promise<E2eApp> {
   const moduleRef = await Test.createTestingModule({
@@ -30,62 +93,45 @@ export async function createE2eApp(): Promise<E2eApp> {
     dataSource,
     reset: async () => {
       await dataSource.transaction(async (manager) => {
-        const defaults = await manager.query<
-          {
-            id: string;
-            level: string;
-            default_key: string;
-            workspace_id: string | null;
-            project_id: string | null;
-            name: string;
-            state_group: string;
-            color: string;
-            created_by_id: string | null;
-            updated_by_id: string | null;
-            deleted_by_id: string | null;
-            created_at: Date;
-            updated_at: Date;
-            deleted_at: Date | null;
-          }[]
-        >(
-          `SELECT id, level, default_key, workspace_id, project_id, name, state_group, color, created_by_id, updated_by_id, deleted_by_id, created_at, updated_at, deleted_at FROM work_item_states WHERE level = 'default' ORDER BY default_key`,
-        );
-
-        await manager.query(
-          'TRUNCATE work_items, work_item_states, project_member_role_history, project_members, projects, role_permission_history, workspace_member_role_history, workspace_members, workspaces, login_attempts, sessions, users',
-        );
-
-        await manager.query(
-          'ALTER TABLE work_item_states DISABLE TRIGGER work_item_states_protect_defaults',
-        );
-
-        for (const d of defaults) {
-          await manager.query(
-            `INSERT INTO work_item_states
-              (id, level, default_key, workspace_id, project_id, name, state_group, color, created_by_id, updated_by_id, deleted_by_id, created_at, updated_at, deleted_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
-            [
-              d.id,
-              d.level,
-              d.default_key,
-              d.workspace_id,
-              d.project_id,
-              d.name,
-              d.state_group,
-              d.color,
-              d.created_by_id,
-              d.updated_by_id,
-              d.deleted_by_id,
-              d.created_at,
-              d.updated_at,
-              d.deleted_at,
-            ],
+        const savedDefaults = new Map<string, Record<string, unknown>[]>();
+        for (const item of TABLES_WITH_DEFAULTS) {
+          const cols = item.columns.join(', ');
+          const rows = await manager.query<Record<string, unknown>[]>(
+            `SELECT ${cols} FROM ${item.table} WHERE level = 'default' ORDER BY default_key`,
           );
+          savedDefaults.set(item.table, rows);
         }
 
-        await manager.query(
-          'ALTER TABLE work_item_states ENABLE TRIGGER work_item_states_protect_defaults',
+        const allTruncateTables = Array.from(
+          new Set([
+            ...BASE_TRUNCATE_TABLES,
+            ...TABLES_WITH_DEFAULTS.map((d) => d.table),
+          ]),
         );
+        await manager.query(`TRUNCATE ${allTruncateTables.join(', ')}`);
+
+        for (const item of TABLES_WITH_DEFAULTS) {
+          await manager.query(
+            `ALTER TABLE ${item.table} DISABLE TRIGGER ${item.trigger}`,
+          );
+
+          const rows = savedDefaults.get(item.table) ?? [];
+          if (rows.length > 0) {
+            const colList = item.columns.join(', ');
+            const placeholders = item.columns
+              .map((_, i) => `$${i + 1}`)
+              .join(', ');
+            const insertSql = `INSERT INTO ${item.table} (${colList}) VALUES (${placeholders})`;
+            for (const row of rows) {
+              const values = item.columns.map((col) => row[col]);
+              await manager.query(insertSql, values);
+            }
+          }
+
+          await manager.query(
+            `ALTER TABLE ${item.table} ENABLE TRIGGER ${item.trigger}`,
+          );
+        }
 
         await manager.query('DELETE FROM role_permissions');
         await manager.query(

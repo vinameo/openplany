@@ -19,7 +19,11 @@ const mockProject: ProjectListItem = {
   members: null,
   memberCount: 0,
   role: "contributor",
-  permissions: ["project.workitems.create", "project.states.view"],
+  permissions: [
+    "project.workitems.create",
+    "project.workitems.view",
+    "project.states.view",
+  ],
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 };
@@ -50,13 +54,15 @@ describe("WorkItemPropertyChips", () => {
             project={project}
             selectedStateId={null}
             onSelectState={vi.fn()}
+            selectedPriorityId={null}
+            onSelectPriority={vi.fn()}
           />
         </QueryClientProvider>
       </AppUiProvider>,
     );
   };
 
-  it("renders State chip first followed by 6 coming soon chips", () => {
+  it("renders State and Priority chips followed by 5 coming soon chips", () => {
     renderChips();
 
     const buttons = screen.getAllByRole("button");
@@ -65,8 +71,13 @@ describe("WorkItemPropertyChips", () => {
     // First button is state picker (loading or initial fallback: Backlog)
     expect(buttons[0]).toHaveTextContent("Backlog");
 
+    // Second button is priority picker (initial fallback: None)
+    expect(buttons[1]).toHaveTextContent("None");
+    expect(
+      screen.getByRole("button", { name: "Priority: None" }),
+    ).toBeInTheDocument();
+
     const comingSoonLabels = [
-      "Priority",
       "Assignees",
       "Labels",
       "Start date",
@@ -75,7 +86,7 @@ describe("WorkItemPropertyChips", () => {
     ];
 
     comingSoonLabels.forEach((label, index) => {
-      expect(buttons[index + 1]).toHaveTextContent(label);
+      expect(buttons[index + 2]).toHaveTextContent(label);
     });
   });
 
@@ -83,8 +94,8 @@ describe("WorkItemPropertyChips", () => {
     renderChips();
 
     const buttons = screen.getAllByRole("button");
-    const comingSoonButtons = buttons.slice(1);
-    expect(comingSoonButtons).toHaveLength(6);
+    const comingSoonButtons = buttons.slice(2);
+    expect(comingSoonButtons).toHaveLength(5);
 
     comingSoonButtons.forEach((btn) => {
       expect(btn).toHaveAttribute("aria-disabled", "true");
@@ -97,8 +108,8 @@ describe("WorkItemPropertyChips", () => {
     const user = userEvent.setup();
     renderChips();
 
-    const priorityChip = screen.getByRole("button", { name: "Priority" });
-    await user.hover(priorityChip);
+    const assigneesChip = screen.getByRole("button", { name: "Assignees" });
+    await user.hover(assigneesChip);
 
     expect(await screen.findByText("Coming soon")).toBeInTheDocument();
   });

@@ -10,6 +10,7 @@ import { InMemorySlidingWindowLimiter } from '../common/slidingWindowLimiter.js'
 import { ProjectsModule } from '../projects/projects.module.js';
 import { WorkspacesModule } from '../workspaces/workspaces.module.js';
 import { StatesModule } from '../states/states.module.js';
+import { PrioritiesModule } from '../priorities/priorities.module.js';
 import { WorkItem } from './entities/workItem.entity.js';
 import { LoggingWorkItemEvents } from './events/loggingWorkItemEvents.js';
 import { WorkItemEvents } from './events/workItemEvents.js';
@@ -26,6 +27,7 @@ import { WorkItemsService } from './workItems.service.js';
     WorkspacesModule,
     ProjectsModule,
     StatesModule,
+    PrioritiesModule,
   ],
   controllers: [WorkItemsController],
   providers: [

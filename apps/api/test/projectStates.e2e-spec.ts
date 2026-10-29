@@ -13,6 +13,7 @@ import {
   signInCookie,
   DEFAULT_E2E_ORIGIN as ORIGIN,
 } from './helpers/e2eUsers.js';
+import { insertWorkItem } from './helpers/e2eWorkItems.js';
 
 describe('Project States API (e2e)', () => {
   let e2e: E2eApp;
@@ -603,11 +604,14 @@ describe('Project States API (e2e)', () => {
 
       // Seed 3 live work items in this state
       for (let i = 1; i <= 3; i++) {
-        await e2e.dataSource.query(
-          `INSERT INTO work_items (id, workspace_id, project_id, number, title, description, state_id, idempotency_key, created_by_id, created_at, updated_at)
-           VALUES (gen_random_uuid(), $1, $2, $3, $4, '', $5, gen_random_uuid(), $6, now(), now())`,
-          [workspaceId, projectId, i, `Item ${i}`, stateId, wsAdmin.id],
-        );
+        await insertWorkItem(e2e.dataSource, {
+          workspaceId,
+          projectId,
+          number: i,
+          title: `Item ${i}`,
+          stateId,
+          createdById: wsAdmin.id,
+        });
       }
 
       // Attempt to change group without confirmation fails with 409 and count: 3
@@ -916,21 +920,17 @@ describe('Project States API (e2e)', () => {
       const pastTime = new Date('2026-01-01T10:00:00.000Z');
       const workItemIds: string[] = [];
       for (let i = 1; i <= 3; i++) {
-        const rows = await e2e.dataSource.query<{ id: string }[]>(
-          `INSERT INTO work_items (id, workspace_id, project_id, number, title, description, state_id, idempotency_key, created_by_id, updated_by_id, created_at, updated_at)
-           VALUES (gen_random_uuid(), $1, $2, $3, $4, '', $5, gen_random_uuid(), $6, NULL, $7, $7)
-           RETURNING id`,
-          [
-            workspaceId,
-            projectId,
-            i,
-            `Work Item ${i}`,
-            reviewStateId,
-            wsAdmin.id,
-            pastTime,
-          ],
-        );
-        workItemIds.push(rows[0].id);
+        const item = await insertWorkItem(e2e.dataSource, {
+          workspaceId,
+          projectId,
+          number: i,
+          title: `Work Item ${i}`,
+          stateId: reviewStateId,
+          createdById: wsAdmin.id,
+          createdAt: pastTime,
+          updatedAt: pastTime,
+        });
+        workItemIds.push(item.id);
       }
 
       // Attempt DELETE without replacement fails with 409 STATE_REPLACEMENT_REQUIRED
@@ -1004,20 +1004,25 @@ describe('Project States API (e2e)', () => {
       const testingStateId = (createRes.body as StateMutationResponse).state.id;
 
       // 1. Live work item in active project
-      const liveItem = await e2e.dataSource.query<{ id: string }[]>(
-        `INSERT INTO work_items (id, workspace_id, project_id, number, title, description, state_id, idempotency_key, created_by_id, created_at, updated_at)
-         VALUES (gen_random_uuid(), $1, $2, 1, 'Live Item', '', $3, gen_random_uuid(), $4, now(), now())
-         RETURNING id`,
-        [workspaceId, projectId, testingStateId, wsAdmin.id],
-      );
+      const liveItem = await insertWorkItem(e2e.dataSource, {
+        workspaceId,
+        projectId,
+        number: 1,
+        title: 'Live Item',
+        stateId: testingStateId,
+        createdById: wsAdmin.id,
+      });
 
       // 2. Soft-deleted work item in active project
-      const deletedItem = await e2e.dataSource.query<{ id: string }[]>(
-        `INSERT INTO work_items (id, workspace_id, project_id, number, title, description, state_id, idempotency_key, created_by_id, created_at, updated_at, deleted_at)
-         VALUES (gen_random_uuid(), $1, $2, 2, 'Deleted Item', '', $3, gen_random_uuid(), $4, now(), now(), now())
-         RETURNING id`,
-        [workspaceId, projectId, testingStateId, wsAdmin.id],
-      );
+      const deletedItem = await insertWorkItem(e2e.dataSource, {
+        workspaceId,
+        projectId,
+        number: 2,
+        title: 'Deleted Item',
+        stateId: testingStateId,
+        createdById: wsAdmin.id,
+        deletedAt: new Date(),
+      });
 
       // Fetch default In Progress state as replacement
       const [inProgressState] = await e2e.dataSource.query<{ id: string }[]>(

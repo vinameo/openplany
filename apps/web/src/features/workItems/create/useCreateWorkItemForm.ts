@@ -13,15 +13,41 @@ import { ApiRequestError, retryAfterMinutes } from "../../../lib/apiClient";
 import { translateRef } from "../../../i18n/language";
 import { useCreateWorkItem } from "../api/useCreateWorkItem";
 import { stateKeys } from "../../states/api/stateQueries";
+import { priorityKeys } from "../../priorities/api/priorityQueries";
+
+export interface ContentFingerprintInput {
+  title: string;
+  description: string;
+  stateId?: string | null;
+  priorityId?: string | null;
+}
 
 export function createContentFingerprint(
-  title: string,
-  description: string,
+  inputOrTitle: ContentFingerprintInput | string,
+  description?: string,
   stateId?: string | null,
+  priorityId?: string | null,
 ): string {
+  let title: string;
+  let desc: string;
+  let sId: string | null | undefined;
+  let pId: string | null | undefined;
+
+  if (typeof inputOrTitle === "object" && inputOrTitle !== null) {
+    title = inputOrTitle.title;
+    desc = inputOrTitle.description;
+    sId = inputOrTitle.stateId;
+    pId = inputOrTitle.priorityId;
+  } else {
+    title = inputOrTitle;
+    desc = description ?? "";
+    sId = stateId;
+    pId = priorityId;
+  }
+
   const normTitle = normalizeWorkItemTitle(title);
-  const normDesc = normalizeWorkItemDescription(description);
-  return JSON.stringify([normTitle, normDesc, stateId ?? ""]);
+  const normDesc = normalizeWorkItemDescription(desc);
+  return JSON.stringify([normTitle, normDesc, sId ?? "", pId ?? ""]);
 }
 
 export interface UseCreateWorkItemFormOptions {
@@ -44,6 +70,9 @@ export function useCreateWorkItemForm({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [selectedStateId, setSelectedStateId] = useState<string | null>(null);
+  const [selectedPriorityId, setSelectedPriorityId] = useState<string | null>(
+    null,
+  );
   const [titleError, setTitleError] = useState<string | null>(null);
   const [descriptionError, setDescriptionError] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -60,6 +89,7 @@ export function useCreateWorkItemForm({
     setTitle("");
     setDescription("");
     setSelectedStateId(null);
+    setSelectedPriorityId(null);
     setTitleError(null);
     setDescriptionError(null);
     setServerError(null);
@@ -95,11 +125,12 @@ export function useCreateWorkItemForm({
 
     const normTitle = normalizeWorkItemTitle(title);
     const normDesc = normalizeWorkItemDescription(description);
-    const fingerprint = createContentFingerprint(
+    const fingerprint = createContentFingerprint({
       title,
       description,
-      selectedStateId,
-    );
+      stateId: selectedStateId,
+      priorityId: selectedPriorityId,
+    });
 
     let key = idempotencyMapRef.current.get(fingerprint);
     if (!key) {
@@ -118,6 +149,7 @@ export function useCreateWorkItemForm({
           description: normDesc,
           idempotencyKey: key,
           ...(selectedStateId ? { stateId: selectedStateId } : {}),
+          ...(selectedPriorityId ? { priorityId: selectedPriorityId } : {}),
         },
       });
 
@@ -133,6 +165,7 @@ export function useCreateWorkItemForm({
         setTitle("");
         setDescription("");
         setSelectedStateId(null);
+        setSelectedPriorityId(null);
         setTitleError(null);
         setDescriptionError(null);
         setServerError(null);
@@ -167,6 +200,13 @@ export function useCreateWorkItemForm({
           queryClient.invalidateQueries({
             queryKey: stateKeys.project(slug, project.identifier),
           });
+        } else if (err.code === "PRIORITY_UNAVAILABLE") {
+          setSelectedPriorityId(null);
+          idempotencyMapRef.current.delete(fingerprint);
+          setServerError(t("workItem:errors.priorityUnavailable"));
+          queryClient.invalidateQueries({
+            queryKey: priorityKeys.project(slug, project.identifier),
+          });
         } else if (err.code === "VALIDATION_ERROR") {
           let fieldMatched = false;
           if (err.fields.title) {
@@ -175,6 +215,15 @@ export function useCreateWorkItemForm({
           }
           if (err.fields.description) {
             setDescriptionError(err.fields.description);
+            fieldMatched = true;
+          }
+          if (err.fields.priorityId) {
+            setSelectedPriorityId(null);
+            idempotencyMapRef.current.delete(fingerprint);
+            setServerError(t("workItem:errors.priorityInvalid"));
+            queryClient.invalidateQueries({
+              queryKey: priorityKeys.project(slug, project.identifier),
+            });
             fieldMatched = true;
           }
           if (err.fields.idempotencyKey) {
@@ -197,7 +246,10 @@ export function useCreateWorkItemForm({
   };
 
   const hasChanges =
-    title.length > 0 || description.length > 0 || selectedStateId !== null;
+    title.length > 0 ||
+    description.length > 0 ||
+    selectedStateId !== null ||
+    selectedPriorityId !== null;
   const isSaving = createMutation.isPending;
 
   return {
@@ -213,6 +265,8 @@ export function useCreateWorkItemForm({
     },
     selectedStateId,
     setSelectedStateId,
+    selectedPriorityId,
+    setSelectedPriorityId,
     titleError,
     descriptionError,
     serverError,

@@ -130,6 +130,13 @@ _Avoid_: Category, type
 **Default state**:
 One of the five states every project has: Backlog, Todo, In Progress, Done, Cancelled. Their names stay in English in every language, and they cannot be changed or deleted.
 
+**Priority**:
+How urgent a work item is compared with the others. Every work item has exactly one priority; a new work item starts at None. A project's priorities are OpenPlany's five default priorities; workspaces and projects cannot add their own yet.
+_Avoid_: Severity, importance
+
+**Default priority**:
+One of the five priorities every project has: Urgent, High, Medium, Low, None. Their names are translated, unlike the default states, and they cannot be changed or deleted.
+
 ### Roles and permissions
 
 **Project access policy**:
@@ -188,6 +195,8 @@ When Vietnamese is active, the UI and API errors are localized, while core syste
 | 5 default states (Backlog, Todo, In Progress, Done, Cancelled) | State → **Trạng thái**                                                                                                                     |
 |                                                                | State group → **Loại**                                                                                                                     |
 |                                                                | State groups: Backlog → **Tồn đọng**, Planned → **Chưa bắt đầu**, Active → **Đang làm**, Finished → **Hoàn thành**, Cancelled → **Đã huỷ** |
+|                                                                | Priority → **Mức ưu tiên**                                                                                                                 |
+|                                                                | Default priorities: Urgent → **Khẩn cấp**, High → **Cao**, Medium → **Trung bình**, Low → **Thấp**, None → **Không**                       |
 |                                                                | Create more → **Tạo tiếp**                                                                                                                 |
 |                                                                | Joining date → **Ngày tham gia**                                                                                                           |
 |                                                                | Permission → **Quyền**                                                                                                                     |

@@ -201,19 +201,67 @@ describe("permissionMatrix", () => {
       );
     });
 
-    it("marks enforced permissions accurately", () => {
-      const wsMatrix = buildPermissionMatrix("workspace", defaultRoles);
-      const allRows = wsMatrix.groups.flatMap((g) => g.rows);
+    it("marks enforced permissions accurately from contracts (AC-25, RQ D27, WEB B2.6)", () => {
+      const wsMatrix = buildPermissionMatrix(
+        "workspace",
+        defaultRoles,
+        {},
+        defaultRolesResponse.permissions,
+      );
+      const wsRows = wsMatrix.groups.flatMap((g) => g.rows);
 
-      const updateRow = allRows.find(
+      const updateRow = wsRows.find(
         (r) => r.permission === "workspace.settings.update",
       )!;
       expect(updateRow.enforced).toBe(true);
 
-      const deleteRow = allRows.find(
+      const statesManageRow = wsRows.find(
+        (r) => r.permission === "workspace.states.manage",
+      )!;
+      expect(statesManageRow.enforced).toBe(true);
+
+      const deleteRow = wsRows.find(
         (r) => r.permission === "workspace.delete",
       )!;
       expect(deleteRow.enforced).toBe(false);
+
+      const projMatrix = buildPermissionMatrix(
+        "project",
+        defaultRoles,
+        {},
+        defaultRolesResponse.permissions,
+      );
+      const projRows = projMatrix.groups.flatMap((g) => g.rows);
+
+      const workItemsViewRow = projRows.find(
+        (r) => r.permission === "project.workitems.view",
+      )!;
+      expect(workItemsViewRow.enforced).toBe(true);
+
+      const statesViewRow = projRows.find(
+        (r) => r.permission === "project.states.view",
+      )!;
+      expect(statesViewRow.enforced).toBe(true);
+
+      const projStatesManageRow = projRows.find(
+        (r) => r.permission === "project.states.manage",
+      )!;
+      expect(projStatesManageRow.enforced).toBe(true);
+
+      const workItemsCreateRow = projRows.find(
+        (r) => r.permission === "project.workitems.create",
+      )!;
+      expect(workItemsCreateRow.enforced).toBe(true);
+
+      const labelsViewRow = projRows.find(
+        (r) => r.permission === "project.labels.view",
+      )!;
+      expect(labelsViewRow.enforced).toBe(false);
+
+      const archiveRow = projRows.find(
+        (r) => r.permission === "project.archive",
+      )!;
+      expect(archiveRow.enforced).toBe(false);
     });
   });
 

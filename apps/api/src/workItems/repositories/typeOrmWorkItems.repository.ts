@@ -5,6 +5,7 @@ import { runTransactionWithRetry } from '../../database/transactionRetry.js';
 import { lockProjectForActor } from '../../projects/access/lockProjectForActor.js';
 import { ProjectAccessResolver } from '../../projects/access/projectAccessResolver.js';
 import { Project } from '../../projects/entities/project.entity.js';
+import { PriorityCatalog } from '../../priorities/priorityCatalog.js';
 import { WorkItemState } from '../../states/entities/workItemState.entity.js';
 import { StateCatalog } from '../../states/stateCatalog.js';
 import { WorkItem } from '../entities/workItem.entity.js';
@@ -22,6 +23,7 @@ export class TypeOrmWorkItemsRepository implements WorkItemsRepository {
     private readonly resolver: ProjectAccessResolver,
     private readonly events: WorkItemEvents,
     private readonly catalog: StateCatalog,
+    private readonly priorityCatalog: PriorityCatalog,
   ) {}
 
   async create(
@@ -30,7 +32,7 @@ export class TypeOrmWorkItemsRepository implements WorkItemsRepository {
     return await runTransactionWithRetry(
       this.dataSource,
       async (manager) => {
-        // Step 1 - 5: lockProjectForActor (packages/docs/21-state-work-item/3-database-spec.md DB B3.3)
+        // Step 1 - 5: lockProjectForActor (packages/docs/22-priority-work-item/3-database-spec.md DB B3.3)
         const locked = await lockProjectForActor(manager, this.resolver, {
           workspaceId: input.workspaceId,
           projectId: input.projectId,
@@ -53,7 +55,7 @@ export class TypeOrmWorkItemsRepository implements WorkItemsRepository {
         }
 
         // Step 6: Find work_items by (created_by_id = Actor, idempotency_key), all rows including deleted
-        // (packages/docs/21-state-work-item/3-database-spec.md DB B3.3, RQ D25, INV-10)
+        // (packages/docs/22-priority-work-item/3-database-spec.md DB B3.3, RQ D8, INV-06)
         const existing = await manager.findOne(WorkItem, {
           where: {
             createdById: input.actorId,
@@ -76,7 +78,7 @@ export class TypeOrmWorkItemsRepository implements WorkItemsRepository {
           return { status: 'key_reused' };
         }
 
-        // Step 7: Resolve state (packages/docs/21-state-work-item/3-database-spec.md DB B3.3, RQ INV-09)
+        // Step 7a: Resolve state (packages/docs/22-priority-work-item/3-database-spec.md DB B3.3)
         let resolvedStateId: string;
         if (!input.stateId) {
           const defaultState = await manager.findOne(WorkItemState, {
@@ -102,8 +104,30 @@ export class TypeOrmWorkItemsRepository implements WorkItemsRepository {
           resolvedStateId = effectiveState.id;
         }
 
+        // Step 7b: Resolve priority (packages/docs/22-priority-work-item/3-database-spec.md DB B3.3, RQ INV-04, D29)
+        let resolvedPriorityId: string;
+        if (!input.priorityId) {
+          const defaultPriority =
+            await this.priorityCatalog.initialPriority(manager);
+          if (!defaultPriority) {
+            return { status: 'initial_priority_missing' };
+          }
+          resolvedPriorityId = defaultPriority.id;
+        } else {
+          const effectivePriority =
+            await this.priorityCatalog.lockEffectivePriority(manager, {
+              workspaceId: input.workspaceId,
+              projectId: locked.project.id,
+              priorityId: input.priorityId,
+            });
+          if (!effectivePriority) {
+            return { status: 'priority_unavailable' };
+          }
+          resolvedPriorityId = effectivePriority.id;
+        }
+
         // Step 8: n = last_work_item_number + 1; update ONLY last_work_item_number on project
-        // (packages/docs/21-state-work-item/3-database-spec.md DB B3.3)
+        // (packages/docs/22-priority-work-item/3-database-spec.md DB B3.3)
         const n = locked.project.lastWorkItemNumber + 1;
         await manager.update(
           Project,
@@ -111,13 +135,14 @@ export class TypeOrmWorkItemsRepository implements WorkItemsRepository {
           { lastWorkItemNumber: n },
         );
 
-        // Step 9: Insert work_items (packages/docs/21-state-work-item/3-database-spec.md DB B3.3, RQ INV-18)
+        // Step 9: Insert work_items (packages/docs/22-priority-work-item/3-database-spec.md DB B3.3, RQ INV-03)
         const workItemId = crypto.randomUUID();
         const workItem = manager.create(WorkItem, {
           id: workItemId,
           workspaceId: input.workspaceId,
           projectId: locked.project.id,
           stateId: resolvedStateId,
+          priorityId: resolvedPriorityId,
           number: n,
           title: input.title,
           description: input.description,
@@ -130,7 +155,7 @@ export class TypeOrmWorkItemsRepository implements WorkItemsRepository {
         });
         await manager.insert(WorkItem, workItem);
 
-        // Step 10: Commit -> created (packages/docs/21-state-work-item/3-database-spec.md DB B3.3)
+        // Step 10: Commit -> created (packages/docs/22-priority-work-item/3-database-spec.md DB B3.3)
         return { status: 'created', workItem };
       },
       {

@@ -14,6 +14,9 @@ export class WorkItem {
   @Column({ name: 'state_id', type: 'uuid' })
   stateId!: string;
 
+  @Column({ name: 'priority_id', type: 'uuid' })
+  priorityId!: string;
+
   @Column({ name: 'number', type: 'integer' })
   number!: number;
 

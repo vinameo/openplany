@@ -1,19 +1,16 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, Combobox, Text, Tooltip, useCombobox } from "@mantine/core";
 import {
   DEFAULT_STATE_COLOR,
   STATE_GROUPS,
   type ProjectListItem,
-  type StateGroup,
 } from "@repo/contracts";
-import { IconCheck } from "@tabler/icons-react";
+import {
+  PropertyPicker,
+  type PropertyPickerStatus,
+} from "../workItems/properties/PropertyPicker";
 import { StateGroupIcon } from "./StateGroupIcon";
 import { useProjectStatesQuery } from "./api/stateQueries";
-import classes from "./StatePicker.module.css";
-
-// The trigger chip is narrower than a state name, so the dropdown keeps its own width.
-const DROPDOWN_WIDTH = 240;
 
 export interface StatePickerProps {
   slug: string;
@@ -33,7 +30,6 @@ export function StatePicker({
   className,
 }: StatePickerProps) {
   const { t } = useTranslation();
-  const [search, setSearch] = useState("");
 
   const canViewStates = project.permissions.includes("project.states.view");
 
@@ -42,13 +38,6 @@ export function StatePicker({
     project.identifier,
     canViewStates,
   );
-
-  const combobox = useCombobox({
-    onDropdownClose: () => {
-      combobox.resetSelectedOption();
-      setSearch("");
-    },
-  });
 
   const states = useMemo(() => data?.states ?? [], [data?.states]);
 
@@ -61,210 +50,65 @@ export function StatePicker({
     );
   }, [data, states, value]);
 
-  const filteredStates = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return states;
-    return states.filter((s) => s.name.toLowerCase().includes(q));
-  }, [states, search]);
+  const status: PropertyPickerStatus = useMemo(() => {
+    if (!canViewStates) return "no_permission";
+    if (isLoading) return "loading";
+    if (isError || !data) return "error";
+    return "ready";
+  }, [canViewStates, isLoading, isError, data]);
+
+  const lockedTooltip = useMemo(() => {
+    if (!canViewStates) return t("state:picker.noPermission");
+    if (isError || !data) return t("state:picker.loadFailed");
+    return undefined;
+  }, [canViewStates, isError, data, t]);
 
   const hasCustomStates = useMemo(() => {
     return states.some((s) => s.level !== "default");
   }, [states]);
 
-  const buttonClass = className
-    ? `${classes.chipButton} ${className}`
-    : classes.chipButton;
+  const options = useMemo(() => {
+    return states.map((s) => ({
+      id: s.id,
+      label: s.name,
+      icon: <StateGroupIcon group={s.group} color={s.color} size={14} />,
+      group: s.group,
+    }));
+  }, [states]);
 
-  // Case 1: Actor lacks project.states.view permission
-  if (!canViewStates) {
-    return (
-      <Tooltip label={t("state:picker.noPermission")} withArrow position="top">
-        <span>
-          <Button
-            type="button"
-            variant="default"
-            size="xs"
-            radius="sm"
-            disabled
-            leftSection={
-              <StateGroupIcon
-                group="backlog"
-                color={DEFAULT_STATE_COLOR}
-                size={14}
-              />
-            }
-            className={buttonClass}
-            aria-label={t("workItem:properties.state")}
-            data-testid="state-picker-no-permission"
-          >
-            {t("state:picker.initialFallback")}
-          </Button>
-        </span>
-      </Tooltip>
+  const groupLabels = useMemo(() => {
+    if (!hasCustomStates) return undefined;
+    return Object.fromEntries(
+      STATE_GROUPS.map((groupKey) => [groupKey, t(`state:groups.${groupKey}`)]),
     );
-  }
+  }, [hasCustomStates, t]);
 
-  // Case 2: Loading states
-  if (isLoading) {
-    return (
-      <Button
-        type="button"
-        variant="default"
-        size="xs"
-        radius="sm"
-        disabled
-        leftSection={
-          <StateGroupIcon
-            group="backlog"
-            color={DEFAULT_STATE_COLOR}
-            size={14}
-          />
-        }
-        className={buttonClass}
-        aria-label={t("workItem:properties.state")}
-        data-testid="state-picker-loading"
-      >
-        {t("state:picker.initialFallback")}
-      </Button>
-    );
-  }
+  const triggerLabel = selectedState?.name ?? t("state:picker.initialFallback");
 
-  // Case 3: Error loading states
-  if (isError || !data) {
-    return (
-      <Tooltip label={t("state:picker.loadFailed")} withArrow position="top">
-        <span>
-          <Button
-            type="button"
-            variant="default"
-            size="xs"
-            radius="sm"
-            disabled
-            leftSection={
-              <StateGroupIcon
-                group="backlog"
-                color={DEFAULT_STATE_COLOR}
-                size={14}
-              />
-            }
-            className={buttonClass}
-            aria-label={t("workItem:properties.state")}
-            data-testid="state-picker-load-failed"
-          >
-            {t("state:picker.initialFallback")}
-          </Button>
-        </span>
-      </Tooltip>
-    );
-  }
-
-  const handleSelect = (stateId: string) => {
-    onChange(stateId);
-    combobox.closeDropdown();
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") {
-      e.stopPropagation();
-      combobox.closeDropdown();
-    }
-  };
-
-  const renderOption = (s: (typeof states)[number]) => {
-    const isSelected = selectedState && s.id === selectedState.id;
-    return (
-      <Combobox.Option
-        value={s.id}
-        key={s.id}
-        active={isSelected}
-        data-testid={"state-option-" + s.id}
-      >
-        <div className={classes.optionRow}>
-          <div className={classes.optionLabel}>
-            <StateGroupIcon group={s.group} color={s.color} size={14} />
-            <Text size="sm" truncate="end" title={s.name}>
-              {s.name}
-            </Text>
-          </div>
-          {isSelected && (
-            <IconCheck
-              size={14}
-              className={classes.checkIcon}
-              aria-hidden="true"
-            />
-          )}
-        </div>
-      </Combobox.Option>
-    );
-  };
+  const triggerIcon = (
+    <StateGroupIcon
+      group={selectedState ? selectedState.group : "backlog"}
+      color={selectedState ? selectedState.color : DEFAULT_STATE_COLOR}
+      size={14}
+    />
+  );
 
   return (
-    <Combobox
-      store={combobox}
-      onOptionSubmit={handleSelect}
-      withinPortal={true}
-      width={DROPDOWN_WIDTH}
-      position="bottom-start"
-    >
-      <Combobox.Target>
-        <Button
-          type="button"
-          variant="default"
-          size="xs"
-          radius="sm"
-          leftSection={
-            selectedState ? (
-              <StateGroupIcon
-                group={selectedState.group}
-                color={selectedState.color}
-                size={14}
-              />
-            ) : undefined
-          }
-          onClick={() => combobox.toggleDropdown()}
-          className={buttonClass}
-          disabled={disabled}
-          aria-label={t("workItem:properties.state")}
-          data-testid="state-picker-button"
-        >
-          {selectedState?.name ?? t("state:picker.initialFallback")}
-        </Button>
-      </Combobox.Target>
-
-      <Combobox.Dropdown
-        onKeyDown={handleKeyDown}
-        data-testid="state-picker-dropdown"
-      >
-        <Combobox.Search
-          value={search}
-          onChange={(event) => setSearch(event.currentTarget.value)}
-          placeholder={t("state:picker.search")}
-          onKeyDown={handleKeyDown}
-          data-testid="state-picker-search"
-        />
-        <Combobox.Options className={classes.options}>
-          {filteredStates.length === 0 ? (
-            <Combobox.Empty>{t("state:picker.empty")}</Combobox.Empty>
-          ) : !hasCustomStates ? (
-            filteredStates.map(renderOption)
-          ) : (
-            STATE_GROUPS.map((groupKey: StateGroup) => {
-              const groupItems = filteredStates.filter(
-                (s) => s.group === groupKey,
-              );
-              if (groupItems.length === 0) return null;
-              return (
-                <Combobox.Group
-                  label={t(`state:groups.${groupKey}`)}
-                  key={groupKey}
-                >
-                  {groupItems.map(renderOption)}
-                </Combobox.Group>
-              );
-            })
-          )}
-        </Combobox.Options>
-      </Combobox.Dropdown>
-    </Combobox>
+    <PropertyPicker
+      ariaLabel={t("workItem:properties.state")}
+      triggerLabel={triggerLabel}
+      triggerIcon={triggerIcon}
+      status={status}
+      lockedTooltip={lockedTooltip}
+      options={options}
+      groupLabels={groupLabels}
+      value={selectedState?.id ?? null}
+      onChange={onChange}
+      searchPlaceholder={t("state:picker.search")}
+      emptyLabel={t("state:picker.empty")}
+      disabled={disabled}
+      testIdPrefix="state"
+      className={className}
+    />
   );
 }

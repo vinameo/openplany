@@ -3,12 +3,12 @@ import { useTranslation } from "react-i18next";
 import type { ProjectListItem } from "@repo/contracts";
 import { ComingSoonHint } from "../../layout/ComingSoonHint";
 import { StatePicker } from "../../states/StatePicker";
+import { PriorityPicker } from "../../priorities/PriorityPicker";
 import {
   AddParentIcon,
   AssigneeIcon,
   CalendarDueIcon,
   CalendarIcon,
-  PriorityIcon,
   TagIcon,
 } from "./icons";
 import classes from "./WorkItemPropertyChips.module.css";
@@ -18,6 +18,8 @@ export interface WorkItemPropertyChipsProps {
   project: ProjectListItem;
   selectedStateId: string | null;
   onSelectState: (stateId: string) => void;
+  selectedPriorityId: string | null;
+  onSelectPriority: (priorityId: string | null) => void;
   disabled?: boolean;
 }
 
@@ -26,16 +28,13 @@ export function WorkItemPropertyChips({
   project,
   selectedStateId,
   onSelectState,
+  selectedPriorityId,
+  onSelectPriority,
   disabled = false,
 }: WorkItemPropertyChipsProps) {
   const { t } = useTranslation();
 
   const otherChips = [
-    {
-      id: "priority",
-      label: t("workItem:properties.priority"),
-      icon: <PriorityIcon />,
-    },
     {
       id: "assignees",
       label: t("workItem:properties.assignees"),
@@ -70,6 +69,13 @@ export function WorkItemPropertyChips({
         project={project}
         value={selectedStateId}
         onChange={onSelectState}
+        disabled={disabled}
+      />
+      <PriorityPicker
+        slug={slug}
+        project={project}
+        value={selectedPriorityId}
+        onChange={onSelectPriority}
         disabled={disabled}
       />
       {otherChips.map((chip) => (

@@ -1,11 +1,16 @@
 import { Injectable } from '@nestjs/common';
-import { Not, type EntityManager, type FindOptionsWhere } from 'typeorm';
+import { Not, type EntityManager } from 'typeorm';
 import {
   PROJECT_STATES_MAX,
   STATE_GROUPS,
   WORKSPACE_STATES_MAX,
 } from '@repo/contracts';
 import { equalsLowercase } from '../database/findOperators.js';
+import {
+  compareLevelThenAge,
+  withEach,
+  type LevelScope,
+} from '../database/levels.js';
 import { WorkItemState } from './entities/workItemState.entity.js';
 import {
   liveProjectIdsOf,
@@ -15,9 +20,7 @@ import {
   visibleStates,
 } from './stateFilters.js';
 
-export type StateScope =
-  | { level: 'workspace'; workspaceId: string }
-  | { level: 'project'; workspaceId: string; projectId: string };
+export type StateScope = LevelScope;
 
 /** How many live states the scope's own level may hold. */
 export function ownStatesMax(scope: Pick<StateScope, 'level'>): number {
@@ -30,23 +33,11 @@ const GROUP_ORDER: Record<string, number> = Object.fromEntries(
   STATE_GROUPS.map((g, i) => [g, i]),
 );
 
-const LEVEL_ORDER: Record<string, number> = {
-  default: 0,
-  workspace: 1,
-  project: 2,
-};
-
 export function compareStates(a: WorkItemState, b: WorkItemState): number {
   const groupDiff = (GROUP_ORDER[a.group] ?? 99) - (GROUP_ORDER[b.group] ?? 99);
   if (groupDiff !== 0) return groupDiff;
 
-  const levelDiff = (LEVEL_ORDER[a.level] ?? 99) - (LEVEL_ORDER[b.level] ?? 99);
-  if (levelDiff !== 0) return levelDiff;
-
-  const timeDiff = a.createdAt.getTime() - b.createdAt.getTime();
-  if (timeDiff !== 0) return timeDiff;
-
-  return a.id.localeCompare(b.id);
+  return compareLevelThenAge(a, b);
 }
 
 export abstract class StateCatalog {
@@ -227,12 +218,4 @@ export class TypeOrmStateCatalog implements StateCatalog {
 
     return result;
   }
-}
-
-/** Adds the same conditions to every OR branch of a `where`. */
-function withEach(
-  where: FindOptionsWhere<WorkItemState>[],
-  extra: FindOptionsWhere<WorkItemState>,
-): FindOptionsWhere<WorkItemState>[] {
-  return where.map((branch) => ({ ...branch, ...extra }));
 }

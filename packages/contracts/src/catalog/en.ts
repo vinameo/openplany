@@ -939,6 +939,9 @@ export const en = {
     "errors.stateUnavailable":
       "This state is no longer available. Choose another state.",
     "errors.stateInvalid": "Choose a state from the list",
+    "errors.priorityInvalid": "Choose a priority from the list",
+    "errors.priorityUnavailable":
+      "This priority is no longer available. Choose another one and save again.",
     "errors.generic": "Couldn't create the work item. Try again.",
   },
   state: {
@@ -1022,5 +1025,19 @@ export const en = {
     "picker.initialFallback": "Backlog",
     "errors.confirmInvalid": "Confirm the change again.",
     "errors.generic": "Couldn't save the state. Try again.",
+  },
+  priority: {
+    "defaults.urgent": "Urgent",
+    "defaults.high": "High",
+    "defaults.medium": "Medium",
+    "defaults.low": "Low",
+    "defaults.none": "None",
+    "picker.chipLabel": "Priority: {{name}}",
+    "picker.search": "Search",
+    "picker.empty": "No priorities found",
+    "picker.noPermission":
+      "You don't have permission to view this project's priorities.",
+    "picker.loadFailed":
+      "Couldn't load priorities. The work item will be created with no priority.",
   },
 } as const;

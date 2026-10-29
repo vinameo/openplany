@@ -13,6 +13,7 @@ import {
   signInCookie,
   DEFAULT_E2E_ORIGIN as ORIGIN,
 } from './helpers/e2eUsers.js';
+import { insertWorkItem } from './helpers/e2eWorkItems.js';
 
 describe('Workspace States API (e2e)', () => {
   let e2e: E2eApp;
@@ -323,38 +324,33 @@ describe('Workspace States API (e2e)', () => {
 
       // In W1 prj1a: 2 Backlog items
       for (let i = 1; i <= 2; i++) {
-        await e2e.dataSource.query(
-          `INSERT INTO work_items (id, workspace_id, project_id, number, title, description, state_id, idempotency_key, created_by_id, created_at, updated_at)
-           VALUES (gen_random_uuid(), $1, $2, $3, $4, '', $5, gen_random_uuid(), $6, now(), now())`,
-          [
-            ws1.workspaceId,
-            prj1a.projectId,
-            i,
-            `W1 Item ${i}`,
-            backlogId,
-            ws1.wsAdmin.id,
-          ],
-        );
+        await insertWorkItem(e2e.dataSource, {
+          workspaceId: ws1.workspaceId,
+          projectId: prj1a.projectId,
+          number: i,
+          title: `W1 Item ${i}`,
+          stateId: backlogId,
+          createdById: ws1.wsAdmin.id,
+        });
       }
       // In W1 prj1b: 1 Backlog item, 2 QA items
-      await e2e.dataSource.query(
-        `INSERT INTO work_items (id, workspace_id, project_id, number, title, description, state_id, idempotency_key, created_by_id, created_at, updated_at)
-         VALUES (gen_random_uuid(), $1, $2, 1, 'W1 1b Item 1', '', $3, gen_random_uuid(), $4, now(), now())`,
-        [ws1.workspaceId, prj1b.projectId, backlogId, ws1.wsAdmin.id],
-      );
+      await insertWorkItem(e2e.dataSource, {
+        workspaceId: ws1.workspaceId,
+        projectId: prj1b.projectId,
+        number: 1,
+        title: 'W1 1b Item 1',
+        stateId: backlogId,
+        createdById: ws1.wsAdmin.id,
+      });
       for (let i = 2; i <= 3; i++) {
-        await e2e.dataSource.query(
-          `INSERT INTO work_items (id, workspace_id, project_id, number, title, description, state_id, idempotency_key, created_by_id, created_at, updated_at)
-           VALUES (gen_random_uuid(), $1, $2, $3, $4, '', $5, gen_random_uuid(), $6, now(), now())`,
-          [
-            ws1.workspaceId,
-            prj1b.projectId,
-            i,
-            `W1 QA Item ${i}`,
-            qaStateId,
-            ws1.wsAdmin.id,
-          ],
-        );
+        await insertWorkItem(e2e.dataSource, {
+          workspaceId: ws1.workspaceId,
+          projectId: prj1b.projectId,
+          number: i,
+          title: `W1 QA Item ${i}`,
+          stateId: qaStateId,
+          createdById: ws1.wsAdmin.id,
+        });
       }
 
       // Add soft-deleted project in W1 with 1 Backlog item (must not count!)
@@ -362,11 +358,14 @@ describe('Workspace States API (e2e)', () => {
         ws1.workspaceSlug,
         ws1.wsAdmin.cookie,
       );
-      await e2e.dataSource.query(
-        `INSERT INTO work_items (id, workspace_id, project_id, number, title, description, state_id, idempotency_key, created_by_id, created_at, updated_at)
-         VALUES (gen_random_uuid(), $1, $2, 1, 'Deleted Project Item', '', $3, gen_random_uuid(), $4, now(), now())`,
-        [ws1.workspaceId, prj1Deleted.projectId, backlogId, ws1.wsAdmin.id],
-      );
+      await insertWorkItem(e2e.dataSource, {
+        workspaceId: ws1.workspaceId,
+        projectId: prj1Deleted.projectId,
+        number: 1,
+        title: 'Deleted Project Item',
+        stateId: backlogId,
+        createdById: ws1.wsAdmin.id,
+      });
       await e2e.dataSource.query(
         `UPDATE projects SET deleted_at = now() WHERE id = $1`,
         [prj1Deleted.projectId],
@@ -376,18 +375,14 @@ describe('Workspace States API (e2e)', () => {
       const ws2 = await seedWorkspace({ slug: `ws2-${userSeq}` });
       const prj2 = await seedProject(ws2.workspaceSlug, ws2.wsAdmin.cookie);
       for (let i = 1; i <= 20; i++) {
-        await e2e.dataSource.query(
-          `INSERT INTO work_items (id, workspace_id, project_id, number, title, description, state_id, idempotency_key, created_by_id, created_at, updated_at)
-           VALUES (gen_random_uuid(), $1, $2, $3, $4, '', $5, gen_random_uuid(), $6, now(), now())`,
-          [
-            ws2.workspaceId,
-            prj2.projectId,
-            i,
-            `W2 Item ${i}`,
-            backlogId,
-            ws2.wsAdmin.id,
-          ],
-        );
+        await insertWorkItem(e2e.dataSource, {
+          workspaceId: ws2.workspaceId,
+          projectId: prj2.projectId,
+          number: i,
+          title: `W2 Item ${i}`,
+          stateId: backlogId,
+          createdById: ws2.wsAdmin.id,
+        });
       }
 
       // GET states for W1
@@ -779,29 +774,41 @@ describe('Workspace States API (e2e)', () => {
       // Seed 2 work items in prj1, 1 in prj2 with past timestamp
       const pastTime = new Date('2026-01-01T00:00:00.000Z');
       const itemIds: string[] = [];
-      const item1 = await e2e.dataSource.query<{ id: string }[]>(
-        `INSERT INTO work_items (id, workspace_id, project_id, number, title, description, state_id, idempotency_key, created_by_id, updated_by_id, created_at, updated_at)
-         VALUES (gen_random_uuid(), $1, $2, 1, 'Item 1', '', $3, gen_random_uuid(), $4, NULL, $5, $5)
-         RETURNING id`,
-        [workspaceId, prj1.projectId, qaId, wsAdmin.id, pastTime],
-      );
-      itemIds.push(item1[0].id);
+      const item1 = await insertWorkItem(e2e.dataSource, {
+        workspaceId,
+        projectId: prj1.projectId,
+        number: 1,
+        title: 'Item 1',
+        stateId: qaId,
+        createdById: wsAdmin.id,
+        createdAt: pastTime,
+        updatedAt: pastTime,
+      });
+      itemIds.push(item1.id);
 
-      const item2 = await e2e.dataSource.query<{ id: string }[]>(
-        `INSERT INTO work_items (id, workspace_id, project_id, number, title, description, state_id, idempotency_key, created_by_id, updated_by_id, created_at, updated_at)
-         VALUES (gen_random_uuid(), $1, $2, 2, 'Item 2', '', $3, gen_random_uuid(), $4, NULL, $5, $5)
-         RETURNING id`,
-        [workspaceId, prj1.projectId, qaId, wsAdmin.id, pastTime],
-      );
-      itemIds.push(item2[0].id);
+      const item2 = await insertWorkItem(e2e.dataSource, {
+        workspaceId,
+        projectId: prj1.projectId,
+        number: 2,
+        title: 'Item 2',
+        stateId: qaId,
+        createdById: wsAdmin.id,
+        createdAt: pastTime,
+        updatedAt: pastTime,
+      });
+      itemIds.push(item2.id);
 
-      const item3 = await e2e.dataSource.query<{ id: string }[]>(
-        `INSERT INTO work_items (id, workspace_id, project_id, number, title, description, state_id, idempotency_key, created_by_id, updated_by_id, created_at, updated_at)
-         VALUES (gen_random_uuid(), $1, $2, 1, 'Item 3', '', $3, gen_random_uuid(), $4, NULL, $5, $5)
-         RETURNING id`,
-        [workspaceId, prj2.projectId, qaId, wsAdmin.id, pastTime],
-      );
-      itemIds.push(item3[0].id);
+      const item3 = await insertWorkItem(e2e.dataSource, {
+        workspaceId,
+        projectId: prj2.projectId,
+        number: 1,
+        title: 'Item 3',
+        stateId: qaId,
+        createdById: wsAdmin.id,
+        createdAt: pastTime,
+        updatedAt: pastTime,
+      });
+      itemIds.push(item3.id);
 
       // 1. DELETE without replacement fails with 409 STATE_REPLACEMENT_REQUIRED
       const reqRes = await http()
@@ -874,20 +881,24 @@ describe('Workspace States API (e2e)', () => {
       const targetId = (targetRes.body as StateMutationResponse).state.id;
 
       // Work item in active project
-      const [activeItem] = await e2e.dataSource.query<{ id: string }[]>(
-        `INSERT INTO work_items (id, workspace_id, project_id, number, title, description, state_id, idempotency_key, created_by_id, created_at, updated_at)
-         VALUES (gen_random_uuid(), $1, $2, 1, 'Active Item', '', $3, gen_random_uuid(), $4, now(), now())
-         RETURNING id`,
-        [workspaceId, prjActive.projectId, targetId, wsAdmin.id],
-      );
+      const [activeItem] = await insertWorkItem(e2e.dataSource, {
+        workspaceId,
+        projectId: prjActive.projectId,
+        number: 1,
+        title: 'Active Item',
+        stateId: targetId,
+        createdById: wsAdmin.id,
+      });
 
       // Work item in deleted project
-      const [hiddenItem] = await e2e.dataSource.query<{ id: string }[]>(
-        `INSERT INTO work_items (id, workspace_id, project_id, number, title, description, state_id, idempotency_key, created_by_id, created_at, updated_at)
-         VALUES (gen_random_uuid(), $1, $2, 1, 'Hidden Item', '', $3, gen_random_uuid(), $4, now(), now())
-         RETURNING id`,
-        [workspaceId, prjDeleted.projectId, targetId, wsAdmin.id],
-      );
+      const [hiddenItem] = await insertWorkItem(e2e.dataSource, {
+        workspaceId,
+        projectId: prjDeleted.projectId,
+        number: 1,
+        title: 'Hidden Item',
+        stateId: targetId,
+        createdById: wsAdmin.id,
+      });
 
       // Soft delete prjDeleted
       await e2e.dataSource.query(
@@ -948,11 +959,14 @@ describe('Workspace States API (e2e)', () => {
 
       // Add 2 work items
       for (let i = 1; i <= 2; i++) {
-        await e2e.dataSource.query(
-          `INSERT INTO work_items (id, workspace_id, project_id, number, title, description, state_id, idempotency_key, created_by_id, created_at, updated_at)
-           VALUES (gen_random_uuid(), $1, $2, $3, $4, '', $5, gen_random_uuid(), $6, now(), now())`,
-          [workspaceId, prj.projectId, i, `Item ${i}`, stateId, wsAdmin.id],
-        );
+        await insertWorkItem(e2e.dataSource, {
+          workspaceId,
+          projectId: prj.projectId,
+          number: i,
+          title: `Item ${i}`,
+          stateId,
+          createdById: wsAdmin.id,
+        });
       }
 
       // Group change without confirmation -> 409 STATE_GROUP_CHANGE_UNCONFIRMED with count: 2

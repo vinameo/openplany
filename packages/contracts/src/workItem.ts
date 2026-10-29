@@ -15,6 +15,7 @@ export interface CreateWorkItemRequest {
   description?: string;
   idempotencyKey: string;
   stateId?: string;
+  priorityId?: string;
 }
 
 export interface WorkItemResponse {
@@ -24,6 +25,7 @@ export interface WorkItemResponse {
   title: string;
   description: string;
   stateId: string;
+  priorityId: string;
   createdById: string | null;
   createdAt: string;
 }

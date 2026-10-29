@@ -1,5 +1,8 @@
 import type { MessageRef } from "./catalog/types.js";
+import { LEVELS, type Level } from "./level.js";
 import { NO_HIDDEN_CHARS } from "./workspace.js";
+
+export { LEVELS, type Level };
 
 export const STATE_GROUPS = [
   "backlog",
@@ -10,8 +13,8 @@ export const STATE_GROUPS = [
 ] as const;
 export type StateGroup = (typeof STATE_GROUPS)[number];
 
-export const STATE_LEVELS = ["default", "workspace", "project"] as const;
-export type StateLevel = (typeof STATE_LEVELS)[number];
+export const STATE_LEVELS = LEVELS;
+export type StateLevel = Level;
 
 export const DEFAULT_STATE_KEYS = [
   "backlog",

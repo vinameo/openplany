@@ -20,6 +20,7 @@ import { AddProjectRoleChangedHistory1791610300000 } from '../src/database/migra
 import { EnableUnaccent1791610400000 } from '../src/database/migrations/1791610400000-EnableUnaccent.js';
 import { CreateWorkItems1791610500000 } from '../src/database/migrations/1791610500000-CreateWorkItems.js';
 import { CreateWorkItemStates1791610600000 } from '../src/database/migrations/1791610600000-CreateWorkItemStates.js';
+import { CreateWorkItemPriorities1791610700000 } from '../src/database/migrations/1791610700000-CreateWorkItemPriorities.js';
 import { e2eEnv } from './e2eEnv.js';
 
 export interface MigrationSeedSnapshot {
@@ -50,6 +51,7 @@ export const MIGRATIONS = [
   EnableUnaccent1791610400000,
   CreateWorkItems1791610500000,
   CreateWorkItemStates1791610600000,
+  CreateWorkItemPriorities1791610700000,
 ];
 
 /** Creates the e2e database if needed and brings it to the latest migration. */

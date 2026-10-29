@@ -38,6 +38,7 @@ describe('WorkItemsService', () => {
     workspaceId: 'ws-1',
     projectId: 'proj-1',
     stateId: 'state-1',
+    priorityId: 'prio-1',
     number: 1,
     title: 'Fix login',
     description: '## Steps',
@@ -50,10 +51,11 @@ describe('WorkItemsService', () => {
   };
 
   function setup(repoResult: CreateWorkItemRepoResult) {
+    const createRepoMock = vi.fn<
+      (input: CreateWorkItemRepoInput) => Promise<CreateWorkItemRepoResult>
+    >(async () => repoResult);
     const repository: WorkItemsRepository = {
-      create: vi.fn<
-        (input: CreateWorkItemRepoInput) => Promise<CreateWorkItemRepoResult>
-      >(async () => repoResult),
+      create: createRepoMock,
     };
 
     const onWorkItemCreated = vi.fn();
@@ -74,6 +76,7 @@ describe('WorkItemsService', () => {
     return {
       service,
       repository,
+      createRepoMock,
       events,
       onWorkItemCreated,
       onWorkItemReplayed,
@@ -106,6 +109,7 @@ describe('WorkItemsService', () => {
       title: 'Fix login',
       description: '## Steps',
       stateId: 'state-1',
+      priorityId: 'prio-1',
       createdById: 'user-1',
       createdAt: fixedNow.toISOString(),
     });
@@ -253,5 +257,59 @@ describe('WorkItemsService', () => {
       code: 'STATE_UNAVAILABLE',
       messageRef: { key: 'workItem:errors.stateUnavailable' },
     });
+  });
+
+  it('throws 409 PRIORITY_UNAVAILABLE when repository returns priority_unavailable (AC-07)', async () => {
+    const { service, createRepoMock } = setup({
+      status: 'priority_unavailable',
+    });
+
+    await expect(
+      service.create({
+        workspaceId: 'ws-1',
+        project,
+        actorId: 'user-1',
+        title: 'Fix login',
+        description: '## Steps',
+        idempotencyKey: 'key-1',
+        priorityId: 'bad-priority-id',
+      }),
+    ).rejects.toMatchObject({
+      status: HttpStatus.CONFLICT,
+      code: 'PRIORITY_UNAVAILABLE',
+      messageRef: { key: 'workItem:errors.priorityUnavailable' },
+    });
+
+    expect(createRepoMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        priorityId: 'bad-priority-id',
+      }),
+    );
+  });
+
+  it('throws 500 INTERNAL_ERROR and logs error when initial priority is missing (AC-27)', async () => {
+    const { service } = setup({ status: 'initial_priority_missing' });
+    const logSpy = vi
+      .spyOn(service['logger'], 'error')
+      .mockImplementation(() => {});
+
+    await expect(
+      service.create({
+        workspaceId: 'ws-1',
+        project,
+        actorId: 'user-1',
+        title: 'Fix login',
+        description: '## Steps',
+        idempotencyKey: 'key-1',
+        requestId: 'req-corrupt',
+      }),
+    ).rejects.toMatchObject({
+      status: HttpStatus.INTERNAL_SERVER_ERROR,
+      code: 'INTERNAL_ERROR',
+      messageRef: { key: 'workItem:errors.generic' },
+    });
+
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('proj-1'));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('req-corrupt'));
   });
 });

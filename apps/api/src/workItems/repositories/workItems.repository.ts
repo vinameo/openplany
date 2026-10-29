@@ -8,6 +8,7 @@ export interface CreateWorkItemRepoInput {
   description: string;
   idempotencyKey: string;
   stateId?: string;
+  priorityId?: string;
   now: Date;
 }
 
@@ -18,7 +19,9 @@ export type CreateWorkItemRepoResult =
   | { status: 'forbidden' }
   | { status: 'actor_inactive' }
   | { status: 'key_reused' }
-  | { status: 'state_unavailable' };
+  | { status: 'state_unavailable' }
+  | { status: 'priority_unavailable' }
+  | { status: 'initial_priority_missing' };
 
 export abstract class WorkItemsRepository {
   abstract create(

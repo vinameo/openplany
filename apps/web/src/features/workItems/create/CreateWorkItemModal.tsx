@@ -44,6 +44,8 @@ export function CreateWorkItemModal({
     setDescription,
     selectedStateId,
     setSelectedStateId,
+    selectedPriorityId,
+    setSelectedPriorityId,
     titleError,
     descriptionError,
     serverError,
@@ -133,6 +135,8 @@ export function CreateWorkItemModal({
             project={project}
             selectedStateId={selectedStateId}
             onSelectState={setSelectedStateId}
+            selectedPriorityId={selectedPriorityId}
+            onSelectPriority={setSelectedPriorityId}
             disabled={isSaving}
           />
 

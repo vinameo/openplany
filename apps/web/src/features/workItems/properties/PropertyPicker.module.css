@@ -4,8 +4,17 @@
   color: var(--mantine-color-dimmed);
 }
 
-.chipButton:hover:not(:disabled) {
+.chipButton:hover:not(:disabled):not([aria-disabled="true"]) {
   background-color: var(--mantine-color-gray-1);
+}
+
+.chipButton[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.dropdown {
+  max-width: calc(100vw - 32px);
 }
 
 .optionRow {
@@ -23,7 +32,7 @@
   min-width: 0;
 }
 
-/* Up to 50 workspace + 50 project states: scroll instead of growing off-screen. */
+/* Scroll instead of growing off-screen. */
 .options {
   max-height: 280px;
   overflow-y: auto;

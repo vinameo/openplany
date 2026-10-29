@@ -437,12 +437,17 @@ describe("CreateWorkItemModal", () => {
     // State chip renders StatePicker (locked showing Backlog without project.states.view)
     const stateButton = screen.getByTestId("state-picker-no-permission");
     expect(stateButton).toBeInTheDocument();
-    expect(stateButton).toBeDisabled();
+    expect(stateButton).toHaveAttribute("aria-disabled", "true");
     expect(stateButton).toHaveTextContent("Backlog");
 
-    // 6 disabled property chips in exact D2 order with D3 neutral labels
+    // Priority chip renders PriorityPicker (locked showing None without project.workitems.view)
+    const priorityButton = screen.getByTestId("priority-picker-no-permission");
+    expect(priorityButton).toBeInTheDocument();
+    expect(priorityButton).toHaveAttribute("aria-disabled", "true");
+    expect(priorityButton).toHaveTextContent("None");
+
+    // 5 disabled property chips in exact D2 order with D3 neutral labels
     const expectedChips = [
-      "Priority",
       "Assignees",
       "Labels",
       "Start date",
@@ -645,9 +650,14 @@ describe("CreateWorkItemModal", () => {
       ).toBeInTheDocument();
       expect(screen.getByText("Hỗ trợ Markdown")).toBeInTheDocument();
 
+      expect(
+        screen.getByRole("button", { name: "Trạng thái" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Mức ưu tiên: Không" }),
+      ).toBeInTheDocument();
+
       const expectedViChips = [
-        "Trạng thái",
-        "Mức ưu tiên",
         "Người thực hiện",
         "Nhãn",
         "Ngày bắt đầu",
@@ -676,5 +686,280 @@ describe("CreateWorkItemModal", () => {
 
     const content = document.querySelector(".mantine-Modal-content");
     expect(content).toHaveAttribute("data-full-screen", "true");
+  });
+
+  it("AC-21: prompts discard confirmation when only Priority chip is changed (Title and description empty)", async () => {
+    mockFetch({
+      "GET /api/workspaces/acme/projects/OPS/priorities": () =>
+        jsonResponse(200, {
+          priorities: [
+            {
+              id: "prio-high",
+              name: "High",
+              defaultKey: "high",
+              band: "high",
+              color: "#D0642B",
+              level: "default",
+            },
+            {
+              id: "prio-none",
+              name: "None",
+              defaultKey: "none",
+              band: "none",
+              color: "#8E98A8",
+              level: "default",
+            },
+          ],
+          initialPriorityId: "prio-none",
+        }),
+    });
+
+    const projectWithView: ProjectListItem = {
+      ...mockProject,
+      permissions: ["project.workitems.create", "project.workitems.view"],
+    };
+
+    const { user, onClose } = renderModal({ project: projectWithView });
+
+    // Open priority picker and select High
+    const priorityBtn = await screen.findByTestId("priority-picker-button");
+    await user.click(priorityBtn);
+    const highOption = await screen.findByTestId("priority-option-prio-high");
+    await user.click(highOption);
+
+    // Chip now displays High
+    expect(priorityBtn).toHaveTextContent("High");
+
+    // Title and description are empty
+    expect(screen.getByPlaceholderText("Title")).toHaveValue("");
+    expect(screen.getByPlaceholderText("Click to add description")).toHaveValue(
+      "",
+    );
+
+    // Click Discard
+    const discardButton = screen.getByRole("button", { name: "Discard" });
+    await user.click(discardButton);
+
+    // Confirmation appears
+    expect(
+      await screen.findByText("Discard unsaved changes?"),
+    ).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+
+    // Click "Keep editing"
+    const keepEditingButton = screen.getByRole("button", {
+      name: "Keep editing",
+    });
+    await user.click(keepEditingButton);
+
+    expect(
+      screen.queryByText("Discard unsaved changes?"),
+    ).not.toBeInTheDocument();
+    expect(priorityBtn).toHaveTextContent("High");
+    expect(onClose).not.toHaveBeenCalled();
+
+    // Click Discard again, then confirm discard
+    await user.click(screen.getByRole("button", { name: "Discard" }));
+    const confirmDiscardBtn = await screen.findByRole("button", {
+      name: "Discard",
+    });
+    await user.click(confirmDiscardBtn);
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("AC-21: with Create more enabled, saving work item with chosen priority resets chip to None for next item", async () => {
+    const sentRequests: unknown[] = [];
+
+    mockFetch({
+      "GET /api/workspaces/acme/projects/OPS/priorities": () =>
+        jsonResponse(200, {
+          priorities: [
+            {
+              id: "prio-high",
+              name: "High",
+              defaultKey: "high",
+              band: "high",
+              color: "#D0642B",
+              level: "default",
+            },
+            {
+              id: "prio-none",
+              name: "None",
+              defaultKey: "none",
+              band: "none",
+              color: "#8E98A8",
+              level: "default",
+            },
+          ],
+          initialPriorityId: "prio-none",
+        }),
+      "POST /api/workspaces/acme/projects/OPS/work-items": (init) => {
+        const body = JSON.parse(init?.body as string);
+        sentRequests.push(body);
+        return jsonResponse(201, {
+          workItem: {
+            id: `wi-${sentRequests.length}`,
+            number: sentRequests.length,
+            key: `OPS-${sentRequests.length}`,
+            title: body.title,
+            description: "",
+            priorityId: body.priorityId ?? "prio-none",
+            createdById: "user-1",
+            createdAt: new Date().toISOString(),
+          },
+          replayed: false,
+        });
+      },
+    });
+
+    const projectWithView: ProjectListItem = {
+      ...mockProject,
+      permissions: ["project.workitems.create", "project.workitems.view"],
+    };
+
+    const { user, onClose } = renderModal({ project: projectWithView });
+
+    // Enable Create more
+    const createMoreSwitch = screen.getByRole("switch", {
+      name: "Create more",
+    });
+    await user.click(createMoreSwitch);
+
+    // Select High priority
+    const priorityBtn = await screen.findByTestId("priority-picker-button");
+    await user.click(priorityBtn);
+    const highOption = await screen.findByTestId("priority-option-prio-high");
+    await user.click(highOption);
+    expect(priorityBtn).toHaveTextContent("High");
+
+    // Enter title and Save
+    const titleInput = screen.getByPlaceholderText("Title");
+    await user.type(titleInput, "Issue with High Priority");
+    const saveButton = screen.getByRole("button", { name: "Save" });
+    await user.click(saveButton);
+
+    await waitFor(() => {
+      expect(sentRequests).toHaveLength(1);
+    });
+    expect(sentRequests[0]).toMatchObject({
+      title: "Issue with High Priority",
+      priorityId: "prio-high",
+    });
+
+    // Modal stays open
+    expect(onClose).not.toHaveBeenCalled();
+
+    // Priority chip resets to None for next work item
+    expect(priorityBtn).toHaveTextContent("None");
+  });
+
+  it("AC-11: handles 409 PRIORITY_UNAVAILABLE by showing alert, resetting chip to None, retaining title/desc, and generating new key on next save", async () => {
+    let callCount = 0;
+    const sentRequests: unknown[] = [];
+
+    mockFetch({
+      "GET /api/workspaces/acme/projects/OPS/priorities": () =>
+        jsonResponse(200, {
+          priorities: [
+            {
+              id: "prio-high",
+              name: "High",
+              defaultKey: "high",
+              band: "high",
+              color: "#D0642B",
+              level: "default",
+            },
+            {
+              id: "prio-none",
+              name: "None",
+              defaultKey: "none",
+              band: "none",
+              color: "#8E98A8",
+              level: "default",
+            },
+          ],
+          initialPriorityId: "prio-none",
+        }),
+      "POST /api/workspaces/acme/projects/OPS/work-items": (init) => {
+        callCount++;
+        const body = JSON.parse(init?.body as string);
+        sentRequests.push(body);
+        if (callCount === 1) {
+          return apiError(
+            409,
+            "PRIORITY_UNAVAILABLE",
+            "This priority is no longer available.",
+          );
+        }
+        return jsonResponse(201, {
+          workItem: {
+            id: "wi-1",
+            number: 1,
+            key: "OPS-1",
+            title: body.title,
+            description: body.description,
+            priorityId: "prio-none",
+            createdById: "user-1",
+            createdAt: new Date().toISOString(),
+          },
+          replayed: false,
+        });
+      },
+    });
+
+    const projectWithView: ProjectListItem = {
+      ...mockProject,
+      permissions: ["project.workitems.create", "project.workitems.view"],
+    };
+
+    const { user, onClose } = renderModal({ project: projectWithView });
+
+    // Select High priority
+    const priorityBtn = await screen.findByTestId("priority-picker-button");
+    await user.click(priorityBtn);
+    const highOption = await screen.findByTestId("priority-option-prio-high");
+    await user.click(highOption);
+
+    // Type title and description
+    const titleInput = screen.getByPlaceholderText("Title");
+    const descInput = screen.getByPlaceholderText("Click to add description");
+    await user.type(titleInput, "Task with Stale Priority");
+    await user.type(descInput, "Task description");
+
+    // Click Save
+    const saveButton = screen.getByRole("button", { name: "Save" });
+    await user.click(saveButton);
+
+    // Shows catalog error
+    expect(
+      await screen.findByText(
+        "This priority is no longer available. Choose another one and save again.",
+      ),
+    ).toBeInTheDocument();
+
+    // Priority chip resets to None
+    expect(priorityBtn).toHaveTextContent("None");
+
+    // Title and description are preserved
+    expect(titleInput).toHaveValue("Task with Stale Priority");
+    expect(descInput).toHaveValue("Task description");
+
+    // Save again -> since priority is reset to None, priorityId is omitted and fresh key is used
+    await user.click(saveButton);
+
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+    expect(sentRequests).toHaveLength(2);
+    expect(sentRequests[0]).toMatchObject({
+      priorityId: "prio-high",
+    });
+    expect(
+      (sentRequests[1] as Record<string, unknown>).priorityId,
+    ).toBeUndefined();
+    expect(
+      (sentRequests[0] as Record<string, unknown>).idempotencyKey,
+    ).not.toBe((sentRequests[1] as Record<string, unknown>).idempotencyKey);
   });
 });
