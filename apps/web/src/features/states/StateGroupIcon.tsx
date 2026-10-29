@@ -1,7 +1,10 @@
 import { useMemo } from "react";
 import { useComputedColorScheme, useMantineTheme } from "@mantine/core";
 import { DEFAULT_STATE_COLOR, type StateGroup } from "@repo/contracts";
-import { adjustIconColorForContrast, relativeLuminance } from "../projects/iconColor";
+import {
+  adjustIconColorForContrast,
+  relativeLuminance,
+} from "../projects/iconColor";
 import classes from "./StateGroupIcon.module.css";
 
 export interface StateGroupIconProps {

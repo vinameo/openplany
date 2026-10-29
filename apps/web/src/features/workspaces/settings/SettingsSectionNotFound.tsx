@@ -9,11 +9,7 @@ export function SettingsSectionNotFound() {
       <Title order={2} size="h3" mb="xs">
         {t("workspace:settings.notFound.title")}
       </Title>
-      <Text c="dimmed">
-        {t("workspace:settings.notFound.description")}
-      </Text>
+      <Text c="dimmed">{t("workspace:settings.notFound.description")}</Text>
     </Box>
   );
 }
-
-

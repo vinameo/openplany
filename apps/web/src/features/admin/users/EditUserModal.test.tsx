@@ -112,7 +112,9 @@ describe("EditUserModal", () => {
     expect(await screen.findByDisplayValue("An")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Nguyen")).toBeInTheDocument();
     expect(screen.getByDisplayValue("An Nguyen")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("an-old@openplany.dev")).toBeInTheDocument();
+    expect(
+      screen.getByDisplayValue("an-old@openplany.dev"),
+    ).toBeInTheDocument();
 
     // Save changes button is disabled initially because hasChanges is false
     const saveButton = screen.getByRole("button", { name: /save changes/i });
@@ -184,7 +186,9 @@ describe("EditUserModal", () => {
     const reloadButton = await screen.findByRole("button", { name: /reload/i });
     expect(reloadButton).toBeInTheDocument();
     expect(
-      screen.getByText(/someone else updated this user while you were editing/i),
+      screen.getByText(
+        /someone else updated this user while you were editing/i,
+      ),
     ).toBeInTheDocument();
 
     // Focus moved to Reload button
@@ -245,8 +249,12 @@ describe("EditUserModal", () => {
     expect(
       await screen.findByDisplayValue("An Binh Nguyen"),
     ).toBeInTheDocument();
-    expect(screen.queryByDisplayValue("an-typing@openplany.dev")).not.toBeInTheDocument();
-    expect(screen.queryByText(/discard unsaved changes\?/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByDisplayValue("an-typing@openplany.dev"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/discard unsaved changes\?/i),
+    ).not.toBeInTheDocument();
 
     // Now type final email and save -> sends freshUser.updatedAt
     const freshEmailInput = screen.getByDisplayValue("an-old@openplany.dev");
@@ -326,7 +334,8 @@ describe("EditUserModal", () => {
       user: selfUser,
       extraMocks: {
         "GET /api/admin/users/admin-kai-1": () => jsonResponse(200, selfUser),
-        "PATCH /api/admin/users/admin-kai-1": () => jsonResponse(200, updatedSelf),
+        "PATCH /api/admin/users/admin-kai-1": () =>
+          jsonResponse(200, updatedSelf),
       },
     });
 
@@ -425,15 +434,11 @@ describe("EditUserModal", () => {
     await user.click(cancelButton);
 
     expect(onClose).not.toHaveBeenCalled();
-    expect(
-      screen.getByText(/discard changes\?/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/discard changes\?/i)).toBeInTheDocument();
 
     // Click "Keep editing"
     await user.click(screen.getByRole("button", { name: /keep editing/i }));
-    expect(
-      screen.queryByText(/discard changes\?/i),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/discard changes\?/i)).not.toBeInTheDocument();
 
     // Click Cancel again then Discard
     await user.click(screen.getByRole("button", { name: /cancel/i }));

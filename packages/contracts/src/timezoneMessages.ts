@@ -1,4 +1,4 @@
-import type { MessageRef } from './catalog/types.js';
+import type { MessageRef } from "./catalog/types.js";
 
 export const TIMEZONE_MESSAGES = {
   invalid: "Select a valid timezone",

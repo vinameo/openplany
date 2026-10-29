@@ -91,11 +91,13 @@ describe("StatePicker", () => {
     vi.clearAllMocks();
   });
 
-  function renderPicker(props: {
-    project?: ProjectListItem;
-    value?: string | null;
-    onChange?: (id: string) => void;
-  } = {}) {
+  function renderPicker(
+    props: {
+      project?: ProjectListItem;
+      value?: string | null;
+      onChange?: (id: string) => void;
+    } = {},
+  ) {
     const user = userEvent.setup();
     const onChange = props.onChange ?? vi.fn();
     const project = props.project ?? mockProjectWithPerm;
@@ -179,11 +181,19 @@ describe("StatePicker", () => {
     await user.click(button);
 
     // All 5 options are present flat
-    expect(screen.getByTestId("state-option-state-backlog")).toBeInTheDocument();
-    expect(screen.getByTestId("state-option-state-planned")).toBeInTheDocument();
-    expect(screen.getByTestId("state-option-state-in-progress")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("state-option-state-backlog"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("state-option-state-planned"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("state-option-state-in-progress"),
+    ).toBeInTheDocument();
     expect(screen.getByTestId("state-option-state-done")).toBeInTheDocument();
-    expect(screen.getByTestId("state-option-state-cancelled")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("state-option-state-cancelled"),
+    ).toBeInTheDocument();
 
     // No group headers since only default states exist
     expect(screen.queryByText("Active")).toBeNull();
@@ -191,7 +201,9 @@ describe("StatePicker", () => {
     // Search filter
     const searchInput = screen.getByTestId("state-picker-search");
     await user.type(searchInput, "prog");
-    expect(screen.getByTestId("state-option-state-in-progress")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("state-option-state-in-progress"),
+    ).toBeInTheDocument();
     expect(screen.queryByTestId("state-option-state-backlog")).toBeNull();
 
     // Search not found

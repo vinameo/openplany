@@ -105,7 +105,9 @@ describe("ProjectSettings and Members in Vietnamese (Ticket 08)", () => {
     });
     expect(headings.length).toBeGreaterThan(0);
     expect(screen.getByRole("link", { name: "Tổng quan" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Thành viên" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Thành viên" }),
+    ).toBeInTheDocument();
 
     // Project ID label and tooltip preserve "Project ID" (RQ A6, INV-12)
     expect(screen.getByText("Project ID")).toBeInTheDocument();

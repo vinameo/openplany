@@ -1,6 +1,10 @@
 import request from 'supertest';
 import { describe, expect, it, beforeAll, beforeEach, afterAll } from 'vitest';
-import { PROJECT_NAME_MAX, en as enCatalog, vi as viCatalog } from '@repo/contracts';
+import {
+  PROJECT_NAME_MAX,
+  en as enCatalog,
+  vi as viCatalog,
+} from '@repo/contracts';
 import { createE2eApp, type E2eApp } from './createE2eApp.js';
 import {
   DEFAULT_E2E_ORIGIN as ORIGIN,
@@ -9,8 +13,13 @@ import {
 } from './helpers/e2eUsers.js';
 
 /** Interpolates a catalog sentence the way the API's i18next instance does. */
-function interpolate(text: string, params: Record<string, string | number>): string {
-  return text.replace(/\{\{(\w+)\}\}/g, (_, name: string) => String(params[name]));
+function interpolate(
+  text: string,
+  params: Record<string, string | number>,
+): string {
+  return text.replace(/\{\{(\w+)\}\}/g, (_, name: string) =>
+    String(params[name]),
+  );
 }
 
 describe('i18n Accept-Language & error responses (e2e)', () => {
@@ -32,7 +41,11 @@ describe('i18n Accept-Language & error responses (e2e)', () => {
     { header: 'vi-VN', expectedLang: 'vi', label: 'vi-VN' },
     { header: 'en-US,en;q=0.9', expectedLang: 'en', label: 'en-US,en;q=0.9' },
     { header: 'fr-FR, vi;q=0.5', expectedLang: 'vi', label: 'fr-FR, vi;q=0.5' },
-    { header: 'en;q=0.4, vi;q=0.8', expectedLang: 'vi', label: 'en;q=0.4, vi;q=0.8' },
+    {
+      header: 'en;q=0.4, vi;q=0.8',
+      expectedLang: 'vi',
+      label: 'en;q=0.4, vi;q=0.8',
+    },
     { header: 'vi;q=0', expectedLang: 'en', label: 'vi;q=0' },
     { header: 'vi;q=abc', expectedLang: 'en', label: 'vi;q=abc' },
     { header: 'vi;q=2', expectedLang: 'en', label: 'vi;q=2' },
@@ -43,7 +56,11 @@ describe('i18n Accept-Language & error responses (e2e)', () => {
     { header: 'fr', expectedLang: 'en', label: 'fr' },
     { header: '', expectedLang: 'en', label: 'empty' },
     { header: ';;;', expectedLang: 'en', label: ';;;' },
-    { header: 'vi' + 'a'.repeat(255), expectedLang: 'en', label: '257 chars starting with vi' },
+    {
+      header: 'vi' + 'a'.repeat(255),
+      expectedLang: 'en',
+      label: '257 chars starting with vi',
+    },
   ];
 
   for (const { header, expectedLang, label } of B6_CASES) {
@@ -59,7 +76,9 @@ describe('i18n Accept-Language & error responses (e2e)', () => {
     });
 
     it(`sets Content-Language: ${expectedLang} on error with Accept-Language: "${label}"`, async () => {
-      let req = request(e2e.app.getHttpServer()).get('/api/not-a-real-endpoint');
+      let req = request(e2e.app.getHttpServer()).get(
+        '/api/not-a-real-endpoint',
+      );
       if (header !== undefined) {
         req = req.set('Accept-Language', header);
       }
@@ -95,14 +114,16 @@ describe('i18n Accept-Language & error responses (e2e)', () => {
       expect(res.status).toBe(404);
       if (isVi) {
         expect(res.headers['content-language']).toBe('vi');
-        expect(res.body.message, `Request ${index} must have Vietnamese message`).toBe(
-          'Không tìm thấy nội dung bạn cần',
-        );
+        expect(
+          res.body.message,
+          `Request ${index} must have Vietnamese message`,
+        ).toBe('Không tìm thấy nội dung bạn cần');
       } else {
         expect(res.headers['content-language']).toBe('en');
-        expect(res.body.message, `Request ${index} must have English message`).toBe(
-          'Cannot GET /api/not-a-real-endpoint',
-        );
+        expect(
+          res.body.message,
+          `Request ${index} must have English message`,
+        ).toBe('Cannot GET /api/not-a-real-endpoint');
       }
     }
   });
@@ -141,7 +162,11 @@ describe('i18n Accept-Language & error responses (e2e)', () => {
         .set('Origin', ORIGIN)
         .send({ name: 'Acme', slug, organizationSize: '2-10' })
         .expect(201);
-      return { workspace: res.body as { id: string; slug: string }, ownerId, cookie };
+      return {
+        workspace: res.body as { id: string; slug: string },
+        ownerId,
+        cookie,
+      };
     }
 
     // Two @Matches on one property: each failure reports its own sentence (INV-06).
@@ -149,19 +174,26 @@ describe('i18n Accept-Language & error responses (e2e)', () => {
       it.each([
         { name: 'see http://x.com', key: 'errors.nameUrl' },
         { name: 'Acme\u200B', key: 'errors.nameHiddenChars' },
-      ] as const)(`workspace name $name reports $key in ${lang}`, async ({ name, key }) => {
-        const { cookie } = await seedWorkspace(`i18n-ws-${lang}`);
-        const res = await http()
-          .post('/api/workspaces')
-          .set('Cookie', cookie)
-          .set('Origin', ORIGIN)
-          .set('Accept-Language', lang)
-          .send({ name, slug: `i18n-other-${lang}`, organizationSize: '2-10' })
-          .expect(400);
+      ] as const)(
+        `workspace name $name reports $key in ${lang}`,
+        async ({ name, key }) => {
+          const { cookie } = await seedWorkspace(`i18n-ws-${lang}`);
+          const res = await http()
+            .post('/api/workspaces')
+            .set('Cookie', cookie)
+            .set('Origin', ORIGIN)
+            .set('Accept-Language', lang)
+            .send({
+              name,
+              slug: `i18n-other-${lang}`,
+              organizationSize: '2-10',
+            })
+            .expect(400);
 
-        expect(res.body.code).toBe('VALIDATION_ERROR');
-        expect(res.body.fields).toEqual({ name: catalog.workspace[key] });
-      });
+          expect(res.body.code).toBe('VALIDATION_ERROR');
+          expect(res.body.fields).toEqual({ name: catalog.workspace[key] });
+        },
+      );
 
       it(`project name over PROJECT_NAME_MAX reports the max in ${lang}`, async () => {
         const { workspace, cookie } = await seedWorkspace(`i18n-pn-${lang}`);
@@ -214,13 +246,19 @@ describe('i18n Accept-Language & error responses (e2e)', () => {
     }
 
     it('an undeclared body property keeps the class-validator sentence in en and errors:invalidValue in vi', async () => {
-      const payload = { email: 'an@openplany.dev', password: 'Secret123!', extra: 1 };
+      const payload = {
+        email: 'an@openplany.dev',
+        password: 'Secret123!',
+        extra: 1,
+      };
       const resEn = await http()
         .post('/api/auth/sign-in')
         .set('Origin', ORIGIN)
         .send(payload)
         .expect(400);
-      expect(resEn.body.fields).toEqual({ extra: 'property extra should not exist' });
+      expect(resEn.body.fields).toEqual({
+        extra: 'property extra should not exist',
+      });
 
       const resVi = await http()
         .post('/api/auth/sign-in')
@@ -228,7 +266,9 @@ describe('i18n Accept-Language & error responses (e2e)', () => {
         .set('Accept-Language', 'vi')
         .send(payload)
         .expect(400);
-      expect(resVi.body.fields).toEqual({ extra: viCatalog.errors.invalidValue });
+      expect(resVi.body.fields).toEqual({
+        extra: viCatalog.errors.invalidValue,
+      });
     });
 
     it('a constraint without a declared message keeps its sentence in en and errors:invalidValue in vi', async () => {
@@ -247,7 +287,9 @@ describe('i18n Accept-Language & error responses (e2e)', () => {
 
       const changeRole = (lang?: string) => {
         const req = http()
-          .patch(`/api/workspaces/${workspace.slug}/projects/ROLE/members/${ownerId}`)
+          .patch(
+            `/api/workspaces/${workspace.slug}/projects/ROLE/members/${ownerId}`,
+          )
           .set('Cookie', cookie)
           .set('Origin', ORIGIN);
         return (lang === undefined ? req : req.set('Accept-Language', lang))

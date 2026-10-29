@@ -46,4 +46,3 @@ export class UpdateRolePermissionsDto implements UpdateRolePermissionsRequest {
   @Type(() => RolePermissionsChangeDto)
   changes: RolePermissionsChangeDto[];
 }
-

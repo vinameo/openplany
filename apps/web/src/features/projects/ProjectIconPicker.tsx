@@ -70,7 +70,10 @@ export function ProjectIconPicker({
   );
 
   const filteredIcons = useMemo(() => {
-    const q = search.trim().toLowerCase().replace(/[-_\s]/g, "");
+    const q = search
+      .trim()
+      .toLowerCase()
+      .replace(/[-_\s]/g, "");
     if (!q) return PROJECT_ICON_NAMES;
     return PROJECT_ICON_NAMES.filter((name) =>
       name.replace(/[-_\s]/g, "").includes(q),

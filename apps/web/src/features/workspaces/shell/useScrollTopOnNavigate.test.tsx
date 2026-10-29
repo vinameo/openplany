@@ -14,7 +14,9 @@ describe("useScrollTopOnNavigate", () => {
   let scrollToSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    scrollToSpy = vi.spyOn(HTMLElement.prototype, "scrollTo").mockImplementation(() => {});
+    scrollToSpy = vi
+      .spyOn(HTMLElement.prototype, "scrollTo")
+      .mockImplementation(() => {});
   });
 
   afterEach(() => {

@@ -97,7 +97,11 @@ describe('PasswordConfirmation', () => {
 
   it('releases slot on no-user', async () => {
     const { confirmation, limiter, clock, hasher } = setup();
-    const result = await confirmation.confirm('non-existent', 'secret', 'req-1');
+    const result = await confirmation.confirm(
+      'non-existent',
+      'secret',
+      'req-1',
+    );
     expect(result).toEqual({ status: 'no-user' });
     expect(hasher.verifyCalls).toBe(0);
     expect(limiter.peek('non-existent', clock.now()).allowed).toBe(true);
@@ -146,9 +150,9 @@ describe('PasswordConfirmation', () => {
     users.users.push(makeUser({ id: 'u1', password: 'hash:secret' }));
     hasher.verify = () => Promise.reject(new Error('Hasher crashed'));
 
-    await expect(
-      confirmation.confirm('u1', 'secret', 'req-1'),
-    ).rejects.toThrow('Hasher crashed');
+    await expect(confirmation.confirm('u1', 'secret', 'req-1')).rejects.toThrow(
+      'Hasher crashed',
+    );
 
     // Slot was released
     expect(limiter.peek('u1', clock.now()).allowed).toBe(true);

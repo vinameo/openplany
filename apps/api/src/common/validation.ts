@@ -28,7 +28,9 @@ export function validationMessage(
 
 /** The MessageRef a constraint message encodes, or null for class-validator's own text. */
 export function decodeValidationMessage(raw: unknown): MessageRef | null {
-  return typeof raw === 'string' ? (MESSAGE_REFS_BY_TOKEN.get(raw) ?? null) : null;
+  return typeof raw === 'string'
+    ? (MESSAGE_REFS_BY_TOKEN.get(raw) ?? null)
+    : null;
 }
 
 /** The field error for a failed constraint: its MessageRef, or class-validator's sentence. */

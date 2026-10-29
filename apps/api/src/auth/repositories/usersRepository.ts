@@ -13,9 +13,13 @@ export interface ProfileChanges {
 }
 
 /** Who counts as a usable account: not deactivated, not masked. */
-export const ACTIVE_USER: FindOptionsWhere<User> = { isActive: true, maskedAt: IsNull() };
+export const ACTIVE_USER: FindOptionsWhere<User> = {
+  isActive: true,
+  maskedAt: IsNull(),
+};
 
-export const isUsableUser = (user: User): boolean => matchesWhere(user, ACTIVE_USER);
+export const isUsableUser = (user: User): boolean =>
+  matchesWhere(user, ACTIVE_USER);
 
 export abstract class UsersRepository {
   /** `email` must already be trimmed and lower-cased. */

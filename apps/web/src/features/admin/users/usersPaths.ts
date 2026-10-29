@@ -1,1 +1,1 @@
-export const USERS_PATH = '/users';
+export const USERS_PATH = "/users";

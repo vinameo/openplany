@@ -1,12 +1,6 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  Button,
-  Combobox,
-  Text,
-  Tooltip,
-  useCombobox,
-} from "@mantine/core";
+import { Button, Combobox, Text, Tooltip, useCombobox } from "@mantine/core";
 import {
   DEFAULT_STATE_COLOR,
   STATE_GROUPS,
@@ -188,7 +182,11 @@ export function StatePicker({
             <Text size="sm">{s.name}</Text>
           </div>
           {isSelected && (
-            <IconCheck size={14} className={classes.checkIcon} aria-hidden="true" />
+            <IconCheck
+              size={14}
+              className={classes.checkIcon}
+              aria-hidden="true"
+            />
           )}
         </div>
       </Combobox.Option>

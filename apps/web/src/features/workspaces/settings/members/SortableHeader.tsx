@@ -1,4 +1,1 @@
-export {
-  SortableHeader,
-  type SortState,
-} from "../../table/SortableHeader";
+export { SortableHeader, type SortState } from "../../table/SortableHeader";

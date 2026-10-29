@@ -73,4 +73,3 @@ export class CreateWorkItems1791610500000 implements MigrationInterface {
     `);
   }
 }
-

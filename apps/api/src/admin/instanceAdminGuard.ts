@@ -26,27 +26,20 @@ export class InstanceAdminGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<Request>();
     const auth = request.auth;
     if (auth === undefined) {
-      throw new ApiException(
-        HttpStatus.UNAUTHORIZED,
-        'UNAUTHENTICATED',
-        { key: 'errors:http.unauthenticated' },
-      );
+      throw new ApiException(HttpStatus.UNAUTHORIZED, 'UNAUTHENTICATED', {
+        key: 'errors:http.unauthenticated',
+      });
     }
     if (!auth.isInstanceAdmin) {
       this.logger.warn(
         `admin.forbidden userId=${auth.userId} requestId=${request.requestId}`,
       );
-      const message =
-        this.reflector?.getAllAndOverride<MessageRef>(
-          INSTANCE_ADMIN_DENIED_MESSAGE,
-          [context.getHandler(), context.getClass()],
-        ) ?? { key: 'errors:forbidden' };
+      const message = this.reflector?.getAllAndOverride<MessageRef>(
+        INSTANCE_ADMIN_DENIED_MESSAGE,
+        [context.getHandler(), context.getClass()],
+      ) ?? { key: 'errors:forbidden' };
 
-      throw new ApiException(
-        HttpStatus.FORBIDDEN,
-        'FORBIDDEN',
-        message,
-      );
+      throw new ApiException(HttpStatus.FORBIDDEN, 'FORBIDDEN', message);
     }
     return true;
   }

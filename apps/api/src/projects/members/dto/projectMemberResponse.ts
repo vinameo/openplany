@@ -140,5 +140,3 @@ export function buildProjectMemberResponse(
   }
   return toInheritedProjectMemberResponse(row, opts);
 }
-
-

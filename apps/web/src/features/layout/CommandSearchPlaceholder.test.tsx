@@ -35,7 +35,9 @@ describe("CommandSearchPlaceholder", () => {
       // Focus -> tooltip
       await user.tab();
       expect(btn).toHaveFocus();
-      expect(await screen.findByRole("tooltip", { name: "Coming soon" })).toBeInTheDocument();
+      expect(
+        await screen.findByRole("tooltip", { name: "Coming soon" }),
+      ).toBeInTheDocument();
     });
   });
 

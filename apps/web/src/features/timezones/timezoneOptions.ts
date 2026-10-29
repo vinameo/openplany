@@ -55,7 +55,10 @@ export function getTimezoneOffsetMinutes(
 }
 
 /** Formats a timezone label like "(UTC+07:00) Asia/Ho_Chi_Minh". */
-export function timezoneOptionLabel(tz: string, now: Date = new Date()): string {
+export function timezoneOptionLabel(
+  tz: string,
+  now: Date = new Date(),
+): string {
   const offset = getTimezoneOffsetMinutes(tz, now);
   return offset !== null ? `(${formatUtcOffset(offset)}) ${tz}` : tz;
 }
@@ -74,8 +77,7 @@ function createOption(
         ? `(${formatUtcOffset(offset)}) ${zone} (current)`
         : `${zone} (current)`;
   } else {
-    label =
-      offset !== null ? `(${formatUtcOffset(offset)}) ${zone}` : zone;
+    label = offset !== null ? `(${formatUtcOffset(offset)}) ${zone}` : zone;
   }
 
   const normalized = zone.toLowerCase();

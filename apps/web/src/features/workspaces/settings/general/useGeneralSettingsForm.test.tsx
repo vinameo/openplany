@@ -55,7 +55,9 @@ describe("useGeneralSettingsForm", () => {
       timezone: "Asia/Tokyo",
     });
 
-    const { result } = renderHook(() => useGeneralSettingsForm(ws), { wrapper });
+    const { result } = renderHook(() => useGeneralSettingsForm(ws), {
+      wrapper,
+    });
 
     act(() => {
       result.current.form.setFieldValue("timezone", "Asia/Tokyo");
@@ -71,7 +73,11 @@ describe("useGeneralSettingsForm", () => {
   });
 
   it("does not invalidate project list query when timezone is unchanged on submit", async () => {
-    const ws = makeWorkspace({ slug: "my-ws", name: "Old Name", timezone: "UTC" });
+    const ws = makeWorkspace({
+      slug: "my-ws",
+      name: "Old Name",
+      timezone: "UTC",
+    });
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
 
     vi.spyOn(workspaceApi, "update").mockResolvedValueOnce({
@@ -79,7 +85,9 @@ describe("useGeneralSettingsForm", () => {
       name: "New Name",
     });
 
-    const { result } = renderHook(() => useGeneralSettingsForm(ws), { wrapper });
+    const { result } = renderHook(() => useGeneralSettingsForm(ws), {
+      wrapper,
+    });
 
     act(() => {
       result.current.form.setFieldValue("name", "New Name");

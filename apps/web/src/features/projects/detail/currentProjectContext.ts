@@ -16,8 +16,9 @@ export interface CurrentProjectValue {
   applyProjectUpdate: (project: ProjectListItem) => void;
 }
 
-export const CurrentProjectContext =
-  createContext<CurrentProjectValue | null>(null);
+export const CurrentProjectContext = createContext<CurrentProjectValue | null>(
+  null,
+);
 
 export function useCurrentProject(): CurrentProjectValue {
   const value = useContext(CurrentProjectContext);

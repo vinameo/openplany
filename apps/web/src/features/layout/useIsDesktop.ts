@@ -4,5 +4,7 @@ import { useMediaQuery } from "@mantine/hooks";
 export const DESKTOP_MEDIA_QUERY = "(min-width: 48em)";
 
 export function useIsDesktop(): boolean {
-  return useMediaQuery(DESKTOP_MEDIA_QUERY, false, { getInitialValueInEffect: false });
+  return useMediaQuery(DESKTOP_MEDIA_QUERY, false, {
+    getInitialValueInEffect: false,
+  });
 }

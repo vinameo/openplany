@@ -2,9 +2,15 @@ import { describe, expect, it, vi } from 'vitest';
 import { QueryFailedError, type DataSource } from 'typeorm';
 import { runTransactionWithRetry } from './transactionRetry.js';
 
-function makeQueryFailedError(code: string, constraint?: string): QueryFailedError {
+function makeQueryFailedError(
+  code: string,
+  constraint?: string,
+): QueryFailedError {
   const err = new QueryFailedError('SELECT 1', [], new Error('db error'));
-  (err as unknown as { driverError: unknown }).driverError = { code, constraint };
+  (err as unknown as { driverError: unknown }).driverError = {
+    code,
+    constraint,
+  };
   return err;
 }
 
@@ -63,11 +69,11 @@ describe('runTransactionWithRetry', () => {
     } as unknown as DataSource;
 
     const onRetry = vi.fn();
-    const result = await runTransactionWithRetry(
-      dataSource,
-      async () => 'ok',
-      { maxAttempts: 3, retryOnUnique: targetConstraint, onRetry },
-    );
+    const result = await runTransactionWithRetry(dataSource, async () => 'ok', {
+      maxAttempts: 3,
+      retryOnUnique: targetConstraint,
+      onRetry,
+    });
 
     expect(result).toBe('ok');
     expect(onRetry).toHaveBeenCalledTimes(1);
@@ -82,11 +88,11 @@ describe('runTransactionWithRetry', () => {
 
     const onRetry = vi.fn();
     await expect(
-      runTransactionWithRetry(
-        dataSource,
-        async () => 'ok',
-        { maxAttempts: 3, retryOnUnique: 'expected_constraint', onRetry },
-      ),
+      runTransactionWithRetry(dataSource, async () => 'ok', {
+        maxAttempts: 3,
+        retryOnUnique: 'expected_constraint',
+        onRetry,
+      }),
     ).rejects.toThrow(error);
 
     expect(onRetry).not.toHaveBeenCalled();
@@ -100,11 +106,10 @@ describe('runTransactionWithRetry', () => {
 
     const onRetry = vi.fn();
     await expect(
-      runTransactionWithRetry(
-        dataSource,
-        async () => 'ok',
-        { maxAttempts: 3, onRetry },
-      ),
+      runTransactionWithRetry(dataSource, async () => 'ok', {
+        maxAttempts: 3,
+        onRetry,
+      }),
     ).rejects.toThrow(deadlockError);
 
     expect(onRetry).toHaveBeenCalledTimes(2); // Retried after attempt 1 and attempt 2, failed on attempt 3

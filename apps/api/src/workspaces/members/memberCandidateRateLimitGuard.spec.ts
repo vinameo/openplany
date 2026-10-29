@@ -27,7 +27,11 @@ describe('MemberCandidateRateLimitGuard', () => {
       windowMs: 600_000,
     });
     const clock = new FakeClock(new Date('2026-10-10T12:00:00.000Z'));
-    const guard = new MemberCandidateRateLimitGuard(limiter, alertLimiter, clock);
+    const guard = new MemberCandidateRateLimitGuard(
+      limiter,
+      alertLimiter,
+      clock,
+    );
 
     for (let i = 0; i < 60; i++) {
       expect(guard.canActivate(makeCtx('user-1'))).toBe(true);
@@ -56,7 +60,11 @@ describe('MemberCandidateRateLimitGuard', () => {
       windowMs: 600_000,
     });
     const clock = new FakeClock();
-    const guard = new MemberCandidateRateLimitGuard(limiter, alertLimiter, clock);
+    const guard = new MemberCandidateRateLimitGuard(
+      limiter,
+      alertLimiter,
+      clock,
+    );
 
     const ctx = {
       switchToHttp: () => ({
@@ -84,9 +92,16 @@ describe('MemberCandidateRateLimitGuard', () => {
       windowMs: 600_000,
     });
     const clock = new FakeClock(new Date('2026-10-10T12:00:00.000Z'));
-    const guard = new MemberCandidateRateLimitGuard(limiter, alertLimiter, clock);
+    const guard = new MemberCandidateRateLimitGuard(
+      limiter,
+      alertLimiter,
+      clock,
+    );
 
-    const warnSpy = vi.spyOn((guard as unknown as { logger: { warn: (msg: string) => void } }).logger, 'warn');
+    const warnSpy = vi.spyOn(
+      (guard as unknown as { logger: { warn: (msg: string) => void } }).logger,
+      'warn',
+    );
 
     // 1st request succeeds
     expect(guard.canActivate(makeCtx('user-1'))).toBe(true);

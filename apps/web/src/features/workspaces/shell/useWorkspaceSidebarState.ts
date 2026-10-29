@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useLocalStorage } from "@mantine/hooks";
 import { useLocation } from "react-router";
 import { useIsDesktop } from "../../layout/useIsDesktop";
@@ -22,7 +29,8 @@ export function useWorkspaceSidebarState(): WorkspaceSidebarValue {
     key: SIDEBAR_COLLAPSED_STORAGE_KEY,
     defaultValue: undefined,
     getInitialValueInEffect: false,
-    deserialize: (raw) => (raw !== undefined ? parseSidebarCollapsed(raw) : undefined),
+    deserialize: (raw) =>
+      raw !== undefined ? parseSidebarCollapsed(raw) : undefined,
     serialize: (val) => serializeSidebarCollapsed(val === true),
   });
 
@@ -52,7 +60,10 @@ export function useWorkspaceSidebarState(): WorkspaceSidebarValue {
     const target = pendingFocus.current;
     if (target === null) return;
     pendingFocus.current = null;
-    (target === "expand" ? expandButtonRef : collapseButtonRef).current?.focus();
+    (target === "expand"
+      ? expandButtonRef
+      : collapseButtonRef
+    ).current?.focus();
   }, [collapsed]);
 
   const mode: WorkspaceSidebarMode = isDesktop ? "desktop" : "mobile";

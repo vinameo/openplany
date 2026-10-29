@@ -28,4 +28,3 @@ export class AddWorkspaceMemberJoinedAt1791604000000 implements MigrationInterfa
     );
   }
 }
-

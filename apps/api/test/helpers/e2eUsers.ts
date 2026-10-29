@@ -136,7 +136,8 @@ export async function signInCookie(
     .send({ email, password })
     .expect(200);
 
-  const cookies = response.headers['set-cookie'] as unknown as string[] | undefined;
+  const cookies = response.headers['set-cookie'] as unknown as
+    string[] | undefined;
   if (!cookies) {
     throw new Error('No set-cookie header returned');
   }
@@ -148,4 +149,3 @@ export async function signInCookie(
 
   return cookie.split(';')[0]!;
 }
-

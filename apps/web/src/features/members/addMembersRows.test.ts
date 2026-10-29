@@ -11,11 +11,7 @@ import {
   toAddMembersRequest,
   type AddMemberRow,
 } from "./addMembersRows";
-import {
-  PROJECT_ROLE_SCHEME,
-  highestRole,
-  closestRole,
-} from "./roleScheme";
+import { PROJECT_ROLE_SCHEME, highestRole, closestRole } from "./roleScheme";
 import {
   limitedToRoleMessage,
   roleRaisedHint,
@@ -436,4 +432,3 @@ describe("addMembersRows", () => {
     });
   });
 });
-

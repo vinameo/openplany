@@ -6,10 +6,7 @@ import {
 } from "react";
 import { Popover } from "@mantine/core";
 import { useTranslation } from "react-i18next";
-import {
-  PROJECT_COVER_KEYS,
-  type ProjectCoverKey,
-} from "@repo/contracts";
+import { PROJECT_COVER_KEYS, type ProjectCoverKey } from "@repo/contracts";
 import { IconCheck } from "@tabler/icons-react";
 import { useIsDesktop } from "../layout/useIsDesktop";
 import { PROJECT_COVERS } from "./projectCovers";

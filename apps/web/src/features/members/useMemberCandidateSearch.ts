@@ -1,12 +1,12 @@
-import { useDebouncedValue } from '@mantine/hooks';
-import { useQuery, type QueryKey } from '@tanstack/react-query';
-import { ApiRequestError } from '../../lib/apiClient';
+import { useDebouncedValue } from "@mantine/hooks";
+import { useQuery, type QueryKey } from "@tanstack/react-query";
+import { ApiRequestError } from "../../lib/apiClient";
 
 export type MemberCandidateState<C> =
-  | { status: 'too_short'; hint: string }
-  | { status: 'loading' }
-  | { status: 'ready'; candidates: C[] }
-  | { status: 'error'; message?: string; retryAfterSeconds?: number | null };
+  | { status: "too_short"; hint: string }
+  | { status: "loading" }
+  | { status: "ready"; candidates: C[] }
+  | { status: "error"; message?: string; retryAfterSeconds?: number | null };
 
 export interface MemberCandidateSearchOptions<C> {
   queryKey: (query: string) => QueryKey;
@@ -33,11 +33,11 @@ export function useMemberCandidateSearch<C>(
   });
 
   if (!ready) {
-    return { status: 'too_short', hint: opts.notReadyHint };
+    return { status: "too_short", hint: opts.notReadyHint };
   }
 
   if (debouncedQuery !== trimmed || query.isFetching || query.isLoading) {
-    return { status: 'loading' };
+    return { status: "loading" };
   }
 
   if (query.isError) {
@@ -45,23 +45,23 @@ export function useMemberCandidateSearch<C>(
     if (err instanceof ApiRequestError) {
       if (err.status === 429) {
         return {
-          status: 'error',
+          status: "error",
           retryAfterSeconds: err.retryAfterSeconds ?? 60,
         };
       }
       if (err.status === 400 && err.fields && err.fields.email) {
         return {
-          status: 'error',
+          status: "error",
           message: err.fields.email,
         };
       }
     }
-    return { status: 'error' };
+    return { status: "error" };
   }
 
   if (query.data) {
-    return { status: 'ready', candidates: query.data.candidates };
+    return { status: "ready", candidates: query.data.candidates };
   }
 
-  return { status: 'loading' };
+  return { status: "loading" };
 }

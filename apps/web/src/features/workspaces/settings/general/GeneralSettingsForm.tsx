@@ -18,14 +18,8 @@ interface GeneralSettingsFormProps {
 
 export function GeneralSettingsForm({ workspace }: GeneralSettingsFormProps) {
   const { t } = useTranslation();
-  const {
-    form,
-    hasChanges,
-    isSaving,
-    submitError,
-    handleSubmit,
-    canEdit,
-  } = useGeneralSettingsForm(workspace);
+  const { form, hasChanges, isSaving, submitError, handleSubmit, canEdit } =
+    useGeneralSettingsForm(workspace);
 
   const nameLength = form.values.name ? form.values.name.length : 0;
   const remaining = WORKSPACE_NAME_MAX - nameLength;
@@ -104,4 +98,3 @@ export function GeneralSettingsForm({ workspace }: GeneralSettingsFormProps) {
     </form>
   );
 }
-

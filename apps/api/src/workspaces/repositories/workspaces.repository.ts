@@ -80,4 +80,3 @@ export abstract class WorkspacesRepository {
     now: Date,
   ): Promise<{ updatedAt: Date } | null>;
 }
-

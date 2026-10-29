@@ -106,11 +106,9 @@ export class WorkspacesService {
       }
 
       if (result.status === 'user_inactive') {
-        throw new ApiException(
-          HttpStatus.UNAUTHORIZED,
-          'UNAUTHENTICATED',
-          { key: 'errors:http.unauthenticated' },
-        );
+        throw new ApiException(HttpStatus.UNAUTHORIZED, 'UNAUTHENTICATED', {
+          key: 'errors:http.unauthenticated',
+        });
       }
 
       // Security & privacy: do not log workspace name or slug
@@ -154,7 +152,10 @@ export class WorkspacesService {
     workspaceId: string,
   ): Promise<void> {
     try {
-      await this.workspacesRepository.rememberLastWorkspace(userId, workspaceId);
+      await this.workspacesRepository.rememberLastWorkspace(
+        userId,
+        workspaceId,
+      );
     } catch (err: unknown) {
       this.logger.warn(
         `workspace.remember_last_failed userId=${userId} workspaceId=${workspaceId} error=${err instanceof Error ? err.message : String(err)}`,
@@ -170,15 +171,14 @@ export class WorkspacesService {
   ): Promise<WorkspaceResponse> {
     const requested: WorkspaceChanges = {};
     if (dto.name !== undefined) requested.name = dto.name;
-    if (dto.organizationSize !== undefined) requested.organizationSize = dto.organizationSize;
+    if (dto.organizationSize !== undefined)
+      requested.organizationSize = dto.organizationSize;
     if (dto.timezone !== undefined) requested.timezone = dto.timezone;
 
     if (Object.keys(requested).length === 0) {
-      throw new ApiException(
-        HttpStatus.BAD_REQUEST,
-        'VALIDATION_ERROR',
-        { key: 'errors:nothingToUpdate' },
-      );
+      throw new ApiException(HttpStatus.BAD_REQUEST, 'VALIDATION_ERROR', {
+        key: 'errors:nothingToUpdate',
+      });
     }
 
     const changes = pickChangedFields(
@@ -219,11 +219,9 @@ export class WorkspacesService {
     );
 
     if (saved === null) {
-      throw new ApiException(
-        HttpStatus.NOT_FOUND,
-        'NOT_FOUND',
-        { key: 'workspace:errors.notFound' },
-      );
+      throw new ApiException(HttpStatus.NOT_FOUND, 'NOT_FOUND', {
+        key: 'workspace:errors.notFound',
+      });
     }
 
     const updated: MemberWorkspace = {

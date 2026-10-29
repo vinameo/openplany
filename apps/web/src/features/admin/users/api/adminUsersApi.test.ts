@@ -166,7 +166,8 @@ describe("adminUsersApi", () => {
   describe("changePassword", () => {
     it("puts to /api/admin/users/:userId/password with json body and returns 204 void", async () => {
       const fetchMock = mockFetch({
-        "PUT /api/admin/users/u-1/password": () => new Response(null, { status: 204 }),
+        "PUT /api/admin/users/u-1/password": () =>
+          new Response(null, { status: 204 }),
       });
 
       const body = { password: "NewValidPassword123!" };

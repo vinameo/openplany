@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import { type ReactNode } from "react";
 import {
   Badge,
   CloseButton,
@@ -8,13 +8,13 @@ import {
   Loader,
   Text,
   useCombobox,
-} from '@mantine/core';
-import { useTranslation } from 'react-i18next';
-import { MemberAvatar } from './MemberAvatar';
-import { memberDisplayName } from './memberListView';
-import { tooManySearchesMessage } from './membersMessages';
-import type { MemberCandidateState } from './useMemberCandidateSearch';
-import classes from './MemberCandidateCombobox.module.css';
+} from "@mantine/core";
+import { useTranslation } from "react-i18next";
+import { MemberAvatar } from "./MemberAvatar";
+import { memberDisplayName } from "./memberListView";
+import { tooManySearchesMessage } from "./membersMessages";
+import type { MemberCandidateState } from "./useMemberCandidateSearch";
+import classes from "./MemberCandidateCombobox.module.css";
 
 export interface CandidateBase {
   userId: string;
@@ -54,7 +54,7 @@ export function MemberCandidateCombobox<C extends CandidateBase>({
   error,
   errorId,
   disabled = false,
-  placeholder = 'name@company.com',
+  placeholder = "name@company.com",
 }: MemberCandidateComboboxProps<C>) {
   const { t } = useTranslation();
   const combobox = useCombobox({
@@ -63,23 +63,23 @@ export function MemberCandidateCombobox<C extends CandidateBase>({
 
   const handleClear = () => {
     onChange(null);
-    onSearchChange('');
+    onSearchChange("");
   };
 
   const handleSelect = (userId: string) => {
-    if (state.status === 'ready') {
+    if (state.status === "ready") {
       const selected = state.candidates.find((c) => c.userId === userId);
       if (selected) {
         onChange(selected);
-        onSearchChange('');
+        onSearchChange("");
         combobox.closeDropdown();
       }
     }
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') {
-      if (state.status === 'ready') {
+    if (event.key === "Enter") {
+      if (state.status === "ready") {
         const trimmed = search.trim().toLowerCase();
         const exactMatch = state.candidates.find(
           (c) =>
@@ -90,7 +90,7 @@ export function MemberCandidateCombobox<C extends CandidateBase>({
         if (exactMatch) {
           event.preventDefault();
           onChange(exactMatch);
-          onSearchChange('');
+          onSearchChange("");
           combobox.closeDropdown();
         }
       }
@@ -99,8 +99,8 @@ export function MemberCandidateCombobox<C extends CandidateBase>({
 
   if (value) {
     const name = memberDisplayName({
-      firstName: value.firstName ?? '',
-      lastName: value.lastName ?? '',
+      firstName: value.firstName ?? "",
+      lastName: value.lastName ?? "",
       displayName: value.displayName,
     });
 
@@ -129,11 +129,7 @@ export function MemberCandidateCombobox<C extends CandidateBase>({
           align="center"
           className={classes.selectedValue}
         >
-          <MemberAvatar
-            avatarUrl={value.avatarUrl}
-            name={name}
-            size={22}
-          />
+          <MemberAvatar avatarUrl={value.avatarUrl} name={name} size={22} />
           <Group gap={6} wrap="nowrap">
             {name && <Text size="sm">{name}</Text>}
             <Text size="xs" c="dimmed">
@@ -146,7 +142,7 @@ export function MemberCandidateCombobox<C extends CandidateBase>({
   }
 
   const renderDropdownContent = () => {
-    if (state.status === 'too_short') {
+    if (state.status === "too_short") {
       return (
         <Combobox.Empty>
           {hint ?? state.hint ?? t("members:errors.candidateQueryTooShort")}
@@ -154,7 +150,7 @@ export function MemberCandidateCombobox<C extends CandidateBase>({
       );
     }
 
-    if (state.status === 'loading') {
+    if (state.status === "loading") {
       return (
         <Combobox.Empty>
           <Loader size="xs" />
@@ -162,7 +158,7 @@ export function MemberCandidateCombobox<C extends CandidateBase>({
       );
     }
 
-    if (state.status === 'error') {
+    if (state.status === "error") {
       if (state.retryAfterSeconds) {
         return (
           <Combobox.Empty>
@@ -173,14 +169,18 @@ export function MemberCandidateCombobox<C extends CandidateBase>({
       if (state.message) {
         return <Combobox.Empty>{state.message}</Combobox.Empty>;
       }
-      return <Combobox.Empty>{t("members:candidate.couldntSearch")}</Combobox.Empty>;
+      return (
+        <Combobox.Empty>{t("members:candidate.couldntSearch")}</Combobox.Empty>
+      );
     }
 
-    if (state.status === 'ready') {
+    if (state.status === "ready") {
       if (state.candidates.length === 0) {
         return (
           <Combobox.Empty>
-            {emptyContent ?? <Text size="sm">{t("members:candidate.noMembersFound")}</Text>}
+            {emptyContent ?? (
+              <Text size="sm">{t("members:candidate.noMembersFound")}</Text>
+            )}
           </Combobox.Empty>
         );
       }
@@ -190,8 +190,8 @@ export function MemberCandidateCombobox<C extends CandidateBase>({
         const isAlreadySelected = selectedUserIds.includes(c.userId);
         const isOptionDisabled = Boolean(customDisabled) || isAlreadySelected;
         const name = memberDisplayName({
-          firstName: c.firstName ?? '',
-          lastName: c.lastName ?? '',
+          firstName: c.firstName ?? "",
+          lastName: c.lastName ?? "",
           displayName: c.displayName,
         });
 
@@ -203,11 +203,7 @@ export function MemberCandidateCombobox<C extends CandidateBase>({
           >
             <Group justify="space-between" wrap="nowrap" w="100%">
               <Group gap="xs" wrap="nowrap">
-                <MemberAvatar
-                  avatarUrl={c.avatarUrl}
-                  name={name}
-                  size={24}
-                />
+                <MemberAvatar avatarUrl={c.avatarUrl} name={name} size={24} />
                 <div>
                   {name && <Text size="sm">{name}</Text>}
                   <Text size="xs" c="dimmed">

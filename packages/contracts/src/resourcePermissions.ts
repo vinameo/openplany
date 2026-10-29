@@ -1,7 +1,7 @@
 import type {
   ProjectPermission,
   ProjectOwnershipBase,
-} from './projectPermissions.js';
+} from "./projectPermissions.js";
 
 export function canOnResource(
   granted: readonly ProjectPermission[],

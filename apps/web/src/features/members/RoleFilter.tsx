@@ -1,16 +1,9 @@
-import { useMemo } from 'react';
-import {
-  Button,
-  Checkbox,
-  Group,
-  Popover,
-  Stack,
-  Text,
-} from '@mantine/core';
-import { useTranslation } from 'react-i18next';
-import { formatNumber } from '../../i18n';
-import { FilterIcon } from '../workspaces/icons';
-import type { RoleScheme } from './roleScheme';
+import { useMemo } from "react";
+import { Button, Checkbox, Group, Popover, Stack, Text } from "@mantine/core";
+import { useTranslation } from "react-i18next";
+import { formatNumber } from "../../i18n";
+import { FilterIcon } from "../workspaces/icons";
+import type { RoleScheme } from "./roleScheme";
 
 export interface RoleFilterProps<R extends string> {
   scheme: RoleScheme<R>;
@@ -36,12 +29,7 @@ export function RoleFilter<R extends string>({
   );
 
   return (
-    <Popover
-      position="bottom-start"
-      withArrow
-      shadow="md"
-      withinPortal={false}
-    >
+    <Popover position="bottom-start" withArrow shadow="md" withinPortal={false}>
       <Popover.Target>
         <Button
           variant="default"

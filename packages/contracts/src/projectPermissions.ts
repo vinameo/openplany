@@ -1,15 +1,15 @@
-import type { ProjectRole } from './projectRoles.js';
+import type { ProjectRole } from "./projectRoles.js";
 
 export type ProjectPermission = string;
 
 export const ENFORCED_PROJECT_PERMISSIONS = [
-  'project.members.view',
-  'project.members.manage',
-  'project.settings.view',
-  'project.settings.update',
-  'project.states.view',
-  'project.states.manage',
-  'project.workitems.create',
+  "project.members.view",
+  "project.members.manage",
+  "project.settings.view",
+  "project.settings.update",
+  "project.states.view",
+  "project.states.manage",
+  "project.workitems.create",
 ] as const satisfies readonly ProjectPermission[];
 export type EnforcedProjectPermission =
   (typeof ENFORCED_PROJECT_PERMISSIONS)[number];
@@ -24,7 +24,7 @@ export function parseProjectPermissions(
   const seen = new Set<string>();
   const result: ProjectPermission[] = [];
   for (const k of keys) {
-    if (typeof k === 'string' && k.startsWith('project.') && !seen.has(k)) {
+    if (typeof k === "string" && k.startsWith("project.") && !seen.has(k)) {
       seen.add(k);
       result.push(k);
     }
@@ -40,12 +40,12 @@ export function enforcedProjectPermissions(
 }
 
 export type ProjectOwnershipBase =
-  | 'project.workitems.delete'
-  | 'project.comments.update'
-  | 'project.comments.delete'
-  | 'project.cycles.delete'
-  | 'project.modules.delete'
-  | 'project.views.update'
-  | 'project.views.delete'
-  | 'project.pages.update'
-  | 'project.pages.delete';
+  | "project.workitems.delete"
+  | "project.comments.update"
+  | "project.comments.delete"
+  | "project.cycles.delete"
+  | "project.modules.delete"
+  | "project.views.update"
+  | "project.views.delete"
+  | "project.pages.update"
+  | "project.pages.delete";

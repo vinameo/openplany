@@ -292,4 +292,3 @@ export class CreateRolesAndPermissions1791550300000 implements MigrationInterfac
     `);
   }
 }
-

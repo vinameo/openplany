@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  adjustIconColorForContrast,
-  contrastRatio,
-} from "./iconColor";
+import { adjustIconColorForContrast, contrastRatio } from "./iconColor";
 
 describe("iconColor", () => {
   it("computes standard contrast ratio of 21 for pure black and pure white", () => {

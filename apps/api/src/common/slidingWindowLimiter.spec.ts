@@ -136,13 +136,21 @@ describe('InMemorySlidingWindowLimiter', () => {
 
       expect(limiter.hit('user-1', t0).allowed).toBe(true);
       expect(limiter.hit('user-1', t1).allowed).toBe(true);
-      expect(limiter.peek('user-1', new Date(t0.getTime() + 20_000)).allowed).toBe(false);
+      expect(
+        limiter.peek('user-1', new Date(t0.getTime() + 20_000)).allowed,
+      ).toBe(false);
 
       // Release t1
       limiter.release('user-1', t1);
-      expect(limiter.peek('user-1', new Date(t0.getTime() + 20_000)).allowed).toBe(true);
-      expect(limiter.hit('user-1', new Date(t0.getTime() + 20_000)).allowed).toBe(true);
-      expect(limiter.peek('user-1', new Date(t0.getTime() + 25_000)).allowed).toBe(false);
+      expect(
+        limiter.peek('user-1', new Date(t0.getTime() + 20_000)).allowed,
+      ).toBe(true);
+      expect(
+        limiter.hit('user-1', new Date(t0.getTime() + 20_000)).allowed,
+      ).toBe(true);
+      expect(
+        limiter.peek('user-1', new Date(t0.getTime() + 25_000)).allowed,
+      ).toBe(false);
     });
 
     it('does nothing if timestamp or key does not match', () => {

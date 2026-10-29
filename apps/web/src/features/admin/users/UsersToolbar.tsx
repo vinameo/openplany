@@ -1,17 +1,20 @@
-import { useEffect, useState } from 'react';
-import { Button, TextInput } from '@mantine/core';
-import { useTranslation } from 'react-i18next';
-import type { AdminUserStatusFilter } from '@repo/contracts';
-import { PlusIcon, SearchIcon } from '../../workspaces/icons';
-import { UsersFilter } from './UsersFilter';
-import classes from './UsersToolbar.module.css';
+import { useEffect, useState } from "react";
+import { Button, TextInput } from "@mantine/core";
+import { useTranslation } from "react-i18next";
+import type { AdminUserStatusFilter } from "@repo/contracts";
+import { PlusIcon, SearchIcon } from "../../workspaces/icons";
+import { UsersFilter } from "./UsersFilter";
+import classes from "./UsersToolbar.module.css";
 
 export interface UsersToolbarProps {
   search: string;
   onSearchChange: (value: string) => void;
   status: AdminUserStatusFilter;
-  admin?: 'only';
-  onFilterChange: (filters: { status: AdminUserStatusFilter; admin?: 'only' }) => void;
+  admin?: "only";
+  onFilterChange: (filters: {
+    status: AdminUserStatusFilter;
+    admin?: "only";
+  }) => void;
   onClearFilters: () => void;
   onAddUser: () => void;
 }
@@ -48,8 +51,8 @@ export function UsersToolbar({
         <TextInput
           value={localSearch}
           onChange={(e) => setLocalSearch(e.currentTarget.value)}
-          placeholder={t('admin:users.page.searchPlaceholder')}
-          aria-label={t('admin:users.page.searchAriaLabel')}
+          placeholder={t("admin:users.page.searchPlaceholder")}
+          aria-label={t("admin:users.page.searchAriaLabel")}
           leftSection={<SearchIcon width={16} height={16} />}
           className={classes.searchInput}
         />
@@ -67,7 +70,7 @@ export function UsersToolbar({
           leftSection={<PlusIcon width={16} height={16} />}
           onClick={onAddUser}
         >
-          {t('admin:users.page.addUser')}
+          {t("admin:users.page.addUser")}
         </Button>
       </div>
     </div>

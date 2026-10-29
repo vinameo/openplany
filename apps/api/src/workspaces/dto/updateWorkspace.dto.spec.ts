@@ -27,9 +27,9 @@ describe('UpdateWorkspaceDto', () => {
   it('fails when name is whitespace only or null', async () => {
     const errorsWhitespace = await validateDto({ name: '   ' });
     expect(errorsWhitespace).toHaveLength(1);
-    expect(englishConstraintMessage(errorsWhitespace[0]?.constraints?.minLength)).toBe(
-      'Enter a workspace name',
-    );
+    expect(
+      englishConstraintMessage(errorsWhitespace[0]?.constraints?.minLength),
+    ).toBe('Enter a workspace name');
 
     const errorsNull = await validateDto({ name: null });
     expect(errorsNull).toHaveLength(1);

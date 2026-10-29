@@ -13,4 +13,3 @@ export function safeUrlTransform(url: string): string {
   }
   return "";
 }
-

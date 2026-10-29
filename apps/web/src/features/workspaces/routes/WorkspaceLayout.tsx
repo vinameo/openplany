@@ -34,7 +34,9 @@ export function WorkspaceLayout() {
     workspace ? "ready" : "loading",
   );
 
-  const problem = workspaceSlug ? workspaceSlugProblem(workspaceSlug) : "INVALID";
+  const problem = workspaceSlug
+    ? workspaceSlugProblem(workspaceSlug)
+    : "INVALID";
 
   useEffect(() => {
     if (!workspaceSlug || problem === "INVALID") {
@@ -43,7 +45,9 @@ export function WorkspaceLayout() {
 
     const currentCached =
       wsStateRef.current.status === "ready"
-        ? wsStateRef.current.workspaces.find((w) => w.slug === workspaceSlug) ?? null
+        ? (wsStateRef.current.workspaces.find(
+            (w) => w.slug === workspaceSlug,
+          ) ?? null)
         : null;
 
     setWorkspace(currentCached);

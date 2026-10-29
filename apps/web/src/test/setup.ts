@@ -48,4 +48,3 @@ class ResizeObserverStub {
 window.ResizeObserver = ResizeObserverStub;
 window.HTMLElement.prototype.scrollIntoView = vi.fn();
 window.HTMLElement.prototype.scrollTo = vi.fn();
-

@@ -30,10 +30,8 @@ export class OriginGuard implements CanActivate {
     const origin = request.header('Origin');
     if (origin !== undefined && this.allowed.has(origin)) return true;
 
-    throw new ApiException(
-      HttpStatus.FORBIDDEN,
-      'ORIGIN_NOT_ALLOWED',
-      { key: 'errors:originNotAllowed' },
-    );
+    throw new ApiException(HttpStatus.FORBIDDEN, 'ORIGIN_NOT_ALLOWED', {
+      key: 'errors:originNotAllowed',
+    });
   }
 }

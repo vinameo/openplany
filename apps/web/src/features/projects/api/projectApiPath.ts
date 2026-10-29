@@ -5,4 +5,3 @@
 export function projectApiPath(slug: string, identifier: string): string {
   return `/api/workspaces/${encodeURIComponent(slug)}/projects/${encodeURIComponent(identifier)}`;
 }
-

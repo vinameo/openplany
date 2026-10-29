@@ -27,9 +27,6 @@ export function ProjectSettingsTitle({ title }: { title?: string }) {
     return null;
   }
   return (
-    <ProjectSettingsTitleContent
-      projectName={project.name}
-      title={title}
-    />
+    <ProjectSettingsTitleContent projectName={project.name} title={title} />
   );
 }

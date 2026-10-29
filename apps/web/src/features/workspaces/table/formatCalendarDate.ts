@@ -23,4 +23,3 @@ export function formatCalendarDate(
   }
   return formatter.format(new Date(iso));
 }
-

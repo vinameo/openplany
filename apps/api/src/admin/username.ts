@@ -7,4 +7,3 @@ import { randomUUID } from 'node:crypto';
 export function generateUsername(): string {
   return randomUUID().replaceAll('-', '');
 }
-

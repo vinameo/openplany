@@ -1,15 +1,15 @@
-import type { QueryClient } from '@tanstack/react-query';
-import { keepPreviousData, queryOptions } from '@tanstack/react-query';
-import type { AdminUserListResponse, AdminUserResponse } from '@repo/contracts';
-import type { UsersListParams } from '../usersListParams';
-import { adminUsersApi } from './adminUsersApi';
+import type { QueryClient } from "@tanstack/react-query";
+import { keepPreviousData, queryOptions } from "@tanstack/react-query";
+import type { AdminUserListResponse, AdminUserResponse } from "@repo/contracts";
+import type { UsersListParams } from "../usersListParams";
+import { adminUsersApi } from "./adminUsersApi";
 
 export const adminUserKeys = {
-  all: ['admin', 'users'] as const,
-  lists: () => [...adminUserKeys.all, 'list'] as const,
+  all: ["admin", "users"] as const,
+  lists: () => [...adminUserKeys.all, "list"] as const,
   list: (params: UsersListParams) =>
     [...adminUserKeys.lists(), params] as const,
-  detail: (id: string) => [...adminUserKeys.all, 'detail', id] as const,
+  detail: (id: string) => [...adminUserKeys.all, "detail", id] as const,
 };
 
 export function adminUsersListQuery(params: UsersListParams) {

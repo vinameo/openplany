@@ -1,15 +1,15 @@
-import type { MessageRef } from './catalog/index.js';
+import type { MessageRef } from "./catalog/index.js";
 import {
   NO_HIDDEN_CHARS,
   NO_URL,
   WORKSPACE_NAME_MAX,
   type WorkspaceResponse,
-} from './workspace.js';
+} from "./workspace.js";
 
 export const EDITABLE_WORKSPACE_FIELDS = [
-  'name',
-  'organizationSize',
-  'timezone',
+  "name",
+  "organizationSize",
+  "timezone",
 ] as const;
 export type EditableWorkspaceField = (typeof EDITABLE_WORKSPACE_FIELDS)[number];
 export type UpdateWorkspaceRequest = Partial<
@@ -18,25 +18,25 @@ export type UpdateWorkspaceRequest = Partial<
 
 /** NFC + trim: the same cleanup on web and API (RQ 5.2). */
 export function normalizeWorkspaceName(name: string): string {
-  return name.normalize('NFC').trim();
+  return name.normalize("NFC").trim();
 }
 
 /** Field-level messages shared by DTOs (create + update) and web forms. */
 export const WORKSPACE_NAME_MESSAGES = {
-  required: 'Enter a workspace name',
+  required: "Enter a workspace name",
   tooLong: `Workspace name must be ${WORKSPACE_NAME_MAX} characters or fewer`,
   hiddenChars: "Contains characters that aren't allowed",
-  url: 'Workspace name cannot contain a URL',
+  url: "Workspace name cannot contain a URL",
 } as const;
 
 export const WORKSPACE_NAME_MESSAGE_REFS = {
-  required: { key: 'workspace:errors.nameRequired' },
+  required: { key: "workspace:errors.nameRequired" },
   tooLong: {
-    key: 'workspace:errors.nameTooLong',
+    key: "workspace:errors.nameTooLong",
     params: { max: WORKSPACE_NAME_MAX },
   },
-  hiddenChars: { key: 'workspace:errors.nameHiddenChars' },
-  url: { key: 'workspace:errors.nameUrl' },
+  hiddenChars: { key: "workspace:errors.nameHiddenChars" },
+  url: { key: "workspace:errors.nameUrl" },
 } as const satisfies Record<keyof typeof WORKSPACE_NAME_MESSAGES, MessageRef>;
 
 /** The first problem with a (normalized) name, or null. Web uses it; API uses the decorators + same messages. */
@@ -74,4 +74,3 @@ export function pickChangedFields<T extends object, K extends keyof T>(
   }
   return changes;
 }
-

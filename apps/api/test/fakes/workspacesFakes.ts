@@ -97,9 +97,10 @@ export class FakeWorkspacesRepository extends WorkspacesRepository {
     return Promise.resolve({ status: 'created', workspace: created });
   }
 
-  listForMember(
-    _userId: string,
-  ): Promise<{ workspaces: MemberWorkspace[]; lastWorkspaceId: string | null }> {
+  listForMember(_userId: string): Promise<{
+    workspaces: MemberWorkspace[];
+    lastWorkspaceId: string | null;
+  }> {
     return Promise.resolve({
       workspaces: this.memberWorkspaces,
       lastWorkspaceId: this.lastWorkspaceId,
@@ -114,10 +115,7 @@ export class FakeWorkspacesRepository extends WorkspacesRepository {
     return Promise.resolve(ws ?? null);
   }
 
-  rememberLastWorkspace(
-    userId: string,
-    workspaceId: string,
-  ): Promise<void> {
+  rememberLastWorkspace(userId: string, workspaceId: string): Promise<void> {
     this.rememberedWorkspaces.push({ userId, workspaceId });
     this.lastWorkspaceId = workspaceId;
     return Promise.resolve();
@@ -233,4 +231,3 @@ export class FakeWorkspaceEvents extends WorkspaceEvents {
     return Promise.resolve();
   }
 }
-

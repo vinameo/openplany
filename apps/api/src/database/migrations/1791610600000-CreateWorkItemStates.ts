@@ -20,7 +20,9 @@ export class CreateWorkItemStates1791610600000 implements MigrationInterface {
       `SELECT 1 FROM information_schema.columns WHERE table_name = 'work_items' AND column_name = 'state_id'`,
     );
     if (existingCol.length > 0) {
-      throw new Error('Cannot create work_items.state_id: column already exists.');
+      throw new Error(
+        'Cannot create work_items.state_id: column already exists.',
+      );
     }
 
     const existingPerm = await queryRunner.query(

@@ -36,9 +36,7 @@ export class WorkItemTitleValidator implements ValidatorConstraintInterface {
 }
 
 @ValidatorConstraint({ name: 'workItemDescription', async: false })
-export class WorkItemDescriptionValidator
-  implements ValidatorConstraintInterface
-{
+export class WorkItemDescriptionValidator implements ValidatorConstraintInterface {
   validate(value: unknown): boolean {
     if (typeof value !== 'string') return true;
     return workItemDescriptionProblem(value) === null;
@@ -93,4 +91,3 @@ export class CreateWorkItemDto implements CreateWorkItemRequest {
   })
   stateId?: string;
 }
-

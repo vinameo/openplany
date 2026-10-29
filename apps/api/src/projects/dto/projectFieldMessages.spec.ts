@@ -18,7 +18,10 @@ describe('Project field messages and validation consistency (API B6, B11.1)', ()
     payload: unknown,
   ): Promise<Record<string, string>> {
     try {
-      await pipe.transform(payload, { type: 'body', metatype: CreateProjectDto });
+      await pipe.transform(payload, {
+        type: 'body',
+        metatype: CreateProjectDto,
+      });
       return {};
     } catch (err) {
       if (err instanceof ApiException) {
@@ -32,7 +35,10 @@ describe('Project field messages and validation consistency (API B6, B11.1)', ()
     payload: unknown,
   ): Promise<Record<string, string>> {
     try {
-      await pipe.transform(payload, { type: 'body', metatype: UpdateProjectDto });
+      await pipe.transform(payload, {
+        type: 'body',
+        metatype: UpdateProjectDto,
+      });
       return {};
     } catch (err) {
       if (err instanceof ApiException) {
@@ -78,7 +84,11 @@ describe('Project field messages and validation consistency (API B6, B11.1)', ()
     });
 
     it('row 5: strings with hidden chars give hiddenChars', async () => {
-      for (const name of ['Project \u0000', 'Project \u202E', 'Project \u200B']) {
+      for (const name of [
+        'Project \u0000',
+        'Project \u202E',
+        'Project \u200B',
+      ]) {
         const createFields = await validateCreate({ ...validBase, name });
         expect(createFields.name).toBe(PROJECT_FIELD_MESSAGES.hiddenChars);
 
@@ -112,11 +122,18 @@ describe('Project field messages and validation consistency (API B6, B11.1)', ()
 
     it('row 11: description with control chars (NUL, bell) gives hiddenChars', async () => {
       for (const description of ['Desc \u0000', 'Desc \u0007']) {
-        const createFields = await validateCreate({ ...validBase, description });
-        expect(createFields.description).toBe(PROJECT_FIELD_MESSAGES.hiddenChars);
+        const createFields = await validateCreate({
+          ...validBase,
+          description,
+        });
+        expect(createFields.description).toBe(
+          PROJECT_FIELD_MESSAGES.hiddenChars,
+        );
 
         const updateFields = await validateUpdate({ description });
-        expect(updateFields.description).toBe(PROJECT_FIELD_MESSAGES.hiddenChars);
+        expect(updateFields.description).toBe(
+          PROJECT_FIELD_MESSAGES.hiddenChars,
+        );
 
         expect(projectDescriptionProblem(description)).toEqual(
           PROJECT_FIELD_MESSAGE_REFS.hiddenChars,
@@ -138,7 +155,10 @@ describe('Project field messages and validation consistency (API B6, B11.1)', ()
 
     it('row 13: invalid description types give descriptionTooLong', async () => {
       for (const description of [null, 5]) {
-        const createFields = await validateCreate({ ...validBase, description });
+        const createFields = await validateCreate({
+          ...validBase,
+          description,
+        });
         expect(createFields.description).toBe(
           PROJECT_FIELD_MESSAGES.descriptionTooLong,
         );
@@ -165,12 +185,16 @@ describe('Project field messages and validation consistency (API B6, B11.1)', ()
         ...validBase,
         icon: { name: 'nope', color: '#FFFFFF' },
       });
-      expect(createFields['icon.name']).toBe(PROJECT_FIELD_MESSAGES.iconRequired);
+      expect(createFields['icon.name']).toBe(
+        PROJECT_FIELD_MESSAGES.iconRequired,
+      );
 
       const updateFields = await validateUpdate({
         icon: { name: 'nope', color: '#FFFFFF' },
       });
-      expect(updateFields['icon.name']).toBe(PROJECT_FIELD_MESSAGES.iconRequired);
+      expect(updateFields['icon.name']).toBe(
+        PROJECT_FIELD_MESSAGES.iconRequired,
+      );
     });
 
     it('row 16: invalid icon color gives iconColorInvalid', async () => {
@@ -208,10 +232,14 @@ describe('Project field messages and validation consistency (API B6, B11.1)', ()
     it('row 18: invalid coverKey gives coverRequired', async () => {
       for (const coverKey of ['cover-99', null]) {
         const createFields = await validateCreate({ ...validBase, coverKey });
-        expect(createFields.coverKey).toBe(PROJECT_FIELD_MESSAGES.coverRequired);
+        expect(createFields.coverKey).toBe(
+          PROJECT_FIELD_MESSAGES.coverRequired,
+        );
 
         const updateFields = await validateUpdate({ coverKey });
-        expect(updateFields.coverKey).toBe(PROJECT_FIELD_MESSAGES.coverRequired);
+        expect(updateFields.coverKey).toBe(
+          PROJECT_FIELD_MESSAGES.coverRequired,
+        );
       }
     });
 

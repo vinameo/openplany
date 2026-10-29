@@ -1,10 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import {
-  DataSource,
-  In,
-  IsNull,
-  type EntityManager,
-} from 'typeorm';
+import { DataSource, In, IsNull, type EntityManager } from 'typeorm';
 import {
   escapeLikePattern,
   parseWorkspacePermissions,
@@ -44,7 +39,10 @@ import { recordProjectRoleChanges } from '../../projects/repositories/projectRol
 import { Workspace } from '../entities/workspace.entity.js';
 import { WorkspaceMember } from '../entities/workspaceMember.entity.js';
 import { recordWorkspaceRoleChanges } from '../repositories/workspaceRoleHistory.js';
-import { assertWorkspaceKeepsAdmin, LastAdminError } from '../workspaceAdminGuard.js';
+import {
+  assertWorkspaceKeepsAdmin,
+  LastAdminError,
+} from '../workspaceAdminGuard.js';
 import {
   WorkspaceMembersRepository,
   type MemberCandidateRow,
@@ -416,7 +414,10 @@ export class TypeOrmWorkspaceMembersRepository extends WorkspaceMembersRepositor
         }
 
         // 8. Last admin check
-        if (isWorkspaceAdminRole(target.role) && !isWorkspaceAdminRole(toRole)) {
+        if (
+          isWorkspaceAdminRole(target.role) &&
+          !isWorkspaceAdminRole(toRole)
+        ) {
           try {
             await assertWorkspaceKeepsAdmin(manager, workspaceId, {
               excludeMemberId: targetUserId,

@@ -28,11 +28,32 @@ interface ProjectNavItem {
 }
 
 const PROJECT_NAV_ITEMS: readonly ProjectNavItem[] = [
-  { key: "home", labelKey: "workspace:shell.home", icon: <HomeIcon width={16} height={16} />, subPath: "" },
-  { key: "workItems", labelKey: "project:sidebar.workItems", icon: <IconStack2 size={16} stroke={1.75} /> },
-  { key: "milestones", labelKey: "project:sidebar.milestones", icon: <IconFlag size={16} stroke={1.75} /> },
-  { key: "pages", labelKey: "project:sidebar.pages", icon: <IconFileText size={16} stroke={1.75} /> },
-  { key: "settings", labelKey: "common:actions.settings", icon: <SettingsIcon width={16} height={16} /> },
+  {
+    key: "home",
+    labelKey: "workspace:shell.home",
+    icon: <HomeIcon width={16} height={16} />,
+    subPath: "",
+  },
+  {
+    key: "workItems",
+    labelKey: "project:sidebar.workItems",
+    icon: <IconStack2 size={16} stroke={1.75} />,
+  },
+  {
+    key: "milestones",
+    labelKey: "project:sidebar.milestones",
+    icon: <IconFlag size={16} stroke={1.75} />,
+  },
+  {
+    key: "pages",
+    labelKey: "project:sidebar.pages",
+    icon: <IconFileText size={16} stroke={1.75} />,
+  },
+  {
+    key: "settings",
+    labelKey: "common:actions.settings",
+    icon: <SettingsIcon width={16} height={16} />,
+  },
 ];
 
 export function ProjectSidebarContent() {
@@ -78,11 +99,7 @@ export function ProjectSidebarContent() {
         </Group>
       </div>
 
-      <ScrollArea
-        type="hover"
-        scrollbarSize={6}
-        className={classes.scrollArea}
-      >
+      <ScrollArea type="hover" scrollbarSize={6} className={classes.scrollArea}>
         <div className={classes.scrollContent}>
           <ProjectNewWorkItemButton />
 
@@ -116,4 +133,3 @@ export function ProjectSidebarContent() {
     </>
   );
 }
-

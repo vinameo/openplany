@@ -34,7 +34,9 @@ describe("ComingSoonHint", () => {
       await user.tab();
       expect(button).toHaveFocus();
 
-      expect(await screen.findByRole("tooltip", { name: "Coming soon" })).toBeInTheDocument();
+      expect(
+        await screen.findByRole("tooltip", { name: "Coming soon" }),
+      ).toBeInTheDocument();
     });
   });
 

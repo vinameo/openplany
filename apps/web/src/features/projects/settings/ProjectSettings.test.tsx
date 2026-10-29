@@ -1,4 +1,10 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AppUiProvider } from "@repo/ui";
 import {
@@ -48,7 +54,9 @@ const sampleProject: ProjectListItem = {
   ],
 };
 
-function makeProject(overrides: Partial<ProjectListItem> = {}): ProjectListItem {
+function makeProject(
+  overrides: Partial<ProjectListItem> = {},
+): ProjectListItem {
   return { ...sampleProject, ...overrides };
 }
 
@@ -67,7 +75,10 @@ function renderProjectSettingsApp({
   onPatchProject?: (body: unknown) => ProjectResponse | Response;
   onGetProject?: () => ProjectResponse | Response | Promise<Response>;
   onDeleteProject?: () => Response | Promise<Response>;
-  customRoutes?: Record<string, (init?: RequestInit) => Response | Promise<Response>>;
+  customRoutes?: Record<
+    string,
+    (init?: RequestInit) => Response | Promise<Response>
+  >;
 } = {}) {
   let currentProject = project;
   const currentWorkspace = workspace;
@@ -91,8 +102,7 @@ function renderProjectSettingsApp({
     },
     "PATCH /api/workspaces/the-firsts/projects/TFP11": (req) => {
       const body = req?.body;
-      const parsedBody =
-        typeof body === "string" ? JSON.parse(body) : body;
+      const parsedBody = typeof body === "string" ? JSON.parse(body) : body;
       if (onPatchProject) {
         const res = onPatchProject(parsedBody);
         if (res instanceof Response) return res;
@@ -153,7 +163,6 @@ describe("ProjectSettings", () => {
     });
     expect(headings.length).toBeGreaterThan(0);
 
-
     const backButtons = screen.getAllByRole("link", {
       name: "Back to project",
     });
@@ -202,7 +211,9 @@ describe("ProjectSettings", () => {
     });
 
     expect(
-      await screen.findByText("You don't have permission to change these settings."),
+      await screen.findByText(
+        "You don't have permission to change these settings.",
+      ),
     ).toBeInTheDocument();
 
     const nameInput = screen.getByRole("textbox", { name: /Project name/i });
@@ -310,7 +321,6 @@ describe("ProjectSettings", () => {
     });
   });
 
-
   it("AC-06 & AC-08 & AC-09: can edit project name and description, Project ID is read-only with tooltip, and saves successfully", async () => {
     const user = userEvent.setup();
     let patchedBody: unknown = null;
@@ -352,7 +362,6 @@ describe("ProjectSettings", () => {
     // Submit button disabled initially (no changes)
     expect(submitBtn).toBeDisabled();
 
-
     // Modify fields
     await user.clear(nameInput);
     await user.type(nameInput, "Renamed Project");
@@ -393,7 +402,6 @@ describe("ProjectSettings", () => {
     });
     expect(headings.length).toBeGreaterThan(0);
   });
-
 
   it("AC-17: timezone select shows workspace follow option, updates to Asia/Tokyo, then reverts to null", async () => {
     const user = userEvent.setup();
@@ -554,8 +562,7 @@ describe("ProjectSettings", () => {
 
     renderProjectSettingsApp({
       initialEntries: ["/the-firsts/projects/TFP11/settings/general"],
-      onPatchProject: () =>
-        apiError(403, "FORBIDDEN", "Forbidden"),
+      onPatchProject: () => apiError(403, "FORBIDDEN", "Forbidden"),
       onGetProject: () => {
         if (reloaded) {
           return {
@@ -581,7 +588,9 @@ describe("ProjectSettings", () => {
     await user.click(submitBtn);
 
     expect(
-      await screen.findByText("You no longer have permission to change these settings."),
+      await screen.findByText(
+        "You no longer have permission to change these settings.",
+      ),
     ).toBeInTheDocument();
 
     await waitFor(() => {
@@ -642,9 +651,7 @@ describe("ProjectSettings", () => {
       expect(screen.queryAllByText("The First Project")).toHaveLength(0);
     });
     expect(
-      await screen.findByText(
-        "You haven't been added to any projects yet.",
-      ),
+      await screen.findByText("You haven't been added to any projects yet."),
     ).toBeInTheDocument();
   });
 
@@ -689,9 +696,9 @@ describe("ProjectSettings", () => {
     await user.type(nameInput, " Modified");
     await user.click(submitBtn);
 
-    expect(
-      await screen.findByRole("alert"),
-    ).toHaveTextContent("Invalid color format");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Invalid color format",
+    );
   });
 
   it("AC-27: Kai with workspace.projects.delete sees Delete section; user without it does not", async () => {
@@ -705,7 +712,9 @@ describe("ProjectSettings", () => {
       }),
     });
     await screen.findByRole("textbox", { name: /Project name/i });
-    expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Delete" }),
+    ).not.toBeInTheDocument();
     unmount();
 
     // With permission
@@ -746,15 +755,21 @@ describe("ProjectSettings", () => {
     await user.click(deleteBtn);
 
     // Modal opens
-    expect(await screen.findByRole("dialog", { name: "Delete project" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("dialog", { name: "Delete project" }),
+    ).toBeInTheDocument();
     expect(
       screen.getByText(
         /The First Project and everything in it will be removed for everyone\. This can't be undone\./i,
       ),
     ).toBeInTheDocument();
 
-    const confirmInput = screen.getByRole("textbox", { name: /Type TFP11 to confirm/i });
-    const confirmDeleteBtn = screen.getByRole("button", { name: "Delete project" });
+    const confirmInput = screen.getByRole("textbox", {
+      name: /Type TFP11 to confirm/i,
+    });
+    const confirmDeleteBtn = screen.getByRole("button", {
+      name: "Delete project",
+    });
 
     // Initially disabled
     expect(confirmDeleteBtn).toBeDisabled();
@@ -773,7 +788,9 @@ describe("ProjectSettings", () => {
     await user.click(cancelBtn);
 
     await waitFor(() => {
-      expect(screen.queryByRole("dialog", { name: "Delete project" })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("dialog", { name: "Delete project" }),
+      ).not.toBeInTheDocument();
     });
     expect(deleteCalled).toBe(0);
   });
@@ -794,7 +811,11 @@ describe("ProjectSettings", () => {
       onGetProject: () => {
         if (deleteCalled > 0) {
           getDetailCallsAfterDelete++;
-          return apiError(404, "PROJECT_NOT_FOUND", "This project doesn't exist.");
+          return apiError(
+            404,
+            "PROJECT_NOT_FOUND",
+            "This project doesn't exist.",
+          );
         }
         return jsonResponse(200, { project: sampleProject });
       },
@@ -807,10 +828,14 @@ describe("ProjectSettings", () => {
     const deleteBtn = await screen.findByRole("button", { name: "Delete" });
     await user.click(deleteBtn);
 
-    const confirmInput = await screen.findByRole("textbox", { name: /Type TFP11 to confirm/i });
+    const confirmInput = await screen.findByRole("textbox", {
+      name: /Type TFP11 to confirm/i,
+    });
     await user.type(confirmInput, "TFP11");
 
-    const confirmDeleteBtn = screen.getByRole("button", { name: "Delete project" });
+    const confirmDeleteBtn = screen.getByRole("button", {
+      name: "Delete project",
+    });
     await user.click(confirmDeleteBtn);
 
     await waitFor(() => {
@@ -839,8 +864,7 @@ describe("ProjectSettings", () => {
     renderProjectSettingsApp({
       initialEntries: ["/the-firsts/projects/TFP11/settings/general"],
       workspace: workspaceWithDelete,
-      onDeleteProject: () =>
-        apiError(403, "FORBIDDEN", "Forbidden"),
+      onDeleteProject: () => apiError(403, "FORBIDDEN", "Forbidden"),
       customRoutes: {
         "GET /api/workspaces/the-firsts": () => {
           workspaceReloadCount++;
@@ -852,10 +876,14 @@ describe("ProjectSettings", () => {
     const deleteBtn = await screen.findByRole("button", { name: "Delete" });
     await user.click(deleteBtn);
 
-    const confirmInput = await screen.findByRole("textbox", { name: /Type TFP11 to confirm/i });
+    const confirmInput = await screen.findByRole("textbox", {
+      name: /Type TFP11 to confirm/i,
+    });
     await user.type(confirmInput, "TFP11");
 
-    const confirmDeleteBtn = screen.getByRole("button", { name: "Delete project" });
+    const confirmDeleteBtn = screen.getByRole("button", {
+      name: "Delete project",
+    });
     await user.click(confirmDeleteBtn);
 
     expect(
@@ -882,23 +910,35 @@ describe("ProjectSettings", () => {
       onGetProject: () => {
         if (deleteAttempted) {
           getDetailCallsAfterDelete++;
-          return apiError(404, "PROJECT_NOT_FOUND", "This project doesn't exist.");
+          return apiError(
+            404,
+            "PROJECT_NOT_FOUND",
+            "This project doesn't exist.",
+          );
         }
         return jsonResponse(200, { project: sampleProject });
       },
       onDeleteProject: () => {
         deleteAttempted = true;
-        return apiError(404, "PROJECT_NOT_FOUND", "This project doesn't exist.");
+        return apiError(
+          404,
+          "PROJECT_NOT_FOUND",
+          "This project doesn't exist.",
+        );
       },
     });
 
     const deleteBtn = await screen.findByRole("button", { name: "Delete" });
     await user.click(deleteBtn);
 
-    const confirmInput = await screen.findByRole("textbox", { name: /Type TFP11 to confirm/i });
+    const confirmInput = await screen.findByRole("textbox", {
+      name: /Type TFP11 to confirm/i,
+    });
     await user.type(confirmInput, "TFP11");
 
-    const confirmDeleteBtn = screen.getByRole("button", { name: "Delete project" });
+    const confirmDeleteBtn = screen.getByRole("button", {
+      name: "Delete project",
+    });
     await user.click(confirmDeleteBtn);
 
     await waitFor(() => {
@@ -932,10 +972,14 @@ describe("ProjectSettings", () => {
     const deleteBtn = await screen.findByRole("button", { name: "Delete" });
     await user.click(deleteBtn);
 
-    const confirmInput = await screen.findByRole("textbox", { name: /Type TFP11 to confirm/i });
+    const confirmInput = await screen.findByRole("textbox", {
+      name: /Type TFP11 to confirm/i,
+    });
     await user.type(confirmInput, "TFP11");
 
-    const confirmDeleteBtn = screen.getByRole("button", { name: "Delete project" });
+    const confirmDeleteBtn = screen.getByRole("button", {
+      name: "Delete project",
+    });
     await user.click(confirmDeleteBtn);
 
     expect(
@@ -1123,7 +1167,9 @@ describe("ProjectSettings", () => {
       await screen.findByRole("heading", { name: "Settings page not found" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("This settings section doesn't exist or you don't have access to it."),
+      screen.getByText(
+        "This settings section doesn't exist or you don't have access to it.",
+      ),
     ).toBeInTheDocument();
 
     await waitFor(() => {

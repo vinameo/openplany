@@ -45,7 +45,9 @@ describe("AppHeader", () => {
 
     renderHeader();
 
-    const links = await screen.findAllByRole("link", { name: /create workspace/i });
+    const links = await screen.findAllByRole("link", {
+      name: /create workspace/i,
+    });
     expect(links.length).toBeGreaterThan(0);
     expect(
       screen.getByRole("button", { name: /account menu/i }),

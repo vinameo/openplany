@@ -51,7 +51,12 @@ describe('ChangeUserPasswordDto', () => {
   });
 
   it('rejects missing or non-string password', async () => {
-    const cases = [{}, { password: null }, { password: 12345678 }, { password: ['a'.repeat(8)] }];
+    const cases = [
+      {},
+      { password: null },
+      { password: 12345678 },
+      { password: ['a'.repeat(8)] },
+    ];
     for (const c of cases) {
       const { messages } = await check(c as Record<string, unknown>);
       expect(messages.password).toBeDefined();

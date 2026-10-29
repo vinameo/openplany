@@ -142,4 +142,3 @@ export class TypeOrmWorkItemsRepository implements WorkItemsRepository {
     );
   }
 }
-

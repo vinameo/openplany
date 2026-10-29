@@ -25,4 +25,3 @@ export abstract class WorkItemsRepository {
     input: CreateWorkItemRepoInput,
   ): Promise<CreateWorkItemRepoResult>;
 }
-

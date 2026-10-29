@@ -33,7 +33,9 @@
   overflow: hidden;
   cursor: pointer;
   background: var(--app-color-surface-hover, #f1f5f9);
-  transition: border-color 0.15s ease, transform 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    transform 0.15s ease;
 }
 
 .coverButton:hover {

@@ -153,7 +153,9 @@ export function CreateProjectModal({
           <ProjectCoverHeader
             coverKey={form.values.coverKey}
             icon={form.values.icon}
-            onCoverChange={(newCover) => form.setFieldValue("coverKey", newCover)}
+            onCoverChange={(newCover) =>
+              form.setFieldValue("coverKey", newCover)
+            }
             onIconChange={(newIcon) => form.setFieldValue("icon", newIcon)}
             variant="modal"
           >
@@ -238,4 +240,3 @@ export function CreateProjectModal({
 
 /** Inputs that can show a server error under themselves. */
 const FORM_FIELDS = ["name", "identifier", "description"] as const;
-

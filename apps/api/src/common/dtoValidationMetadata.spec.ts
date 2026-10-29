@@ -14,7 +14,10 @@ async function loadAllDtoClasses(): Promise<Function[]> {
     .sort();
   const classes: Function[] = [];
   for (const file of files) {
-    const module = (await import(join(SRC_DIR, file))) as Record<string, unknown>;
+    const module = (await import(join(SRC_DIR, file))) as Record<
+      string,
+      unknown
+    >;
     for (const value of Object.values(module)) {
       if (typeof value === 'function') classes.push(value);
     }
@@ -39,7 +42,12 @@ describe('DTO Validation Metadata (AC-14, BA M-5)', () => {
     // Request DTOs from every feature module, not only the ones listed by hand.
     expect(dtos.length).toBeGreaterThanOrEqual(20);
     for (const dto of dtos) {
-      const metadatas = storage.getTargetValidationMetadatas(dto, '', true, false);
+      const metadatas = storage.getTargetValidationMetadatas(
+        dto,
+        '',
+        true,
+        false,
+      );
       for (const meta of metadatas) {
         // Skip class-validator internal default message for nested validation
         if (
@@ -50,7 +58,11 @@ describe('DTO Validation Metadata (AC-14, BA M-5)', () => {
           continue;
         }
 
-        if (meta.message !== undefined && meta.message !== null && meta.message !== '') {
+        if (
+          meta.message !== undefined &&
+          meta.message !== null &&
+          meta.message !== ''
+        ) {
           totalConstraintsWithCustomMessage++;
           const ref = decodeValidationMessage(meta.message);
           expect(

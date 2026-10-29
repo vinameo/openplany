@@ -79,9 +79,7 @@ export class FakeWorkspaceMembersRepository extends WorkspaceMembersRepository {
 
   async changeRole(
     input: Parameters<WorkspaceMembersRepository['changeRole']>[0],
-  ): Promise<
-    Awaited<ReturnType<WorkspaceMembersRepository['changeRole']>>
-  > {
+  ): Promise<Awaited<ReturnType<WorkspaceMembersRepository['changeRole']>>> {
     this.changeRoleInput = input;
     return (
       this.changeRoleResult ?? {
@@ -105,4 +103,3 @@ export class FakeWorkspaceMembersRepository extends WorkspaceMembersRepository {
     );
   }
 }
-

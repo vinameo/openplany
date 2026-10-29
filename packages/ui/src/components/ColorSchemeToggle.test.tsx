@@ -16,14 +16,18 @@ describe("ColorSchemeToggle", () => {
       </AppUiProvider>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Switch to dark mode" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Switch to dark mode" }),
+    );
 
     expect(document.documentElement).toHaveAttribute(
       "data-mantine-color-scheme",
       "dark",
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Switch to light mode" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Switch to light mode" }),
+    );
 
     expect(document.documentElement).toHaveAttribute(
       "data-mantine-color-scheme",

@@ -207,7 +207,9 @@ describe("WorkspaceSwitcher", () => {
     const menuItems = await screen.findAllByRole("menuitem");
     const itemTexts = menuItems.map((item) => item.textContent?.trim());
 
-    const createWsIndex = itemTexts.findIndex((t) => t?.includes("Create workspace"));
+    const createWsIndex = itemTexts.findIndex((t) =>
+      t?.includes("Create workspace"),
+    );
     const usersIndex = itemTexts.findIndex((t) => t?.includes("Users"));
     const signOutIndex = itemTexts.findIndex((t) => t?.includes("Sign out"));
 
@@ -316,9 +318,7 @@ describe("WorkspaceSwitcher", () => {
     const menuItems = await screen.findAllByRole("menuitem");
     const itemTexts = menuItems.map((item) => item.textContent?.trim());
 
-    const usersIndex = itemTexts.findIndex((t) =>
-      t?.includes("Users"),
-    );
+    const usersIndex = itemTexts.findIndex((t) => t?.includes("Users"));
     const rolesIndex = itemTexts.findIndex((t) =>
       t?.includes("Roles & Permissions"),
     );
@@ -356,9 +356,6 @@ describe("WorkspaceSwitcher", () => {
     });
     await user.click(trigger);
 
-    expect(
-      screen.queryByText("Roles & Permissions"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Roles & Permissions")).not.toBeInTheDocument();
   });
 });
-

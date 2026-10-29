@@ -8,11 +8,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "../../../auth/AuthProvider";
 import { appRoutes } from "../../../../routes";
 import { makeSession } from "../../../../test/authFixtures";
-import {
-  apiError,
-  jsonResponse,
-  mockFetch,
-} from "../../../../test/fetchMock";
+import { apiError, jsonResponse, mockFetch } from "../../../../test/fetchMock";
 import { makeWorkspace } from "../../test/workspaceFixtures";
 
 function renderGeneralSettingsApp(wsOverrides = {}) {
@@ -217,9 +213,7 @@ describe("GeneralSettingsPage", () => {
     expect(nameInput).toHaveAttribute("readonly");
 
     expect(
-      screen.getByText(
-        "You don't have permission to change these settings.",
-      ),
+      screen.getByText("You don't have permission to change these settings."),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Update workspace" }),

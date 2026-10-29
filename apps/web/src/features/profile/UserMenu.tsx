@@ -25,9 +25,7 @@ export function UserMenu({ user }: UserMenuProps) {
 
   const activeUser =
     user ??
-    (authState.status === "authenticated"
-      ? authState.session.user
-      : undefined);
+    (authState.status === "authenticated" ? authState.session.user : undefined);
 
   if (!activeUser) return null;
 
@@ -76,12 +74,7 @@ export function UserMenu({ user }: UserMenuProps) {
             >
               {name.charAt(0).toUpperCase()}
             </Avatar>
-            <Text
-              size="sm"
-              fw={500}
-              className={classes.name}
-              visibleFrom="sm"
-            >
+            <Text size="sm" fw={500} className={classes.name} visibleFrom="sm">
               {name}
             </Text>
           </UnstyledButton>
@@ -97,16 +90,10 @@ export function UserMenu({ user }: UserMenuProps) {
             </Text>
           </div>
 
-          <Menu.Item
-            leftSection={<UserIcon />}
-            onClick={openProfile}
-          >
+          <Menu.Item leftSection={<UserIcon />} onClick={openProfile}>
             {t("profile:userMenu.editProfile")}
           </Menu.Item>
-          <Menu.Item
-            leftSection={<KeyIcon />}
-            onClick={openPassword}
-          >
+          <Menu.Item leftSection={<KeyIcon />} onClick={openPassword}>
             {t("profile:userMenu.changePassword")}
           </Menu.Item>
 

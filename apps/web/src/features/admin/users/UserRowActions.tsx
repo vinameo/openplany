@@ -1,6 +1,6 @@
-import { ActionIcon, Menu } from '@mantine/core';
-import { useTranslation } from 'react-i18next';
-import type { AdminUserResponse } from '@repo/contracts';
+import { ActionIcon, Menu } from "@mantine/core";
+import { useTranslation } from "react-i18next";
+import type { AdminUserResponse } from "@repo/contracts";
 
 export interface UserRowActionsProps {
   user: AdminUserResponse;
@@ -21,7 +21,9 @@ export function UserRowActions({
     `${user.firstName} ${user.lastName}`.trim() ||
     user.email;
 
-  const canChangePassword = Boolean(onChangePassword && user.id !== currentUserId);
+  const canChangePassword = Boolean(
+    onChangePassword && user.id !== currentUserId,
+  );
   const hasMenuItems = Boolean(onEdit || canChangePassword);
 
   return (
@@ -30,21 +32,21 @@ export function UserRowActions({
         <ActionIcon
           variant="subtle"
           color="gray"
-          aria-label={t('admin:users.table.rowActions', { name })}
+          aria-label={t("admin:users.table.rowActions", { name })}
         >
-          <span style={{ fontSize: '18px', lineHeight: 1 }}>⋯</span>
+          <span style={{ fontSize: "18px", lineHeight: 1 }}>⋯</span>
         </ActionIcon>
       </Menu.Target>
       {hasMenuItems && (
         <Menu.Dropdown>
           {onEdit && (
             <Menu.Item onClick={() => onEdit(user)}>
-              {t('admin:users.menu.edit')}
+              {t("admin:users.menu.edit")}
             </Menu.Item>
           )}
           {canChangePassword && (
             <Menu.Item onClick={() => onChangePassword?.(user)}>
-              {t('admin:users.menu.changePassword')}
+              {t("admin:users.menu.changePassword")}
             </Menu.Item>
           )}
         </Menu.Dropdown>

@@ -1,4 +1,10 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AppUiProvider } from "@repo/ui";
 import { createMemoryRouter, MemoryRouter, RouterProvider } from "react-router";

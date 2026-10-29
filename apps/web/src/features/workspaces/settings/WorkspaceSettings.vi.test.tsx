@@ -70,7 +70,9 @@ describe("WorkspaceSettings and Members in Vietnamese (Ticket 07)", () => {
       screen.getByRole("heading", { name: "Quản trị" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Tổng quan" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Thành viên" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Thành viên" }),
+    ).toBeInTheDocument();
   });
 
   it("INV-16, AC-18: general settings form renders in vi and submits canonical organization size", async () => {
@@ -114,7 +116,9 @@ describe("WorkspaceSettings and Members in Vietnamese (Ticket 07)", () => {
     expect(screen.getByText("Múi giờ Workspace")).toBeInTheDocument();
     expect(screen.getByText("URL Workspace")).toBeInTheDocument();
 
-    const submitBtn = screen.getByRole("button", { name: "Cập nhật Workspace" });
+    const submitBtn = screen.getByRole("button", {
+      name: "Cập nhật Workspace",
+    });
     expect(submitBtn).toBeDisabled();
 
     // Change company size: select option with canonical value 11-50
@@ -130,7 +134,9 @@ describe("WorkspaceSettings and Members in Vietnamese (Ticket 07)", () => {
       expect(patchCalledWith).toEqual({ organizationSize: "11-50" });
     });
 
-    expect(await screen.findByText("Đã cập nhật Workspace")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Đã cập nhật Workspace"),
+    ).toBeInTheDocument();
   });
 
   it("RQ A6, WEB B6: members settings page renders localized headers, 'Đã vô hiệu hoá' badge, and formatted numbers", async () => {
@@ -181,12 +187,24 @@ describe("WorkspaceSettings and Members in Vietnamese (Ticket 07)", () => {
     renderApp("/openstudy/settings/members");
 
     // Title and table headers localized to Vietnamese
-    expect(await screen.findByRole("heading", { name: "Thành viên" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: /Họ và tên/i })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: /Tên hiển thị/i })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: /Email/i })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: /Vai trò/i })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: /Ngày tham gia/i })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Thành viên" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: /Họ và tên/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: /Tên hiển thị/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: /Email/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: /Vai trò/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: /Ngày tham gia/i }),
+    ).toBeInTheDocument();
 
     // Deactivated account shows Vietnamese badge "Đã vô hiệu hoá" (RQ A6, D8)
     expect(screen.getByText("Đã vô hiệu hoá")).toBeInTheDocument();
@@ -237,7 +255,11 @@ describe("WorkspaceSettings and Members in Vietnamese (Ticket 07)", () => {
             toRole: "admin",
             effect: "gain_implicit",
             affectedProjects: { projects: [], total: 0, hiddenCount: 0 },
-            projectsLosingAssignedAdmin: { projects: [], total: 0, hiddenCount: 0 },
+            projectsLosingAssignedAdmin: {
+              projects: [],
+              total: 0,
+              hiddenCount: 0,
+            },
             actorCanChooseProjectRole: false,
             projectRoleChoices: [],
             defaultProjectRole: null,

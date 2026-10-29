@@ -6,11 +6,7 @@
     "packages/contracts/src",
     "packages/ui/src"
   ],
-  "format": [
-    "typescript",
-    "tsx",
-    "css"
-  ],
+  "format": ["typescript", "tsx", "css"],
   "ignore": [
     "**/*.spec.ts",
     "**/*.test.ts",
@@ -20,9 +16,7 @@
   ],
   "minLines": 10,
   "minTokens": 70,
-  "reporters": [
-    "console"
-  ],
+  "reporters": ["console"],
   "gitignore": true,
   "threshold": 2.0,
   "silent": false

@@ -1,5 +1,5 @@
-import i18next, { type Resource, type TFunction } from 'i18next';
-import { initReactI18next } from 'react-i18next';
+import i18next, { type Resource, type TFunction } from "i18next";
+import { initReactI18next } from "react-i18next";
 import {
   DEFAULT_LANGUAGE,
   LANGUAGE_LOCALES,
@@ -8,15 +8,18 @@ import {
   type Language,
   type MessageKey,
   type MessageRef,
-} from '@repo/contracts';
+} from "@repo/contracts";
 
-export const LANGUAGE_STORAGE_KEY = 'openplany.language';
+export const LANGUAGE_STORAGE_KEY = "openplany.language";
 
 let currentLanguage: Language = DEFAULT_LANGUAGE;
 let hasWarnedStorage = false;
 let isInitialized = false;
 
-function warnStorageUnavailable(operation: 'read' | 'write', error: unknown): void {
+function warnStorageUnavailable(
+  operation: "read" | "write",
+  error: unknown,
+): void {
   if (!hasWarnedStorage) {
     hasWarnedStorage = true;
     console.warn(
@@ -31,7 +34,7 @@ function readStoredLanguage(): Language {
     const raw = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
     return storedLanguage(raw);
   } catch (error) {
-    warnStorageUnavailable('read', error);
+    warnStorageUnavailable("read", error);
     return DEFAULT_LANGUAGE;
   }
 }
@@ -40,13 +43,16 @@ function writeStoredLanguage(lang: Language): void {
   try {
     window.localStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
   } catch (error) {
-    warnStorageUnavailable('write', error);
+    warnStorageUnavailable("write", error);
   }
 }
 
 function handleStorageEvent(event: StorageEvent): void {
   if (event.key === LANGUAGE_STORAGE_KEY) {
-    const newLang = event.newValue === null ? DEFAULT_LANGUAGE : storedLanguage(event.newValue);
+    const newLang =
+      event.newValue === null
+        ? DEFAULT_LANGUAGE
+        : storedLanguage(event.newValue);
     if (newLang !== currentLanguage) {
       applyLanguage(newLang, false);
     }
@@ -60,7 +66,7 @@ function handleStorageEvent(event: StorageEvent): void {
 
 function applyLanguage(lang: Language, persist: boolean): void {
   currentLanguage = lang;
-  if (typeof document !== 'undefined' && document.documentElement) {
+  if (typeof document !== "undefined" && document.documentElement) {
     document.documentElement.lang = lang;
   }
   void i18next.changeLanguage(lang);
@@ -71,10 +77,11 @@ function applyLanguage(lang: Language, persist: boolean): void {
 
 export function initLanguage(): void {
   if (isInitialized) return;
-  const initialLang = typeof window !== 'undefined' ? readStoredLanguage() : DEFAULT_LANGUAGE;
+  const initialLang =
+    typeof window !== "undefined" ? readStoredLanguage() : DEFAULT_LANGUAGE;
   currentLanguage = initialLang;
 
-  if (typeof document !== 'undefined' && document.documentElement) {
+  if (typeof document !== "undefined" && document.documentElement) {
     document.documentElement.lang = initialLang;
   }
 
@@ -83,19 +90,21 @@ export function initLanguage(): void {
     lng: initialLang,
     fallbackLng: DEFAULT_LANGUAGE,
     keySeparator: false,
-    nsSeparator: ':',
+    nsSeparator: ":",
     interpolation: {
       escapeValue: false,
     },
     missingInterpolationHandler: (text: string) => {
-      if (import.meta.env.MODE === 'test') {
-        throw new Error(`Missing interpolation variable in translation: ${text}`);
+      if (import.meta.env.MODE === "test") {
+        throw new Error(
+          `Missing interpolation variable in translation: ${text}`,
+        );
       }
     },
   });
 
-  if (typeof window !== 'undefined') {
-    window.addEventListener('storage', handleStorageEvent);
+  if (typeof window !== "undefined") {
+    window.addEventListener("storage", handleStorageEvent);
   }
 
   isInitialized = true;
@@ -118,14 +127,20 @@ export function setLanguage(newLang: Language): void {
  * own interpolation params; a key from a variable (a MessageRef) would have to
  * satisfy the params of every key at once.
  */
-type RuntimeKeyT = (key: MessageKey, options?: Record<string, string | number>) => string;
+type RuntimeKeyT = (
+  key: MessageKey,
+  options?: Record<string, string | number>,
+) => string;
 
 /** Translates a MessageRef with a component's `t`, so it re-renders on a language change. */
 export function translateRef(t: TFunction, ref: MessageRef): string {
   return (t as unknown as RuntimeKeyT)(ref.key, ref.params);
 }
 
-export function translate(key: MessageKey, params?: Record<string, string | number>): string {
+export function translate(
+  key: MessageKey,
+  params?: Record<string, string | number>,
+): string {
   if (!isInitialized) {
     initLanguage();
   }
@@ -148,7 +163,7 @@ export function resetLanguageModuleForTest(): void {
   currentLanguage = DEFAULT_LANGUAGE;
   hasWarnedStorage = false;
   isInitialized = false;
-  if (typeof document !== 'undefined' && document.documentElement) {
+  if (typeof document !== "undefined" && document.documentElement) {
     document.documentElement.lang = DEFAULT_LANGUAGE;
   }
   void i18next.changeLanguage(DEFAULT_LANGUAGE);

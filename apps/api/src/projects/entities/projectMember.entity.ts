@@ -15,7 +15,12 @@ export class ProjectMember {
   @Column({ name: 'member_id', type: 'uuid' })
   memberId!: string;
 
-  @Column({ name: 'role_scope', type: 'varchar', length: 16, default: 'project' })
+  @Column({
+    name: 'role_scope',
+    type: 'varchar',
+    length: 16,
+    default: 'project',
+  })
   roleScope!: RoleScope;
 
   @Column({ type: 'varchar', length: 20 })

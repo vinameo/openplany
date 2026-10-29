@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AppUiProvider } from "@repo/ui";
 import { createMemoryRouter } from "react-router";
@@ -90,13 +96,17 @@ describe("WorkspaceShell in Vietnamese (AC-02, AC-13, INV-12, INV-15, INV-16, AC
 
     setLanguage("en");
     const { unmount } = renderApp("/openplany-vn");
-    expect(await screen.findByRole("link", { name: "Home" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("link", { name: "Home" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Settings" })).toBeInTheDocument();
     unmount();
 
     setLanguage("vi");
     renderApp("/openplany-vn");
-    expect(await screen.findByRole("link", { name: "Trang chủ" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("link", { name: "Trang chủ" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Cài đặt" })).toBeInTheDocument();
   });
 

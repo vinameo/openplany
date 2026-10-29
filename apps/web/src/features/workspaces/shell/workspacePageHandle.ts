@@ -29,4 +29,3 @@ function isWorkspacePageMeta(value: unknown): value is WorkspacePageMeta {
 export function useWorkspacePageMeta(): WorkspacePageMeta | null {
   return useRouteHandleMeta("workspacePage", isWorkspacePageMeta);
 }
-

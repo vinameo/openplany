@@ -127,7 +127,7 @@ export function useCreateWorkspaceForm() {
 
   const isOrgSizeSelected = Boolean(
     form.values.organizationSize &&
-      ORGANIZATION_SIZES.includes(form.values.organizationSize),
+    ORGANIZATION_SIZES.includes(form.values.organizationSize),
   );
 
   const canSubmit =
@@ -183,9 +183,7 @@ export function useCreateWorkspaceForm() {
           return;
         }
 
-        setGeneralError(
-          error.message || t("workspace:create.errors.generic"),
-        );
+        setGeneralError(error.message || t("workspace:create.errors.generic"));
       } else {
         setGeneralError(t("workspace:create.errors.generic"));
       }
@@ -206,4 +204,3 @@ export function useCreateWorkspaceForm() {
     handleSubmit,
   };
 }
-

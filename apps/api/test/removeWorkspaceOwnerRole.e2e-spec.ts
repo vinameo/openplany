@@ -48,7 +48,9 @@ describe('RemoveWorkspaceOwnerRole (e2e)', () => {
 
     expect(error).toBeDefined();
     // 23514 (check_violation) or 23503 (foreign_key_violation after roles table FK is added)
-    expect(['23514', '23503']).toContain(error?.driverError?.code || error?.code);
+    expect(['23514', '23503']).toContain(
+      error?.driverError?.code || error?.code,
+    );
   });
 
   it('OR-5: owner_role_retired with invalid shape (e.g. to_role = member) is rejected by wmrh_shape_check', async () => {
@@ -123,7 +125,10 @@ describe('RemoveWorkspaceOwnerRole (e2e)', () => {
 
     const adminUrl = new URL(url);
     adminUrl.pathname = '/postgres';
-    const admin = new DataSource({ type: 'postgres', url: adminUrl.toString() });
+    const admin = new DataSource({
+      type: 'postgres',
+      url: adminUrl.toString(),
+    });
     await admin.initialize();
 
     try {
@@ -208,7 +213,9 @@ describe('RemoveWorkspaceOwnerRole (e2e)', () => {
       // Check results:
       // Active owner u1 becomes admin
       // Inactive owner u2 also becomes admin
-      const memberRoles = await tempDs.query<{ member_id: string; role: string; is_active: boolean }[]>(
+      const memberRoles = await tempDs.query<
+        { member_id: string; role: string; is_active: boolean }[]
+      >(
         `SELECT member_id, role, is_active FROM workspace_members ORDER BY CASE member_id WHEN '${u1}' THEN 1 WHEN '${u2}' THEN 2 WHEN '${u3}' THEN 3 END`,
       );
       expect(memberRoles).toEqual([
@@ -218,7 +225,9 @@ describe('RemoveWorkspaceOwnerRole (e2e)', () => {
       ]);
 
       // Exactly 1 owner_role_retired entry (only for active owner u1)
-      const retiredHistory = await tempDs.query<{ member_id: string; change_type: string }[]>(
+      const retiredHistory = await tempDs.query<
+        { member_id: string; change_type: string }[]
+      >(
         `SELECT member_id, change_type FROM workspace_member_role_history WHERE change_type = 'owner_role_retired'`,
       );
       expect(retiredHistory).toHaveLength(1);
@@ -242,15 +251,19 @@ describe('RemoveWorkspaceOwnerRole (e2e)', () => {
       expect(columnsAfterDown).toHaveLength(1);
 
       // u1 is owner again
-      const restoredMembers = await tempDs.query<{ member_id: string; role: string }[]>(
-        `SELECT member_id, role FROM workspace_members WHERE member_id = $1`,
-        [u1],
-      );
+      const restoredMembers = await tempDs.query<
+        { member_id: string; role: string }[]
+      >(`SELECT member_id, role FROM workspace_members WHERE member_id = $1`, [
+        u1,
+      ]);
       expect(restoredMembers[0]!.role).toBe('owner');
     } finally {
       await tempDs.destroy();
 
-      const adminClean = new DataSource({ type: 'postgres', url: adminUrl.toString() });
+      const adminClean = new DataSource({
+        type: 'postgres',
+        url: adminUrl.toString(),
+      });
       await adminClean.initialize();
       try {
         await adminClean.query(`DROP DATABASE IF EXISTS ${tempDb}`);
@@ -260,4 +273,3 @@ describe('RemoveWorkspaceOwnerRole (e2e)', () => {
     }
   });
 });
-

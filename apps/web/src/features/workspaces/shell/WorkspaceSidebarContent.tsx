@@ -20,15 +20,13 @@ export function WorkspaceSidebarContent() {
   return (
     <>
       <div className={classes.headerRow}>
-        <Text className={classes.heading}>{t("workspace:shell.workspaceHeading")}</Text>
+        <Text className={classes.heading}>
+          {t("workspace:shell.workspaceHeading")}
+        </Text>
         <SidebarCollapseButton />
       </div>
 
-      <ScrollArea
-        type="hover"
-        scrollbarSize={6}
-        className={classes.scrollArea}
-      >
+      <ScrollArea type="hover" scrollbarSize={6} className={classes.scrollArea}>
         <div className={classes.scrollContent}>
           <NewWorkItemButton />
 

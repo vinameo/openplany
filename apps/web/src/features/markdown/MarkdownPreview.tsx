@@ -39,11 +39,7 @@ export function MarkdownPreview({
               return <span>{children}</span>;
             }
             return (
-              <a
-                href={href}
-                target="_blank"
-                rel="noopener noreferrer nofollow"
-              >
+              <a href={href} target="_blank" rel="noopener noreferrer nofollow">
                 {children}
               </a>
             );

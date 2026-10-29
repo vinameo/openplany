@@ -20,7 +20,10 @@
         );
       } catch (error) {
         // Storage blocked (private mode, policy): fall back to light; MantineProvider corrects it on mount.
-        document.documentElement.setAttribute("data-mantine-color-scheme", "light");
+        document.documentElement.setAttribute(
+          "data-mantine-color-scheme",
+          "light",
+        );
       }
     </script>
   </head>

@@ -1,10 +1,21 @@
 import request from 'supertest';
 import { Logger } from '@nestjs/common';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
 import { IsNull } from 'typeorm';
 import { Session } from '../src/auth/entities/session.entity.js';
 import { User } from '../src/auth/entities/user.entity.js';
-import { Argon2PasswordHasher, PasswordHasher } from '../src/auth/passwordHasher.js';
+import {
+  Argon2PasswordHasher,
+  PasswordHasher,
+} from '../src/auth/passwordHasher.js';
 import { SessionsRepository } from '../src/auth/repositories/sessionsRepository.js';
 import { createE2eApp, type E2eApp } from './createE2eApp.js';
 
@@ -48,7 +59,12 @@ describe('Admin Users (e2e)', () => {
         now(), now(), now()
       )
       RETURNING id`,
-      [email.toLowerCase(), email.toLowerCase().replace(/[^a-z0-9]/g, ''), pwdHash, isSuperuser],
+      [
+        email.toLowerCase(),
+        email.toLowerCase().replace(/[^a-z0-9]/g, ''),
+        pwdHash,
+        isSuperuser,
+      ],
     );
     return rows[0]!.id;
   }
@@ -62,7 +78,8 @@ describe('Admin Users (e2e)', () => {
          WHERE datname = current_database() AND wait_event_type = 'Lock'`,
       );
       if ((rows[0]?.n ?? 0) >= count) return;
-      if (Date.now() > deadline) throw new Error(`Expected ${count} lock waiters`);
+      if (Date.now() > deadline)
+        throw new Error(`Expected ${count} lock waiters`);
       await new Promise((resolve) => setTimeout(resolve, 20));
     }
   }
@@ -76,7 +93,9 @@ describe('Admin Users (e2e)', () => {
       .set('Origin', ORIGIN)
       .send({ email, password })
       .expect(200);
-    const cookies: string[] = response.headers['set-cookie'] as unknown as string[];
+    const cookies: string[] = response.headers[
+      'set-cookie'
+    ] as unknown as string[];
     const cookie = cookies.find((value) => value.startsWith('op_session='));
     if (cookie === undefined) throw new Error('No session cookie was set');
     return cookie.split(';')[0];
@@ -228,8 +247,12 @@ describe('Admin Users (e2e)', () => {
     expect(row.is_password_reset_required).toBe(false);
     expect(row.is_password_expired).toBe(false);
     expect(row.created_by_id).toBe(adminId);
-    expect(new Date(row.date_joined).getTime()).toBe(new Date(row.created_at).getTime());
-    expect(new Date(row.updated_at).getTime()).toBe(new Date(row.created_at).getTime());
+    expect(new Date(row.date_joined).getTime()).toBe(
+      new Date(row.created_at).getTime(),
+    );
+    expect(new Date(row.updated_at).getTime()).toBe(
+      new Date(row.created_at).getTime(),
+    );
   });
 
   it('AC-07: created user can sign in and requires no password reset', async () => {
@@ -337,8 +360,16 @@ describe('Admin Users (e2e)', () => {
     };
 
     const [res1, res2] = await Promise.all([
-      http().post('/api/admin/users').set('Origin', ORIGIN).set('Cookie', cookie).send(body1),
-      http().post('/api/admin/users').set('Origin', ORIGIN).set('Cookie', cookie).send(body2),
+      http()
+        .post('/api/admin/users')
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .send(body1),
+      http()
+        .post('/api/admin/users')
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .send(body2),
     ]);
 
     const statuses = [res1.status, res2.status].sort((a, b) => a - b);
@@ -416,7 +447,9 @@ describe('Admin Users (e2e)', () => {
         password: 'USER3@OPENPLANY.DEV',
       })
       .expect(400);
-    expect(sameRes.body.fields.password).toBe("Password can't be the same as the email");
+    expect(sameRes.body.fields.password).toBe(
+      "Password can't be the same as the email",
+    );
   });
 
   it('AC-16: password with leading and trailing spaces is preserved exactly', async () => {
@@ -454,15 +487,21 @@ describe('Admin Users (e2e)', () => {
 
   it('AC-17: logs contain zero PII (no passwords, emails, or names) and exactly 1 user.created', async () => {
     const loggedMessages: string[] = [];
-    const logSpy = vi.spyOn(Logger.prototype, 'log').mockImplementation((msg: string) => {
-      loggedMessages.push(String(msg));
-    });
-    const warnSpy = vi.spyOn(Logger.prototype, 'warn').mockImplementation((msg: string) => {
-      loggedMessages.push(String(msg));
-    });
-    const errorSpy = vi.spyOn(Logger.prototype, 'error').mockImplementation((msg: string) => {
-      loggedMessages.push(String(msg));
-    });
+    const logSpy = vi
+      .spyOn(Logger.prototype, 'log')
+      .mockImplementation((msg: string) => {
+        loggedMessages.push(String(msg));
+      });
+    const warnSpy = vi
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation((msg: string) => {
+        loggedMessages.push(String(msg));
+      });
+    const errorSpy = vi
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation((msg: string) => {
+        loggedMessages.push(String(msg));
+      });
 
     try {
       await createDbUser('admin@openplany.dev', true);
@@ -492,7 +531,9 @@ describe('Admin Users (e2e)', () => {
       }
 
       // Verify user.created format
-      const createdLogs = loggedMessages.filter((m) => m.startsWith('user.created'));
+      const createdLogs = loggedMessages.filter((m) =>
+        m.startsWith('user.created'),
+      );
       expect(createdLogs).toHaveLength(1);
       expect(createdLogs[0]).toMatch(
         /^user\.created userId=[0-9a-f-]+ actorId=[0-9a-f-]+ requestId=/,
@@ -619,7 +660,9 @@ describe('Admin Users (e2e)', () => {
         .expect(403);
 
       expect(res.body.code).toBe('FORBIDDEN');
-      expect(res.body.message).toBe("You don't have permission to manage users");
+      expect(res.body.message).toBe(
+        "You don't have permission to manage users",
+      );
 
       // With Vietnamese language
       const resVi = await http()
@@ -630,7 +673,7 @@ describe('Admin Users (e2e)', () => {
         .expect(403);
 
       expect(resVi.body.code).toBe('FORBIDDEN');
-      expect(resVi.body.message).toBe("Bạn không có quyền quản lý người dùng");
+      expect(resVi.body.message).toBe('Bạn không có quyền quản lý người dùng');
     });
 
     it('returns listed users sorted by createdAt desc, id desc with pagination and excludes bots and masked users (INV-02, INV-03, AC-03, AC-04, AC-05)', async () => {
@@ -980,7 +1023,9 @@ describe('Admin Users (e2e)', () => {
         .set('Cookie', cookie)
         .expect(200);
       expect(resActive.body.total).toBe(2); // admin + user1
-      expect(resActive.body.items.every((u: { isActive: boolean }) => u.isActive)).toBe(true);
+      expect(
+        resActive.body.items.every((u: { isActive: boolean }) => u.isActive),
+      ).toBe(true);
 
       // Filter status=deactivated
       const resDeactivated = await http()
@@ -989,7 +1034,9 @@ describe('Admin Users (e2e)', () => {
         .set('Cookie', cookie)
         .expect(200);
       expect(resDeactivated.body.total).toBe(1);
-      expect(resDeactivated.body.items[0].email).toBe('deactivated@openplany.dev');
+      expect(resDeactivated.body.items[0].email).toBe(
+        'deactivated@openplany.dev',
+      );
 
       // Filter instanceAdmin=only
       const resAdmins = await http()
@@ -1056,7 +1103,9 @@ describe('Admin Users (e2e)', () => {
         .set('Origin', ORIGIN)
         .set('Cookie', cookie)
         .expect(200);
-      const ascNames = resAsc.body.items.map((u: { firstName: string }) => u.firstName);
+      const ascNames = resAsc.body.items.map(
+        (u: { firstName: string }) => u.firstName,
+      );
       expect(ascNames[0]).toBe('Alice');
       expect(ascNames[ascNames.length - 1]).toBe('');
 
@@ -1066,7 +1115,9 @@ describe('Admin Users (e2e)', () => {
         .set('Origin', ORIGIN)
         .set('Cookie', cookie)
         .expect(200);
-      const descNames = resDesc.body.items.map((u: { firstName: string }) => u.firstName);
+      const descNames = resDesc.body.items.map(
+        (u: { firstName: string }) => u.firstName,
+      );
       expect(descNames[0]).toBe('Zoe');
       expect(descNames[descNames.length - 1]).toBe('');
     });
@@ -1092,7 +1143,9 @@ describe('Admin Users (e2e)', () => {
         .expect(429);
 
       expect(res121.body.code).toBe('TOO_MANY_ATTEMPTS');
-      expect(res121.body.message).toBe('Too many requests. Try again in 1 minute.');
+      expect(res121.body.message).toBe(
+        'Too many requests. Try again in 1 minute.',
+      );
       expect(res121.headers['retry-after']).toBeDefined();
       expect(res121.body.retryAfterSeconds).toBeDefined();
     });
@@ -1146,7 +1199,10 @@ describe('Admin Users (e2e)', () => {
       const cookie = await signInCookie('admin-bot@openplany.dev');
 
       const botId = await createDbUser('bot-user@openplany.dev', false);
-      await e2e.dataSource.query('UPDATE users SET is_bot = true WHERE id = $1', [botId]);
+      await e2e.dataSource.query(
+        'UPDATE users SET is_bot = true WHERE id = $1',
+        [botId],
+      );
 
       const res = await http()
         .get(`/api/admin/users/${botId}`)
@@ -1162,7 +1218,10 @@ describe('Admin Users (e2e)', () => {
       const cookie = await signInCookie('admin-masked@openplany.dev');
 
       const maskedId = await createDbUser('masked-user@openplany.dev', false);
-      await e2e.dataSource.query('UPDATE users SET masked_at = now() WHERE id = $1', [maskedId]);
+      await e2e.dataSource.query(
+        'UPDATE users SET masked_at = now() WHERE id = $1',
+        [maskedId],
+      );
 
       const res = await http()
         .get(`/api/admin/users/${maskedId}`)
@@ -1185,7 +1244,9 @@ describe('Admin Users (e2e)', () => {
         .expect(403);
 
       expect(res.body.code).toBe('FORBIDDEN');
-      expect(res.body.message).toBe("You don't have permission to manage users");
+      expect(res.body.message).toBe(
+        "You don't have permission to manage users",
+      );
     });
 
     it('returns 400 VALIDATION_ERROR when :userId is not a valid uuid v4', async () => {
@@ -1206,15 +1267,20 @@ describe('Admin Users (e2e)', () => {
   describe('PATCH /api/admin/users/:userId (API-03, DB B5)', () => {
     it('updates user fields, resets isEmailVerified on email change, and emits log', async () => {
       const loggedMessages: string[] = [];
-      const logSpy = vi.spyOn(Logger.prototype, 'log').mockImplementation((msg: string) => {
-        loggedMessages.push(String(msg));
-      });
+      const logSpy = vi
+        .spyOn(Logger.prototype, 'log')
+        .mockImplementation((msg: string) => {
+          loggedMessages.push(String(msg));
+        });
 
       try {
         await createDbUser('admin-patch@openplany.dev', true);
         const cookie = await signInCookie('admin-patch@openplany.dev');
 
-        const targetId = await createDbUser('target-patch@openplany.dev', false);
+        const targetId = await createDbUser(
+          'target-patch@openplany.dev',
+          false,
+        );
 
         // Fetch detail to get expectedUpdatedAt
         const getRes = await http()
@@ -1242,17 +1308,20 @@ describe('Admin Users (e2e)', () => {
         expect(patchRes.body.email).toBe('binh.new@openplany.dev');
 
         // Check DB row: email verified must be false after email change
-        const dbRows = await e2e.dataSource.query<{ is_email_verified: boolean }[]>(
-          'SELECT is_email_verified FROM users WHERE id = $1',
-          [targetId],
-        );
+        const dbRows = await e2e.dataSource.query<
+          { is_email_verified: boolean }[]
+        >('SELECT is_email_verified FROM users WHERE id = $1', [targetId]);
         expect(dbRows[0]!.is_email_verified).toBe(false);
 
         // Check user.updated log
-        const updateLogs = loggedMessages.filter((m) => m.startsWith('user.updated'));
+        const updateLogs = loggedMessages.filter((m) =>
+          m.startsWith('user.updated'),
+        );
         expect(updateLogs).toHaveLength(1);
         expect(updateLogs[0]).toContain(`userId=${targetId}`);
-        expect(updateLogs[0]).toContain('fields=firstName,lastName,displayName,email');
+        expect(updateLogs[0]).toContain(
+          'fields=firstName,lastName,displayName,email',
+        );
         expect(updateLogs[0]).not.toContain('binh.new@openplany.dev');
         expect(updateLogs[0]).not.toContain('Binh');
       } finally {
@@ -1282,10 +1351,9 @@ describe('Admin Users (e2e)', () => {
         })
         .expect(200);
 
-      const dbRows = await e2e.dataSource.query<{ is_email_verified: boolean }[]>(
-        'SELECT is_email_verified FROM users WHERE id = $1',
-        [targetId],
-      );
+      const dbRows = await e2e.dataSource.query<
+        { is_email_verified: boolean }[]
+      >('SELECT is_email_verified FROM users WHERE id = $1', [targetId]);
       expect(dbRows[0]!.is_email_verified).toBe(true);
     });
 
@@ -1316,15 +1384,20 @@ describe('Admin Users (e2e)', () => {
 
     it('returns 409 USER_CHANGED_SINCE_LOADED when expectedUpdatedAt is stale (AC-10, AC-11)', async () => {
       const warnMessages: string[] = [];
-      const warnSpy = vi.spyOn(Logger.prototype, 'warn').mockImplementation((msg: string) => {
-        warnMessages.push(String(msg));
-      });
+      const warnSpy = vi
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation((msg: string) => {
+          warnMessages.push(String(msg));
+        });
 
       try {
         await createDbUser('admin-conflict@openplany.dev', true);
         const cookie = await signInCookie('admin-conflict@openplany.dev');
 
-        const targetId = await createDbUser('target-conflict@openplany.dev', false);
+        const targetId = await createDbUser(
+          'target-conflict@openplany.dev',
+          false,
+        );
 
         const staleUpdatedAt = new Date(Date.now() - 60000).toISOString();
 
@@ -1436,7 +1509,9 @@ describe('Admin Users (e2e)', () => {
         .expect(409);
 
       expect(res.body.code).toBe('EMAIL_ALREADY_EXISTS');
-      expect(res.body.fields.email).toBe('A user with this email already exists.');
+      expect(res.body.fields.email).toBe(
+        'A user with this email already exists.',
+      );
     });
 
     it('returns 403 FORBIDDEN when actor loses superuser privileges', async () => {
@@ -1451,7 +1526,10 @@ describe('Admin Users (e2e)', () => {
         .expect(200);
 
       // Demote actor directly in DB
-      await e2e.dataSource.query('UPDATE users SET is_superuser = false WHERE id = $1', [actorId]);
+      await e2e.dataSource.query(
+        'UPDATE users SET is_superuser = false WHERE id = $1',
+        [actorId],
+      );
 
       const res = await http()
         .patch(`/api/admin/users/${targetId}`)
@@ -1512,7 +1590,10 @@ describe('Admin Users (e2e)', () => {
     it('enforces 60 writes per 10 minutes rate limit on PATCH (AC-27)', async () => {
       await createDbUser('rate-write-admin@openplany.dev', true);
       const cookie = await signInCookie('rate-write-admin@openplany.dev');
-      const targetId = await createDbUser('target-rate-write@openplany.dev', false);
+      const targetId = await createDbUser(
+        'target-rate-write@openplany.dev',
+        false,
+      );
 
       const getRes = await http()
         .get(`/api/admin/users/${targetId}`)
@@ -1543,7 +1624,9 @@ describe('Admin Users (e2e)', () => {
         .expect(429);
 
       expect(res61.body.code).toBe('TOO_MANY_ATTEMPTS');
-      expect(res61.body.message).toBe('Too many changes to users. Try again in 10 minutes.');
+      expect(res61.body.message).toBe(
+        'Too many changes to users. Try again in 10 minutes.',
+      );
       expect(res61.headers['retry-after']).toBeDefined();
       expect(res61.body.retryAfterSeconds).toBeDefined();
     });
@@ -1573,7 +1656,9 @@ describe('Admin Users (e2e)', () => {
         [userId],
       );
 
-      expect(after[0]!.updated_at.getTime()).toBe(before[0]!.updated_at.getTime());
+      expect(after[0]!.updated_at.getTime()).toBe(
+        before[0]!.updated_at.getTime(),
+      );
     });
 
     it('sign-in with password rehash does not change users.updated_at', async () => {
@@ -1583,10 +1668,9 @@ describe('Admin Users (e2e)', () => {
         'pbkdf2_sha256$260000$seasalt$YlZ2Vggtqdc61YjArZuoApoBh9JNGYoDRBUGu6tcJQo=';
       const userId = await createDbUser(email, false, djangoHash);
 
-      const before = await e2e.dataSource.query<{ updated_at: Date; password: string }[]>(
-        'SELECT updated_at, password FROM users WHERE id = $1',
-        [userId],
-      );
+      const before = await e2e.dataSource.query<
+        { updated_at: Date; password: string }[]
+      >('SELECT updated_at, password FROM users WHERE id = $1', [userId]);
 
       await new Promise((resolve) => setTimeout(resolve, 10));
 
@@ -1596,16 +1680,17 @@ describe('Admin Users (e2e)', () => {
         .send({ email, password: 'lètmein' })
         .expect(200);
 
-      const after = await e2e.dataSource.query<{ updated_at: Date; password: string }[]>(
-        'SELECT updated_at, password FROM users WHERE id = $1',
-        [userId],
-      );
+      const after = await e2e.dataSource.query<
+        { updated_at: Date; password: string }[]
+      >('SELECT updated_at, password FROM users WHERE id = $1', [userId]);
 
       // Password was rehashed to argon2id
       expect(after[0]!.password).toMatch(/^\$argon2id\$/);
       expect(after[0]!.password).not.toBe(before[0]!.password);
       // updated_at was NOT modified!
-      expect(after[0]!.updated_at.getTime()).toBe(before[0]!.updated_at.getTime());
+      expect(after[0]!.updated_at.getTime()).toBe(
+        before[0]!.updated_at.getTime(),
+      );
     });
 
     it('sign-out does not change users.updated_at', async () => {
@@ -1631,7 +1716,9 @@ describe('Admin Users (e2e)', () => {
         [userId],
       );
 
-      expect(after[0]!.updated_at.getTime()).toBe(before[0]!.updated_at.getTime());
+      expect(after[0]!.updated_at.getTime()).toBe(
+        before[0]!.updated_at.getTime(),
+      );
     });
   });
 
@@ -1646,14 +1733,28 @@ describe('Admin Users (e2e)', () => {
       const namCookie3 = await signInCookie('nam@openplany.dev');
 
       // Verify all 3 sessions are active
-      await http().get('/api/users/me').set('Cookie', namCookie1).set('Origin', ORIGIN).expect(200);
-      await http().get('/api/users/me').set('Cookie', namCookie2).set('Origin', ORIGIN).expect(200);
-      await http().get('/api/users/me').set('Cookie', namCookie3).set('Origin', ORIGIN).expect(200);
+      await http()
+        .get('/api/users/me')
+        .set('Cookie', namCookie1)
+        .set('Origin', ORIGIN)
+        .expect(200);
+      await http()
+        .get('/api/users/me')
+        .set('Cookie', namCookie2)
+        .set('Origin', ORIGIN)
+        .expect(200);
+      await http()
+        .get('/api/users/me')
+        .set('Cookie', namCookie3)
+        .set('Origin', ORIGIN)
+        .expect(200);
 
       const loggedMessages: string[] = [];
-      const logSpy = vi.spyOn(Logger.prototype, 'log').mockImplementation((msg: string) => {
-        loggedMessages.push(String(msg));
-      });
+      const logSpy = vi
+        .spyOn(Logger.prototype, 'log')
+        .mockImplementation((msg: string) => {
+          loggedMessages.push(String(msg));
+        });
 
       try {
         const newPassword = 'NewSecretPassword456!';
@@ -1665,12 +1766,28 @@ describe('Admin Users (e2e)', () => {
           .expect(204);
 
         // Nam's 3 sessions are now revoked -> 401
-        await http().get('/api/users/me').set('Cookie', namCookie1).set('Origin', ORIGIN).expect(401);
-        await http().get('/api/users/me').set('Cookie', namCookie2).set('Origin', ORIGIN).expect(401);
-        await http().get('/api/users/me').set('Cookie', namCookie3).set('Origin', ORIGIN).expect(401);
+        await http()
+          .get('/api/users/me')
+          .set('Cookie', namCookie1)
+          .set('Origin', ORIGIN)
+          .expect(401);
+        await http()
+          .get('/api/users/me')
+          .set('Cookie', namCookie2)
+          .set('Origin', ORIGIN)
+          .expect(401);
+        await http()
+          .get('/api/users/me')
+          .set('Cookie', namCookie3)
+          .set('Origin', ORIGIN)
+          .expect(401);
 
         // Kai's session is still active
-        await http().get('/api/users/me').set('Cookie', kaiCookie).set('Origin', ORIGIN).expect(200);
+        await http()
+          .get('/api/users/me')
+          .set('Cookie', kaiCookie)
+          .set('Origin', ORIGIN)
+          .expect(200);
 
         // Nam cannot sign in with old password
         await http()
@@ -1680,11 +1797,20 @@ describe('Admin Users (e2e)', () => {
           .expect(401);
 
         // Nam can sign in with new password
-        const newNamCookie = await signInCookie('nam@openplany.dev', newPassword);
-        await http().get('/api/users/me').set('Cookie', newNamCookie).set('Origin', ORIGIN).expect(200);
+        const newNamCookie = await signInCookie(
+          'nam@openplany.dev',
+          newPassword,
+        );
+        await http()
+          .get('/api/users/me')
+          .set('Cookie', newNamCookie)
+          .set('Origin', ORIGIN)
+          .expect(200);
 
         // Verify logs: contains user.password_changed with revokedSessionCount=3, actorId, userId, NO PII
-        const pwdLogs = loggedMessages.filter((m) => m.startsWith('user.password_changed'));
+        const pwdLogs = loggedMessages.filter((m) =>
+          m.startsWith('user.password_changed'),
+        );
         expect(pwdLogs).toHaveLength(1);
         expect(pwdLogs[0]).toContain(`userId=${namId}`);
         expect(pwdLogs[0]).toContain(`actorId=${kaiId}`);
@@ -1728,7 +1854,9 @@ describe('Admin Users (e2e)', () => {
         .expect(400);
 
       expect(res1.body.code).toBe('VALIDATION_ERROR');
-      expect(res1.body.fields?.password).toBe("Password can't be the same as the email");
+      expect(res1.body.fields?.password).toBe(
+        "Password can't be the same as the email",
+      );
 
       // Case variation
       const res2 = await http()
@@ -1739,7 +1867,9 @@ describe('Admin Users (e2e)', () => {
         .expect(400);
 
       expect(res2.body.code).toBe('VALIDATION_ERROR');
-      expect(res2.body.fields?.password).toBe("Password can't be the same as the email");
+      expect(res2.body.fields?.password).toBe(
+        "Password can't be the same as the email",
+      );
     });
 
     it('AC-20: deactivated target user password can still be changed -> 204', async () => {
@@ -1748,7 +1878,10 @@ describe('Admin Users (e2e)', () => {
       const targetId = await createDbUser('inactive@openplany.dev', false);
 
       // Deactivate user in DB
-      await e2e.dataSource.query('UPDATE users SET is_active = false WHERE id = $1', [targetId]);
+      await e2e.dataSource.query(
+        'UPDATE users SET is_active = false WHERE id = $1',
+        [targetId],
+      );
 
       await http()
         .put(`/api/admin/users/${targetId}/password`)
@@ -1837,12 +1970,15 @@ describe('Admin Users (e2e)', () => {
         .put(`/api/admin/users/${targetId}/password`)
         .set('Origin', ORIGIN)
         .set('Cookie', kaiCookie)
-        .send({ password: 'ValidPassword123!', confirmPassword: 'ValidPassword123!' })
+        .send({
+          password: 'ValidPassword123!',
+          confirmPassword: 'ValidPassword123!',
+        })
         .expect(400);
       expect(extraProp.body.code).toBe('VALIDATION_ERROR');
     });
 
-    it('API B7: another instance admin\'s password needs the actor\'s own password (step-up)', async () => {
+    it("API B7: another instance admin's password needs the actor's own password (step-up)", async () => {
       await createDbUser('kai-step@openplany.dev', true);
       const kaiCookie = await signInCookie('kai-step@openplany.dev');
       const binhId = await createDbUser('binh-step@openplany.dev', true);
@@ -1861,15 +1997,31 @@ describe('Admin Users (e2e)', () => {
         "Enter your password to change another instance admin's password.",
       );
 
-      const wrong = await put({ password: 'NewSecret456!', actorPassword: 'nope' }, 'vi').expect(403);
+      const wrong = await put(
+        { password: 'NewSecret456!', actorPassword: 'nope' },
+        'vi',
+      ).expect(403);
       expect(wrong.body.code).toBe('REAUTHENTICATION_FAILED');
-      expect(wrong.body.fields?.actorPassword).toBe('Mật khẩu của bạn không đúng.');
+      expect(wrong.body.fields?.actorPassword).toBe(
+        'Mật khẩu của bạn không đúng.',
+      );
 
       // Nothing changed so far: Bình's session is still live.
-      await http().get('/api/users/me').set('Cookie', binhCookie).set('Origin', ORIGIN).expect(200);
+      await http()
+        .get('/api/users/me')
+        .set('Cookie', binhCookie)
+        .set('Origin', ORIGIN)
+        .expect(200);
 
-      await put({ password: 'NewSecret456!', actorPassword: DEFAULT_PASSWORD }).expect(204);
-      await http().get('/api/users/me').set('Cookie', binhCookie).set('Origin', ORIGIN).expect(401);
+      await put({
+        password: 'NewSecret456!',
+        actorPassword: DEFAULT_PASSWORD,
+      }).expect(204);
+      await http()
+        .get('/api/users/me')
+        .set('Cookie', binhCookie)
+        .set('Origin', ORIGIN)
+        .expect(401);
       await signInCookie('binh-step@openplany.dev', 'NewSecret456!');
     });
 
@@ -1892,7 +2044,9 @@ describe('Admin Users (e2e)', () => {
       const blocked = await put(DEFAULT_PASSWORD).expect(429);
       expect(blocked.body.code).toBe('TOO_MANY_REAUTH_ATTEMPTS');
       expect(blocked.body.retryAfterSeconds).toBeGreaterThan(0);
-      expect(blocked.body.message).toMatch(/^Too many incorrect passwords\. Try again in \d+ minutes?\.$/);
+      expect(blocked.body.message).toMatch(
+        /^Too many incorrect passwords\. Try again in \d+ minutes?\.$/,
+      );
     });
 
     it('AC-32: 8 concurrent requests with wrong actorPassword -> at most 5 verified, rest 429 TOO_MANY_REAUTH_ATTEMPTS', async () => {
@@ -1946,7 +2100,11 @@ describe('Admin Users (e2e)', () => {
           lock: { mode: 'pessimistic_write' },
         });
         // Nam's own requests meanwhile: a sliding-expiry touch and a logout.
-        const touch = repo.touch(sessions[0]!, now, new Date(now.getTime() + 60_000));
+        const touch = repo.touch(
+          sessions[0]!,
+          now,
+          new Date(now.getTime() + 60_000),
+        );
         const logout = http()
           .post('/api/auth/sign-out')
           .set('Origin', ORIGIN)
@@ -1966,7 +2124,11 @@ describe('Admin Users (e2e)', () => {
         if (qr.isTransactionActive) await qr.rollbackTransaction();
         await qr.release();
       }
-      await http().get('/api/users/me').set('Cookie', namCookie).set('Origin', ORIGIN).expect(401);
+      await http()
+        .get('/api/users/me')
+        .set('Cookie', namCookie)
+        .set('Origin', ORIGIN)
+        .expect(401);
     });
 
     it('AC-33: sign-in with stale credentials throws 401 when password changed between verify and write', async () => {
@@ -1975,18 +2137,22 @@ describe('Admin Users (e2e)', () => {
 
       const hasher = e2e.app.get(PasswordHasher);
       const originalVerify = hasher.verify.bind(hasher);
-      const verifySpy = vi.spyOn(hasher, 'verify').mockImplementation(async (hash, candidate) => {
-        const result = await originalVerify(hash, candidate);
-        if (result && candidate === DEFAULT_PASSWORD) {
-          // Admin changes user's password in DB concurrently
-          const newHash = await new Argon2PasswordHasher().hash('NewConcurrentlyChanged123!');
-          await e2e.dataSource.query('UPDATE users SET password = $1 WHERE id = $2', [
-            newHash,
-            userId,
-          ]);
-        }
-        return result;
-      });
+      const verifySpy = vi
+        .spyOn(hasher, 'verify')
+        .mockImplementation(async (hash, candidate) => {
+          const result = await originalVerify(hash, candidate);
+          if (result && candidate === DEFAULT_PASSWORD) {
+            // Admin changes user's password in DB concurrently
+            const newHash = await new Argon2PasswordHasher().hash(
+              'NewConcurrentlyChanged123!',
+            );
+            await e2e.dataSource.query(
+              'UPDATE users SET password = $1 WHERE id = $2',
+              [newHash, userId],
+            );
+          }
+          return result;
+        });
 
       try {
         const res = await http()
@@ -2061,7 +2227,11 @@ describe('Admin Users (e2e)', () => {
 
       // User signs in with new password -> 200 (not restricted with PASSWORD_RESET_REQUIRED)
       const targetCookie = await signInCookie(targetEmail, newPassword);
-      await http().get('/api/users/me').set('Cookie', targetCookie).set('Origin', ORIGIN).expect(200);
+      await http()
+        .get('/api/users/me')
+        .set('Cookie', targetCookie)
+        .set('Origin', ORIGIN)
+        .expect(200);
     });
   });
 });

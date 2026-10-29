@@ -3,10 +3,7 @@ import { translate } from "../../i18n/language";
 import { ApiRequestError } from "../../lib/apiClient";
 import type { SubmitOutcome } from "./AddMembersModalFrame";
 import { mapFieldErrors } from "./addMembersRows";
-import {
-  addedMembersMessage,
-  tooManyAttemptsMessage,
-} from "./membersMessages";
+import { addedMembersMessage, tooManyAttemptsMessage } from "./membersMessages";
 
 export interface SubmitAddMembersOptions<
   Res extends { members: readonly unknown[] },

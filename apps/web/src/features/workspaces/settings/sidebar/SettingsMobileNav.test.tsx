@@ -48,12 +48,16 @@ describe("SettingsMobileNav", () => {
           children: [
             {
               path: "general",
-              handle: { settingsSection: "general" } satisfies SettingsSectionHandle,
+              handle: {
+                settingsSection: "general",
+              } satisfies SettingsSectionHandle,
               element: <SettingsMobileNav sections={mockSections} />,
             },
             {
               path: "members",
-              handle: { settingsSection: "members" } satisfies SettingsSectionHandle,
+              handle: {
+                settingsSection: "members",
+              } satisfies SettingsSectionHandle,
               element: <div>Members Page</div>,
             },
           ],
@@ -83,4 +87,3 @@ describe("SettingsMobileNav", () => {
     expect(await screen.findByText("Members Page")).toBeInTheDocument();
   });
 });
-

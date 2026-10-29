@@ -120,7 +120,14 @@ function renderModal({
     </QueryClientProvider>,
   );
 
-  return { ...result, onClose, onSuccess, reloadWorkspace, queryClient, fetchMock };
+  return {
+    ...result,
+    onClose,
+    onSuccess,
+    reloadWorkspace,
+    queryClient,
+    fetchMock,
+  };
 }
 
 afterEach(() => {
@@ -147,7 +154,9 @@ describe("ChangeWorkspaceRoleModal", () => {
       }),
     ).toBeInTheDocument();
 
-    expect(await screen.findByText("My Le is in 3 projects.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("My Le is in 3 projects."),
+    ).toBeInTheDocument();
     expect(screen.getByText(/Onboarding \(ONB\)/)).toBeInTheDocument();
     expect(screen.getByText(/Ops \(OPS\)/)).toBeInTheDocument();
     expect(screen.getByText(/Website Redesign \(WEB\)/)).toBeInTheDocument();
@@ -163,9 +172,10 @@ describe("ChangeWorkspaceRoleModal", () => {
       expect(onClose).toHaveBeenCalled();
     });
 
-    const patchCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes("/api/workspaces/openstudy/members/u-guest") &&
-      init?.method === "PATCH",
+    const patchCall = fetchMock.mock.calls.find(
+      ([input, init]) =>
+        String(input).includes("/api/workspaces/openstudy/members/u-guest") &&
+        init?.method === "PATCH",
     );
     expect(patchCall).toBeDefined();
     expect(JSON.parse(patchCall![1]!.body as string)).toEqual({
@@ -272,11 +282,7 @@ describe("ChangeWorkspaceRoleModal", () => {
   it("AC-21: shows same role error on 400 ROLE_UNCHANGED without Try again button", async () => {
     renderModal({
       previewResponse: () =>
-        apiError(
-          400,
-          "ROLE_UNCHANGED",
-          MEMBER_MESSAGES.sameRole,
-        ),
+        apiError(400, "ROLE_UNCHANGED", MEMBER_MESSAGES.sameRole),
     });
 
     const alert = await screen.findByRole("alert");
@@ -293,11 +299,7 @@ describe("ChangeWorkspaceRoleModal", () => {
   it("AC-21: shows roleNotAllowed on 403 preview error without Try again button", async () => {
     renderModal({
       previewResponse: () =>
-        apiError(
-          403,
-          "FORBIDDEN",
-          "You can't assign this role",
-        ),
+        apiError(403, "FORBIDDEN", "You can't assign this role"),
     });
 
     expect(
@@ -315,11 +317,7 @@ describe("ChangeWorkspaceRoleModal", () => {
       previewResponse: () => {
         callCount++;
         if (callCount === 1) {
-          return apiError(
-            500,
-            "INTERNAL_ERROR",
-            "Something failed",
-          );
+          return apiError(500, "INTERNAL_ERROR", "Something failed");
         }
         return jsonResponse(200, {
           effect: "no_projects",
@@ -329,7 +327,11 @@ describe("ChangeWorkspaceRoleModal", () => {
           projectRoleChoices: [],
           defaultProjectRole: null,
           affectedProjects: { total: 0, hiddenCount: 0, projects: [] },
-          projectsLosingAssignedAdmin: { total: 0, hiddenCount: 0, projects: [] },
+          projectsLosingAssignedAdmin: {
+            total: 0,
+            hiddenCount: 0,
+            projects: [],
+          },
         });
       },
     });
@@ -403,11 +405,7 @@ describe("ChangeWorkspaceRoleModal", () => {
     const { reloadWorkspace } = renderModal({
       routes: {
         "PATCH /api/workspaces/openstudy/members/u-guest": () =>
-          apiError(
-            403,
-            "FORBIDDEN",
-            "You can't assign this role",
-          ),
+          apiError(403, "FORBIDDEN", "You can't assign this role"),
       },
     });
 

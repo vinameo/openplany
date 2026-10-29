@@ -1,6 +1,6 @@
-import type { WorkspaceRole } from '@repo/contracts';
-import { WORKSPACE_ROLE_SCHEME } from '../../../members/roleScheme';
-import { RoleFilter as SharedRoleFilter } from '../../../members/RoleFilter';
+import type { WorkspaceRole } from "@repo/contracts";
+import { WORKSPACE_ROLE_SCHEME } from "../../../members/roleScheme";
+import { RoleFilter as SharedRoleFilter } from "../../../members/RoleFilter";
 
 interface RoleFilterProps {
   selectedRoles: readonly WorkspaceRole[];

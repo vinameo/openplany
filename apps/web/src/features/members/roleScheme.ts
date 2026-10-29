@@ -7,7 +7,7 @@ import {
   WORKSPACE_ROLE_RANK,
   WORKSPACE_ROLES,
   type WorkspaceRole,
-} from '@repo/contracts';
+} from "@repo/contracts";
 
 export interface RoleScheme<R extends string> {
   roles: readonly R[];
@@ -70,7 +70,7 @@ export function closestRole<R extends string>(
   scheme: RoleScheme<R>,
   currentRole: R,
   allowedRoles: readonly R[],
-): { role: R; reason: 'lowered' | 'raised' } | null {
+): { role: R; reason: "lowered" | "raised" } | null {
   if (allowedRoles.length === 0) return null;
   const currentRank = scheme.rank[currentRole];
   const atOrBelow = allowedRoles.filter((r) => scheme.rank[r] <= currentRank);
@@ -78,10 +78,10 @@ export function closestRole<R extends string>(
     const highest = atOrBelow.reduce((prev, r) =>
       scheme.rank[r] > scheme.rank[prev] ? r : prev,
     );
-    return { role: highest, reason: 'lowered' };
+    return { role: highest, reason: "lowered" };
   }
   const lowest = allowedRoles.reduce((prev, r) =>
     scheme.rank[r] < scheme.rank[prev] ? r : prev,
   );
-  return { role: lowest, reason: 'raised' };
+  return { role: lowest, reason: "raised" };
 }

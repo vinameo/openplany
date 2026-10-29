@@ -32,19 +32,15 @@ export class WorkspaceMemberGuard implements CanActivate {
       typeof slug !== 'string' ||
       workspaceSlugProblem(slug) === 'INVALID'
     ) {
-      throw new ApiException(
-        HttpStatus.NOT_FOUND,
-        'NOT_FOUND',
-        { key: 'workspace:errors.notFound' },
-      );
+      throw new ApiException(HttpStatus.NOT_FOUND, 'NOT_FOUND', {
+        key: 'workspace:errors.notFound',
+      });
     }
 
     if (!userId) {
-      throw new ApiException(
-        HttpStatus.UNAUTHORIZED,
-        'UNAUTHENTICATED',
-        { key: 'errors:http.unauthenticated' },
-      );
+      throw new ApiException(HttpStatus.UNAUTHORIZED, 'UNAUTHENTICATED', {
+        key: 'errors:http.unauthenticated',
+      });
     }
 
     const workspace = await this.workspacesRepository.findForMember(
@@ -52,15 +48,12 @@ export class WorkspaceMemberGuard implements CanActivate {
       userId,
     );
     if (!workspace) {
-      throw new ApiException(
-        HttpStatus.NOT_FOUND,
-        'NOT_FOUND',
-        { key: 'workspace:errors.notFound' },
-      );
+      throw new ApiException(HttpStatus.NOT_FOUND, 'NOT_FOUND', {
+        key: 'workspace:errors.notFound',
+      });
     }
 
     request.workspace = workspace;
     return true;
   }
 }
-

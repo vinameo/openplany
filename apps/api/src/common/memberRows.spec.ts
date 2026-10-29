@@ -9,7 +9,11 @@ import {
 
 describe('duplicateMemberRowFields', () => {
   it('returns empty object when no duplicates exist', () => {
-    const members = [{ userId: 'user-1' }, { userId: 'user-2' }, { userId: 'user-3' }];
+    const members = [
+      { userId: 'user-1' },
+      { userId: 'user-2' },
+      { userId: 'user-3' },
+    ];
     expect(duplicateMemberRowFields(members)).toEqual({});
   });
 

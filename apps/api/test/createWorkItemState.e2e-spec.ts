@@ -1,13 +1,6 @@
 import crypto from 'node:crypto';
 import request from 'supertest';
-import {
-  describe,
-  beforeAll,
-  beforeEach,
-  afterAll,
-  it,
-  expect,
-} from 'vitest';
+import { describe, beforeAll, beforeEach, afterAll, it, expect } from 'vitest';
 import {
   DEFAULT_PROJECT_COVER,
   DEFAULT_PROJECT_ICON,
@@ -61,7 +54,11 @@ describe('Work Item State Tracer (e2e)', () => {
         organizationSize: '2-10',
       })
       .expect(201);
-    return { id: wsRes.body.id as string, slug: wsRes.body.slug as string, owner };
+    return {
+      id: wsRes.body.id as string,
+      slug: wsRes.body.slug as string,
+      owner,
+    };
   }
 
   async function seedProject(
@@ -181,7 +178,9 @@ describe('Work Item State Tracer (e2e)', () => {
 
     // 1. Without stateId -> defaults to Backlog
     const res1 = await http()
-      .post(`/api/workspaces/${ws.slug}/projects/${project.identifier}/work-items`)
+      .post(
+        `/api/workspaces/${ws.slug}/projects/${project.identifier}/work-items`,
+      )
       .set('Cookie', ws.owner.cookie)
       .set('Origin', ORIGIN)
       .send({
@@ -202,7 +201,9 @@ describe('Work Item State Tracer (e2e)', () => {
     });
 
     const res2 = await http()
-      .post(`/api/workspaces/${ws.slug}/projects/${project.identifier}/work-items`)
+      .post(
+        `/api/workspaces/${ws.slug}/projects/${project.identifier}/work-items`,
+      )
       .set('Cookie', ws.owner.cookie)
       .set('Origin', ORIGIN)
       .send({
@@ -234,7 +235,9 @@ describe('Work Item State Tracer (e2e)', () => {
     );
 
     const res = await http()
-      .post(`/api/workspaces/${ws.slug}/projects/${project.identifier}/work-items`)
+      .post(
+        `/api/workspaces/${ws.slug}/projects/${project.identifier}/work-items`,
+      )
       .set('Cookie', ws.owner.cookie)
       .set('Origin', ORIGIN)
       .send({
@@ -267,7 +270,9 @@ describe('Work Item State Tracer (e2e)', () => {
 
     // Attempt to use project2's state in project1
     const res = await http()
-      .post(`/api/workspaces/${ws.slug}/projects/${project1.identifier}/work-items`)
+      .post(
+        `/api/workspaces/${ws.slug}/projects/${project1.identifier}/work-items`,
+      )
       .set('Cookie', ws.owner.cookie)
       .set('Origin', ORIGIN)
       .send({
@@ -295,7 +300,9 @@ describe('Work Item State Tracer (e2e)', () => {
 
     // 1. Initial creation with Backlog (omitted stateId)
     const initialRes = await http()
-      .post(`/api/workspaces/${ws.slug}/projects/${project.identifier}/work-items`)
+      .post(
+        `/api/workspaces/${ws.slug}/projects/${project.identifier}/work-items`,
+      )
       .set('Cookie', ws.owner.cookie)
       .set('Origin', ORIGIN)
       .send({
@@ -310,7 +317,9 @@ describe('Work Item State Tracer (e2e)', () => {
 
     // 2. Replay with same key, same Title & Description, but different stateId
     const replayRes = await http()
-      .post(`/api/workspaces/${ws.slug}/projects/${project.identifier}/work-items`)
+      .post(
+        `/api/workspaces/${ws.slug}/projects/${project.identifier}/work-items`,
+      )
       .set('Cookie', ws.owner.cookie)
       .set('Origin', ORIGIN)
       .send({
@@ -327,7 +336,9 @@ describe('Work Item State Tracer (e2e)', () => {
 
     // 3. Replay with same key but DIFFERENT title -> 409 WORK_ITEM_REQUEST_REUSED
     const conflictRes = await http()
-      .post(`/api/workspaces/${ws.slug}/projects/${project.identifier}/work-items`)
+      .post(
+        `/api/workspaces/${ws.slug}/projects/${project.identifier}/work-items`,
+      )
       .set('Cookie', ws.owner.cookie)
       .set('Origin', ORIGIN)
       .send({
@@ -366,7 +377,9 @@ describe('Work Item State Tracer (e2e)', () => {
     // 2. POST /work-items without stateId succeeds and creates in Backlog
     const backlogId = await getDefaultBacklogId();
     const createRes = await http()
-      .post(`/api/workspaces/${ws.slug}/projects/${project.identifier}/work-items`)
+      .post(
+        `/api/workspaces/${ws.slug}/projects/${project.identifier}/work-items`,
+      )
       .set('Cookie', contributor.cookie)
       .set('Origin', ORIGIN)
       .send({
@@ -392,7 +405,9 @@ describe('Work Item State Tracer (e2e)', () => {
 
     // 1. Create work item at custom state
     const initialRes = await http()
-      .post(`/api/workspaces/${ws.slug}/projects/${project.identifier}/work-items`)
+      .post(
+        `/api/workspaces/${ws.slug}/projects/${project.identifier}/work-items`,
+      )
       .set('Cookie', ws.owner.cookie)
       .set('Origin', ORIGIN)
       .send({
@@ -413,7 +428,9 @@ describe('Work Item State Tracer (e2e)', () => {
 
     // 3. Replay with same key and same content
     const replayRes = await http()
-      .post(`/api/workspaces/${ws.slug}/projects/${project.identifier}/work-items`)
+      .post(
+        `/api/workspaces/${ws.slug}/projects/${project.identifier}/work-items`,
+      )
       .set('Cookie', ws.owner.cookie)
       .set('Origin', ORIGIN)
       .send({
@@ -451,7 +468,9 @@ describe('Work Item State Tracer (e2e)', () => {
 
       // Start the work item creation request in the background (it will wait for lock on the state row)
       const createPromise = http()
-        .post(`/api/workspaces/${ws.slug}/projects/${project.identifier}/work-items`)
+        .post(
+          `/api/workspaces/${ws.slug}/projects/${project.identifier}/work-items`,
+        )
         .set('Cookie', ws.owner.cookie)
         .set('Origin', ORIGIN)
         .send({

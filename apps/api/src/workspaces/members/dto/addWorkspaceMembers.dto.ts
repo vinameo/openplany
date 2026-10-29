@@ -41,4 +41,3 @@ export class AddWorkspaceMembersDto implements AddWorkspaceMembersRequest {
   @Type(() => AddWorkspaceMemberDto)
   members!: AddWorkspaceMemberDto[];
 }
-

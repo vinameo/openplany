@@ -1,13 +1,6 @@
-import {
-  DEFAULT_PROJECT_COVER,
-  PROJECT_COVER_KEYS,
-} from "@repo/contracts";
+import { DEFAULT_PROJECT_COVER, PROJECT_COVER_KEYS } from "@repo/contracts";
 import { describe, expect, it } from "vitest";
-import {
-  pickRandomCover,
-  PROJECT_COVERS,
-  projectCover,
-} from "./projectCovers";
+import { pickRandomCover, PROJECT_COVERS, projectCover } from "./projectCovers";
 
 describe("projectCovers", () => {
   it("has full and thumb images for all 8 project cover keys", () => {

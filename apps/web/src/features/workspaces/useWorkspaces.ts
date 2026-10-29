@@ -11,4 +11,3 @@ export function useWorkspaces(): WorkspacesContextValue {
   }
   return context;
 }
-

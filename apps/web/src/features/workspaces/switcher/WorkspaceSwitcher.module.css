@@ -67,7 +67,8 @@
   min-width: 0 !important;
 }
 
-.scrollArea :global(.mantine-ScrollArea-scrollbar[data-orientation="horizontal"]) {
+.scrollArea
+  :global(.mantine-ScrollArea-scrollbar[data-orientation="horizontal"]) {
   display: none !important;
 }
 

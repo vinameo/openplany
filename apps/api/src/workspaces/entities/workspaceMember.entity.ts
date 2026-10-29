@@ -12,7 +12,12 @@ export class WorkspaceMember {
   @Column({ name: 'member_id', type: 'uuid' })
   memberId: string;
 
-  @Column({ name: 'role_scope', type: 'varchar', length: 16, default: 'workspace' })
+  @Column({
+    name: 'role_scope',
+    type: 'varchar',
+    length: 16,
+    default: 'workspace',
+  })
   roleScope: RoleScope;
 
   @Column({ type: 'varchar', length: 20 })
@@ -30,4 +35,3 @@ export class WorkspaceMember {
   @Column({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
 }
-

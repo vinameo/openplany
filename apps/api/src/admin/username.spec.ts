@@ -14,4 +14,3 @@ describe('generateUsername', () => {
     expect(first).not.toBe(second);
   });
 });
-

@@ -1,13 +1,13 @@
-import { Button, Modal } from '@mantine/core';
-import { useMediaQuery } from '@mantine/hooks';
-import { useQueryClient } from '@tanstack/react-query';
-import { useTranslation } from 'react-i18next';
-import { DiscardChangesFooter } from '../../layout/DiscardChangesFooter';
-import { useDiscardGuard } from '../../layout/useDiscardGuard';
-import { invalidateAdminUserLists } from './api/adminUserQueries';
-import { CreateUserForm } from './CreateUserForm';
-import { useCreateUserForm } from './useCreateUserForm';
-import classes from './CreateUserModal.module.css';
+import { Button, Modal } from "@mantine/core";
+import { useMediaQuery } from "@mantine/hooks";
+import { useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
+import { DiscardChangesFooter } from "../../layout/DiscardChangesFooter";
+import { useDiscardGuard } from "../../layout/useDiscardGuard";
+import { invalidateAdminUserLists } from "./api/adminUserQueries";
+import { CreateUserForm } from "./CreateUserForm";
+import { useCreateUserForm } from "./useCreateUserForm";
+import classes from "./CreateUserModal.module.css";
 
 export interface CreateUserModalProps {
   opened: boolean;
@@ -26,7 +26,7 @@ function CreateUserModalContent({
 }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const isNarrow = useMediaQuery('(max-width: 575px)');
+  const isNarrow = useMediaQuery("(max-width: 575px)");
 
   function handleSuccess() {
     void invalidateAdminUserLists(queryClient);
@@ -61,7 +61,7 @@ function CreateUserModalContent({
         loading={isSubmitting}
         disabled={!form.isValid()}
       >
-        {t('admin:users.form.submit')}
+        {t("admin:users.form.submit")}
       </Button>
       <Button
         type="button"
@@ -69,7 +69,7 @@ function CreateUserModalContent({
         onClick={requestClose}
         disabled={isSubmitting}
       >
-        {t('common:actions.cancel')}
+        {t("common:actions.cancel")}
       </Button>
     </div>
   );
@@ -78,7 +78,7 @@ function CreateUserModalContent({
     <Modal
       opened={opened}
       onClose={requestClose}
-      title={t('admin:users.modal.createTitle')}
+      title={t("admin:users.modal.createTitle")}
       size="lg"
       radius="lg"
       padding="xl"
@@ -87,7 +87,7 @@ function CreateUserModalContent({
       closeOnClickOutside={!isSubmitting}
       closeButtonProps={{
         disabled: isSubmitting,
-        'aria-label': t('common:actions.close'),
+        "aria-label": t("common:actions.close"),
       }}
     >
       <CreateUserForm state={formState} footer={footer} />

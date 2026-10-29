@@ -67,6 +67,8 @@ export class CreateWorkspaceMemberRoleHistory1791550147414 implements MigrationI
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`SET LOCAL lock_timeout = '5s'`);
-    await queryRunner.query(`DROP TABLE IF EXISTS workspace_member_role_history`);
+    await queryRunner.query(
+      `DROP TABLE IF EXISTS workspace_member_role_history`,
+    );
   }
 }

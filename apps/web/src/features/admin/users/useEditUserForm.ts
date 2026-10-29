@@ -45,7 +45,8 @@ export function useEditUserForm({
   const queryClient = useQueryClient();
   const { state: authState, updateUser } = useAuth();
   const recovery = useAdminUserErrorRecovery();
-  const [loadedUser, setLoadedUser] = useState<AdminUserResponse>(initialLoadedUser);
+  const [loadedUser, setLoadedUser] =
+    useState<AdminUserResponse>(initialLoadedUser);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isConflict, setIsConflict] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -73,7 +74,9 @@ export function useEditUserForm({
 
   const hasChanges = hasEditUserChanges(form.values, loadedUser);
 
-  async function handleSubmit(event?: FormEvent<HTMLFormElement>): Promise<void> {
+  async function handleSubmit(
+    event?: FormEvent<HTMLFormElement>,
+  ): Promise<void> {
     if (event) {
       event.preventDefault();
     }
@@ -164,7 +167,9 @@ export function useEditUserForm({
               }
             }
           } else {
-            setSubmitError(action.message ?? t("admin:users.errors.updateFailed"));
+            setSubmitError(
+              action.message ?? t("admin:users.errors.updateFailed"),
+            );
           }
           return;
         }

@@ -1,1 +1,1 @@
-export * from '../../../members/memberListView';
+export * from "../../../members/memberListView";

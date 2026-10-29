@@ -1,7 +1,11 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AppUiProvider } from "@repo/ui";
-import { createMemoryRouter, RouterProvider, useRouteError } from "react-router";
+import {
+  createMemoryRouter,
+  RouterProvider,
+  useRouteError,
+} from "react-router";
 import { describe, expect, it, vi } from "vitest";
 import { BuildingIcon } from "../../icons";
 import {
@@ -39,12 +43,16 @@ function renderSidebarWithWorkspace(
         children: [
           {
             path: "general",
-            handle: { settingsSection: "general" } satisfies SettingsSectionHandle,
+            handle: {
+              settingsSection: "general",
+            } satisfies SettingsSectionHandle,
             element: null,
           },
           {
             path: "members",
-            handle: { settingsSection: "members" } satisfies SettingsSectionHandle,
+            handle: {
+              settingsSection: "members",
+            } satisfies SettingsSectionHandle,
             element: null,
             children: [
               {
@@ -126,11 +134,9 @@ describe("SettingsSidebar", () => {
       },
     ];
 
-    renderSidebarWithWorkspace(
-      contextVal,
-      "/openstudy/settings/general",
-      { sections: mockSections },
-    );
+    renderSidebarWithWorkspace(contextVal, "/openstudy/settings/general", {
+      sections: mockSections,
+    });
 
     // Group should be hidden since restricted section is hidden
     expect(screen.queryByText("Restricted")).not.toBeInTheDocument();
@@ -149,11 +155,9 @@ describe("SettingsSidebar", () => {
     ];
 
     expect(() =>
-      renderSidebarWithWorkspace(
-        contextVal,
-        "/openstudy/settings/general",
-        { sections: invalidSections },
-      ),
+      renderSidebarWithWorkspace(contextVal, "/openstudy/settings/general", {
+        sections: invalidSections,
+      }),
     ).toThrow(/unknown group/i);
   });
 

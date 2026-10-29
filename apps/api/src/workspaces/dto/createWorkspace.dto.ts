@@ -68,4 +68,3 @@ export class CreateWorkspaceDto {
   })
   organizationSize: OrganizationSize;
 }
-

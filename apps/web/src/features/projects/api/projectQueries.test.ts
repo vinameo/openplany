@@ -16,7 +16,11 @@ import {
 } from "./projectQueries";
 import type { ProjectMemberListResponse } from "@repo/contracts";
 
-function makeItem(id: string, identifier: string, name: string): ProjectListItem {
+function makeItem(
+  id: string,
+  identifier: string,
+  name: string,
+): ProjectListItem {
   return {
     id,
     identifier,
@@ -50,7 +54,9 @@ describe("projectQueries cache helpers", () => {
     const newItem = makeItem("2", "P2", "Project 2");
     addProjectToCache(qc, slug, newItem);
 
-    const cachedList = qc.getQueryData<ProjectListResponse>(projectKeys.list(slug));
+    const cachedList = qc.getQueryData<ProjectListResponse>(
+      projectKeys.list(slug),
+    );
     expect(cachedList?.total).toBe(2);
     expect(cachedList?.projects[0]?.identifier).toBe("P2");
     expect(cachedList?.projects[1]?.identifier).toBe("P1");
@@ -74,7 +80,9 @@ describe("projectQueries cache helpers", () => {
     const updated = { ...item1, name: "New Name" };
     replaceProjectInCache(qc, slug, updated);
 
-    const cachedList = qc.getQueryData<ProjectListResponse>(projectKeys.list(slug));
+    const cachedList = qc.getQueryData<ProjectListResponse>(
+      projectKeys.list(slug),
+    );
     expect(cachedList?.projects[0]?.name).toBe("New Name");
 
     const cachedDetail = qc.getQueryData<ProjectListItem>(
@@ -96,7 +104,9 @@ describe("projectQueries cache helpers", () => {
 
     removeProjectFromCache(qc, slug, "P1");
 
-    const cachedList = qc.getQueryData<ProjectListResponse>(projectKeys.list(slug));
+    const cachedList = qc.getQueryData<ProjectListResponse>(
+      projectKeys.list(slug),
+    );
     expect(cachedList?.total).toBe(1);
     expect(cachedList?.projects).toHaveLength(1);
     expect(cachedList?.projects[0]?.identifier).toBe("P2");
@@ -122,41 +132,61 @@ describe("projectQueries cache helpers", () => {
       truncated: false,
       addableRoles: [],
     });
-    qc.setQueryData(projectKeys.memberCandidates(slug, "P1", "test@domain.com"), {
-      candidates: [],
-    });
+    qc.setQueryData(
+      projectKeys.memberCandidates(slug, "P1", "test@domain.com"),
+      {
+        candidates: [],
+      },
+    );
 
     removeProjectFromCache(qc, slug, "P1");
 
     expect(qc.getQueryData(projectKeys.detail(slug, "P1"))).toBeUndefined();
     expect(qc.getQueryData(projectKeys.members(slug, "P1"))).toBeUndefined();
     expect(
-      qc.getQueryData(projectKeys.memberCandidates(slug, "P1", "test@domain.com")),
+      qc.getQueryData(
+        projectKeys.memberCandidates(slug, "P1", "test@domain.com"),
+      ),
     ).toBeUndefined();
   });
 
   it("clearProjectMemberCandidates removes candidate subqueries for project", () => {
     const qc = new QueryClient();
-    qc.setQueryData(projectKeys.memberCandidates(slug, "P1", "foo@example.com"), {
-      candidates: [],
-    });
-    qc.setQueryData(projectKeys.memberCandidates(slug, "P1", "bar@example.com"), {
-      candidates: [],
-    });
-    qc.setQueryData(projectKeys.memberCandidates(slug, "P2", "foo@example.com"), {
-      candidates: [],
-    });
+    qc.setQueryData(
+      projectKeys.memberCandidates(slug, "P1", "foo@example.com"),
+      {
+        candidates: [],
+      },
+    );
+    qc.setQueryData(
+      projectKeys.memberCandidates(slug, "P1", "bar@example.com"),
+      {
+        candidates: [],
+      },
+    );
+    qc.setQueryData(
+      projectKeys.memberCandidates(slug, "P2", "foo@example.com"),
+      {
+        candidates: [],
+      },
+    );
 
     clearProjectMemberCandidates(qc, slug, "P1");
 
     expect(
-      qc.getQueryData(projectKeys.memberCandidates(slug, "P1", "foo@example.com")),
+      qc.getQueryData(
+        projectKeys.memberCandidates(slug, "P1", "foo@example.com"),
+      ),
     ).toBeUndefined();
     expect(
-      qc.getQueryData(projectKeys.memberCandidates(slug, "P1", "bar@example.com")),
+      qc.getQueryData(
+        projectKeys.memberCandidates(slug, "P1", "bar@example.com"),
+      ),
     ).toBeUndefined();
     expect(
-      qc.getQueryData(projectKeys.memberCandidates(slug, "P2", "foo@example.com")),
+      qc.getQueryData(
+        projectKeys.memberCandidates(slug, "P2", "foo@example.com"),
+      ),
     ).toBeDefined();
   });
 
@@ -425,4 +455,3 @@ describe("projectQueries cache helpers", () => {
     expect(cached?.truncated).toBe(true);
   });
 });
-

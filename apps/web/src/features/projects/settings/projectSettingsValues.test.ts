@@ -63,10 +63,7 @@ describe("projectSettingsValues", () => {
         icon: { name: "rocket", color: "#FAB005" },
       });
 
-      const reqIconName = toUpdateProjectRequest(
-        { iconName: "star" },
-        current,
-      );
+      const reqIconName = toUpdateProjectRequest({ iconName: "star" }, current);
       expect(reqIconName).toEqual({
         icon: { name: "star", color: "#15AABF" },
       });

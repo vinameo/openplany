@@ -21,8 +21,16 @@ describe("createContentFingerprint", () => {
   it("includes stateId in content fingerprint so selecting a different state changes key (RQ INV-10)", () => {
     const fpDefault = createContentFingerprint("Task 1", "Description");
     const fpNull = createContentFingerprint("Task 1", "Description", null);
-    const fpBacklog = createContentFingerprint("Task 1", "Description", "state-backlog");
-    const fpReview = createContentFingerprint("Task 1", "Description", "state-review");
+    const fpBacklog = createContentFingerprint(
+      "Task 1",
+      "Description",
+      "state-backlog",
+    );
+    const fpReview = createContentFingerprint(
+      "Task 1",
+      "Description",
+      "state-review",
+    );
 
     expect(fpDefault).toBe(fpNull);
     expect(fpDefault).not.toBe(fpBacklog);

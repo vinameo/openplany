@@ -969,8 +969,7 @@ export const en = {
     "menu.delete": "Delete",
     "delete.title": 'Delete "{{name}}"?',
     "delete.empty": "This can't be undone.",
-    "delete.moveTo_one":
-      "{{count}} work item is in this state. Move it to:",
+    "delete.moveTo_one": "{{count}} work item is in this state. Move it to:",
     "delete.moveTo_other":
       "{{count}} work items are in this state. Move them to:",
     "delete.confirm": "Delete state",
@@ -997,8 +996,7 @@ export const en = {
     "errors.groupInvalid": "Choose a group",
     "errors.colorInvalid": "Choose a color from the list",
     "errors.nothingToChange": "Change at least one field",
-    "errors.replacementInvalidFormat":
-      "Choose a state to move work items to",
+    "errors.replacementInvalidFormat": "Choose a state to move work items to",
     "errors.notFound": "This state no longer exists.",
     "errors.nameTaken": "A state with this name already exists.",
     "errors.nameTakenInProjects_one":

@@ -11,7 +11,11 @@ import { useSettingsNavigation } from "./useSettingsNavigation";
 
 interface SettingsMobileNavProps {
   sections?: readonly WorkspaceSettingsSection[];
-  groups?: readonly { key: WorkspaceSettingsGroup; label?: string; labelKey?: MessageKey }[];
+  groups?: readonly {
+    key: WorkspaceSettingsGroup;
+    label?: string;
+    labelKey?: MessageKey;
+  }[];
 }
 
 export function SettingsMobileNav({
