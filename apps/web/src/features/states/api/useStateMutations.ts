@@ -207,6 +207,10 @@ export function useDeleteProjectStateMutation(
       ),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey });
+      // Moved work items now count toward a default or workspace state shown there too
+      void queryClient.invalidateQueries({
+        queryKey: stateKeys.workspace(slug),
+      });
     },
   });
 }
