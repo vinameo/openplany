@@ -5,17 +5,13 @@ import {
   Inject,
   Injectable,
   Logger,
-  Optional,
 } from '@nestjs/common';
 import { ModuleRef, Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import { Clock } from '../auth/clock.js';
 import { ApiException } from '../common/apiException.js';
 import { SlidingWindowLimiter } from '../common/slidingWindowLimiter.js';
-import {
-  WRITE_LIMIT_KEY,
-  type WriteLimit,
-} from '../projects/access/writeLimit.js';
+import { WRITE_LIMIT_KEY, type WriteLimit } from '../common/writeLimit.js';
 import { WORKSPACE_WRITE_LIMITER } from './tokens.js';
 
 @Injectable()
@@ -26,10 +22,8 @@ export class WorkspaceWriteRateLimitGuard implements CanActivate {
     @Inject(WORKSPACE_WRITE_LIMITER)
     private readonly defaultLimiter: SlidingWindowLimiter,
     private readonly clock: Clock,
-    @Optional()
-    private readonly reflector?: Reflector,
-    @Optional()
-    private readonly moduleRef?: ModuleRef,
+    private readonly reflector: Reflector,
+    private readonly moduleRef: ModuleRef,
   ) {}
 
   canActivate(context: ExecutionContext): boolean {
@@ -42,19 +36,13 @@ export class WorkspaceWriteRateLimitGuard implements CanActivate {
       });
     }
 
-    const handler = context.getHandler?.();
-    const writeLimit =
-      handler && this.reflector
-        ? this.reflector.get<WriteLimit | undefined>(WRITE_LIMIT_KEY, handler)
-        : undefined;
-
-    let limiter = this.defaultLimiter;
-    if (writeLimit && this.moduleRef) {
-      limiter = this.moduleRef.get<SlidingWindowLimiter>(
-        writeLimit.limiterToken,
-        { strict: false },
-      );
-    }
+    const writeLimit = this.reflector.get<WriteLimit | undefined>(
+      WRITE_LIMIT_KEY,
+      context.getHandler(),
+    );
+    const limiter = writeLimit
+      ? this.limiterFor(writeLimit)
+      : this.defaultLimiter;
 
     const bucket = writeLimit?.bucket ?? 'workspace_write';
     const message = writeLimit?.message ?? {
@@ -81,5 +69,19 @@ export class WorkspaceWriteRateLimitGuard implements CanActivate {
     }
 
     return true;
+  }
+
+  private limiterFor(writeLimit: WriteLimit): SlidingWindowLimiter {
+    try {
+      return this.moduleRef.get<SlidingWindowLimiter>(writeLimit.limiterToken, {
+        strict: false,
+      });
+    } catch (err: unknown) {
+      // A route declares a writeLimit whose module does not provide its limiter: a wiring bug
+      throw new Error(
+        `No limiter provided for writeLimit bucket=${writeLimit.bucket}`,
+        { cause: err },
+      );
+    }
   }
 }

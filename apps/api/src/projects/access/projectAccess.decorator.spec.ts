@@ -11,7 +11,7 @@ import {
   ProjectRead,
   ProjectWrite,
 } from './projectAccess.decorator.js';
-import { WRITE_LIMIT_KEY, type WriteLimit } from './writeLimit.js';
+import { WRITE_LIMIT_KEY, type WriteLimit } from '../../common/writeLimit.js';
 import { ProjectAccessGuard } from './projectAccessGuard.js';
 import {
   PROJECT_PERMISSION_KEY,
