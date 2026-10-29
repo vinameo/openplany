@@ -142,14 +142,15 @@ export function useCreateWorkItemForm({
       }
     } catch (err) {
       if (err instanceof ApiRequestError) {
-        if (err.status === 403) {
+        // Pick by code (WEB B2.5): another 403/404 (e.g. ORIGIN_NOT_ALLOWED) must not lock Save
+        if (err.code === "FORBIDDEN") {
           setServerError(t("workItem:errors.createForbidden"));
           setIsSaveLocked(true);
           reloadProject?.();
-        } else if (err.status === 404) {
+        } else if (err.code === "PROJECT_NOT_FOUND") {
           setServerError(t("workItem:errors.projectGone"));
           setIsSaveLocked(true);
-        } else if (err.status === 429) {
+        } else if (err.code === "TOO_MANY_ATTEMPTS") {
           setServerError(
             t("workItem:errors.tooManyRequests", {
               count: retryAfterMinutes(err.retryAfterSeconds),
@@ -166,7 +167,7 @@ export function useCreateWorkItemForm({
           queryClient.invalidateQueries({
             queryKey: stateKeys.project(slug, project.identifier),
           });
-        } else if (err.status === 400 && err.fields) {
+        } else if (err.code === "VALIDATION_ERROR") {
           let fieldMatched = false;
           if (err.fields.title) {
             setTitleError(err.fields.title);
