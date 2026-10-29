@@ -38,6 +38,26 @@ export const TABLES_WITH_DEFAULTS: TableWithDefaults[] = [
       'deleted_at',
     ],
   },
+  {
+    table: 'work_item_priorities',
+    trigger: 'work_item_priorities_protect_defaults',
+    columns: [
+      'id',
+      'level',
+      'default_key',
+      'workspace_id',
+      'project_id',
+      'name',
+      'priority_band',
+      'color',
+      'created_by_id',
+      'updated_by_id',
+      'deleted_by_id',
+      'created_at',
+      'updated_at',
+      'deleted_at',
+    ],
+  },
 ];
 
 const BASE_TRUNCATE_TABLES = [

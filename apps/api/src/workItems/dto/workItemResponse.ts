@@ -12,6 +12,7 @@ export function toWorkItemResponse(
     title: row.title,
     description: row.description,
     stateId: row.stateId,
+    priorityId: row.priorityId,
     createdById: row.createdById,
     createdAt: row.createdAt.toISOString(),
   };

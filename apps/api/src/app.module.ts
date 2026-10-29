@@ -11,6 +11,7 @@ import { UsersModule } from './users/users.module.js';
 import { WorkspacesModule } from './workspaces/workspaces.module.js';
 import { WorkItemsModule } from './workItems/workItems.module.js';
 import { StatesModule } from './states/states.module.js';
+import { PrioritiesModule } from './priorities/priorities.module.js';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { StatesModule } from './states/states.module.js';
     ProjectsModule,
     WorkItemsModule,
     StatesModule,
+    PrioritiesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

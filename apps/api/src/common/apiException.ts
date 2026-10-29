@@ -53,6 +53,7 @@ export const API_ERROR_CODES = [
   'STATE_REPLACEMENT_INVALID',
   'STATE_UNAVAILABLE',
   'STATE_GROUP_CHANGE_UNCONFIRMED',
+  'PRIORITY_UNAVAILABLE',
   'INTERNAL_ERROR',
 ] as const;
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number];

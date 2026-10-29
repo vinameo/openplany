@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import type { WorkItemResponse } from '@repo/contracts';
 import { Clock } from '../auth/clock.js';
 import { ApiException } from '../common/apiException.js';
@@ -15,6 +15,7 @@ export interface CreateWorkItemServiceInput {
   description: string;
   idempotencyKey: string;
   stateId?: string;
+  priorityId?: string;
   requestId?: string;
 }
 
@@ -25,6 +26,8 @@ export interface CreateWorkItemServiceResult {
 
 @Injectable()
 export class WorkItemsService {
+  private readonly logger = new Logger(WorkItemsService.name);
+
   constructor(
     private readonly repository: WorkItemsRepository,
     private readonly events: WorkItemEvents,
@@ -43,6 +46,7 @@ export class WorkItemsService {
       description: input.description,
       idempotencyKey: input.idempotencyKey,
       stateId: input.stateId,
+      priorityId: input.priorityId,
       now,
     });
 
@@ -117,6 +121,23 @@ export class WorkItemsService {
         throw new ApiException(HttpStatus.CONFLICT, 'STATE_UNAVAILABLE', {
           key: 'workItem:errors.stateUnavailable',
         });
+
+      case 'priority_unavailable':
+        throw new ApiException(HttpStatus.CONFLICT, 'PRIORITY_UNAVAILABLE', {
+          key: 'workItem:errors.priorityUnavailable',
+        });
+
+      case 'initial_priority_missing':
+        this.logger.error(
+          `Initial priority is missing for project ${input.project.project.id} (requestId: ${input.requestId})`,
+        );
+        throw new ApiException(
+          HttpStatus.INTERNAL_SERVER_ERROR,
+          'INTERNAL_ERROR',
+          {
+            key: 'workItem:errors.generic',
+          },
+        );
     }
   }
 }

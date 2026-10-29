@@ -74,3 +74,4 @@ export * from "./adminUsers.js";
 export * from "./workItem.js";
 export * from "./level.js";
 export * from "./state.js";
+export * from "./priority.js";

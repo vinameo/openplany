@@ -11,12 +11,13 @@ import {
   signInCookie,
 } from './helpers/e2eUsers.js';
 import { insertWorkItem, undoUntil } from './helpers/e2eWorkItems.js';
-import { PROJECT_ROLE_RANK } from '@repo/contracts';
+import { DEFAULT_PRIORITIES, PROJECT_ROLE_RANK } from '@repo/contracts';
 import { DEFAULT_PROJECT_ACCESS_POLICIES } from '@repo/contracts/testing';
 import { MIGRATION_PROJECT_ROLE_RANK } from '../src/database/migrations/1791610200000-ApplyProjectAccessPolicies.js';
 import { EnableUnaccent1791610400000 } from '../src/database/migrations/1791610400000-EnableUnaccent.js';
 import { CreateWorkItems1791610500000 } from '../src/database/migrations/1791610500000-CreateWorkItems.js';
 import { CreateWorkItemStates1791610600000 } from '../src/database/migrations/1791610600000-CreateWorkItemStates.js';
+import { CreateWorkItemPriorities1791610700000 } from '../src/database/migrations/1791610700000-CreateWorkItemPriorities.js';
 
 /**
  * Migrations meet real data (CLAUDE.md §8 design pass): the newest migrations
@@ -1001,5 +1002,195 @@ describe('Migrations (e2e)', () => {
       `SELECT key FROM permissions WHERE key = 'workspace.states.manage'`,
     );
     expect(perm).toHaveLength(1);
+  });
+
+  it('CreateWorkItemPriorities1791610700000: pre-checks, down() with real rows at three levels, backfill None (AC-12, INV-03)', async () => {
+    // 1. Pre-checks unit verification
+    const migration = new CreateWorkItemPriorities1791610700000();
+
+    const tableExistsRunner = {
+      query: vi.fn().mockImplementation((sql: string) => {
+        if (sql.includes("table_name = 'work_item_priorities'")) {
+          return [{ '?column?': 1 }];
+        }
+        return [];
+      }),
+    };
+    await expect(
+      migration.up(
+        tableExistsRunner as unknown as import('typeorm').QueryRunner,
+      ),
+    ).rejects.toThrow(
+      'Cannot create work_item_priorities: table already exists.',
+    );
+
+    const colExistsRunner = {
+      query: vi.fn().mockImplementation((sql: string) => {
+        if (sql.includes("column_name = 'priority_id'")) {
+          return [{ '?column?': 1 }];
+        }
+        return [];
+      }),
+    };
+    await expect(
+      migration.up(colExistsRunner as unknown as import('typeorm').QueryRunner),
+    ).rejects.toThrow(
+      'Cannot create work_items.priority_id: column already exists.',
+    );
+
+    const funcExistsRunner = {
+      query: vi.fn().mockImplementation((sql: string) => {
+        if (sql.includes("proname = 'work_item_priorities_protect_defaults'")) {
+          return [{ '?column?': 1 }];
+        }
+        return [];
+      }),
+    };
+    await expect(
+      migration.up(
+        funcExistsRunner as unknown as import('typeorm').QueryRunner,
+      ),
+    ).rejects.toThrow(
+      'Cannot create work_item_priorities: trigger function already exists.',
+    );
+
+    // 2. Ensure database is fully migrated before inserting real rows
+    await migrationsDs.runMigrations({ transaction: 'each' });
+
+    // Seed workspace, project, user
+    const ownerId = await createUser(e2e, 'mig-priority@openplany.dev', {
+      is_superuser: true,
+    });
+    const created = await request(e2e.app.getHttpServer())
+      .post('/api/workspaces')
+      .set('Cookie', await signInCookie(e2e, 'mig-priority@openplany.dev'))
+      .set('Origin', DEFAULT_E2E_ORIGIN)
+      .send({
+        name: 'Mig Priority WS',
+        slug: 'mig-prio',
+        organizationSize: '2-10',
+      })
+      .expect(201);
+    const wsId = created.body.id as string;
+    const [project] = await e2e.dataSource.query<{ id: string }[]>(
+      `INSERT INTO projects (workspace_id, name, identifier, icon_name, icon_color, cover_key, timezone)
+       VALUES ($1, 'Mig Prio Project', 'MPP', 'square-check', '#868E96', 'cover-01', 'UTC') RETURNING id`,
+      [wsId],
+    );
+
+    // Insert real rows across all three levels:
+    // (a) workspace priority
+    const [_wsPriority] = await migrationsDs.query<{ id: string }[]>(
+      `INSERT INTO work_item_priorities (level, workspace_id, name, priority_band, color, created_at, updated_at)
+       VALUES ('workspace', $1, 'Blocker', 'urgent', '#B05A5A', now(), now()) RETURNING id`,
+      [wsId],
+    );
+
+    // (b) project priority
+    const [projPriority] = await migrationsDs.query<{ id: string }[]>(
+      `INSERT INTO work_item_priorities (level, workspace_id, project_id, name, priority_band, color, created_at, updated_at)
+       VALUES ('project', $1, $2, 'Nice to have', 'low', '#3E7BD6', now(), now()) RETURNING id`,
+      [wsId, project!.id],
+    );
+
+    // (c) soft-deleted priority
+    await migrationsDs.query(
+      `INSERT INTO work_item_priorities (level, workspace_id, name, priority_band, color, created_at, updated_at, deleted_at)
+       VALUES ('workspace', $1, 'Deleted Priority', 'medium', '#E08A1E', now(), now(), now())`,
+      [wsId],
+    );
+
+    // (d) work item pointing to project priority (live)
+    await insertWorkItem(e2e.dataSource, {
+      workspaceId: wsId,
+      projectId: project!.id,
+      number: 1,
+      title: 'Item with project priority',
+      priorityId: projPriority!.id,
+      createdById: ownerId,
+    });
+
+    // (e) work item pointing to project priority (soft-deleted)
+    await insertWorkItem(e2e.dataSource, {
+      workspaceId: wsId,
+      projectId: project!.id,
+      number: 2,
+      title: 'Deleted item with project priority',
+      priorityId: projPriority!.id,
+      createdById: ownerId,
+      deletedAt: new Date(),
+    });
+
+    // 3. Revert CreateWorkItemPriorities
+    await undoUntil(migrationsDs, 'CreateWorkItemPriorities');
+
+    // Verify work_item_priorities table is dropped
+    const droppedTable = await migrationsDs.query(
+      `SELECT 1 FROM information_schema.tables WHERE table_name = 'work_item_priorities'`,
+    );
+    expect(droppedTable).toHaveLength(0);
+
+    // Verify priority_id column is dropped from work_items
+    const droppedCol = await migrationsDs.query(
+      `SELECT 1 FROM information_schema.columns WHERE table_name = 'work_items' AND column_name = 'priority_id'`,
+    );
+    expect(droppedCol).toHaveLength(0);
+
+    // 4. Insert work items without priority_id (pre-migration state: 1 live, 1 soft-deleted)
+    const [liveWi] = await insertWorkItem(e2e.dataSource, {
+      workspaceId: wsId,
+      projectId: project!.id,
+      number: 3,
+      title: 'Pre-priority live item',
+      createdById: ownerId,
+    });
+    const [deletedWi] = await insertWorkItem(e2e.dataSource, {
+      workspaceId: wsId,
+      projectId: project!.id,
+      number: 4,
+      title: 'Pre-priority deleted item',
+      createdById: ownerId,
+      deletedAt: new Date(),
+    });
+
+    // 5. Re-apply CreateWorkItemPriorities
+    await migrationsDs.runMigrations({ transaction: 'each' });
+
+    // Verify 5 default rows match DEFAULT_PRIORITIES
+    const defaultPriorities = await migrationsDs.query<
+      {
+        default_key: string;
+        priority_band: string;
+        color: string;
+        name: string;
+      }[]
+    >(
+      `SELECT default_key, priority_band, color, name FROM work_item_priorities WHERE level = 'default' ORDER BY default_key`,
+    );
+    expect(defaultPriorities).toHaveLength(5);
+    for (const def of DEFAULT_PRIORITIES) {
+      const match = defaultPriorities.find((p) => p.default_key === def.key);
+      expect(match).toBeDefined();
+      expect(match!.priority_band).toBe(def.band);
+      expect(match!.color).toBe(def.color);
+    }
+
+    const noneId = (
+      await migrationsDs.query<{ id: string }[]>(
+        `SELECT id FROM work_item_priorities WHERE default_key = 'none'`,
+      )
+    )[0]!.id;
+
+    // Verify both live and deleted work items backfilled to None (AC-12, INV-03)
+    const backfilledLive = await migrationsDs.query<{ priority_id: string }[]>(
+      `SELECT priority_id FROM work_items WHERE id = $1`,
+      [liveWi!.id],
+    );
+    expect(backfilledLive[0]!.priority_id).toBe(noneId);
+
+    const backfilledDeleted = await migrationsDs.query<
+      { priority_id: string }[]
+    >(`SELECT priority_id FROM work_items WHERE id = $1`, [deletedWi!.id]);
+    expect(backfilledDeleted[0]!.priority_id).toBe(noneId);
   });
 });

@@ -150,6 +150,7 @@ describe('Create Work Item (e2e)', () => {
       'id',
       'key',
       'number',
+      'priorityId',
       'stateId',
       'title',
     ]);

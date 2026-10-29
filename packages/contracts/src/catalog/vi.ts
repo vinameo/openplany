@@ -887,6 +887,9 @@ export const vi: TranslatedCatalog = {
     "errors.stateUnavailable":
       "Trạng thái này không còn dùng được. Hãy chọn trạng thái khác.",
     "errors.stateInvalid": "Chọn trạng thái trong danh sách",
+    "errors.priorityInvalid": "Chọn mức ưu tiên trong danh sách",
+    "errors.priorityUnavailable":
+      "Mức ưu tiên này không còn dùng được. Hãy chọn mức khác rồi lưu lại.",
     "errors.generic": "Không tạo được công việc. Hãy thử lại.",
   },
   state: {
@@ -958,5 +961,18 @@ export const vi: TranslatedCatalog = {
     "picker.initialFallback": "Backlog",
     "errors.confirmInvalid": "Hãy xác nhận lại thay đổi.",
     "errors.generic": "Không lưu được trạng thái. Hãy thử lại.",
+  },
+  priority: {
+    "defaults.urgent": "Khẩn cấp",
+    "defaults.high": "Cao",
+    "defaults.medium": "Trung bình",
+    "defaults.low": "Thấp",
+    "defaults.none": "Không",
+    "picker.chipLabel": "Mức ưu tiên: {{name}}",
+    "picker.search": "Tìm kiếm",
+    "picker.empty": "Không tìm thấy mức ưu tiên",
+    "picker.noPermission": "Bạn không có quyền xem mức ưu tiên của dự án này.",
+    "picker.loadFailed":
+      "Không tải được mức ưu tiên. Công việc sẽ được tạo với mức Không.",
   },
 };

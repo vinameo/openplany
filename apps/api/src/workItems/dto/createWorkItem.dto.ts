@@ -90,4 +90,13 @@ export class CreateWorkItemDto implements CreateWorkItemRequest {
     message: validationMessage('workItem:errors.stateInvalid'),
   })
   stateId?: string;
+
+  @ValidateIf(isProvided)
+  @IsUUID('all', {
+    message: validationMessage('workItem:errors.priorityInvalid'),
+  })
+  @IsString({
+    message: validationMessage('workItem:errors.priorityInvalid'),
+  })
+  priorityId?: string;
 }

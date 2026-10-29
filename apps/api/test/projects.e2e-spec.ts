@@ -29,6 +29,7 @@ import { CreateProjectAccessPolicies1791610100000 } from '../src/database/migrat
 import { AddProjectRoleChangedHistory1791610300000 } from '../src/database/migrations/1791610300000-AddProjectRoleChangedHistory.js';
 import { CreateWorkItems1791610500000 } from '../src/database/migrations/1791610500000-CreateWorkItems.js';
 import { CreateWorkItemStates1791610600000 } from '../src/database/migrations/1791610600000-CreateWorkItemStates.js';
+import { CreateWorkItemPriorities1791610700000 } from '../src/database/migrations/1791610700000-CreateWorkItemPriorities.js';
 import { ProjectMemberRoleHistory } from '../src/projects/entities/projectMemberRoleHistory.entity.js';
 import { ProjectAccessResolver } from '../src/projects/access/projectAccessResolver.js';
 import { ProjectsRepository } from '../src/projects/repositories/projects.repository.js';
@@ -166,9 +167,11 @@ describe('Projects (e2e)', () => {
       const roleChanged = new AddProjectRoleChangedHistory1791610300000();
       const workItems = new CreateWorkItems1791610500000();
       const workItemStates = new CreateWorkItemStates1791610600000();
+      const workItemPriorities = new CreateWorkItemPriorities1791610700000();
       const qr = e2e.dataSource.createQueryRunner();
       await qr.connect();
       try {
+        await workItemPriorities.down(qr).catch(() => {});
         await workItemStates.down(qr).catch(() => {});
         await workItems.down(qr).catch(() => {});
         await roleChanged.down(qr).catch(() => {});
@@ -206,6 +209,7 @@ describe('Projects (e2e)', () => {
         await roleChanged.up(qr);
         await workItems.up(qr);
         await workItemStates.up(qr);
+        await workItemPriorities.up(qr);
       } finally {
         await qr.release();
       }

@@ -9,6 +9,7 @@ export const ENFORCED_PROJECT_PERMISSIONS = [
   "project.settings.update",
   "project.states.view",
   "project.states.manage",
+  "project.workitems.view",
   "project.workitems.create",
 ] as const satisfies readonly ProjectPermission[];
 export type EnforcedProjectPermission =

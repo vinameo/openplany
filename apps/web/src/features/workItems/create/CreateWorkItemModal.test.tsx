@@ -440,9 +440,14 @@ describe("CreateWorkItemModal", () => {
     expect(stateButton).toHaveAttribute("aria-disabled", "true");
     expect(stateButton).toHaveTextContent("Backlog");
 
-    // 6 disabled property chips in exact D2 order with D3 neutral labels
+    // Priority chip renders PriorityPicker (locked showing None without project.workitems.view)
+    const priorityButton = screen.getByTestId("priority-picker-no-permission");
+    expect(priorityButton).toBeInTheDocument();
+    expect(priorityButton).toHaveAttribute("aria-disabled", "true");
+    expect(priorityButton).toHaveTextContent("None");
+
+    // 5 disabled property chips in exact D2 order with D3 neutral labels
     const expectedChips = [
-      "Priority",
       "Assignees",
       "Labels",
       "Start date",
@@ -645,9 +650,14 @@ describe("CreateWorkItemModal", () => {
       ).toBeInTheDocument();
       expect(screen.getByText("Hỗ trợ Markdown")).toBeInTheDocument();
 
+      expect(
+        screen.getByRole("button", { name: "Trạng thái" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Mức ưu tiên: Không" }),
+      ).toBeInTheDocument();
+
       const expectedViChips = [
-        "Trạng thái",
-        "Mức ưu tiên",
         "Người thực hiện",
         "Nhãn",
         "Ngày bắt đầu",

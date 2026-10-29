@@ -417,6 +417,46 @@ describe('Adversarial inputs (e2e)', () => {
       expect(res.status).toBe(409);
       expect(res.body.code).toBe('STATE_UNAVAILABLE');
     }
+
+    // Explicit API B4 rows: priorityId adversarial validation (AC-09)
+    const badPriorityIds = ['abc', null, 123, true, {}, []];
+    for (const badPriorityId of badPriorityIds) {
+      const res = await http()
+        .post(`/api/workspaces/${ws.slug}/projects/${identifier}/work-items`)
+        .set('Cookie', admin.cookie)
+        .set('Origin', ORIGIN)
+        .send({
+          title: 'Adversarial priorityId',
+          description: 'Desc',
+          idempotencyKey: crypto.randomUUID(),
+          priorityId: badPriorityId,
+        });
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe('VALIDATION_ERROR');
+      expect(res.body.fields?.priorityId).toBe(
+        'Choose a priority from the list',
+      );
+    }
+
+    // priorityId non-existent UUID -> 409 PRIORITY_UNAVAILABLE
+    const unavailablePriorityIds = [
+      '00000000-0000-0000-0000-000000000000',
+      crypto.randomUUID(),
+    ];
+    for (const unavailId of unavailablePriorityIds) {
+      const res = await http()
+        .post(`/api/workspaces/${ws.slug}/projects/${identifier}/work-items`)
+        .set('Cookie', admin.cookie)
+        .set('Origin', ORIGIN)
+        .send({
+          title: 'Unavailable priorityId',
+          description: 'Desc',
+          idempotencyKey: crypto.randomUUID(),
+          priorityId: unavailId,
+        });
+      expect(res.status).toBe(409);
+      expect(res.body.code).toBe('PRIORITY_UNAVAILABLE');
+    }
   });
 
   it('POST /workspaces/:slug/projects/:identifier/states', async () => {
