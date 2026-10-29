@@ -1,4 +1,10 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Notifications, notifications } from "@mantine/notifications";
 import { AppUiProvider } from "@repo/ui";
@@ -300,6 +306,85 @@ describe("WorkspaceStatesPage", () => {
       });
     });
     expect(patchCallCount).toBe(2);
+    // The saved change closes the edit row
+    await waitFor(() => {
+      expect(screen.queryByTestId("state-name-input")).not.toBeInTheDocument();
+    });
+  });
+
+  it("keeps the edit row open with the name error when the confirmed change hits STATE_NAME_TAKEN", async () => {
+    const user = userEvent.setup();
+    let patchCallCount = 0;
+
+    renderWorkspaceStatesApp({
+      extraRoutes: {
+        "PATCH /api/workspaces/the-firsts/states/ws-qa": () => {
+          patchCallCount++;
+          if (patchCallCount === 1) {
+            return apiError(
+              409,
+              "STATE_GROUP_CHANGE_UNCONFIRMED",
+              "Confirm group change",
+              { count: 2 },
+            );
+          }
+          return apiError(409, "STATE_NAME_TAKEN", "Name taken", {
+            fields: { name: "A state with this name already exists." },
+          });
+        },
+      },
+    });
+
+    await user.click(await screen.findByTestId("state-menu-ws-qa"));
+    await user.click(screen.getByTestId("state-menu-edit"));
+    const nameInput = screen.getByTestId("state-name-input");
+    await user.clear(nameInput);
+    await user.type(nameInput, "Review");
+    await user.click(screen.getByTestId("state-group-select"));
+    await user.click(await screen.findByRole("option", { name: "Finished" }));
+    await user.click(screen.getByTestId("state-form-save"));
+
+    await user.click(
+      await screen.findByRole("button", { name: "Change group" }),
+    );
+
+    expect(
+      await screen.findByText("A state with this name already exists."),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("state-name-input")).toHaveValue("Review");
+    expect(screen.queryByText('Change group of "QA"?')).not.toBeInTheDocument();
+  });
+
+  it("keeps the edit row open when the group change is cancelled", async () => {
+    const user = userEvent.setup();
+
+    renderWorkspaceStatesApp({
+      extraRoutes: {
+        "PATCH /api/workspaces/the-firsts/states/ws-qa": () =>
+          apiError(
+            409,
+            "STATE_GROUP_CHANGE_UNCONFIRMED",
+            "Confirm group change",
+            { count: 2 },
+          ),
+      },
+    });
+
+    await user.click(await screen.findByTestId("state-menu-ws-qa"));
+    await user.click(screen.getByTestId("state-menu-edit"));
+    await user.click(screen.getByTestId("state-group-select"));
+    await user.click(await screen.findByRole("option", { name: "Finished" }));
+    await user.click(screen.getByTestId("state-form-save"));
+
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+    await waitFor(() => {
+      expect(
+        screen.queryByText('Change group of "QA"?'),
+      ).not.toBeInTheDocument();
+    });
+    expect(screen.getByTestId("state-name-input")).toBeInTheDocument();
   });
 
   it("opens DeleteStateModal on delete click and sends DELETE with replacementStateId (AC-25)", async () => {

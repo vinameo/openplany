@@ -19,8 +19,17 @@ export function parseStateError(
 ): StateErrorResult {
   if (err instanceof ApiRequestError) {
     switch (err.code) {
-      case "VALIDATION_ERROR":
-        return { fieldErrors: err.fields };
+      case "VALIDATION_ERROR": {
+        // The row form shows only `name`; any other field (or the class-level
+        // "nothing to update" error, keyed '') goes to the page alert, already
+        // translated by the API.
+        const { name, ...others } = err.fields;
+        const hasOthers = Object.keys(others).length > 0;
+        return {
+          ...(name !== undefined && { fieldErrors: { name } }),
+          ...((name === undefined || hasOthers) && { message: err.message }),
+        };
+      }
 
       case "STATE_NAME_TAKEN":
         return {

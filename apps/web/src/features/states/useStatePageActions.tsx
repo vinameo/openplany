@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Alert } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import type {
@@ -7,6 +7,7 @@ import type {
   StateResponse,
   UpdateStateRequest,
 } from "@repo/contracts";
+import { ApiRequestError } from "../../lib/apiClient";
 import { parseStateError } from "./stateErrors";
 
 export interface ChangeGroupState {
@@ -36,6 +37,11 @@ export interface UseStatePageActionsProps {
   };
 }
 
+/**
+ * Create and update resolve to `true` when the change is saved (the row form
+ * closes) and `false` when it is not (the form stays open; the reason is
+ * already shown as a field error or the page alert). They never reject.
+ */
 export function useStatePageActions({
   states,
   createMutation,
@@ -48,43 +54,68 @@ export function useStatePageActions({
   const [changeGroupState, setChangeGroupState] =
     useState<ChangeGroupState | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<StateResponse | null>(null);
+  // Settles the update that opened the change-group modal once it closes
+  const settleGroupChangeRef = useRef<((saved: boolean) => void) | null>(null);
 
-  const handleCreate = async (body: CreateStateRequest) => {
+  const clearErrors = () => {
     setServerError(null);
     setFieldErrors({});
-    try {
-      await createMutation.mutateAsync(body);
-    } catch (err: unknown) {
-      const parsed = parseStateError(err, t);
-      if (parsed.fieldErrors) setFieldErrors(parsed.fieldErrors);
-      if (parsed.message) setServerError(parsed.message);
-      throw err;
+  };
+
+  const showError = (err: unknown) => {
+    const parsed = parseStateError(err, t);
+    if (parsed.fieldErrors) setFieldErrors(parsed.fieldErrors);
+    if (parsed.message) setServerError(parsed.message);
+    if (!(err instanceof ApiRequestError)) {
+      console.error("state.write_failed", err);
     }
   };
 
-  const handleUpdate = async (stateId: string, body: UpdateStateRequest) => {
-    setServerError(null);
-    setFieldErrors({});
+  const closeChangeGroup = (saved: boolean) => {
+    const settle = settleGroupChangeRef.current;
+    settleGroupChangeRef.current = null;
+    setChangeGroupState(null);
+    settle?.(saved);
+  };
+
+  const handleCreate = async (body: CreateStateRequest): Promise<boolean> => {
+    clearErrors();
+    try {
+      await createMutation.mutateAsync(body);
+      return true;
+    } catch (err: unknown) {
+      showError(err);
+      return false;
+    }
+  };
+
+  const handleUpdate = async (
+    stateId: string,
+    body: UpdateStateRequest,
+  ): Promise<boolean> => {
+    clearErrors();
     try {
       await updateMutation.mutateAsync({ stateId, body });
+      return true;
     } catch (err: unknown) {
       const parsed = parseStateError(err, t);
-      if (parsed.isGroupChangeUnconfirmed) {
-        const state = states?.find((s) => s.id === stateId);
-        if (state && body.group) {
-          setChangeGroupState({
-            stateId,
-            stateName: state.name,
-            targetGroup: body.group,
-            count: parsed.unconfirmedCount ?? 0,
-            pendingPatch: body,
-          });
-        }
-        throw err;
+      const state = states?.find((s) => s.id === stateId);
+      const targetGroup = body.group;
+      if (!parsed.isGroupChangeUnconfirmed || !state || !targetGroup) {
+        showError(err);
+        return false;
       }
-      if (parsed.fieldErrors) setFieldErrors(parsed.fieldErrors);
-      if (parsed.message) setServerError(parsed.message);
-      throw err;
+      // The form waits for the modal: confirm saves and closes it, cancel keeps it open
+      return new Promise<boolean>((resolve) => {
+        settleGroupChangeRef.current = resolve;
+        setChangeGroupState({
+          stateId,
+          stateName: state.name,
+          targetGroup,
+          count: parsed.unconfirmedCount ?? 0,
+          pendingPatch: body,
+        });
+      });
     }
   };
 
@@ -98,12 +129,15 @@ export function useStatePageActions({
           confirmGroupChange: true,
         },
       });
-      setChangeGroupState(null);
+      closeChangeGroup(true);
     } catch (err: unknown) {
-      const parsed = parseStateError(err, t);
-      if (parsed.message) setServerError(parsed.message);
+      // Back to the form, which shows the reason (e.g. the name was taken meanwhile)
+      showError(err);
+      closeChangeGroup(false);
     }
   };
+
+  const handleCancelChangeGroup = () => closeChangeGroup(false);
 
   const handleDeleteConfirm = async (
     targetStateId: string,
@@ -132,12 +166,12 @@ export function useStatePageActions({
     setServerError,
     fieldErrors,
     changeGroupState,
-    setChangeGroupState,
     deleteTarget,
     setDeleteTarget,
     handleCreate,
     handleUpdate,
     handleConfirmChangeGroup,
+    handleCancelChangeGroup,
     handleDeleteConfirm,
     serverAlert,
   };
