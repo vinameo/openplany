@@ -202,4 +202,145 @@ describe('Project Priorities API (e2e)', () => {
 
     expect(res.status).toBe(404);
   });
+
+  it('AC-16, INV-07: GET priorities returns 3-level priorities in correct order (band -> level -> createdAt -> id), excluding deleted, other project, other workspace; ignores query string', async () => {
+    const {
+      workspaceId,
+      workspaceSlug,
+      projectId,
+      projectIdentifier,
+      wsAdmin,
+    } = await seedWorkspaceAndProject();
+
+    // Create project Q in same workspace W
+    const prjQRes = await http()
+      .post(`/api/workspaces/${workspaceSlug}/projects`)
+      .set('Cookie', wsAdmin.cookie)
+      .set('Origin', ORIGIN)
+      .send({
+        name: 'Project Q',
+        identifier: 'PRQ',
+        description: 'Project Q Description',
+        icon: {
+          name: DEFAULT_PROJECT_ICON,
+          color: DEFAULT_PROJECT_ICON_COLOR,
+        },
+        coverKey: DEFAULT_PROJECT_COVER,
+      })
+      .expect(201);
+    const projectQId = prjQRes.body.project.id as string;
+
+    // Create another workspace W2
+    const ws2Res = await http()
+      .post('/api/workspaces')
+      .set('Cookie', wsAdmin.cookie)
+      .set('Origin', ORIGIN)
+      .send({
+        name: 'Other Workspace',
+        slug: `other-ws-${userSeq}`,
+        organizationSize: '2-10',
+      })
+      .expect(201);
+    const workspace2Id = ws2Res.body.id as string;
+
+    // Seed priorities directly in database (bypassing app as intended, AC-16)
+    // 1. Workspace W live priority "Blocker" (band: urgent)
+    const [blocker] = await e2e.dataSource.query<{ id: string }[]>(
+      `INSERT INTO work_item_priorities (level, workspace_id, name, priority_band, color, created_at, updated_at)
+       VALUES ('workspace', $1, 'Blocker', 'urgent', '#B05A5A', now(), now()) RETURNING id`,
+      [workspaceId],
+    );
+
+    // 2. Workspace W soft-deleted priority "Old Blocker" (band: urgent)
+    await e2e.dataSource.query(
+      `INSERT INTO work_item_priorities (level, workspace_id, name, priority_band, color, created_at, updated_at, deleted_at)
+       VALUES ('workspace', $1, 'Old Blocker', 'urgent', '#B05A5A', now(), now(), now())`,
+      [workspaceId],
+    );
+
+    // 3. Project P live priority "Nice to have" (band: low)
+    const [niceToHave] = await e2e.dataSource.query<{ id: string }[]>(
+      `INSERT INTO work_item_priorities (level, workspace_id, project_id, name, priority_band, color, created_at, updated_at)
+       VALUES ('project', $1, $2, 'Nice to have', 'low', '#3E7BD6', now(), now()) RETURNING id`,
+      [workspaceId, projectId],
+    );
+
+    // 4. Project Q live priority "Q-only" (band: medium)
+    await e2e.dataSource.query(
+      `INSERT INTO work_item_priorities (level, workspace_id, project_id, name, priority_band, color, created_at, updated_at)
+       VALUES ('project', $1, $2, 'Q-only', 'medium', '#E08A1E', now(), now())`,
+      [workspaceId, projectQId],
+    );
+
+    // 5. Workspace W2 live priority "Other" (band: high)
+    await e2e.dataSource.query(
+      `INSERT INTO work_item_priorities (level, workspace_id, name, priority_band, color, created_at, updated_at)
+       VALUES ('workspace', $1, 'Other', 'high', '#D0642B', now(), now())`,
+      [workspace2Id],
+    );
+
+    // GET priorities with strange query string (?level=project, API B4)
+    const res = await http()
+      .get(
+        `/api/workspaces/${workspaceSlug}/projects/${projectIdentifier}/priorities?level=project`,
+      )
+      .set('Cookie', wsAdmin.cookie)
+      .expect(200);
+
+    const body = res.body as PriorityListResponse;
+
+    // Expected order (AC-16):
+    // 1. Urgent (default, urgent)
+    // 2. Blocker (workspace, urgent)
+    // 3. High (default, high)
+    // 4. Medium (default, medium)
+    // 5. Low (default, low)
+    // 6. Nice to have (project, low)
+    // 7. None (default, none)
+    expect(body.priorities).toHaveLength(7);
+    expect(body.priorities.map((p) => p.name)).toEqual([
+      'Urgent',
+      'Blocker',
+      'High',
+      'Medium',
+      'Low',
+      'Nice to have',
+      'None',
+    ]);
+
+    expect(body.priorities.map((p) => p.band)).toEqual([
+      'urgent',
+      'urgent',
+      'high',
+      'medium',
+      'low',
+      'low',
+      'none',
+    ]);
+
+    expect(body.priorities.map((p) => p.level)).toEqual([
+      'default',
+      'workspace',
+      'default',
+      'default',
+      'default',
+      'project',
+      'default',
+    ]);
+
+    // Verify Blocker & Nice to have attributes
+    const blockerPrio = body.priorities.find((p) => p.name === 'Blocker')!;
+    expect(blockerPrio.id).toBe(blocker!.id);
+    expect(blockerPrio.defaultKey).toBeNull();
+
+    const nicePrio = body.priorities.find((p) => p.name === 'Nice to have')!;
+    expect(nicePrio.id).toBe(niceToHave!.id);
+    expect(nicePrio.defaultKey).toBeNull();
+
+    // Verify excluded items are not in response
+    const allNames = body.priorities.map((p) => p.name);
+    expect(allNames).not.toContain('Old Blocker');
+    expect(allNames).not.toContain('Q-only');
+    expect(allNames).not.toContain('Other');
+  });
 });

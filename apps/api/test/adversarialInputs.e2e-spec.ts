@@ -419,7 +419,7 @@ describe('Adversarial inputs (e2e)', () => {
     }
 
     // Explicit API B4 rows: priorityId adversarial validation (AC-09)
-    const badPriorityIds = ['abc', null, 123, true, {}, []];
+    const badPriorityIds = ['abc', '', null, 123, true, {}, []];
     for (const badPriorityId of badPriorityIds) {
       const res = await http()
         .post(`/api/workspaces/${ws.slug}/projects/${identifier}/work-items`)
@@ -437,6 +437,20 @@ describe('Adversarial inputs (e2e)', () => {
         'Choose a priority from the list',
       );
     }
+
+    // Explicit API B4 row: unrecognized fields rejected by whitelist
+    const resStrange = await http()
+      .post(`/api/workspaces/${ws.slug}/projects/${identifier}/work-items`)
+      .set('Cookie', admin.cookie)
+      .set('Origin', ORIGIN)
+      .send({
+        title: 'Strange fields',
+        idempotencyKey: crypto.randomUUID(),
+        priority: 'urgent',
+        priorityKey: 'urgent',
+      });
+    expect(resStrange.status).toBe(400);
+    expect(resStrange.body.code).toBe('VALIDATION_ERROR');
 
     // priorityId non-existent UUID -> 409 PRIORITY_UNAVAILABLE
     const unavailablePriorityIds = [
