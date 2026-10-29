@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, type QueryClient } from "@tanstack/react-query";
+import type { StateListResponse } from "@repo/contracts";
 import { statesApi } from "./statesApi";
 
 export const stateKeys = {
@@ -31,4 +32,33 @@ export function useProjectStatesQuery(
     staleTime: 30_000,
     enabled,
   });
+}
+
+/**
+ * A work item was created in a project at `stateId`: add one to that state's
+ * count on the project's list and on the workspace list (whose counts cover
+ * every live project). Lists loaded without counts stay as they are.
+ */
+export function addWorkItemToStateCounts(
+  queryClient: QueryClient,
+  slug: string,
+  identifier: string,
+  stateId: string,
+) {
+  const bump = (old: StateListResponse | undefined) => {
+    if (!old) return old;
+    return {
+      ...old,
+      states: old.states.map((s) =>
+        s.id === stateId && s.workItemCount !== undefined
+          ? { ...s, workItemCount: s.workItemCount + 1 }
+          : s,
+      ),
+    };
+  };
+  queryClient.setQueryData<StateListResponse>(
+    stateKeys.project(slug, identifier),
+    bump,
+  );
+  queryClient.setQueryData<StateListResponse>(stateKeys.workspace(slug), bump);
 }

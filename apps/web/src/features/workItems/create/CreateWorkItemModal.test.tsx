@@ -187,6 +187,28 @@ describe("CreateWorkItemModal", () => {
     expect(saveButton).toBeDisabled();
   });
 
+  it("does not lock save for a 403 whose code is not FORBIDDEN", async () => {
+    mockFetch({
+      "POST /api/workspaces/acme/projects/OPS/work-items": () =>
+        apiError(403, "ORIGIN_NOT_ALLOWED", "Origin not allowed"),
+    });
+
+    const { user, reloadProject } = renderModal();
+
+    await user.type(screen.getByPlaceholderText("Title"), "Valid Title");
+    const saveButton = screen.getByRole("button", { name: "Save" });
+    await user.click(saveButton);
+
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "You can no longer create work items in this project.",
+      ),
+    ).not.toBeInTheDocument();
+    expect(reloadProject).not.toHaveBeenCalled();
+    expect(saveButton).toBeEnabled();
+  });
+
   it("preserves idempotency key on network failure / 5xx error and reuses it on retry (AC-11)", async () => {
     const keysSent: string[] = [];
 

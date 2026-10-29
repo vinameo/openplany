@@ -13,7 +13,7 @@ import type { CreateStateDto } from './dto/createState.dto.js';
 import { toStateResponse } from './dto/stateResponse.js';
 import type { UpdateStateDto } from './dto/updateState.dto.js';
 import { StateEvents } from './stateEvents.js';
-import { StateCatalog, type StateScope } from './stateCatalog.js';
+import { StateCatalog, ownStatesMax, type StateScope } from './stateCatalog.js';
 import { StatesRepository } from './repositories/states.repository.js';
 
 export interface ListProjectStatesInput {
@@ -66,62 +66,48 @@ export class StatesService {
   async listForWorkspace(
     input: ListWorkspaceStatesInput,
   ): Promise<StateListResponse> {
-    const states = await this.catalog.workspaceLevel(this.dataSource.manager, {
-      workspaceId: input.workspaceId,
-    });
-
-    const initialState =
-      states.find(
-        (s) => s.level === 'default' && s.defaultKey === INITIAL_STATE_KEY,
-      ) ?? states[0];
-
-    const ownCount = states.filter((s) => s.level === 'workspace').length;
-
-    let counts: Map<string, number> | undefined;
-    if (input.canManage && states.length > 0) {
-      counts = await this.catalog.workItemCounts(this.dataSource.manager, {
-        stateIds: states.map((s) => s.id),
-        scope: {
-          level: 'workspace',
-          workspaceId: input.workspaceId,
-        },
-      });
-    }
-
-    return {
-      states: states.map((s) =>
-        toStateResponse(s, counts ? (counts.get(s.id) ?? 0) : undefined),
-      ),
-      ownCount,
-      ownMax: WORKSPACE_STATES_MAX,
-      initialStateId: initialState ? initialState.id : '',
-    };
+    return this.list(
+      { level: 'workspace', workspaceId: input.workspaceId },
+      input.canManage,
+    );
   }
 
   async listForProject(
     input: ListProjectStatesInput,
   ): Promise<StateListResponse> {
-    const states = await this.catalog.effectiveFor(this.dataSource.manager, {
-      workspaceId: input.workspaceId,
-      projectId: input.projectId,
-    });
+    return this.list(
+      {
+        level: 'project',
+        workspaceId: input.workspaceId,
+        projectId: input.projectId,
+      },
+      input.canManage,
+    );
+  }
+
+  /** The states a scope sees, its own count and max, and counts for managers. */
+  private async list(
+    scope: StateScope,
+    canManage: boolean,
+  ): Promise<StateListResponse> {
+    const manager = this.dataSource.manager;
+    const states =
+      scope.level === 'workspace'
+        ? await this.catalog.workspaceLevel(manager, scope)
+        : await this.catalog.effectiveFor(manager, scope);
 
     const initialState =
       states.find(
         (s) => s.level === 'default' && s.defaultKey === INITIAL_STATE_KEY,
       ) ?? states[0];
 
-    const ownCount = states.filter((s) => s.level === 'project').length;
+    const ownCount = states.filter((s) => s.level === scope.level).length;
 
     let counts: Map<string, number> | undefined;
-    if (input.canManage && states.length > 0) {
-      counts = await this.catalog.workItemCounts(this.dataSource.manager, {
+    if (canManage && states.length > 0) {
+      counts = await this.catalog.workItemCounts(manager, {
         stateIds: states.map((s) => s.id),
-        scope: {
-          level: 'project',
-          workspaceId: input.workspaceId,
-          projectId: input.projectId,
-        },
+        scope,
       });
     }
 
@@ -130,7 +116,7 @@ export class StatesService {
         toStateResponse(s, counts ? (counts.get(s.id) ?? 0) : undefined),
       ),
       ownCount,
-      ownMax: PROJECT_STATES_MAX,
+      ownMax: ownStatesMax(scope),
       initialStateId: initialState ? initialState.id : '',
     };
   }

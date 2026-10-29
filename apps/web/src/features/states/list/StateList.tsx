@@ -19,8 +19,10 @@ export interface StateListProps {
   canManage: boolean;
   ownCount: number;
   ownMax: number;
-  onCreate: (data: CreateStateRequest) => Promise<void>;
-  onUpdate: (stateId: string, data: UpdateStateRequest) => Promise<void>;
+  /** Resolves `true` when saved; the open form closes only then. */
+  onCreate: (data: CreateStateRequest) => Promise<boolean>;
+  /** Resolves `true` when saved; the open form closes only then. */
+  onUpdate: (stateId: string, data: UpdateStateRequest) => Promise<boolean>;
   onDelete?: (state: StateResponse) => void;
   inheritedNote?: ReactNode;
   description?: ReactNode;
@@ -84,12 +86,12 @@ export function StateList({
   };
 
   const handleCreateSubmit = async (values: StateRowFormValues) => {
-    await onCreate({
+    const saved = await onCreate({
       name: values.name,
       group: values.group,
       color: values.color,
     });
-    setActiveForm(null);
+    if (saved) setActiveForm(null);
   };
 
   const handleEditSubmit = async (values: StateRowFormValues) => {
@@ -100,8 +102,7 @@ export function StateList({
     if (values.group !== currentState.group) patch.group = values.group;
     if (values.color !== currentState.color) patch.color = values.color;
 
-    await onUpdate(currentState.id, patch);
-    setActiveForm(null);
+    if (await onUpdate(currentState.id, patch)) setActiveForm(null);
   };
 
   return (

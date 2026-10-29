@@ -1,19 +1,30 @@
 import { Injectable } from '@nestjs/common';
+import { Not, type EntityManager, type FindOptionsWhere } from 'typeorm';
 import {
-  IsNull,
-  Not,
-  type EntityManager,
-  type FindOptionsWhere,
-} from 'typeorm';
-import { STATE_GROUPS } from '@repo/contracts';
+  PROJECT_STATES_MAX,
+  STATE_GROUPS,
+  WORKSPACE_STATES_MAX,
+} from '@repo/contracts';
 import { equalsLowercase } from '../database/findOperators.js';
-import { Project } from '../projects/entities/project.entity.js';
-import { WorkItem } from '../workItems/entities/workItem.entity.js';
 import { WorkItemState } from './entities/workItemState.entity.js';
+import {
+  liveProjectIdsOf,
+  liveWorkItemsIn,
+  ownStates,
+  projectStatesOf,
+  visibleStates,
+} from './stateFilters.js';
 
 export type StateScope =
   | { level: 'workspace'; workspaceId: string }
   | { level: 'project'; workspaceId: string; projectId: string };
+
+/** How many live states the scope's own level may hold. */
+export function ownStatesMax(scope: Pick<StateScope, 'level'>): number {
+  return scope.level === 'workspace'
+    ? WORKSPACE_STATES_MAX
+    : PROJECT_STATES_MAX;
+}
 
 const GROUP_ORDER: Record<string, number> = Object.fromEntries(
   STATE_GROUPS.map((g, i) => [g, i]),
@@ -90,15 +101,9 @@ export class TypeOrmStateCatalog implements StateCatalog {
     manager: EntityManager,
     scope: { workspaceId: string },
   ): Promise<WorkItemState[]> {
-    const where: FindOptionsWhere<WorkItemState>[] = [
-      { level: 'default', deletedAt: IsNull() },
-      {
-        level: 'workspace',
-        workspaceId: scope.workspaceId,
-        deletedAt: IsNull(),
-      },
-    ];
-    const states = await manager.find(WorkItemState, { where });
+    const states = await manager.find(WorkItemState, {
+      where: visibleStates({ level: 'workspace', ...scope }),
+    });
     return states.sort(compareStates);
   }
 
@@ -106,21 +111,9 @@ export class TypeOrmStateCatalog implements StateCatalog {
     manager: EntityManager,
     scope: { workspaceId: string; projectId: string },
   ): Promise<WorkItemState[]> {
-    const where: FindOptionsWhere<WorkItemState>[] = [
-      { level: 'default', deletedAt: IsNull() },
-      {
-        level: 'workspace',
-        workspaceId: scope.workspaceId,
-        deletedAt: IsNull(),
-      },
-      {
-        level: 'project',
-        workspaceId: scope.workspaceId,
-        projectId: scope.projectId,
-        deletedAt: IsNull(),
-      },
-    ];
-    const states = await manager.find(WorkItemState, { where });
+    const states = await manager.find(WorkItemState, {
+      where: visibleStates({ level: 'project', ...scope }),
+    });
     return states.sort(compareStates);
   }
 
@@ -129,24 +122,11 @@ export class TypeOrmStateCatalog implements StateCatalog {
     scope: { workspaceId: string; projectId: string; stateId: string },
     mode: 'pessimistic_read' | 'pessimistic_write' = 'pessimistic_read',
   ): Promise<WorkItemState | null> {
-    const where: FindOptionsWhere<WorkItemState>[] = [
-      { id: scope.stateId, level: 'default', deletedAt: IsNull() },
-      {
-        id: scope.stateId,
-        level: 'workspace',
-        workspaceId: scope.workspaceId,
-        deletedAt: IsNull(),
-      },
-      {
-        id: scope.stateId,
-        level: 'project',
-        workspaceId: scope.workspaceId,
-        projectId: scope.projectId,
-        deletedAt: IsNull(),
-      },
-    ];
+    const { stateId, ...project } = scope;
     return manager.findOne(WorkItemState, {
-      where,
+      where: withEach(visibleStates({ level: 'project', ...project }), {
+        id: stateId,
+      }),
       lock: { mode },
     });
   }
@@ -156,27 +136,10 @@ export class TypeOrmStateCatalog implements StateCatalog {
     scope: StateScope,
     stateId: string,
   ): Promise<WorkItemState | null> {
-    if (scope.level === 'workspace') {
-      const where: FindOptionsWhere<WorkItemState>[] = [
-        { id: stateId, level: 'default', deletedAt: IsNull() },
-        {
-          id: stateId,
-          level: 'workspace',
-          workspaceId: scope.workspaceId,
-          deletedAt: IsNull(),
-        },
-      ];
-      return manager.findOne(WorkItemState, {
-        where,
-        lock: { mode: 'pessimistic_read' },
-      });
-    }
-
-    return this.lockEffectiveState(
-      manager,
-      { workspaceId: scope.workspaceId, projectId: scope.projectId, stateId },
-      'pessimistic_read',
-    );
+    return manager.findOne(WorkItemState, {
+      where: withEach(visibleStates(scope), { id: stateId }),
+      lock: { mode: 'pessimistic_read' },
+    });
   }
 
   async lockOwnState(
@@ -184,26 +147,8 @@ export class TypeOrmStateCatalog implements StateCatalog {
     scope: StateScope,
     stateId: string,
   ): Promise<WorkItemState | null> {
-    if (scope.level === 'workspace') {
-      return manager.findOne(WorkItemState, {
-        where: {
-          id: stateId,
-          level: 'workspace',
-          workspaceId: scope.workspaceId,
-          deletedAt: IsNull(),
-        },
-        lock: { mode: 'pessimistic_write' },
-      });
-    }
-
     return manager.findOne(WorkItemState, {
-      where: {
-        id: stateId,
-        level: 'project',
-        workspaceId: scope.workspaceId,
-        projectId: scope.projectId,
-        deletedAt: IsNull(),
-      },
+      where: { ...ownStates(scope), id: stateId },
       lock: { mode: 'pessimistic_write' },
     });
   }
@@ -220,90 +165,39 @@ export class TypeOrmStateCatalog implements StateCatalog {
   > {
     const lowerName = name.toLowerCase();
 
-    if (scope.level === 'workspace') {
-      const clashSame = await manager.findOne(WorkItemState, {
-        where: [
-          {
-            level: 'default',
-            name: equalsLowercase(lowerName),
-            ...(excludeId && { id: Not(excludeId) }),
-          },
-          {
-            level: 'workspace',
-            workspaceId: scope.workspaceId,
-            deletedAt: IsNull(),
-            name: equalsLowercase(lowerName),
-            ...(excludeId && { id: Not(excludeId) }),
-          },
-        ],
-      });
-      if (clashSame) {
-        return { kind: 'same_or_upper_level' };
-      }
+    // Same or upper level: what the scope sees (defaults, workspace, own project)
+    const clash = await manager.findOne(WorkItemState, {
+      where: withEach(visibleStates(scope), {
+        name: equalsLowercase(lowerName),
+        ...(excludeId && { id: Not(excludeId) }),
+      }),
+    });
+    if (clash) {
+      return { kind: 'same_or_upper_level' };
+    }
 
-      const prjQb = manager
-        .createQueryBuilder(WorkItemState, 's')
-        .select('COUNT(DISTINCT s.projectId)', 'count')
-        .where('s.level = :level', { level: 'project' })
-        .andWhere('s.workspaceId = :workspaceId', {
-          workspaceId: scope.workspaceId,
-        })
-        .andWhere('s.deletedAt IS NULL')
-        .andWhere('lower(s.name) = :name', { name: lowerName })
-        .andWhere((sub) => {
-          const pSub = sub
-            .subQuery()
-            .select('p.id')
-            .from(Project, 'p')
-            .where('p.workspaceId = :workspaceId', {
-              workspaceId: scope.workspaceId,
-            })
-            .andWhere('p.deletedAt IS NULL')
-            .getQuery();
-          return `s.projectId IN ${pSub}`;
-        });
-
-      if (excludeId) {
-        prjQb.andWhere('s.id <> :excludeId', { excludeId });
-      }
-
-      const raw = await prjQb.getRawOne<{ count: string | number }>();
-      const count = Number(raw?.count ?? 0);
-      if (count > 0) {
-        return { kind: 'projects', count };
-      }
-
+    if (scope.level === 'project') {
       return { kind: 'none' };
     }
 
-    // project level
-    const clash = await manager.findOne(WorkItemState, {
-      where: [
-        {
-          level: 'default',
-          name: equalsLowercase(lowerName),
-          ...(excludeId && { id: Not(excludeId) }),
-        },
-        {
-          level: 'workspace',
-          workspaceId: scope.workspaceId,
-          deletedAt: IsNull(),
-          name: equalsLowercase(lowerName),
-          ...(excludeId && { id: Not(excludeId) }),
-        },
-        {
-          level: 'project',
-          workspaceId: scope.workspaceId,
-          projectId: scope.projectId,
-          deletedAt: IsNull(),
-          name: equalsLowercase(lowerName),
-          ...(excludeId && { id: Not(excludeId) }),
-        },
-      ],
-    });
+    // A workspace state may not reuse a name a live project of W already has
+    const prjQb = manager
+      .createQueryBuilder(WorkItemState, 's')
+      .select('COUNT(DISTINCT s.projectId)', 'count')
+      .where(projectStatesOf(scope.workspaceId))
+      .andWhere('lower(s.name) = :name', { name: lowerName })
+      .andWhere(
+        (sub) => `s.projectId IN ${liveProjectIdsOf(sub, scope.workspaceId)}`,
+      );
 
-    if (clash) {
-      return { kind: 'same_or_upper_level' };
+    if (excludeId) {
+      prjQb.andWhere('s.id <> :excludeId', { excludeId });
+    }
+
+    const raw = await prjQb.getRawOne<{ count: string | number }>();
+    const count = Number(raw?.count ?? 0);
+    if (count > 0) {
+      return { kind: 'projects', count };
     }
 
     return { kind: 'none' };
@@ -321,44 +215,24 @@ export class TypeOrmStateCatalog implements StateCatalog {
       return result;
     }
 
-    const qb = manager
-      .createQueryBuilder(WorkItem, 'wi')
+    const rows = await liveWorkItemsIn(manager, input.scope)
       .select('wi.stateId', 'stateId')
       .addSelect('COUNT(*)', 'count')
-      .where('wi.workspaceId = :workspaceId', {
-        workspaceId: input.scope.workspaceId,
-      })
-      .andWhere('wi.deletedAt IS NULL')
       .andWhere('wi.stateId IN (:...stateIds)', { stateIds: input.stateIds })
-      .andWhere((qbSub) => {
-        const subQuery = qbSub
-          .subQuery()
-          .select('p.id')
-          .from(Project, 'p')
-          .where('p.workspaceId = :workspaceId', {
-            workspaceId: input.scope.workspaceId,
-          })
-          .andWhere('p.deletedAt IS NULL')
-          .getQuery();
-        return `wi.projectId IN ${subQuery}`;
-      });
-
-    if (input.scope.level === 'project') {
-      qb.andWhere('wi.projectId = :projectId', {
-        projectId: input.scope.projectId,
-      });
-    }
-
-    qb.groupBy('wi.stateId');
-
-    const rows = await qb.getRawMany<{
-      stateId: string;
-      count: string | number;
-    }>();
+      .groupBy('wi.stateId')
+      .getRawMany<{ stateId: string; count: string | number }>();
     for (const row of rows) {
       result.set(row.stateId, Number(row.count));
     }
 
     return result;
   }
+}
+
+/** Adds the same conditions to every OR branch of a `where`. */
+function withEach(
+  where: FindOptionsWhere<WorkItemState>[],
+  extra: FindOptionsWhere<WorkItemState>,
+): FindOptionsWhere<WorkItemState>[] {
+  return where.map((branch) => ({ ...branch, ...extra }));
 }

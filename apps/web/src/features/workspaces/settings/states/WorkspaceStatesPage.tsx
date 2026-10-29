@@ -47,12 +47,12 @@ export function WorkspaceStatesPage() {
     serverAlert,
     fieldErrors,
     changeGroupState,
-    setChangeGroupState,
     deleteTarget,
     setDeleteTarget,
     handleCreate,
     handleUpdate,
     handleConfirmChangeGroup,
+    handleCancelChangeGroup,
     handleDeleteConfirm,
     setServerError,
   } = useStatePageActions({
@@ -99,7 +99,7 @@ export function WorkspaceStatesPage() {
             isUpdating={updateMutation.isPending}
             isDeleting={deleteMutation.isPending}
             onConfirmChangeGroup={handleConfirmChangeGroup}
-            onCancelChangeGroup={() => setChangeGroupState(null)}
+            onCancelChangeGroup={handleCancelChangeGroup}
             onConfirmDelete={handleDeleteConfirm}
             onCancelDelete={() => setDeleteTarget(null)}
             onRefetch={async () => {

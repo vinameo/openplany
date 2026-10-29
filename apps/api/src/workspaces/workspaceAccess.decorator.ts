@@ -1,9 +1,6 @@
 import { applyDecorators, SetMetadata, UseGuards } from '@nestjs/common';
 import type { EnforcedWorkspacePermission } from '@repo/contracts';
-import {
-  WRITE_LIMIT_KEY,
-  type WriteLimit,
-} from '../projects/access/writeLimit.js';
+import { WRITE_LIMIT_KEY, type WriteLimit } from '../common/writeLimit.js';
 import { WorkspaceMemberGuard } from './workspaceMemberGuard.js';
 import { WorkspacePermissionGuard } from './workspacePermissionGuard.js';
 import { WorkspaceWriteRateLimitGuard } from './workspaceWriteRateLimitGuard.js';

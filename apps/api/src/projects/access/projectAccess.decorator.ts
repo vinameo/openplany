@@ -24,7 +24,7 @@ import {
   PROJECT_PERMISSION_KEY,
   ProjectPermissionGuard,
 } from './projectPermissionGuard.js';
-import { WRITE_LIMIT_KEY, type WriteLimit } from './writeLimit.js';
+import { WRITE_LIMIT_KEY, type WriteLimit } from '../../common/writeLimit.js';
 
 export type ProjectRequirement =
   | EnforcedProjectPermission

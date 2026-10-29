@@ -3,11 +3,22 @@ import type { ModuleRef, Reflector } from '@nestjs/core';
 import { describe, expect, it, vi } from 'vitest';
 import { FakeClock } from '../../test/fakes/authFakes.js';
 import { InMemorySlidingWindowLimiter } from '../common/slidingWindowLimiter.js';
-import {
-  WRITE_LIMIT_KEY,
-  type WriteLimit,
-} from '../projects/access/writeLimit.js';
+import { WRITE_LIMIT_KEY, type WriteLimit } from '../common/writeLimit.js';
 import { WorkspaceWriteRateLimitGuard } from './workspaceWriteRateLimitGuard.js';
+
+/** A guard for routes without writeLimit metadata: only the default limiter is used. */
+function defaultGuard(
+  limiter: InMemorySlidingWindowLimiter,
+  clock: FakeClock,
+): WorkspaceWriteRateLimitGuard {
+  const reflector = { get: () => undefined } as unknown as Reflector;
+  const moduleRef = {
+    get: () => {
+      throw new Error('no custom limiter expected');
+    },
+  } as unknown as ModuleRef;
+  return new WorkspaceWriteRateLimitGuard(limiter, clock, reflector, moduleRef);
+}
 
 describe('WorkspaceWriteRateLimitGuard', () => {
   it('allows 30 requests and rejects the 31st with 429 and retryAfterSeconds', () => {
@@ -16,10 +27,11 @@ describe('WorkspaceWriteRateLimitGuard', () => {
       windowMs: 600_000,
     });
     const clock = new FakeClock(new Date('2026-10-08T10:00:00.000Z'));
-    const guard = new WorkspaceWriteRateLimitGuard(limiter, clock);
+    const guard = defaultGuard(limiter, clock);
 
     function makeCtx(userId: string): ExecutionContext {
       return {
+        getHandler: () => () => {},
         switchToHttp: () => ({
           getRequest: () => ({
             auth: { userId },
@@ -48,10 +60,11 @@ describe('WorkspaceWriteRateLimitGuard', () => {
       windowMs: 600_000,
     });
     const clock = new FakeClock();
-    const guard = new WorkspaceWriteRateLimitGuard(limiter, clock);
+    const guard = defaultGuard(limiter, clock);
 
     function makeCtx(userId: string, slug: string): ExecutionContext {
       return {
+        getHandler: () => () => {},
         switchToHttp: () => ({
           getRequest: () => ({
             auth: { userId },
@@ -76,12 +89,13 @@ describe('WorkspaceWriteRateLimitGuard', () => {
       windowMs: 600_000,
     });
     const clock = new FakeClock();
-    const guard = new WorkspaceWriteRateLimitGuard(limiter, clock);
+    const guard = defaultGuard(limiter, clock);
     const warnSpy = vi
       .spyOn(Logger.prototype, 'warn')
       .mockImplementation(() => {});
 
     const ctx = {
+      getHandler: () => () => {},
       switchToHttp: () => ({
         getRequest: () => ({
           auth: { userId: 'user-default' },
@@ -269,5 +283,39 @@ describe('WorkspaceWriteRateLimitGuard', () => {
     expect(() => guard.canActivate(ctx)).toThrow(); // 2nd blocked hit -> does not log again
     expect(warnSpy).toHaveBeenCalledTimes(1);
     warnSpy.mockRestore();
+  });
+
+  it('fails with the bucket named when a writeLimit has no limiter provider', () => {
+    const limiter = new InMemorySlidingWindowLimiter({
+      limit: 1,
+      windowMs: 600_000,
+    });
+    const writeLimit: WriteLimit = {
+      limiterToken: Symbol('MISSING'),
+      bucket: 'missing_bucket',
+      message: { key: 'errors:tooManyWorkspaceWrites' },
+    };
+    const reflector = { get: () => writeLimit } as unknown as Reflector;
+    const moduleRef = {
+      get: () => {
+        throw new Error('Nest could not find MISSING element');
+      },
+    } as unknown as ModuleRef;
+    const guard = new WorkspaceWriteRateLimitGuard(
+      limiter,
+      new FakeClock(),
+      reflector,
+      moduleRef,
+    );
+    const ctx = {
+      getHandler: () => () => {},
+      switchToHttp: () => ({
+        getRequest: () => ({ auth: { userId: 'u1' } }),
+      }),
+    } as unknown as ExecutionContext;
+
+    expect(() => guard.canActivate(ctx)).toThrowError(
+      'No limiter provided for writeLimit bucket=missing_bucket',
+    );
   });
 });

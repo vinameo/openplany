@@ -1,4 +1,4 @@
-import type { WriteLimit } from '../projects/access/writeLimit.js';
+import type { WriteLimit } from '../common/writeLimit.js';
 
 export const WORK_ITEM_CREATE_LIMITER = Symbol('WORK_ITEM_CREATE_LIMITER');
 
@@ -7,4 +7,3 @@ export const WORK_ITEM_CREATE_WRITE_LIMIT: WriteLimit = {
   bucket: 'work_item_create',
   message: { key: 'workItem:errors.tooManyCreates' },
 };
-

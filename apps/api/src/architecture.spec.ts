@@ -14,10 +14,7 @@ import {
   PROJECT_PERMISSION_KEY,
   ProjectPermissionGuard,
 } from './projects/access/projectPermissionGuard.js';
-import {
-  WRITE_LIMIT_KEY,
-  type WriteLimit,
-} from './projects/access/writeLimit.js';
+import { WRITE_LIMIT_KEY, type WriteLimit } from './common/writeLimit.js';
 import { WORKSPACE_PERMISSION_KEY } from './workspaces/workspaceAccess.decorator.js';
 import { WorkspaceMemberGuard } from './workspaces/workspaceMemberGuard.js';
 import { WorkspacePermissionGuard } from './workspaces/workspacePermissionGuard.js';

@@ -70,8 +70,9 @@ export function StateRowForm({
     if (!canSubmit) return;
     try {
       await onSubmit({ name, group, color });
-    } catch {
-      // Keep form open on error
+    } catch (err: unknown) {
+      // onSubmit reports its own errors; reaching here is a bug, so keep the form open and log it
+      console.error("state.form.submit_failed", err);
     }
   };
 
