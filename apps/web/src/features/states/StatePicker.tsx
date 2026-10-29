@@ -12,6 +12,9 @@ import { StateGroupIcon } from "./StateGroupIcon";
 import { useProjectStatesQuery } from "./api/stateQueries";
 import classes from "./StatePicker.module.css";
 
+// The trigger chip is narrower than a state name, so the dropdown keeps its own width.
+const DROPDOWN_WIDTH = 240;
+
 export interface StatePickerProps {
   slug: string;
   project: ProjectListItem;
@@ -179,7 +182,9 @@ export function StatePicker({
         <div className={classes.optionRow}>
           <div className={classes.optionLabel}>
             <StateGroupIcon group={s.group} color={s.color} size={14} />
-            <Text size="sm">{s.name}</Text>
+            <Text size="sm" truncate="end" title={s.name}>
+              {s.name}
+            </Text>
           </div>
           {isSelected && (
             <IconCheck
@@ -198,6 +203,8 @@ export function StatePicker({
       store={combobox}
       onOptionSubmit={handleSelect}
       withinPortal={true}
+      width={DROPDOWN_WIDTH}
+      position="bottom-start"
     >
       <Combobox.Target>
         <Button
@@ -235,7 +242,7 @@ export function StatePicker({
           onKeyDown={handleKeyDown}
           data-testid="state-picker-search"
         />
-        <Combobox.Options>
+        <Combobox.Options className={classes.options}>
           {filteredStates.length === 0 ? (
             <Combobox.Empty>{t("state:picker.empty")}</Combobox.Empty>
           ) : !hasCustomStates ? (
