@@ -23,7 +23,8 @@ export function duplicateMemberRowFields(
 
   members.forEach((m, index) => {
     if (seenUserIds.has(m.userId)) {
-      duplicateFields[`members.${index}.userId`] = MEMBER_MESSAGE_REFS.rowDuplicate;
+      duplicateFields[`members.${index}.userId`] =
+        MEMBER_MESSAGE_REFS.rowDuplicate;
     } else {
       seenUserIds.add(m.userId);
     }

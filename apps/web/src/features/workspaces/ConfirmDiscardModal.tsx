@@ -21,9 +21,7 @@ export function ConfirmDiscardModal({
       size="sm"
     >
       <Stack gap="md">
-        <Text size="sm">
-          {t("workspace:discard.message")}
-        </Text>
+        <Text size="sm">{t("workspace:discard.message")}</Text>
         <Group justify="flex-end" gap="xs">
           <Button variant="default" onClick={onClose}>
             {t("workspace:discard.keepEditing")}

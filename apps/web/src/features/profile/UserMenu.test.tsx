@@ -46,7 +46,9 @@ describe("UserMenu", () => {
     // Header with name and email (non-interactive) in dropdown
     const menu = await screen.findByRole("menu");
     expect(menu).toBeInTheDocument();
-    expect(screen.getAllByText(session.user.displayName!).length).toBeGreaterThanOrEqual(2);
+    expect(
+      screen.getAllByText(session.user.displayName!).length,
+    ).toBeGreaterThanOrEqual(2);
     expect(screen.getByText(session.user.email)).toBeInTheDocument();
 
     // Menu items
@@ -56,7 +58,9 @@ describe("UserMenu", () => {
 
     // Sign out is colored red
     const signOutItem = screen.getByRole("menuitem", { name: "Sign out" });
-    expect(signOutItem.getAttribute("style")).toMatch(/--menu-item-color:.*red/);
+    expect(signOutItem.getAttribute("style")).toMatch(
+      /--menu-item-color:.*red/,
+    );
   });
 
   it("AC-01: opens with keyboard Enter/Space", async () => {
@@ -70,7 +74,9 @@ describe("UserMenu", () => {
     trigger.focus();
     await user.keyboard("{Enter}");
 
-    expect(await screen.findByRole("menuitem", { name: "Edit profile" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("menuitem", { name: "Edit profile" }),
+    ).toBeInTheDocument();
   });
 
   it("AC-03, AC-04: Edit profile opens ProfileModal and does NOT request any /api/admin/* endpoint", async () => {
@@ -91,7 +97,9 @@ describe("UserMenu", () => {
 
     // Profile modal title
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Profile" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Profile" }),
+    ).toBeInTheDocument();
 
     // Verify no requests went to /api/admin/*
     const adminCalls = fetchMock.mock.calls.filter(([input]) =>

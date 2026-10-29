@@ -174,9 +174,7 @@ export class TypeOrmWorkspacesRepository implements WorkspacesRepository {
     });
   }
 
-  async listForMember(
-    userId: string,
-  ): Promise<{
+  async listForMember(userId: string): Promise<{
     workspaces: MemberWorkspace[];
     lastWorkspaceId: string | null;
   }> {

@@ -19,9 +19,7 @@ export function HomeRedirect() {
       <Container size="sm" py={80}>
         <Stack align="center" gap="md">
           <Title order={2}>{t("workspace:homeRedirect.loadErrorTitle")}</Title>
-          <Text c="dimmed">
-            {t("workspace:homeRedirect.loadErrorDesc")}
-          </Text>
+          <Text c="dimmed">{t("workspace:homeRedirect.loadErrorDesc")}</Text>
           <Button variant="default" onClick={() => void refresh()}>
             {t("workspace:homeRedirect.tryAgain")}
           </Button>
@@ -34,9 +32,7 @@ export function HomeRedirect() {
     return <NoWorkspaceHome />;
   }
 
-  const destinationSlug =
-    state.lastWorkspaceSlug ?? state.workspaces[0]!.slug;
+  const destinationSlug = state.lastWorkspaceSlug ?? state.workspaces[0]!.slug;
 
   return <Navigate to={workspacePath(destinationSlug)} replace />;
 }
-

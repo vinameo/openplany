@@ -35,12 +35,9 @@ export function toProjectSettingsValues(
     iconColor: project.icon.color,
     coverKey: project.coverKey as ProjectCoverKey,
     timezone:
-      project.timezone === null
-        ? FOLLOW_WORKSPACE_TIMEZONE
-        : project.timezone,
+      project.timezone === null ? FOLLOW_WORKSPACE_TIMEZONE : project.timezone,
   };
 }
-
 
 export function toUpdateProjectRequest(
   changes: Partial<ProjectSettingsValues>,
@@ -65,9 +62,7 @@ export function toUpdateProjectRequest(
   }
   if (changes.timezone !== undefined) {
     req.timezone =
-      changes.timezone === FOLLOW_WORKSPACE_TIMEZONE
-        ? null
-        : changes.timezone;
+      changes.timezone === FOLLOW_WORKSPACE_TIMEZONE ? null : changes.timezone;
   }
 
   return req;

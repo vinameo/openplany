@@ -213,7 +213,9 @@ describe('WorkspaceRoleHistory (e2e)', () => {
     const manager = e2e.dataSource.manager;
     const where = { workspaceId: res.body.id as string };
     await expect(
-      manager.update(WorkspaceMemberRoleHistory, where, { requestId: 'tampered' }),
+      manager.update(WorkspaceMemberRoleHistory, where, {
+        requestId: 'tampered',
+      }),
     ).rejects.toBeInstanceOf(AppendOnlyViolationError);
     await expect(
       manager.delete(WorkspaceMemberRoleHistory, where),

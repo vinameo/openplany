@@ -25,7 +25,9 @@ export function CommandSearchPlaceholder() {
             onClick={onClick}
           >
             <SearchIcon width={16} height={16} className={classes.searchIcon} />
-            <span className={classes.searchLabel}>{t("workspace:search.placeholder")}</span>
+            <span className={classes.searchLabel}>
+              {t("workspace:search.placeholder")}
+            </span>
           </UnstyledButton>
         )}
       </ComingSoonHint>

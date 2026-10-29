@@ -16,11 +16,11 @@ Specs live in `packages/docs/<n>-<feature-slug>/` next to the draft UI images, w
 
 ## File set
 
-| File | Answers |
-| --- | --- |
-| `1-requirement-spec.md` (RQ) | **What** to build |
-| `2-business-analytics-spec.md` (BA) | **Why**: evidence, options and trade-offs (ADRs), priorities, metrics, future constraints |
-| `3-database-spec.md` (DB), `4-api-spec.md` (API), `5-web-spec.md` (WEB) | RQ part B refined for one layer; the layer file wins on its own detail |
+| File                                                                    | Answers                                                                                   |
+| ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `1-requirement-spec.md` (RQ)                                            | **What** to build                                                                         |
+| `2-business-analytics-spec.md` (BA)                                     | **Why**: evidence, options and trade-offs (ADRs), priorities, metrics, future constraints |
+| `3-database-spec.md` (DB), `4-api-spec.md` (API), `5-web-spec.md` (WEB) | RQ part B refined for one layer; the layer file wins on its own detail                    |
 
 RQ and BA do not repeat each other.
 
@@ -33,7 +33,7 @@ Every file has two parts:
 
 ## Part B must carry
 
-Implementing agents treat every sketch as a *hypothesis* and build to the invariants (`implement-ticket` step 4). Part B therefore states each requirement in a form a sketch can be tested against:
+Implementing agents treat every sketch as a _hypothesis_ and build to the invariants (`implement-ticket` step 4). Part B therefore states each requirement in a form a sketch can be tested against:
 
 - **B0, verbatim** (the reading rules):
 
@@ -48,7 +48,8 @@ Implementing agents treat every sketch as a *hypothesis* and build to the invari
   - one test row per edge case.
 
   Each rule lives in one section; other sections and files point to it.
-- **Sketches as shapes.** Code shows signatures, types and call shapes (`create({ …, creatorRoleFor })`), labelled *minh hoạ* and tied to the `INV-` it serves. Lock modes, `where` clauses, queries, counts and the order of checks are written as invariants and steps in words.
+
+- **Sketches as shapes.** Code shows signatures, types and call shapes (`create({ …, creatorRoleFor })`), labelled _minh hoạ_ and tied to the `INV-` it serves. Lock modes, `where` clauses, queries, counts and the order of checks are written as invariants and steps in words.
 - **Seams.** For every rule more than one endpoint or page will need, name the reusable seam (guard and decorator, path helper, shared hook or component, context API). Map every `FC-` constraint to a seam in this feature or defer it with a reason.
 - **Adversarial input table** per endpoint, with the expected 4xx for each row.
 - **Bounds**: list maximums, real counts beside previews, rate limits on lookups whose 403/404 reveal existence, one log line per person and window for warnings any member can trigger.

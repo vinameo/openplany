@@ -31,12 +31,9 @@ export function WorkspaceSwitcher({
   const { state: wsState } = useWorkspaces();
 
   const userEmail =
-    authState.status === "authenticated"
-      ? authState.session.user.email
-      : "";
+    authState.status === "authenticated" ? authState.session.user.email : "";
 
-  const workspaces =
-    wsState.status === "ready" ? wsState.workspaces : [];
+  const workspaces = wsState.status === "ready" ? wsState.workspaces : [];
 
   const isInstanceAdmin =
     authState.status === "authenticated" &&
@@ -165,7 +162,9 @@ export function WorkspaceSwitcher({
               leftSection={<ShieldIcon />}
               onClick={() => navigate(ROLES_AND_PERMISSIONS_PATH)}
             >
-              <Text size="sm">{t("workspace:switcher.rolesAndPermissions")}</Text>
+              <Text size="sm">
+                {t("workspace:switcher.rolesAndPermissions")}
+              </Text>
             </Menu.Item>
           </>
         )}

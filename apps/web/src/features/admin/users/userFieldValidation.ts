@@ -100,7 +100,6 @@ export function validateEmail(value: string): string | null {
   return null;
 }
 
-
 export function validateCreateUserField(
   field: CreateUserField,
   values: CreateUserValues,
@@ -244,5 +243,3 @@ export function validateChangePasswordField(
         : null;
   }
 }
-
-

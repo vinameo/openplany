@@ -63,14 +63,14 @@ OpenPlany puts **projects, issues, and a full wiki in a single self-hostable app
 
 ## 🛠 Tech Stack
 
-| Layer           | Technology                                          |
-| --------------- | --------------------------------------------------- |
-| Frontend        | React 19, Vite, Mantine UI 9, Tiptap editor         |
-| Backend         | NestJS, TypeScript, class-validator                 |
-| Database        | PostgreSQL                                          |
-| Monorepo        | pnpm workspaces, Turborepo                          |
-| Testing         | Vitest, React Testing Library, Supertest            |
-| Tooling         | oxlint, ESLint, Prettier                            |
+| Layer    | Technology                                  |
+| -------- | ------------------------------------------- |
+| Frontend | React 19, Vite, Mantine UI 9, Tiptap editor |
+| Backend  | NestJS, TypeScript, class-validator         |
+| Database | PostgreSQL                                  |
+| Monorepo | pnpm workspaces, Turborepo                  |
+| Testing  | Vitest, React Testing Library, Supertest    |
+| Tooling  | oxlint, ESLint, Prettier                    |
 
 ## 🚀 Getting Started
 
@@ -125,14 +125,14 @@ openplany/
 
 Run these from the repository root:
 
-| Command          | Description                                    |
-| ---------------- | ---------------------------------------------- |
-| `pnpm dev`       | Start the API and web app in watch mode        |
-| `pnpm build`     | Build every app and package                    |
-| `pnpm test`      | Run all test suites                            |
-| `pnpm lint`      | Lint all workspaces                            |
-| `pnpm typecheck` | Type-check all workspaces                      |
-| `pnpm format`    | Format the codebase with Prettier              |
+| Command          | Description                             |
+| ---------------- | --------------------------------------- |
+| `pnpm dev`       | Start the API and web app in watch mode |
+| `pnpm build`     | Build every app and package             |
+| `pnpm test`      | Run all test suites                     |
+| `pnpm lint`      | Lint all workspaces                     |
+| `pnpm typecheck` | Type-check all workspaces               |
+| `pnpm format`    | Format the codebase with Prettier       |
 
 To work on a single workspace, add a filter: `pnpm --filter @repo/api test:e2e`.
 

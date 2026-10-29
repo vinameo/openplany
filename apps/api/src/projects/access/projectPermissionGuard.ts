@@ -43,11 +43,9 @@ export class ProjectPermissionGuard implements CanActivate {
         `project.forbidden permission=${required} role=${project.access.role} ` +
           `projectId=${project.project.id} userId=${request.auth?.userId ?? ''} requestId=${request.requestId ?? ''}`,
       );
-      throw new ApiException(
-        HttpStatus.FORBIDDEN,
-        'FORBIDDEN',
-        { key: 'errors:forbidden' },
-      );
+      throw new ApiException(HttpStatus.FORBIDDEN, 'FORBIDDEN', {
+        key: 'errors:forbidden',
+      });
     }
     return true;
   }

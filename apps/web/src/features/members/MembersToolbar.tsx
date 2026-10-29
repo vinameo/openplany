@@ -1,9 +1,9 @@
-import { Button, Group, TextInput } from '@mantine/core';
-import { useTranslation } from 'react-i18next';
-import { SearchIcon } from '../workspaces/icons';
-import { RoleFilter } from './RoleFilter';
-import type { RoleScheme } from './roleScheme';
-import classes from './MembersToolbar.module.css';
+import { Button, Group, TextInput } from "@mantine/core";
+import { useTranslation } from "react-i18next";
+import { SearchIcon } from "../workspaces/icons";
+import { RoleFilter } from "./RoleFilter";
+import type { RoleScheme } from "./roleScheme";
+import classes from "./MembersToolbar.module.css";
 
 export interface MembersToolbarProps<R extends string> {
   scheme: RoleScheme<R>;
@@ -42,9 +42,7 @@ export function MembersToolbar<R extends string>({
         onChange={onRolesChange}
       />
       {canAddMember && (
-        <Button onClick={onAddMember}>
-          {t("members:toolbar.addMember")}
-        </Button>
+        <Button onClick={onAddMember}>{t("members:toolbar.addMember")}</Button>
       )}
     </Group>
   );

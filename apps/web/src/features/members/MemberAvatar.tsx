@@ -1,5 +1,5 @@
-import { Avatar } from '@mantine/core';
-import classes from './MemberAvatar.module.css';
+import { Avatar } from "@mantine/core";
+import classes from "./MemberAvatar.module.css";
 
 interface MemberAvatarProps {
   avatarUrl?: string | null;
@@ -12,7 +12,7 @@ export function MemberAvatar({
   name,
   size = 28,
 }: MemberAvatarProps) {
-  const initial = Array.from(name.trim())[0]?.toUpperCase() ?? 'U';
+  const initial = Array.from(name.trim())[0]?.toUpperCase() ?? "U";
 
   return (
     <Avatar

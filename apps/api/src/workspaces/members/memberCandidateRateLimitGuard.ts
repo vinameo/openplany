@@ -33,11 +33,9 @@ export class MemberCandidateRateLimitGuard implements CanActivate {
     const userId = request.auth?.userId;
 
     if (!userId) {
-      throw new ApiException(
-        HttpStatus.UNAUTHORIZED,
-        'UNAUTHENTICATED',
-        { key: 'errors:http.unauthenticated' },
-      );
+      throw new ApiException(HttpStatus.UNAUTHORIZED, 'UNAUTHENTICATED', {
+        key: 'errors:http.unauthenticated',
+      });
     }
 
     const now = this.clock.now();
@@ -59,4 +57,3 @@ export class MemberCandidateRateLimitGuard implements CanActivate {
     return true;
   }
 }
-

@@ -46,8 +46,6 @@ function isValidRole(scope: RoleScope, key: string): boolean {
   return false;
 }
 
-
-
 export function planRolePermissionChanges(
   current: readonly StoredRolePermissions[],
   changes: readonly RolePermissionsChange[],
@@ -78,7 +76,9 @@ export function planRolePermissionChanges(
   }
 
   const validSet = validPermissions
-    ? (validPermissions instanceof Set ? validPermissions : new Set(validPermissions))
+    ? validPermissions instanceof Set
+      ? validPermissions
+      : new Set(validPermissions)
     : new Set(current.flatMap((c) => c.permissions));
 
   // 2. Validate permission names: must exist in catalog
@@ -181,4 +181,3 @@ export function planRolePermissionChanges(
     changedRoles,
   };
 }
-

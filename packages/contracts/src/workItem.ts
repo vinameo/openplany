@@ -1,13 +1,13 @@
-import type { MessageRef } from './catalog/index.js';
-import { MULTILINE_TEXT_ALLOWED_CHARS } from './project.js';
-import { NO_HIDDEN_CHARS } from './workspace.js';
+import type { MessageRef } from "./catalog/index.js";
+import { MULTILINE_TEXT_ALLOWED_CHARS } from "./project.js";
+import { NO_HIDDEN_CHARS } from "./workspace.js";
 
 export const WORK_ITEM_TITLE_MIN_LENGTH = 1;
 export const WORK_ITEM_TITLE_MAX_LENGTH = 255;
 export const WORK_ITEM_DESCRIPTION_MAX_LENGTH = 50000;
 
 export const WORK_ITEM_ERROR_CODES = {
-  REQUEST_REUSED: 'WORK_ITEM_REQUEST_REUSED',
+  REQUEST_REUSED: "WORK_ITEM_REQUEST_REUSED",
 } as const;
 
 export interface CreateWorkItemRequest {
@@ -37,13 +37,13 @@ export function workItemKey(projectIdentifier: string, number: number): string {
 }
 
 export function normalizeWorkItemTitle(raw: string): string {
-  return raw.normalize('NFC').trim();
+  return raw.normalize("NFC").trim();
 }
 
 export function normalizeWorkItemDescription(raw: string): string {
-  const lf = raw.replace(/\r\n|\r/g, '\n');
+  const lf = raw.replace(/\r\n|\r/g, "\n");
   if (lf.trim().length === 0) {
-    return '';
+    return "";
   }
   return lf;
 }
@@ -51,16 +51,16 @@ export function normalizeWorkItemDescription(raw: string): string {
 export function workItemTitleProblem(title: string): MessageRef | null {
   const normalized = normalizeWorkItemTitle(title);
   if (!normalized) {
-    return { key: 'workItem:errors.titleRequired' };
+    return { key: "workItem:errors.titleRequired" };
   }
   if (normalized.length > WORK_ITEM_TITLE_MAX_LENGTH) {
     return {
-      key: 'workItem:errors.titleTooLong',
+      key: "workItem:errors.titleTooLong",
       params: { max: WORK_ITEM_TITLE_MAX_LENGTH },
     };
   }
   if (!NO_HIDDEN_CHARS.test(normalized)) {
-    return { key: 'workItem:errors.titleHiddenChars' };
+    return { key: "workItem:errors.titleHiddenChars" };
   }
   return null;
 }
@@ -73,13 +73,12 @@ export function workItemDescriptionProblem(
   }
   if (description.length > WORK_ITEM_DESCRIPTION_MAX_LENGTH) {
     return {
-      key: 'workItem:errors.descriptionTooLong',
+      key: "workItem:errors.descriptionTooLong",
       params: { max: WORK_ITEM_DESCRIPTION_MAX_LENGTH },
     };
   }
   if (!MULTILINE_TEXT_ALLOWED_CHARS.test(description)) {
-    return { key: 'workItem:errors.descriptionHiddenChars' };
+    return { key: "workItem:errors.descriptionHiddenChars" };
   }
   return null;
 }
-

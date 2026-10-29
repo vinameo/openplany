@@ -13,4 +13,3 @@ export function useCurrentWorkspace(): CurrentWorkspaceValue {
   }
   return value;
 }
-

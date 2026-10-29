@@ -27,4 +27,3 @@ describe('InMemorySlugCheckRateLimiter', () => {
     expect(allowedAgain.allowed).toBe(true);
   });
 });
-

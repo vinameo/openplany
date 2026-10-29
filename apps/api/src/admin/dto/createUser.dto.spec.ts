@@ -96,18 +96,26 @@ describe('CreateUserDto', () => {
     expect(nonString.messages.firstName).toBe('Enter a first name');
 
     const tooLong = await check({ ...validUser, firstName: 'a'.repeat(51) });
-    expect(tooLong.messages.firstName).toBe('First name must be 50 characters or fewer');
+    expect(tooLong.messages.firstName).toBe(
+      'First name must be 50 characters or fewer',
+    );
 
     const hiddenChars = await check({ ...validUser, firstName: 'An\u200B' }); // zero-width space
-    expect(hiddenChars.messages.firstName).toBe("Contains characters that aren't allowed");
+    expect(hiddenChars.messages.firstName).toBe(
+      "Contains characters that aren't allowed",
+    );
   });
 
   it('validates lastName constraints', async () => {
     const tooLong = await check({ ...validUser, lastName: 'a'.repeat(51) });
-    expect(tooLong.messages.lastName).toBe('Last name must be 50 characters or fewer');
+    expect(tooLong.messages.lastName).toBe(
+      'Last name must be 50 characters or fewer',
+    );
 
     const hiddenChars = await check({ ...validUser, lastName: 'Nguyen\u0000' }); // control char
-    expect(hiddenChars.messages.lastName).toBe("Contains characters that aren't allowed");
+    expect(hiddenChars.messages.lastName).toBe(
+      "Contains characters that aren't allowed",
+    );
   });
 
   it('validates displayName required and constraints', async () => {
@@ -121,10 +129,14 @@ describe('CreateUserDto', () => {
     expect(nonString.messages.displayName).toBe('Enter a display name');
 
     const tooLong = await check({ ...validUser, displayName: 'a'.repeat(51) });
-    expect(tooLong.messages.displayName).toBe('Display name must be 50 characters or fewer');
+    expect(tooLong.messages.displayName).toBe(
+      'Display name must be 50 characters or fewer',
+    );
 
     const hiddenChars = await check({ ...validUser, displayName: 'An\u200E' }); // LTR mark
-    expect(hiddenChars.messages.displayName).toBe("Contains characters that aren't allowed");
+    expect(hiddenChars.messages.displayName).toBe(
+      "Contains characters that aren't allowed",
+    );
   });
 
   it('validates email required and format', async () => {
@@ -174,4 +186,3 @@ describe('CreateUserDto', () => {
     }
   });
 });
-

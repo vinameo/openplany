@@ -40,11 +40,9 @@ export class WorkspacePermissionGuard implements CanActivate {
         `workspace.forbidden permission=${missing.join(',')} role=${workspace.role} ` +
           `workspaceId=${workspace.id} userId=${request.auth?.userId ?? ''} requestId=${request.requestId ?? ''}`,
       );
-      throw new ApiException(
-        HttpStatus.FORBIDDEN,
-        'FORBIDDEN',
-        { key: 'errors:forbidden' },
-      );
+      throw new ApiException(HttpStatus.FORBIDDEN, 'FORBIDDEN', {
+        key: 'errors:forbidden',
+      });
     }
     return true;
   }

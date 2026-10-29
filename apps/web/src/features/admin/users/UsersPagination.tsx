@@ -1,6 +1,6 @@
-import { Group, Pagination, Text } from '@mantine/core';
-import { useTranslation } from 'react-i18next';
-import { ADMIN_USERS_PAGE_SIZE } from '@repo/contracts';
+import { Group, Pagination, Text } from "@mantine/core";
+import { useTranslation } from "react-i18next";
+import { ADMIN_USERS_PAGE_SIZE } from "@repo/contracts";
 
 export interface UsersPaginationProps {
   page: number;
@@ -28,7 +28,7 @@ export function UsersPagination({
   return (
     <Group justify="space-between" align="center" mt="md" wrap="wrap" gap="sm">
       <Text size="sm" c="dimmed">
-        {t('admin:users.table.showing', { from, to, total })}
+        {t("admin:users.table.showing", { from, to, total })}
       </Text>
       <Pagination
         value={page}

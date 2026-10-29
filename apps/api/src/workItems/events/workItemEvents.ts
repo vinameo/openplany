@@ -29,4 +29,3 @@ export abstract class WorkItemEvents {
 
   abstract onTransactionRetry(attempt: number, projectId: string): void;
 }
-

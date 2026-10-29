@@ -44,7 +44,9 @@ describe("passwordValidation (WEB B2.1, B5, RQ INV-04, AC-08)", () => {
     });
 
     it("allows password different from email", () => {
-      expect(validatePassword("mySecretPassword", "test@example.com")).toBeNull();
+      expect(
+        validatePassword("mySecretPassword", "test@example.com"),
+      ).toBeNull();
     });
 
     it("translates validation errors into Vietnamese", () => {
@@ -58,7 +60,9 @@ describe("passwordValidation (WEB B2.1, B5, RQ INV-04, AC-08)", () => {
 
   describe("validateConfirmPassword", () => {
     it("accepts matching passwords", () => {
-      expect(validateConfirmPassword("mySecretPass1", "mySecretPass1")).toBeNull();
+      expect(
+        validateConfirmPassword("mySecretPass1", "mySecretPass1"),
+      ).toBeNull();
     });
 
     it("rejects empty confirm password", () => {

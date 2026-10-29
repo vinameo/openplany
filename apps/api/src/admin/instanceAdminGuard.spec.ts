@@ -47,7 +47,9 @@ describe('InstanceAdminGuard', () => {
   });
 
   it('logs warn and throws FORBIDDEN with default message when no metadata is set', () => {
-    const warnSpy = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+    const warnSpy = vi
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => {});
     const guard = new InstanceAdminGuard();
     const context = contextFor({
       auth: {
@@ -66,18 +68,22 @@ describe('InstanceAdminGuard', () => {
           message: "You don't have permission to do this",
         }),
       );
-      expect(warnSpy).toHaveBeenCalledWith('admin.forbidden userId=user-1 requestId=req-42');
+      expect(warnSpy).toHaveBeenCalledWith(
+        'admin.forbidden userId=user-1 requestId=req-42',
+      );
     } finally {
       warnSpy.mockRestore();
     }
   });
 
   it('throws FORBIDDEN with custom message when @InstanceAdminDeniedMessage metadata is set', () => {
-    const warnSpy = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+    const warnSpy = vi
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => {});
     const reflector = new Reflector();
-    const getAllAndOverrideSpy = vi.spyOn(reflector, 'getAllAndOverride').mockReturnValue(
-      { key: 'admin:errors.cannotCreateUsers' },
-    );
+    const getAllAndOverrideSpy = vi
+      .spyOn(reflector, 'getAllAndOverride')
+      .mockReturnValue({ key: 'admin:errors.cannotCreateUsers' });
     const guard = new InstanceAdminGuard(reflector);
     const context = contextFor({
       auth: {

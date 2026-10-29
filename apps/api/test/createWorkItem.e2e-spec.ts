@@ -1,12 +1,5 @@
 import request from 'supertest';
-import {
-  describe,
-  beforeAll,
-  beforeEach,
-  afterAll,
-  it,
-  expect,
-} from 'vitest';
+import { describe, beforeAll, beforeEach, afterAll, it, expect } from 'vitest';
 import {
   DEFAULT_PROJECT_COVER,
   DEFAULT_PROJECT_ICON,
@@ -72,7 +65,11 @@ describe('Create Work Item (e2e)', () => {
         organizationSize: '2-10',
       })
       .expect(201);
-    return { id: wsRes.body.id as string, slug: wsRes.body.slug as string, owner };
+    return {
+      id: wsRes.body.id as string,
+      slug: wsRes.body.slug as string,
+      owner,
+    };
   }
 
   async function seedProject(
@@ -210,7 +207,9 @@ describe('Create Work Item (e2e)', () => {
     const promises = Array.from({ length: 10 }, (_, i) => {
       const u = users[i % users.length]!;
       return http()
-        .post(`/api/workspaces/${ws.slug}/projects/${proj.identifier}/work-items`)
+        .post(
+          `/api/workspaces/${ws.slug}/projects/${proj.identifier}/work-items`,
+        )
         .set('Cookie', u.cookie)
         .set('Origin', ORIGIN)
         .send({
@@ -281,14 +280,22 @@ describe('Create Work Item (e2e)', () => {
       .post(`/api/workspaces/${ws.slug}/projects/${proj.identifier}/work-items`)
       .set('Cookie', an.cookie)
       .set('Origin', ORIGIN)
-      .send({ title: 'Fix login', description: '## Notes', idempotencyKey: key })
+      .send({
+        title: 'Fix login',
+        description: '## Notes',
+        idempotencyKey: key,
+      })
       .expect(201);
 
     const res2 = await http()
       .post(`/api/workspaces/${ws.slug}/projects/${proj.identifier}/work-items`)
       .set('Cookie', an.cookie)
       .set('Origin', ORIGIN)
-      .send({ title: 'Fix login', description: '## Notes', idempotencyKey: key })
+      .send({
+        title: 'Fix login',
+        description: '## Notes',
+        idempotencyKey: key,
+      })
       .expect(200);
 
     expect(res2.body.workItem.id).toBe(res1.body.workItem.id);
@@ -432,7 +439,9 @@ describe('Create Work Item (e2e)', () => {
     // Project of another workspace -> 404
     const otherWs = await seedWorkspace();
     await http()
-      .post(`/api/workspaces/${otherWs.slug}/projects/${proj.identifier}/work-items`)
+      .post(
+        `/api/workspaces/${otherWs.slug}/projects/${proj.identifier}/work-items`,
+      )
       .set('Cookie', outsider.cookie)
       .set('Origin', ORIGIN)
       .send({ title: 'Wrong ws item', idempotencyKey: crypto.randomUUID() })
@@ -467,7 +476,9 @@ describe('Create Work Item (e2e)', () => {
 
     // Helper to run an interfering transaction while lockProjectForActor waits on projects lock
     async function testInterference(
-      mutate: (runner: { query: (q: string, params?: unknown[]) => Promise<unknown> }) => Promise<void>,
+      mutate: (runner: {
+        query: (q: string, params?: unknown[]) => Promise<unknown>;
+      }) => Promise<void>,
       expectedStatus: number,
     ) {
       const runner = e2e.dataSource.createQueryRunner();
@@ -481,7 +492,9 @@ describe('Create Work Item (e2e)', () => {
 
         requestPromise = new Promise<{ status: number }>((resolve, reject) => {
           http()
-            .post(`/api/workspaces/${ws.slug}/projects/${proj.identifier}/work-items`)
+            .post(
+              `/api/workspaces/${ws.slug}/projects/${proj.identifier}/work-items`,
+            )
             .set('Cookie', an.cookie)
             .set('Origin', ORIGIN)
             .send({
@@ -568,9 +581,10 @@ describe('Create Work Item (e2e)', () => {
 
     // (d) project soft-deleted -> 404
     await testInterference(async (runner) => {
-      await runner.query('UPDATE projects SET deleted_at = now() WHERE id = $1', [
-        proj.id,
-      ]);
+      await runner.query(
+        'UPDATE projects SET deleted_at = now() WHERE id = $1',
+        [proj.id],
+      );
     }, 404);
 
     // (e) role_permissions deleted -> 403
@@ -610,7 +624,10 @@ describe('Create Work Item (e2e)', () => {
       .post(`/api/workspaces/${ws.slug}/projects/${proj.identifier}/work-items`)
       .set('Cookie', admin.cookie)
       .set('Origin', ORIGIN)
-      .send({ title: 'Admin created item', idempotencyKey: crypto.randomUUID() })
+      .send({
+        title: 'Admin created item',
+        idempotencyKey: crypto.randomUUID(),
+      })
       .expect(201);
 
     expect(res.body.workItem.number).toBe(1);
@@ -626,7 +643,9 @@ describe('Create Work Item (e2e)', () => {
     // Make 35 workspace writes (more than the 30 workspace write limit)
     for (let i = 1; i <= 35; i += 1) {
       await http()
-        .post(`/api/workspaces/${ws.slug}/projects/${proj.identifier}/work-items`)
+        .post(
+          `/api/workspaces/${ws.slug}/projects/${proj.identifier}/work-items`,
+        )
         .set('Cookie', an.cookie)
         .set('Origin', ORIGIN)
         .send({ title: `Item ${i}`, idempotencyKey: crypto.randomUUID() })
@@ -643,7 +662,9 @@ describe('Create Work Item (e2e)', () => {
 
     for (let i = 1; i <= 3; i += 1) {
       await http()
-        .post(`/api/workspaces/${ws.slug}/projects/${proj.identifier}/work-items`)
+        .post(
+          `/api/workspaces/${ws.slug}/projects/${proj.identifier}/work-items`,
+        )
         .set('Cookie', an.cookie)
         .set('Origin', ORIGIN)
         .send({ title: `OPS-${i}`, idempotencyKey: crypto.randomUUID() })
@@ -684,16 +705,24 @@ describe('Create Work Item (e2e)', () => {
     await addMember(ws.id, mkt.id, an, 'contributor');
 
     const key = crypto.randomUUID();
-    const body = { title: 'Same Key', description: 'Same Desc', idempotencyKey: key };
+    const body = {
+      title: 'Same Key',
+      description: 'Same Desc',
+      idempotencyKey: key,
+    };
 
     const [resOps, resMkt] = await Promise.all([
       http()
-        .post(`/api/workspaces/${ws.slug}/projects/${ops.identifier}/work-items`)
+        .post(
+          `/api/workspaces/${ws.slug}/projects/${ops.identifier}/work-items`,
+        )
         .set('Cookie', an.cookie)
         .set('Origin', ORIGIN)
         .send(body),
       http()
-        .post(`/api/workspaces/${ws.slug}/projects/${mkt.identifier}/work-items`)
+        .post(
+          `/api/workspaces/${ws.slug}/projects/${mkt.identifier}/work-items`,
+        )
         .set('Cookie', an.cookie)
         .set('Origin', ORIGIN)
         .send(body),
@@ -717,22 +746,25 @@ describe('Create Work Item (e2e)', () => {
         proj.id,
       ]);
 
-      const requestPromise = new Promise<{ status: number; body: { code: string } }>(
-        (resolve, reject) => {
-          http()
-            .post(`/api/workspaces/${ws.slug}/projects/${proj.identifier}/work-items`)
-            .set('Cookie', an.cookie)
-            .set('Origin', ORIGIN)
-            .send({
-              title: 'Deactivated while locked',
-              idempotencyKey: crypto.randomUUID(),
-            })
-            .end((err, res) => {
-              if (err) reject(err);
-              else resolve(res);
-            });
-        },
-      );
+      const requestPromise = new Promise<{
+        status: number;
+        body: { code: string };
+      }>((resolve, reject) => {
+        http()
+          .post(
+            `/api/workspaces/${ws.slug}/projects/${proj.identifier}/work-items`,
+          )
+          .set('Cookie', an.cookie)
+          .set('Origin', ORIGIN)
+          .send({
+            title: 'Deactivated while locked',
+            idempotencyKey: crypto.randomUUID(),
+          })
+          .end((err, res) => {
+            if (err) reject(err);
+            else resolve(res);
+          });
+      });
 
       // Poll until the request is waiting on the lock in Postgres
       let foundLock = false;
@@ -786,7 +818,9 @@ describe('Create Work Item (e2e)', () => {
       .expect(400);
 
     expect(resEn.body.fields.title).toBe('Enter a title');
-    expect(resEn.body.fields.idempotencyKey).toBe('Reload the page and try again.');
+    expect(resEn.body.fields.idempotencyKey).toBe(
+      'Reload the page and try again.',
+    );
 
     // 2. Missing title and invalid idempotencyKey (vi)
     const resVi = await http()
@@ -798,7 +832,9 @@ describe('Create Work Item (e2e)', () => {
       .expect(400);
 
     expect(resVi.body.fields.title).toBe('Hãy nhập tiêu đề');
-    expect(resVi.body.fields.idempotencyKey).toBe('Hãy tải lại trang rồi thử lại.');
+    expect(resVi.body.fields.idempotencyKey).toBe(
+      'Hãy tải lại trang rồi thử lại.',
+    );
 
     // 3. Hidden chars in title
     const resHidden = await http()

@@ -1,14 +1,14 @@
-import type { ReactNode } from 'react';
-import { Alert, Button } from '@mantine/core';
-import { useTranslation } from 'react-i18next';
+import type { ReactNode } from "react";
+import { Alert, Button } from "@mantine/core";
+import { useTranslation } from "react-i18next";
 import {
   type CreateUserFormState,
   useCreateUserForm,
-} from './useCreateUserForm';
-import { DisplayNameField, UserNameFields } from './form/UserNameFields';
-import { EmailField } from './form/EmailField';
-import { NewPasswordFields } from '../../passwords/NewPasswordFields';
-import classes from './CreateUserForm.module.css';
+} from "./useCreateUserForm";
+import { DisplayNameField, UserNameFields } from "./form/UserNameFields";
+import { EmailField } from "./form/EmailField";
+import { NewPasswordFields } from "../../passwords/NewPasswordFields";
+import classes from "./CreateUserForm.module.css";
 
 export interface CreateUserFormProps {
   state?: CreateUserFormState;
@@ -45,14 +45,14 @@ function CreateUserFormView({
         </div>
 
         <NewPasswordFields
-          passwordProps={form.getInputProps('password')}
-          confirmProps={form.getInputProps('confirmPassword')}
-          passwordLabel={t('admin:users.form.password')}
-          confirmLabel={t('admin:users.form.confirmPassword')}
+          passwordProps={form.getInputProps("password")}
+          confirmProps={form.getInputProps("confirmPassword")}
+          passwordLabel={t("admin:users.form.password")}
+          confirmLabel={t("admin:users.form.confirmPassword")}
           readOnly={isSubmitting}
         />
         {submitError && (
-          <Alert color="red" title={t('common:error')} role="alert">
+          <Alert color="red" title={t("common:error")} role="alert">
             {submitError}
           </Alert>
         )}
@@ -65,7 +65,7 @@ function CreateUserFormView({
               loading={isSubmitting}
               disabled={!form.isValid()}
             >
-              {t('admin:users.form.submit')}
+              {t("admin:users.form.submit")}
             </Button>
 
             {onCancel && (
@@ -75,7 +75,7 @@ function CreateUserFormView({
                 onClick={onCancel}
                 disabled={isSubmitting}
               >
-                {t('common:actions.cancel')}
+                {t("common:actions.cancel")}
               </Button>
             )}
           </div>
@@ -95,11 +95,7 @@ function CreateUserFormWithInternalState({
   });
 
   return (
-    <CreateUserFormView
-      state={state}
-      onCancel={onCancel}
-      footer={footer}
-    />
+    <CreateUserFormView state={state} onCancel={onCancel} footer={footer} />
   );
 }
 

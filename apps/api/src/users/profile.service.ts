@@ -41,11 +41,9 @@ export class ProfileService {
       if (value !== undefined) requested[field] = value;
     }
     if (Object.keys(requested).length === 0) {
-      throw new ApiException(
-        HttpStatus.BAD_REQUEST,
-        'VALIDATION_ERROR',
-        { key: 'errors:nothingToUpdate' },
-      );
+      throw new ApiException(HttpStatus.BAD_REQUEST, 'VALIDATION_ERROR', {
+        key: 'errors:nothingToUpdate',
+      });
     }
 
     const user = await this.users.findActiveById(userId);
@@ -103,9 +101,7 @@ export class ProfileService {
 }
 
 function unauthenticated(): ApiException {
-  return new ApiException(
-    HttpStatus.UNAUTHORIZED,
-    'UNAUTHENTICATED',
-    { key: 'errors:http.unauthenticated' },
-  );
+  return new ApiException(HttpStatus.UNAUTHORIZED, 'UNAUTHENTICATED', {
+    key: 'errors:http.unauthenticated',
+  });
 }

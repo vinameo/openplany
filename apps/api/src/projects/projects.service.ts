@@ -114,11 +114,9 @@ export class ProjectsService {
         creatorRoleFor: (role) => projectCreatorMembershipRole(policies[role]),
       });
       if (res.status === 'creator_gone') {
-        throw new ApiException(
-          HttpStatus.NOT_FOUND,
-          'NOT_FOUND',
-          { key: 'workspace:errors.notFound' },
-        );
+        throw new ApiException(HttpStatus.NOT_FOUND, 'NOT_FOUND', {
+          key: 'workspace:errors.notFound',
+        });
       }
       createdId = res.projectId;
       creatorWorkspaceRole = res.creatorWorkspaceRole;
@@ -136,7 +134,9 @@ export class ProjectsService {
           HttpStatus.CONFLICT,
           'PROJECT_IDENTIFIER_TAKEN',
           PROJECT_ERROR_MESSAGE_REFS.identifierTaken,
-          { fields: { identifier: PROJECT_ERROR_MESSAGE_REFS.identifierTaken } },
+          {
+            fields: { identifier: PROJECT_ERROR_MESSAGE_REFS.identifierTaken },
+          },
         );
       }
       throw err;
@@ -208,11 +208,9 @@ export class ProjectsService {
     }
 
     if (!hasAny) {
-      throw new ApiException(
-        HttpStatus.BAD_REQUEST,
-        'VALIDATION_ERROR',
-        { key: 'errors:nothingToUpdate' },
-      );
+      throw new ApiException(HttpStatus.BAD_REQUEST, 'VALIDATION_ERROR', {
+        key: 'errors:nothingToUpdate',
+      });
     }
 
     const EDITABLE_PROJECT_FIELDS = [

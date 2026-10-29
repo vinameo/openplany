@@ -16,10 +16,7 @@ import {
   type WorkspaceRoleChangePreview,
   type WorkspaceRoleChangeRejection,
 } from '@repo/contracts';
-import {
-  ApiException,
-  type ApiFieldError,
-} from '../../common/apiException.js';
+import { ApiException, type ApiFieldError } from '../../common/apiException.js';
 import {
   duplicateMemberRowFields,
   unknownRoleFields,
@@ -51,7 +48,9 @@ export class WorkspaceMembersService {
     userId: string,
     requestId: string,
   ): Promise<WorkspaceMemberListResponse> {
-    const includeEmail = ws.permissions.includes('workspace.members.email.view');
+    const includeEmail = ws.permissions.includes(
+      'workspace.members.email.view',
+    );
     const roleOrder = [...WORKSPACE_ROLES].sort(
       (a, b) => WORKSPACE_ROLE_RANK[b] - WORKSPACE_ROLE_RANK[a],
     );
@@ -175,11 +174,9 @@ export class WorkspaceMembersService {
 
     // 5. Map workspace_gone
     if (result.status === 'workspace_gone') {
-      throw new ApiException(
-        HttpStatus.NOT_FOUND,
-        'NOT_FOUND',
-        { key: 'workspace:errors.notFound' },
-      );
+      throw new ApiException(HttpStatus.NOT_FOUND, 'NOT_FOUND', {
+        key: 'workspace:errors.notFound',
+      });
     }
 
     if (result.status === 'role_unknown') {
@@ -281,11 +278,9 @@ export class WorkspaceMembersService {
     });
 
     if (result.status === 'workspace_gone') {
-      throw new ApiException(
-        HttpStatus.NOT_FOUND,
-        'NOT_FOUND',
-        { key: 'workspace:errors.notFound' },
-      );
+      throw new ApiException(HttpStatus.NOT_FOUND, 'NOT_FOUND', {
+        key: 'workspace:errors.notFound',
+      });
     }
 
     if (

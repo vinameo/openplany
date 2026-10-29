@@ -140,9 +140,7 @@ describe("app routes", () => {
     await user.click(
       await screen.findByRole("button", { name: "Account menu – An Nguyen" }),
     );
-    await user.click(
-      await screen.findByRole("menuitem", { name: "Sign out" }),
-    );
+    await user.click(await screen.findByRole("menuitem", { name: "Sign out" }));
 
     expect(await screen.findByLabelText(/email/i)).toBeInTheDocument();
     expect(router.state.location.pathname).toBe("/sign-in");

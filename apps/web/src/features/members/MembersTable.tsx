@@ -193,7 +193,9 @@ export function MembersTable<
                   {member.joinedAt === null ? (
                     <Text size="sm">
                       <span aria-hidden="true">—</span>
-                      <VisuallyHidden>{t("members:cell.notAddedToProject")}</VisuallyHidden>
+                      <VisuallyHidden>
+                        {t("members:cell.notAddedToProject")}
+                      </VisuallyHidden>
                     </Text>
                   ) : (
                     <Text size="sm">{formatJoiningDate(member.joinedAt)}</Text>

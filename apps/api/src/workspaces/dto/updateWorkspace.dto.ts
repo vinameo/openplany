@@ -58,4 +58,3 @@ export class UpdateWorkspaceDto {
   })
   timezone?: string;
 }
-

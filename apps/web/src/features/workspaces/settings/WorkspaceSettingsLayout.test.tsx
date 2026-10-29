@@ -47,7 +47,9 @@ describe("WorkspaceSettingsLayout", () => {
     expect(headings.length).toBeGreaterThan(0);
 
     await waitFor(() => {
-      expect(router.state.location.pathname).toBe("/openstudy/settings/general");
+      expect(router.state.location.pathname).toBe(
+        "/openstudy/settings/general",
+      );
       expect(screen.getByRole("link", { name: /General/i })).toHaveAttribute(
         "aria-current",
         "page",
@@ -89,7 +91,8 @@ describe("WorkspaceSettingsLayout", () => {
     expect(headings.length).toBeGreaterThan(0);
 
     expect(screen.getByRole("link", { name: /General/i })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /Roles/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /Roles/i }),
+    ).not.toBeInTheDocument();
   });
 });
-

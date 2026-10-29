@@ -46,9 +46,7 @@ export function MemberCandidateSelect({
       }
       emptyContent={
         <Stack gap="xs" align="flex-start">
-          <Text size="sm">
-            {t("members:candidate.noUserWithEmail")}
-          </Text>
+          <Text size="sm">{t("members:candidate.noUserWithEmail")}</Text>
           {isInstanceAdmin && (
             <Anchor
               href="/create-user"

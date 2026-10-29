@@ -69,7 +69,9 @@ export class LoggingWorkspaceEvents extends WorkspaceEvents {
   }
 
   async membersAdded(event: WorkspaceMembersAddedEvent): Promise<void> {
-    const rolesPart = WORKSPACE_ROLES.filter((r) => event.roles[r] !== undefined)
+    const rolesPart = WORKSPACE_ROLES.filter(
+      (r) => event.roles[r] !== undefined,
+    )
       .map((r) => `${r}:${event.roles[r]}`)
       .join(',');
     this.logger.log(
@@ -107,4 +109,3 @@ export class LoggingWorkspaceEvents extends WorkspaceEvents {
     );
   }
 }
-

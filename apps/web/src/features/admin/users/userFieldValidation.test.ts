@@ -442,7 +442,10 @@ describe("userFieldValidation", () => {
     it("returns only differing fields, normalized as sent", () => {
       expect(changedEditFields(same, loaded)).toEqual({});
       expect(
-        changedEditFields({ ...same, lastName: " Lê ", email: "B@x.dev" }, loaded),
+        changedEditFields(
+          { ...same, lastName: " Lê ", email: "B@x.dev" },
+          loaded,
+        ),
       ).toEqual({ lastName: "Lê", email: "b@x.dev" });
     });
 
@@ -458,7 +461,9 @@ describe("userFieldValidation", () => {
         const payloadFields = Object.keys(
           buildUpdateAdminUserPayload(values, loaded),
         ).filter((key) => key !== "expectedUpdatedAt");
-        expect(hasEditUserChanges(values, loaded)).toBe(payloadFields.length > 0);
+        expect(hasEditUserChanges(values, loaded)).toBe(
+          payloadFields.length > 0,
+        );
       }
     });
   });
@@ -572,7 +577,12 @@ describe("userFieldValidation", () => {
 
     it("returns null for valid password and confirmPassword", () => {
       expect(
-        validateChangePasswordField("password", validValues, targetEmail, false),
+        validateChangePasswordField(
+          "password",
+          validValues,
+          targetEmail,
+          false,
+        ),
       ).toBeNull();
       expect(
         validateChangePasswordField(
@@ -617,10 +627,20 @@ describe("userFieldValidation", () => {
 
     it("requires actorPassword only while the field is shown (API B7)", () => {
       expect(
-        validateChangePasswordField("actorPassword", validValues, targetEmail, false),
+        validateChangePasswordField(
+          "actorPassword",
+          validValues,
+          targetEmail,
+          false,
+        ),
       ).toBeNull();
       expect(
-        validateChangePasswordField("actorPassword", validValues, targetEmail, true),
+        validateChangePasswordField(
+          "actorPassword",
+          validValues,
+          targetEmail,
+          true,
+        ),
       ).toBe("Enter your password");
       expect(
         validateChangePasswordField(

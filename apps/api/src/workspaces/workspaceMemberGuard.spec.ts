@@ -15,7 +15,10 @@ describe('WorkspaceMemberGuard', () => {
     guard = new WorkspaceMemberGuard(repository);
   });
 
-  function makeContext(params: Record<string, string>, auth?: { userId: string }): {
+  function makeContext(
+    params: Record<string, string>,
+    auth?: { userId: string },
+  ): {
     context: ExecutionContext;
     request: Record<string, unknown>;
   } {
@@ -58,7 +61,10 @@ describe('WorkspaceMemberGuard', () => {
   });
 
   it('throws 404 if workspace does not exist or user is not a member', async () => {
-    const { context } = makeContext({ slug: 'acme-corp' }, { userId: 'user-1' });
+    const { context } = makeContext(
+      { slug: 'acme-corp' },
+      { userId: 'user-1' },
+    );
 
     await expect(guard.canActivate(context)).rejects.toMatchObject({
       status: HttpStatus.NOT_FOUND,
@@ -80,4 +86,3 @@ describe('WorkspaceMemberGuard', () => {
     expect(request.workspace).toEqual(ws);
   });
 });
-

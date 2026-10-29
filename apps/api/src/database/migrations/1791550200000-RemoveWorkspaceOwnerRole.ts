@@ -100,4 +100,3 @@ export class RemoveWorkspaceOwnerRole1791550200000 implements MigrationInterface
     `);
   }
 }
-

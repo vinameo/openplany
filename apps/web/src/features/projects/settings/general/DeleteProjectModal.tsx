@@ -72,9 +72,7 @@ export function DeleteProjectModal({
         message: t("project:settings.delete.successNotification"),
         color: "teal",
       });
-      await Promise.resolve(
-        navigate(workspacePath(slug), { replace: true }),
-      )
+      await Promise.resolve(navigate(workspacePath(slug), { replace: true }))
         .then(() =>
           removeProjectFromCache(queryClient, slug, project.identifier),
         )

@@ -12,9 +12,7 @@ export function ProjectSettingsSectionNotFound() {
         <Title order={2} size="h3" mb="xs">
           {t("project:settings.notFound.title")}
         </Title>
-        <Text c="dimmed">
-          {t("project:settings.notFound.description")}
-        </Text>
+        <Text c="dimmed">{t("project:settings.notFound.description")}</Text>
       </Box>
     </>
   );

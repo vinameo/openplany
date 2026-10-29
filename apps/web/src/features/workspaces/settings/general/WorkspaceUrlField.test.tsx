@@ -42,4 +42,3 @@ describe("WorkspaceUrlField", () => {
     expect(await screen.findByText("URL copied")).toBeInTheDocument();
   });
 });
-

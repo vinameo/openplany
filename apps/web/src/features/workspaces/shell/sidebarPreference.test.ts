@@ -37,7 +37,9 @@ describe("sidebarPreference", () => {
 
     it("round-trips correctly", () => {
       expect(parseSidebarCollapsed(serializeSidebarCollapsed(true))).toBe(true);
-      expect(parseSidebarCollapsed(serializeSidebarCollapsed(false))).toBe(false);
+      expect(parseSidebarCollapsed(serializeSidebarCollapsed(false))).toBe(
+        false,
+      );
     });
   });
 });

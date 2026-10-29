@@ -9,11 +9,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "../../../auth/AuthProvider";
 import { appRoutes } from "../../../../routes";
 import { makeSession } from "../../../../test/authFixtures";
-import {
-  apiError,
-  jsonResponse,
-  mockFetch,
-} from "../../../../test/fetchMock";
+import { apiError, jsonResponse, mockFetch } from "../../../../test/fetchMock";
 import { makeWorkspace } from "../../test/workspaceFixtures";
 
 const baseMembersResponse: WorkspaceMemberListResponse = {
@@ -50,7 +46,8 @@ const baseMembersResponse: WorkspaceMemberListResponse = {
 
 function renderMembersApp(
   wsOverrides = {},
-  membersData: WorkspaceMemberListResponse | (() => Response) = baseMembersResponse,
+  membersData:
+    WorkspaceMemberListResponse | (() => Response) = baseMembersResponse,
   overrideRoutes: Record<string, () => Response> = {},
 ) {
   const ws = makeWorkspace({
@@ -112,11 +109,21 @@ describe("MembersSettingsPage", () => {
     expect(screen.getByText("2")).toBeInTheDocument();
 
     // Table columns
-    expect(screen.getByRole("columnheader", { name: "Full name" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Display name" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Email" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Role" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Joining date" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "Full name" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "Display name" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "Email" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "Role" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "Joining date" }),
+    ).toBeInTheDocument();
     expect(
       screen.queryByRole("columnheader", { name: "Authentication" }),
     ).not.toBeInTheDocument();
@@ -136,11 +143,21 @@ describe("MembersSettingsPage", () => {
 
     await screen.findByRole("heading", { name: "Members", level: 2 });
 
-    expect(screen.getByRole("columnheader", { name: "Full name" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Display name" })).toBeInTheDocument();
-    expect(screen.queryByRole("columnheader", { name: "Email" })).not.toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Role" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Joining date" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "Full name" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "Display name" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("columnheader", { name: "Email" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "Role" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "Joining date" }),
+    ).toBeInTheDocument();
   });
 
   it("AC-17: Guest without workspace.members.view sees Access Denied", async () => {
@@ -170,7 +187,9 @@ describe("MembersSettingsPage", () => {
     renderMembersApp({}, truncatedResponse);
 
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("Showing the first 1,000 of 1,234 members.");
+    expect(alert).toHaveTextContent(
+      "Showing the first 1,000 of 1,234 members.",
+    );
   });
 
   it("WEB-19: shows no active Admin alert when every Admin is deactivated", async () => {
@@ -235,7 +254,9 @@ describe("MembersSettingsPage", () => {
   });
 
   it("leaves the skeleton with an error when GET /members is 403 and the workspace reload fails", async () => {
-    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
     let workspaceCalls = 0;
     const ws = makeWorkspace({
       id: "ws-1",
@@ -259,7 +280,9 @@ describe("MembersSettingsPage", () => {
 
     const errorAlert = await screen.findByRole("alert");
     expect(errorAlert).toHaveTextContent("Couldn't load members.");
-    expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Try again" }),
+    ).toBeInTheDocument();
     expect(workspaceCalls).toBe(2);
     consoleError.mockRestore();
   });
@@ -279,10 +302,14 @@ describe("MembersSettingsPage", () => {
 
     // No matches -> empty state
     await user.type(searchInput, "xyz");
-    expect(screen.getByText("No members match your search")).toBeInTheDocument();
+    expect(
+      screen.getByText("No members match your search"),
+    ).toBeInTheDocument();
 
     // Clear search and filters button restores members
-    const clearBtn = screen.getByRole("button", { name: "Clear search and filters" });
+    const clearBtn = screen.getByRole("button", {
+      name: "Clear search and filters",
+    });
     await user.click(clearBtn);
 
     expect(screen.getByText("Admin Alice")).toBeInTheDocument();
@@ -300,12 +327,18 @@ describe("MembersSettingsPage", () => {
 
     await user.click(filterBtn);
 
-    const guestCheckbox = await screen.findByRole("checkbox", { name: "Guest" });
+    const guestCheckbox = await screen.findByRole("checkbox", {
+      name: "Guest",
+    });
     await user.click(guestCheckbox);
 
-    expect(screen.getByRole("button", { name: "Filter by role" })).toHaveTextContent("Filters · 1");
+    expect(
+      screen.getByRole("button", { name: "Filter by role" }),
+    ).toHaveTextContent("Filters · 1");
     // Since neither Alice nor Bob is Guest, empty state is displayed
-    expect(screen.getByText("No members match your search")).toBeInTheDocument();
+    expect(
+      screen.getByText("No members match your search"),
+    ).toBeInTheDocument();
   });
 
   it("AC-18: sorts table columns via sort menu", async () => {
@@ -318,7 +351,9 @@ describe("MembersSettingsPage", () => {
     const sortRoleBtn = screen.getByRole("button", { name: "Sort by Role" });
     await user.click(sortRoleBtn);
 
-    const ascOption = await screen.findByRole("menuitem", { name: "Ascending" });
+    const ascOption = await screen.findByRole("menuitem", {
+      name: "Ascending",
+    });
     await user.click(ascOption);
 
     // In ascending order, Member Bob (rank 20) should appear before Admin Alice (rank 30)
@@ -344,7 +379,9 @@ describe("MembersSettingsPage", () => {
     expect(addMemberBtn).toBeInTheDocument();
 
     await user.click(addMemberBtn);
-    expect(await screen.findByRole("dialog", { name: "Add member" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("dialog", { name: "Add member" }),
+    ).toBeInTheDocument();
   });
 
   it("AC-17: Member without workspace.members.add does not see 'Add member' button", async () => {
@@ -354,7 +391,9 @@ describe("MembersSettingsPage", () => {
     });
 
     await screen.findByRole("heading", { name: "Members", level: 2 });
-    expect(screen.queryByRole("button", { name: "Add member" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Add member" }),
+    ).not.toBeInTheDocument();
   });
 
   it("AC-16: renders plain text role for self and RoleSelectCell for member with multiple assignableRoles", async () => {
@@ -400,7 +439,9 @@ describe("MembersSettingsPage", () => {
     ).not.toBeInTheDocument();
 
     // Bob should have a combobox
-    const bobSelect = screen.getByRole("combobox", { name: "Role for Bob Builder" });
+    const bobSelect = screen.getByRole("combobox", {
+      name: "Role for Bob Builder",
+    });
     expect(bobSelect).toBeInTheDocument();
     expect(bobSelect).toHaveValue("Guest");
   });
@@ -440,53 +481,53 @@ describe("MembersSettingsPage", () => {
     };
 
     let patchCalled = false;
-    renderMembersApp(
-      {},
-      membersWithAssignableRoles,
-      {
-        "GET /api/workspaces/openstudy/members/u-bob/role-change-preview": () =>
-          jsonResponse(200, {
-            userId: "u-bob",
-            fromRole: "guest",
-            toRole: "member",
-            effect: "apply_project_role",
-            affectedProjects: {
-              projects: [{ id: "p-1", name: "Alpha", identifier: "ALP" }],
-              total: 1,
-              hiddenCount: 0,
-            },
-            projectsLosingAssignedAdmin: {
-              projects: [],
-              total: 0,
-              hiddenCount: 0,
-            },
-            projectRoleChoices: ["member", "admin", "viewer"],
-            defaultProjectRole: "member",
-            actorCanChooseProjectRole: true,
-          }),
-        "PATCH /api/workspaces/openstudy/members/u-bob": () => {
-          patchCalled = true;
-          return jsonResponse(200, {
-            userId: "u-bob",
-            role: "member",
-            accountActive: true,
-            joinedAt: "2026-10-08T12:00:00.000Z",
-            assignableRoles: ["guest", "member"],
-          });
-        },
+    renderMembersApp({}, membersWithAssignableRoles, {
+      "GET /api/workspaces/openstudy/members/u-bob/role-change-preview": () =>
+        jsonResponse(200, {
+          userId: "u-bob",
+          fromRole: "guest",
+          toRole: "member",
+          effect: "apply_project_role",
+          affectedProjects: {
+            projects: [{ id: "p-1", name: "Alpha", identifier: "ALP" }],
+            total: 1,
+            hiddenCount: 0,
+          },
+          projectsLosingAssignedAdmin: {
+            projects: [],
+            total: 0,
+            hiddenCount: 0,
+          },
+          projectRoleChoices: ["member", "admin", "viewer"],
+          defaultProjectRole: "member",
+          actorCanChooseProjectRole: true,
+        }),
+      "PATCH /api/workspaces/openstudy/members/u-bob": () => {
+        patchCalled = true;
+        return jsonResponse(200, {
+          userId: "u-bob",
+          role: "member",
+          accountActive: true,
+          joinedAt: "2026-10-08T12:00:00.000Z",
+          assignableRoles: ["guest", "member"],
+        });
       },
-    );
+    });
 
     await screen.findByRole("heading", { name: "Members", level: 2 });
 
-    const bobSelect = screen.getByRole("combobox", { name: "Role for Bob Builder" });
+    const bobSelect = screen.getByRole("combobox", {
+      name: "Role for Bob Builder",
+    });
     await user.click(bobSelect);
 
     const memberOption = await screen.findByRole("option", { name: "Member" });
     await user.click(memberOption);
 
     // Modal opens
-    const modalTitle = await screen.findByText("Change Bob Builder's role to Member?");
+    const modalTitle = await screen.findByText(
+      "Change Bob Builder's role to Member?",
+    );
     expect(modalTitle).toBeInTheDocument();
 
     // Bob select in table still displays Guest (table retains old role while modal is open)
@@ -498,11 +539,12 @@ describe("MembersSettingsPage", () => {
 
     // Modal closes
     await waitFor(() => {
-      expect(screen.queryByText("Change Bob Builder's role to Member?")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Change Bob Builder's role to Member?"),
+      ).not.toBeInTheDocument();
     });
 
     expect(patchCalled).toBe(false);
     expect(bobSelect).toHaveValue("Guest");
   });
 });
-

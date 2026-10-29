@@ -16,4 +16,3 @@ export function toWorkItemResponse(
     createdAt: row.createdAt.toISOString(),
   };
 }
-

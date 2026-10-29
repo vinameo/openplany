@@ -136,8 +136,10 @@ describe('planRolePermissionChanges', () => {
     expect(plan).toEqual({
       status: 'invalid',
       fields: {
-        'workspace.member:workspace.invalid_perm': PERMISSION_GRANT_PROBLEM_REFS.UNKNOWN_PERMISSION,
-        'workspace.member:random.nonsense': PERMISSION_GRANT_PROBLEM_REFS.UNKNOWN_PERMISSION,
+        'workspace.member:workspace.invalid_perm':
+          PERMISSION_GRANT_PROBLEM_REFS.UNKNOWN_PERMISSION,
+        'workspace.member:random.nonsense':
+          PERMISSION_GRANT_PROBLEM_REFS.UNKNOWN_PERMISSION,
       },
     });
   });
@@ -168,9 +170,9 @@ describe('planRolePermissionChanges', () => {
 
     expect(revokeAdminPlan.status).toBe('invalid');
     if (revokeAdminPlan.status === 'invalid') {
-      expect(revokeAdminPlan.fields['workspace.admin:workspace.delete']).toEqual(
-        PERMISSION_GRANT_PROBLEM_REFS.ROLE_LOCKED,
-      );
+      expect(
+        revokeAdminPlan.fields['workspace.admin:workspace.delete'],
+      ).toEqual(PERMISSION_GRANT_PROBLEM_REFS.ROLE_LOCKED);
     }
 
     // Attempt to revoke from project admin
@@ -187,9 +189,7 @@ describe('planRolePermissionChanges', () => {
     if (revokeProjAdminPlan.status === 'invalid') {
       expect(
         revokeProjAdminPlan.fields['project.admin:project.settings.view'],
-      ).toEqual(
-        PERMISSION_GRANT_PROBLEM_REFS.ROLE_LOCKED,
-      );
+      ).toEqual(PERMISSION_GRANT_PROBLEM_REFS.ROLE_LOCKED);
     }
   });
 
@@ -260,7 +260,8 @@ describe('planRolePermissionChanges', () => {
     expect(plan).toEqual({
       status: 'invalid',
       fields: {
-        'workspace.member:project.workitems.view': PERMISSION_GRANT_PROBLEM_REFS.SCOPE_MISMATCH,
+        'workspace.member:project.workitems.view':
+          PERMISSION_GRANT_PROBLEM_REFS.SCOPE_MISMATCH,
       },
     });
   });

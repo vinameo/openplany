@@ -12,4 +12,3 @@ export interface CurrentWorkspaceValue {
 
 export const CurrentWorkspaceContext =
   createContext<CurrentWorkspaceValue | null>(null);
-

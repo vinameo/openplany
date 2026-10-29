@@ -2,9 +2,7 @@ import type { MigrationInterface, QueryRunner } from 'typeorm';
 
 // Change project role feature (packages/docs/15-change-project-role/3-database-spec.md B2).
 // Hand-written migration: do not regenerate with migration:generate (B0).
-export class AddProjectRoleChangedHistory1791610300000
-  implements MigrationInterface
-{
+export class AddProjectRoleChangedHistory1791610300000 implements MigrationInterface {
   name = 'AddProjectRoleChangedHistory1791610300000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

@@ -1,11 +1,4 @@
-import {
-  Alert,
-  Button,
-  Loader,
-  Select,
-  TextInput,
-  Title,
-} from "@mantine/core";
+import { Alert, Button, Loader, Select, TextInput, Title } from "@mantine/core";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { ORGANIZATION_SIZES, ORGANIZATION_SIZE_KEYS } from "@repo/contracts";
@@ -158,4 +151,3 @@ export function CreateWorkspaceForm() {
     </div>
   );
 }
-

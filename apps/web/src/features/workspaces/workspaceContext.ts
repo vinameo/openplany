@@ -21,4 +21,3 @@ export interface WorkspacesContextValue {
 export const WorkspacesContext = createContext<WorkspacesContextValue | null>(
   null,
 );
-

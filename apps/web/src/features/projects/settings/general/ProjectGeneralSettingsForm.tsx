@@ -12,10 +12,7 @@ import {
   Tooltip,
 } from "@mantine/core";
 import { useTranslation } from "react-i18next";
-import {
-  PROJECT_NAME_MAX,
-  type ProjectListItem,
-} from "@repo/contracts";
+import { PROJECT_NAME_MAX, type ProjectListItem } from "@repo/contracts";
 import { InfoIcon } from "../../../workspaces/icons";
 import { SETTINGS_MESSAGES } from "../../../settings/settingsMessages";
 import { useCurrentWorkspace } from "../../../workspaces/currentWorkspace/useCurrentWorkspace";
@@ -38,14 +35,8 @@ export function ProjectGeneralSettingsForm({
 }: ProjectGeneralSettingsFormProps) {
   const { t } = useTranslation();
   const { workspace } = useCurrentWorkspace();
-  const {
-    form,
-    hasChanges,
-    isSaving,
-    submitError,
-    handleSubmit,
-    canEdit,
-  } = useProjectGeneralSettingsForm(project);
+  const { form, hasChanges, isSaving, submitError, handleSubmit, canEdit } =
+    useProjectGeneralSettingsForm(project);
 
   const nameLength = form.values.name ? form.values.name.length : 0;
   const remaining = PROJECT_NAME_MAX - nameLength;
@@ -81,7 +72,6 @@ export function ProjectGeneralSettingsForm({
           </div>
         </div>
       </ProjectCoverHeader>
-
 
       <form className={classes.formSection} onSubmit={handleSubmit} noValidate>
         {!canEdit && (
@@ -126,7 +116,9 @@ export function ProjectGeneralSettingsForm({
                     variant="subtle"
                     color="gray"
                     size="sm"
-                    aria-label={t("project:settings.general.aboutIdentifierAriaLabel")}
+                    aria-label={t(
+                      "project:settings.general.aboutIdentifierAriaLabel",
+                    )}
                   >
                     <InfoIcon width={16} height={16} />
                   </ActionIcon>

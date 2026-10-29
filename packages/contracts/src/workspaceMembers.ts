@@ -87,4 +87,7 @@ export const WORKSPACE_ROLE_CHANGE_MESSAGES = {
 export const WORKSPACE_ROLE_CHANGE_MESSAGE_REFS = {
   lastAdmin: { key: "workspace:errors.lastAdmin" },
   memberGone: { key: "workspace:errors.memberGone" },
-} as const satisfies Record<keyof typeof WORKSPACE_ROLE_CHANGE_MESSAGES, MessageRef>;
+} as const satisfies Record<
+  keyof typeof WORKSPACE_ROLE_CHANGE_MESSAGES,
+  MessageRef
+>;

@@ -1,17 +1,17 @@
-import { useContext, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Anchor, Text } from '@mantine/core';
+import { useContext, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Anchor, Text } from "@mantine/core";
 import {
   MEMBER_CANDIDATE_QUERY_MIN,
   looksLikeFullEmail,
   type ProjectMemberCandidate,
-} from '@repo/contracts';
-import { MemberCandidateCombobox } from '../../../members/MemberCandidateCombobox';
-import { useMemberCandidateSearch } from '../../../members/useMemberCandidateSearch';
-import { CurrentWorkspaceContext } from '../../../workspaces/currentWorkspace/currentWorkspaceContext';
-import { workspaceSettingsPath } from '../../../workspaces/workspacePaths';
-import { projectMembersApi } from '../../api/projectMembersApi';
-import { projectKeys } from '../../api/projectQueries';
+} from "@repo/contracts";
+import { MemberCandidateCombobox } from "../../../members/MemberCandidateCombobox";
+import { useMemberCandidateSearch } from "../../../members/useMemberCandidateSearch";
+import { CurrentWorkspaceContext } from "../../../workspaces/currentWorkspace/currentWorkspaceContext";
+import { workspaceSettingsPath } from "../../../workspaces/workspacePaths";
+import { projectMembersApi } from "../../api/projectMembersApi";
+import { projectKeys } from "../../api/projectQueries";
 
 export interface ProjectMemberCandidateSelectProps {
   slug: string;
@@ -39,13 +39,15 @@ export function ProjectMemberCandidateSelect({
   disabled = false,
 }: ProjectMemberCandidateSelectProps) {
   const { t } = useTranslation();
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const currentWorkspace = useContext(CurrentWorkspaceContext);
 
   const canAddWorkspace =
     canAddWorkspaceMember ??
     Boolean(
-      currentWorkspace?.workspace?.permissions?.includes('workspace.members.add'),
+      currentWorkspace?.workspace?.permissions?.includes(
+        "workspace.members.add",
+      ),
     );
 
   const isReady = (trimmed: string) =>
@@ -54,8 +56,8 @@ export function ProjectMemberCandidateSelect({
       : looksLikeFullEmail(trimmed);
 
   const notReadyHint = canSeeEmail
-    ? t('members:errors.candidateQueryTooShort')
-    : t('project:members.typeFullEmail');
+    ? t("members:errors.candidateQueryTooShort")
+    : t("project:members.typeFullEmail");
 
   const candidateState = useMemberCandidateSearch<ProjectMemberCandidate>({
     queryKey: (q) => projectKeys.memberCandidates(slug, identifier, q),
@@ -68,17 +70,17 @@ export function ProjectMemberCandidateSelect({
 
   const emptyContent = (
     <Text size="sm">
-      {t('project:members.noWorkspaceMemberFound')}
+      {t("project:members.noWorkspaceMemberFound")}
       {canAddWorkspace && (
         <>
-          {' '}
+          {" "}
           <Anchor
-            href={workspaceSettingsPath(slug, 'members')}
+            href={workspaceSettingsPath(slug, "members")}
             target="_blank"
             rel="noopener noreferrer"
             size="sm"
           >
-            {t('project:members.addToWorkspaceLink')}
+            {t("project:members.addToWorkspaceLink")}
           </Anchor>
         </>
       )}
@@ -93,11 +95,11 @@ export function ProjectMemberCandidateSelect({
       onSearchChange={setSearch}
       state={candidateState}
       disabledLabel={(c) => {
-        if (c.status === 'already_member') {
-          return t('project:members.alreadyInProject');
+        if (c.status === "already_member") {
+          return t("project:members.alreadyInProject");
         }
-        if (c.status === 'workspace_admin') {
-          return t('project:members.workspaceAdminCandidate');
+        if (c.status === "workspace_admin") {
+          return t("project:members.workspaceAdminCandidate");
         }
         return null;
       }}

@@ -44,7 +44,11 @@ describe('WorkspacesService', () => {
       };
 
       const result = await service.checkSlug('user-1', 'ab');
-      expect(result).toEqual({ slug: 'ab', available: false, reason: 'INVALID' });
+      expect(result).toEqual({
+        slug: 'ab',
+        available: false,
+        reason: 'INVALID',
+      });
       expect(repoCalled).toBe(false);
 
       const result2 = await service.checkSlug('user-1', '-bad-prefix');
@@ -137,7 +141,10 @@ describe('WorkspacesService', () => {
     });
 
     it('throws 429 TOO_MANY_ATTEMPTS when rate limited by database check', async () => {
-      repository.createResult = { status: 'rate_limited', retryAfterSeconds: 300 };
+      repository.createResult = {
+        status: 'rate_limited',
+        retryAfterSeconds: 300,
+      };
 
       await expect(
         service.create('user-1', {
@@ -232,9 +239,7 @@ describe('WorkspacesService', () => {
   describe('update', () => {
     it('throws 400 VALIDATION_ERROR when body has no editable fields', async () => {
       const ws = makeMemberWorkspace();
-      await expect(
-        service.update(ws, 'user-1', {}),
-      ).rejects.toMatchObject({
+      await expect(service.update(ws, 'user-1', {})).rejects.toMatchObject({
         status: HttpStatus.BAD_REQUEST,
         code: 'VALIDATION_ERROR',
         message: 'Nothing to update',

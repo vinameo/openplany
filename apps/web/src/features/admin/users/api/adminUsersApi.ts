@@ -6,28 +6,28 @@ import type {
   CreateUserRequest,
   MessageKey,
   UpdateAdminUserRequest,
-} from '@repo/contracts';
-import { request } from '../../../../lib/apiClient';
-import type { UsersListParams } from '../usersListParams';
+} from "@repo/contracts";
+import { request } from "../../../../lib/apiClient";
+import type { UsersListParams } from "../usersListParams";
 
 export const GENERIC_CREATE_USER_ERROR_KEY: MessageKey =
-  'admin:users.errors.createFailed';
+  "admin:users.errors.createFailed";
 export const GENERIC_LOAD_USERS_ERROR_KEY: MessageKey =
-  'admin:users.errors.loadFailed';
+  "admin:users.errors.loadFailed";
 export const GENERIC_LOAD_USER_ERROR_KEY: MessageKey =
-  'admin:users.errors.loadUserFailed';
+  "admin:users.errors.loadUserFailed";
 export const GENERIC_UPDATE_USER_ERROR_KEY: MessageKey =
-  'admin:users.errors.updateFailed';
+  "admin:users.errors.updateFailed";
 export const GENERIC_CHANGE_PASSWORD_ERROR_KEY: MessageKey =
-  'admin:users.errors.passwordFailed';
+  "admin:users.errors.passwordFailed";
 
 export const adminUsersApi = {
   createUser(body: CreateUserRequest): Promise<CreatedUserResponse> {
     return request<CreatedUserResponse>(
-      '/api/admin/users',
+      "/api/admin/users",
       {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       },
       GENERIC_CREATE_USER_ERROR_KEY,
@@ -36,22 +36,22 @@ export const adminUsersApi = {
 
   list(params: UsersListParams): Promise<AdminUserListResponse> {
     const query = new URLSearchParams();
-    query.set('page', String(params.page));
-    query.set('sort', params.sort);
-    query.set('order', params.order);
+    query.set("page", String(params.page));
+    query.set("sort", params.sort);
+    query.set("order", params.order);
     if (params.search) {
-      query.set('search', params.search);
+      query.set("search", params.search);
     }
-    if (params.status && params.status !== 'all') {
-      query.set('status', params.status);
+    if (params.status && params.status !== "all") {
+      query.set("status", params.status);
     }
-    if (params.admin === 'only') {
-      query.set('instanceAdmin', 'only');
+    if (params.admin === "only") {
+      query.set("instanceAdmin", "only");
     }
 
     return request<AdminUserListResponse>(
       `/api/admin/users?${query.toString()}`,
-      { method: 'GET' },
+      { method: "GET" },
       GENERIC_LOAD_USERS_ERROR_KEY,
     );
   },
@@ -59,7 +59,7 @@ export const adminUsersApi = {
   get(userId: string): Promise<AdminUserResponse> {
     return request<AdminUserResponse>(
       `/api/admin/users/${userId}`,
-      { method: 'GET' },
+      { method: "GET" },
       GENERIC_LOAD_USER_ERROR_KEY,
     );
   },
@@ -71,8 +71,8 @@ export const adminUsersApi = {
     return request<AdminUserResponse>(
       `/api/admin/users/${userId}`,
       {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       },
       GENERIC_UPDATE_USER_ERROR_KEY,
@@ -86,8 +86,8 @@ export const adminUsersApi = {
     return request<void>(
       `/api/admin/users/${userId}/password`,
       {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       },
       GENERIC_CHANGE_PASSWORD_ERROR_KEY,

@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  SETTINGS_MESSAGES,
-  tooManyChangesMessage,
-} from "./settingsMessages";
+import { SETTINGS_MESSAGES, tooManyChangesMessage } from "./settingsMessages";
 
 describe("settingsMessages", () => {
   it("provides standard settings permission messages", () => {

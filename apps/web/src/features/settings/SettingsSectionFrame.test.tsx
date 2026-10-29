@@ -77,4 +77,3 @@ describe("SettingsSectionFrame", () => {
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
 });
-

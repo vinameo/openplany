@@ -7,8 +7,10 @@ const currentHost =
     ? window.location.host
     : "localhost:5173";
 
-interface SlugInputProps
-  extends Omit<InputWrapperProps, "children" | "onChange"> {
+interface SlugInputProps extends Omit<
+  InputWrapperProps,
+  "children" | "onChange"
+> {
   value: string;
   onChange: (event: ChangeEvent<HTMLInputElement>) => void;
   onPaste?: (event: ClipboardEvent<HTMLInputElement>) => void;
@@ -87,4 +89,3 @@ export function SlugInput({
     </Input.Wrapper>
   );
 }
-

@@ -16,7 +16,11 @@ export type { SettingsNavigationGroup };
 
 export interface UseSettingsNavigationOptions {
   sections?: readonly WorkspaceSettingsSection[];
-  groups?: readonly { key: WorkspaceSettingsGroup; label?: string; labelKey?: MessageKey }[];
+  groups?: readonly {
+    key: WorkspaceSettingsGroup;
+    label?: string;
+    labelKey?: MessageKey;
+  }[];
 }
 
 export function useSettingsNavigation(options?: UseSettingsNavigationOptions): {

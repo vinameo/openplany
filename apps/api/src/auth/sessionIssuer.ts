@@ -28,7 +28,9 @@ export class SessionIssuer {
     ip: string;
     userAgent: string | null;
   }): IssuedSession {
-    const maxAgeMs = input.resetOnly ? RESET_ONLY_SESSION_MS : this.sessionTtlMs;
+    const maxAgeMs = input.resetOnly
+      ? RESET_ONLY_SESSION_MS
+      : this.sessionTtlMs;
     const expiresAt = new Date(input.now.getTime() + maxAgeMs);
     const token = generateSessionToken();
     const tokenHash = hashSessionToken(token);

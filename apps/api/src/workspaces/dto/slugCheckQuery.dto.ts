@@ -6,4 +6,3 @@ export class SlugCheckQueryDto {
   @IsString({ message: validationMessage('workspace:errors.slugRequired') })
   slug: string;
 }
-

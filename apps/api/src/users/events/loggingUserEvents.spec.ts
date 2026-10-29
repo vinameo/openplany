@@ -4,7 +4,9 @@ import { LoggingUserEvents } from './loggingUserEvents.js';
 
 describe('LoggingUserEvents', () => {
   it('logs user.created event in exact format', async () => {
-    const logSpy = vi.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
+    const logSpy = vi
+      .spyOn(Logger.prototype, 'log')
+      .mockImplementation(() => {});
     const events = new LoggingUserEvents();
 
     try {
@@ -25,7 +27,9 @@ describe('LoggingUserEvents', () => {
   });
 
   it('logs user.updated event in exact format', async () => {
-    const logSpy = vi.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
+    const logSpy = vi
+      .spyOn(Logger.prototype, 'log')
+      .mockImplementation(() => {});
     const events = new LoggingUserEvents();
 
     try {
@@ -47,7 +51,9 @@ describe('LoggingUserEvents', () => {
   });
 
   it('logs user.password_changed event in exact format (RQ INV-13, AC-25)', async () => {
-    const logSpy = vi.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
+    const logSpy = vi
+      .spyOn(Logger.prototype, 'log')
+      .mockImplementation(() => {});
     const events = new LoggingUserEvents();
 
     try {

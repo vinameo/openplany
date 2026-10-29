@@ -1522,7 +1522,9 @@ describe('ProjectMembers (e2e)', () => {
           .send({ members: [{ userId: anId, role: 'admin' }] })
           .expect(403);
         expect(resVi.body.code).toBe('ROLE_NOT_ALLOWED');
-        expect(resVi.body.message).toBe(viCatalog.members['errors.roleNotAllowed']);
+        expect(resVi.body.message).toBe(
+          viCatalog.members['errors.roleNotAllowed'],
+        );
       });
 
       it('Row 19 & 20: default contributor and project viewer return 403 (guard)', async () => {

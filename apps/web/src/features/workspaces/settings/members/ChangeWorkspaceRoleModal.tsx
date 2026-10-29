@@ -113,8 +113,7 @@ export function ChangeWorkspaceRoleModal({
   }, [previewQuery.isError, previewQuery.error, qc, slug]);
 
   // Handle stale role mismatch
-  const isRoleStale =
-    !!preview && !!member && preview.fromRole !== member.role;
+  const isRoleStale = !!preview && !!member && preview.fromRole !== member.role;
 
   useEffect(() => {
     if (isRoleStale) {
@@ -159,10 +158,7 @@ export function ChangeWorkspaceRoleModal({
   }
 
   const confirmDisabled =
-    previewQuery.isLoading ||
-    previewQuery.isError ||
-    isRoleStale ||
-    !preview;
+    previewQuery.isLoading || previewQuery.isError || isRoleStale || !preview;
 
   const handleConfirm = () => {
     if (confirmDisabled || !preview) return;
@@ -322,13 +318,9 @@ export function ChangeWorkspaceRoleModal({
               <Stack gap="xs">
                 <Text size="sm">{losingAdminWarning()}</Text>
                 <BoundedProjectList
-                  projects={
-                    preview.projectsLosingAssignedAdmin.projects
-                  }
+                  projects={preview.projectsLosingAssignedAdmin.projects}
                   total={preview.projectsLosingAssignedAdmin.total}
-                  hiddenCount={
-                    preview.projectsLosingAssignedAdmin.hiddenCount
-                  }
+                  hiddenCount={preview.projectsLosingAssignedAdmin.hiddenCount}
                 />
               </Stack>
             </Alert>

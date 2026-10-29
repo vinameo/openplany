@@ -44,8 +44,7 @@ export function useChangeWorkspaceRole({
       memberName: string;
     }
   >({
-    mutationFn: ({ userId, body }) =>
-      membersApi.changeRole(slug, userId, body),
+    mutationFn: ({ userId, body }) => membersApi.changeRole(slug, userId, body),
     onSuccess: (res, vars) => {
       setErrorMessage(null);
       replaceWorkspaceMemberInCache(qc, slug, res.member);

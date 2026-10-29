@@ -1,22 +1,22 @@
-import type { WorkspaceRole } from './workspace.js';
-import type { ProjectRole } from './projectRoles.js';
+import type { WorkspaceRole } from "./workspace.js";
+import type { ProjectRole } from "./projectRoles.js";
 import type {
   ProjectAccessPolicies,
   ProjectAccessPolicy,
-} from './projectAccessPolicy.js';
+} from "./projectAccessPolicy.js";
 import {
   assignableRangeOf,
   hasImplicitProjectAccess,
-} from './projectAccessPolicy.js';
-import { assignableWorkspaceRoles, type WorkspaceActor } from './roleAssignment.js';
-import { isProjectAdminRole } from './rolePermissionRules.js';
-import type { WorkspaceMemberResponse } from './workspaceMembers.js';
+} from "./projectAccessPolicy.js";
+import {
+  assignableWorkspaceRoles,
+  type WorkspaceActor,
+} from "./roleAssignment.js";
+import { isProjectAdminRole } from "./rolePermissionRules.js";
+import type { WorkspaceMemberResponse } from "./workspaceMembers.js";
 
 export type WorkspaceRoleChangeEffect =
-  | 'gain_implicit'
-  | 'lose_implicit'
-  | 'apply_project_role'
-  | 'no_projects';
+  "gain_implicit" | "lose_implicit" | "apply_project_role" | "no_projects";
 
 export interface WorkspaceRoleChangePlanInput {
   actor: { workspaceRole: WorkspaceRole };
@@ -73,9 +73,7 @@ export interface ChangeWorkspaceRoleResponse {
 export const ROLE_CHANGE_PREVIEW_PROJECTS_MAX = 10;
 
 export type WorkspaceRoleChangeRejection =
-  | 'actor_forbidden'
-  | 'role_changed'
-  | 'same_role';
+  "actor_forbidden" | "role_changed" | "same_role";
 
 /**
  * Kiểm thân request theo thứ tự RQ INV-11 (bước 3–6), dùng chung cho xem trước
@@ -88,12 +86,12 @@ export function checkWorkspaceRoleChange(input: {
   fromRole?: WorkspaceRole;
 }): WorkspaceRoleChangeRejection | null {
   const { actor, target, toRole, fromRole } = input;
-  if (actor.userId === target.userId) return 'actor_forbidden';
+  if (actor.userId === target.userId) return "actor_forbidden";
   if (!assignableWorkspaceRoles(actor, target).includes(toRole)) {
-    return 'actor_forbidden';
+    return "actor_forbidden";
   }
-  if (fromRole !== undefined && fromRole !== target.role) return 'role_changed';
-  if (toRole === target.role) return 'same_role';
+  if (fromRole !== undefined && fromRole !== target.role) return "role_changed";
+  if (toRole === target.role) return "same_role";
   return null;
 }
 
@@ -105,7 +103,7 @@ export function projectRoleAppliedBy(
   plan: WorkspaceRoleChangePlan,
   chosen?: ProjectRole | null,
 ): ProjectRole | null {
-  if (plan.effect !== 'apply_project_role') return null;
+  if (plan.effect !== "apply_project_role") return null;
   if (plan.actorCanChooseProjectRole && chosen != null) return chosen;
   return plan.defaultProjectRole;
 }
@@ -118,8 +116,8 @@ export function projectRoleAppliedBy(
 export function mayRemoveAssignedProjectAdmin(
   plan: WorkspaceRoleChangePlan,
 ): boolean {
-  if (plan.effect === 'gain_implicit') return true;
-  if (plan.effect !== 'apply_project_role') return false;
+  if (plan.effect === "gain_implicit") return true;
+  if (plan.effect !== "apply_project_role") return false;
   return plan.projectRoleChoices.some((role) => !isProjectAdminRole(role));
 }
 
@@ -133,18 +131,18 @@ export function planWorkspaceRoleChange(
 
   let effect: WorkspaceRoleChangeEffect;
   if (hasImplicitProjectAccess(toPolicy)) {
-    effect = 'gain_implicit';
+    effect = "gain_implicit";
   } else if (hasImplicitProjectAccess(fromPolicy)) {
-    effect = 'lose_implicit';
+    effect = "lose_implicit";
   } else if (input.liveProjectCount === 0) {
-    effect = 'no_projects';
+    effect = "no_projects";
   } else {
-    effect = 'apply_project_role';
+    effect = "apply_project_role";
   }
 
   const actorCanChoose = hasImplicitProjectAccess(actorPolicy);
   const projectRoleChoices =
-    effect === 'apply_project_role'
+    effect === "apply_project_role"
       ? actorCanChoose
         ? assignableRangeOf(toPolicy)
         : [toPolicy.lowestAssignableRole]
@@ -168,7 +166,7 @@ export function resolveAppliedProjectRole(
   requested: ProjectRole | null | undefined,
 ):
   | { ok: true; role: ProjectRole | null }
-  | { ok: false; reason: 'actor_cannot_choose' | 'out_of_range' } {
+  | { ok: false; reason: "actor_cannot_choose" | "out_of_range" } {
   if (hasImplicitProjectAccess(toPolicy)) {
     return { ok: true, role: null };
   }
@@ -179,14 +177,14 @@ export function resolveAppliedProjectRole(
 
   const allowedRange = assignableRangeOf(toPolicy);
   if (!allowedRange.includes(requested)) {
-    return { ok: false, reason: 'out_of_range' };
+    return { ok: false, reason: "out_of_range" };
   }
 
   if (
     !plan.actorCanChooseProjectRole &&
     requested !== toPolicy.lowestAssignableRole
   ) {
-    return { ok: false, reason: 'actor_cannot_choose' };
+    return { ok: false, reason: "actor_cannot_choose" };
   }
 
   return { ok: true, role: requested };

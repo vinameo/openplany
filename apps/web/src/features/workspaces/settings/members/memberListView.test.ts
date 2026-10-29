@@ -55,18 +55,12 @@ describe("memberListView", () => {
 
   describe("formatJoiningDate", () => {
     it("formats ISO string to 'MMM DD, YYYY' in UTC (WEB-26)", () => {
-      const formatted = formatJoiningDate(
-        "2026-10-08T12:00:00.000Z",
-        "UTC",
-      );
+      const formatted = formatJoiningDate("2026-10-08T12:00:00.000Z", "UTC");
       expect(formatted).toBe("Oct 08, 2026");
     });
 
     it("does not call Date.now() and formats consistently", () => {
-      const formatted = formatJoiningDate(
-        "2025-01-05T00:00:00.000Z",
-        "UTC",
-      );
+      const formatted = formatJoiningDate("2025-01-05T00:00:00.000Z", "UTC");
       expect(formatted).toBe("Jan 05, 2025");
     });
   });
@@ -176,7 +170,12 @@ describe("memberListView", () => {
         { search: "", roles: [], sort: { key: "role", direction: "asc" } },
         { canSeeEmail: true },
       );
-      expect(result.map((m) => m.role)).toEqual(["guest", "member", "admin", "admin"]);
+      expect(result.map((m) => m.role)).toEqual([
+        "guest",
+        "member",
+        "admin",
+        "admin",
+      ]);
       expect(result[0].role).toBe("guest");
     });
 
@@ -197,7 +196,9 @@ describe("memberListView", () => {
     });
 
     it("AC-12: sorts null joinedAt to the end in both asc and desc directions", () => {
-      const withNull: (Omit<typeof sampleMembers[number], 'joinedAt'> & { joinedAt: string | null })[] = [
+      const withNull: (Omit<(typeof sampleMembers)[number], "joinedAt"> & {
+        joinedAt: string | null;
+      })[] = [
         {
           ...sampleMembers[0]!,
           userId: "u-null",

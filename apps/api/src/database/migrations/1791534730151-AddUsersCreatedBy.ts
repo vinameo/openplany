@@ -17,6 +17,8 @@ export class AddUsersCreatedBy1791534730151 implements MigrationInterface {
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`SET LOCAL lock_timeout = '5s'`);
-    await queryRunner.query(`ALTER TABLE users DROP COLUMN IF EXISTS created_by_id`);
+    await queryRunner.query(
+      `ALTER TABLE users DROP COLUMN IF EXISTS created_by_id`,
+    );
   }
 }

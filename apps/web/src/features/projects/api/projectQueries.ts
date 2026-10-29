@@ -141,18 +141,13 @@ export function replaceProjectInCache(
   slug: string,
   project: ProjectListItem,
 ): void {
-  qc.setQueryData(
-    projectKeys.detail(slug, project.identifier),
-    project,
-  );
+  qc.setQueryData(projectKeys.detail(slug, project.identifier), project);
   qc.setQueryData<ProjectListResponse>(
     projectKeys.list(slug),
     (curr) =>
       curr && {
         ...curr,
-        projects: curr.projects.map((p) =>
-          p.id === project.id ? project : p,
-        ),
+        projects: curr.projects.map((p) => (p.id === project.id ? project : p)),
       },
   );
 }
@@ -162,21 +157,18 @@ export function removeProjectFromCache(
   slug: string,
   identifier: string,
 ): void {
-  qc.setQueryData<ProjectListResponse>(
-    projectKeys.list(slug),
-    (curr) => {
-      if (!curr) return curr;
-      const nextProjects = curr.projects.filter(
-        (p) => p.identifier !== identifier,
-      );
-      const removedCount = curr.projects.length - nextProjects.length;
-      return {
-        ...curr,
-        projects: nextProjects,
-        total: Math.max(0, curr.total - removedCount),
-      };
-    },
-  );
+  qc.setQueryData<ProjectListResponse>(projectKeys.list(slug), (curr) => {
+    if (!curr) return curr;
+    const nextProjects = curr.projects.filter(
+      (p) => p.identifier !== identifier,
+    );
+    const removedCount = curr.projects.length - nextProjects.length;
+    return {
+      ...curr,
+      projects: nextProjects,
+      total: Math.max(0, curr.total - removedCount),
+    };
+  });
   qc.removeQueries({
     queryKey: projectKeys.detail(slug, identifier),
   });

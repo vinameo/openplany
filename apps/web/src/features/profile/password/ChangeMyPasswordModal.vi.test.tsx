@@ -44,7 +44,9 @@ describe("ChangeMyPasswordModal (vi)", () => {
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Mật khẩu hiện tại *")).toBeInTheDocument();
     expect(screen.getByLabelText("Mật khẩu mới *")).toBeInTheDocument();
-    expect(screen.getByLabelText("Xác nhận mật khẩu mới *")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Xác nhận mật khẩu mới *"),
+    ).toBeInTheDocument();
     expect(
       screen.getByText(
         "Bạn vẫn đăng nhập ở đây. Bạn sẽ bị đăng xuất trên mọi thiết bị khác.",

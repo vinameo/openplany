@@ -18,7 +18,9 @@ describe('LoggingWorkspaceEvents', () => {
 
   it('formats structured log without leaking workspace name', async () => {
     const events = makeEvents();
-    const logSpy = vi.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
+    const logSpy = vi
+      .spyOn(Logger.prototype, 'log')
+      .mockImplementation(() => {});
 
     await events.updated({
       workspaceId: 'ws-123',
@@ -42,9 +44,15 @@ describe('LoggingWorkspaceEvents', () => {
     expect(loggedMessage).toContain('userId=usr-456');
     expect(loggedMessage).toContain('workspaceId=ws-123');
     expect(loggedMessage).toContain('role=admin');
-    expect(loggedMessage).toContain('changedFields=name,organizationSize,timezone');
-    expect(loggedMessage).toContain('organizationSizeFrom=Just myself organizationSizeTo=2-10');
-    expect(loggedMessage).toContain('timezoneFrom=UTC timezoneTo=Asia/Ho_Chi_Minh');
+    expect(loggedMessage).toContain(
+      'changedFields=name,organizationSize,timezone',
+    );
+    expect(loggedMessage).toContain(
+      'organizationSizeFrom=Just myself organizationSizeTo=2-10',
+    );
+    expect(loggedMessage).toContain(
+      'timezoneFrom=UTC timezoneTo=Asia/Ho_Chi_Minh',
+    );
 
     // CRITICAL SECURITY RULE: NEVER log workspace name value
     expect(loggedMessage).not.toContain('Old Secret Name');
@@ -53,7 +61,9 @@ describe('LoggingWorkspaceEvents', () => {
 
   it('AC-15: formats memberCandidatesSearched at debug level without leaking query, email, or names', async () => {
     const events = makeEvents();
-    const debugSpy = vi.spyOn(Logger.prototype, 'debug').mockImplementation(() => {});
+    const debugSpy = vi
+      .spyOn(Logger.prototype, 'debug')
+      .mockImplementation(() => {});
 
     await events.memberCandidatesSearched({
       workspaceId: 'ws-123',
@@ -73,7 +83,9 @@ describe('LoggingWorkspaceEvents', () => {
 
   it('AC-15: formats membersAdded at log level without leaking recipient details', async () => {
     const events = makeEvents();
-    const logSpy = vi.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
+    const logSpy = vi
+      .spyOn(Logger.prototype, 'log')
+      .mockImplementation(() => {});
 
     await events.membersAdded({
       workspaceId: 'ws-123',
@@ -117,4 +129,3 @@ describe('LoggingWorkspaceEvents', () => {
     expect(warnSpy).toHaveBeenCalledTimes(3);
   });
 });
-

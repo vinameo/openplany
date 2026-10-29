@@ -1,28 +1,25 @@
-import { useContext, useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useContext, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import {
   DEFAULT_ADDED_PROJECT_ROLE,
   PROJECT_ROLE_LABELS,
   type ProjectMemberCandidate,
   type ProjectRole,
-} from '@repo/contracts';
-import { CurrentProjectContext } from '../../detail/currentProjectContext';
+} from "@repo/contracts";
+import { CurrentProjectContext } from "../../detail/currentProjectContext";
 import {
   AddMembersModalFrame,
   type SubmitOutcome,
-} from '../../../members/AddMembersModalFrame';
+} from "../../../members/AddMembersModalFrame";
 import {
   highestRole,
   isTopRole,
   PROJECT_ROLE_SCHEME,
-} from '../../../members/roleScheme';
-import { submitAddMembers } from '../../../members/submitAddMembers';
-import { ProjectMemberCandidateSelect } from './ProjectMemberCandidateSelect';
-import {
-  limitedToRoleMessage,
-  roleRaisedHint,
-} from './projectMembersMessages';
-import { useAddProjectMembers } from './useAddProjectMembers';
+} from "../../../members/roleScheme";
+import { submitAddMembers } from "../../../members/submitAddMembers";
+import { ProjectMemberCandidateSelect } from "./ProjectMemberCandidateSelect";
+import { limitedToRoleMessage, roleRaisedHint } from "./projectMembersMessages";
+import { useAddProjectMembers } from "./useAddProjectMembers";
 
 export interface AddProjectMembersModalProps {
   opened: boolean;
@@ -75,13 +72,13 @@ export function AddProjectMembersModal({
         candidate,
       }: {
         role: ProjectRole;
-        reason: 'lowered' | 'raised';
+        reason: "lowered" | "raised";
         candidate: ProjectMemberCandidate;
       }) => {
-        if (reason === 'lowered') {
+        if (reason === "lowered") {
           return limitedToRoleMessage(PROJECT_ROLE_LABELS[role]);
         }
-        return roleRaisedHint(candidate.workspaceRole ?? 'member', role);
+        return roleRaisedHint(candidate.workspaceRole ?? "member", role);
       },
       limitedNotice: (r: ProjectRole) =>
         limitedToRoleMessage(PROJECT_ROLE_LABELS[r]),
@@ -99,7 +96,7 @@ export function AddProjectMembersModal({
         send: () => addMutation.mutateAsync(body),
         rowIdByIndex,
         refreshAfterLostAccess: () => currentProject?.reload(),
-        logContext: 'project.members.add',
+        logContext: "project.members.add",
       });
   }, [onSubmit, addMutation, currentProject]);
 
@@ -107,8 +104,8 @@ export function AddProjectMembersModal({
     <AddMembersModalFrame<ProjectRole, ProjectMemberCandidate>
       opened={opened}
       onClose={onClose}
-      title={t('project:members.addMemberTitle')}
-      description={t('project:members.addProjectMembersDescription')}
+      title={t("project:members.addMemberTitle")}
+      description={t("project:members.addProjectMembersDescription")}
       scheme={PROJECT_ROLE_SCHEME}
       defaultRole={defaultRole}
       rowsContext={rowsContext}
@@ -130,7 +127,7 @@ export function AddProjectMembersModal({
       )}
       notice={(row) =>
         isTopRole(PROJECT_ROLE_SCHEME, row.role)
-          ? t('project:members.projectAdminNotice')
+          ? t("project:members.projectAdminNotice")
           : null
       }
       onSubmit={handleSubmit}

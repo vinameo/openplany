@@ -34,4 +34,3 @@ export function WorkspaceAvatar({
     </Avatar>
   );
 }
-

@@ -73,7 +73,10 @@ export function toProjectListItem(
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     timezone: row.timezone,
-    effectiveTimezone: effectiveProjectTimezone(row.timezone, workspaceTimezone),
+    effectiveTimezone: effectiveProjectTimezone(
+      row.timezone,
+      workspaceTimezone,
+    ),
     // The repository already orders members (oldest first); keep that order.
     members: members === null ? null : members.members.map(toMemberSummary),
     memberCount: members === null ? null : members.total,

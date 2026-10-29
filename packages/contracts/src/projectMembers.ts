@@ -134,7 +134,10 @@ export const PROJECT_ROLE_CHANGE_MESSAGE_REFS = {
   cantChange: { key: "project:errors.cantChangeRole" },
   inherited: { key: "project:errors.inheritedRole" },
   memberGone: { key: "project:errors.memberGone" },
-} as const satisfies Record<keyof typeof PROJECT_ROLE_CHANGE_MESSAGES, MessageRef>;
+} as const satisfies Record<
+  keyof typeof PROJECT_ROLE_CHANGE_MESSAGES,
+  MessageRef
+>;
 
 export const PROJECT_MEMBER_NOT_ADDABLE_REASONS = [
   "unavailable",

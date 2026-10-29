@@ -1,13 +1,13 @@
-import { Alert, Button, Modal, PasswordInput, Text } from '@mantine/core';
-import { useMediaQuery } from '@mantine/hooks';
-import type { AdminUserResponse } from '@repo/contracts';
-import { useTranslation } from 'react-i18next';
-import { DiscardChangesFooter } from '../../layout/DiscardChangesFooter';
-import { useDiscardGuard } from '../../layout/useDiscardGuard';
-import { NewPasswordFields } from '../../passwords/NewPasswordFields';
-import { useChangePasswordForm } from './useChangePasswordForm';
-import { adminUserLabel } from './userFieldValidation';
-import classes from './ChangePasswordModal.module.css';
+import { Alert, Button, Modal, PasswordInput, Text } from "@mantine/core";
+import { useMediaQuery } from "@mantine/hooks";
+import type { AdminUserResponse } from "@repo/contracts";
+import { useTranslation } from "react-i18next";
+import { DiscardChangesFooter } from "../../layout/DiscardChangesFooter";
+import { useDiscardGuard } from "../../layout/useDiscardGuard";
+import { NewPasswordFields } from "../../passwords/NewPasswordFields";
+import { useChangePasswordForm } from "./useChangePasswordForm";
+import { adminUserLabel } from "./userFieldValidation";
+import classes from "./ChangePasswordModal.module.css";
 
 export interface ChangePasswordModalProps {
   opened: boolean;
@@ -28,7 +28,7 @@ function ChangePasswordModalContent({
   onSuccess?: () => void;
 }) {
   const { t } = useTranslation();
-  const isNarrow = useMediaQuery('(max-width: 575px)');
+  const isNarrow = useMediaQuery("(max-width: 575px)");
   const name = adminUserLabel(user);
 
   const {
@@ -39,10 +39,10 @@ function ChangePasswordModalContent({
     needsActorPassword,
     handleSubmit,
   } = useChangePasswordForm({
-      targetUser: user,
-      onSuccess: onSuccess ?? (() => {}),
-      onClose,
-    });
+    targetUser: user,
+    onSuccess: onSuccess ?? (() => {}),
+    onClose,
+  });
 
   const { isConfirmingDiscard, keepEditingRef, requestClose, cancelDiscard } =
     useDiscardGuard({
@@ -66,7 +66,7 @@ function ChangePasswordModalContent({
         loading={isSubmitting}
         disabled={!hasChanges || !form.isValid()}
       >
-        {t('admin:users.password.submit')}
+        {t("admin:users.password.submit")}
       </Button>
       <Button
         type="button"
@@ -74,7 +74,7 @@ function ChangePasswordModalContent({
         onClick={requestClose}
         disabled={isSubmitting}
       >
-        {t('common:actions.cancel')}
+        {t("common:actions.cancel")}
       </Button>
     </div>
   );
@@ -83,7 +83,7 @@ function ChangePasswordModalContent({
     <Modal
       opened={opened}
       onClose={requestClose}
-      title={t('admin:users.password.title')}
+      title={t("admin:users.password.title")}
       size="lg"
       radius="lg"
       padding="xl"
@@ -92,7 +92,7 @@ function ChangePasswordModalContent({
       closeOnClickOutside={!isSubmitting}
       closeButtonProps={{
         disabled: isSubmitting,
-        'aria-label': t('common:actions.close'),
+        "aria-label": t("common:actions.close"),
       }}
     >
       <form
@@ -102,40 +102,40 @@ function ChangePasswordModalContent({
         className={classes.form}
       >
         <Text size="sm" c="dimmed">
-          {t('admin:users.password.for', { name, email: user.email })}
+          {t("admin:users.password.for", { name, email: user.email })}
         </Text>
 
         <NewPasswordFields
-          passwordProps={form.getInputProps('password')}
-          confirmProps={form.getInputProps('confirmPassword')}
-          passwordLabel={t('admin:users.form.password')}
-          confirmLabel={t('admin:users.form.confirmPassword')}
+          passwordProps={form.getInputProps("password")}
+          confirmProps={form.getInputProps("confirmPassword")}
+          passwordLabel={t("admin:users.form.password")}
+          confirmLabel={t("admin:users.form.confirmPassword")}
           readOnly={isSubmitting}
         />
 
         {needsActorPassword && (
           <PasswordInput
-            label={t('admin:users.password.actorPassword')}
-            description={t('admin:users.password.actorPasswordDescription', {
+            label={t("admin:users.password.actorPassword")}
+            description={t("admin:users.password.actorPasswordDescription", {
               name,
             })}
             withAsterisk
             autoComplete="current-password"
             visibilityToggleButtonProps={{
-              'aria-label': t('users:form.showPassword'),
+              "aria-label": t("users:form.showPassword"),
             }}
             readOnly={isSubmitting}
-            {...form.getInputProps('actorPassword')}
-            key={form.key('actorPassword')}
+            {...form.getInputProps("actorPassword")}
+            key={form.key("actorPassword")}
           />
         )}
 
         <Text size="sm" c="dimmed">
-          {t('admin:users.password.lockoutNote', { name })}
+          {t("admin:users.password.lockoutNote", { name })}
         </Text>
 
         {submitError && (
-          <Alert color="red" title={t('common:error')} role="alert">
+          <Alert color="red" title={t("common:error")} role="alert">
             {submitError}
           </Alert>
         )}

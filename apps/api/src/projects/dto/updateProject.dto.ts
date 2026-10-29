@@ -24,7 +24,8 @@ import { validationMessage } from '../../common/validation.js';
 import { ProjectIconDto } from './createProject.dto.js';
 
 const isProvided = (_o: unknown, v: unknown) => v !== undefined;
-const isSetTimezone = (_o: unknown, v: unknown) => v !== undefined && v !== null;
+const isSetTimezone = (_o: unknown, v: unknown) =>
+  v !== undefined && v !== null;
 
 export class UpdateProjectDto implements UpdateProjectRequest {
   @ValidateIf(isProvided)

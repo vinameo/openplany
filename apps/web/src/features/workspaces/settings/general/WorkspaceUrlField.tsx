@@ -41,7 +41,11 @@ export function WorkspaceUrlField({ slug }: WorkspaceUrlFieldProps) {
         <CopyButton value={fullUrl} timeout={2000}>
           {({ copied, copy }) => (
             <Tooltip
-              label={copied ? t("common:actions.copied") : t("common:actions.copyUrl")}
+              label={
+                copied
+                  ? t("common:actions.copied")
+                  : t("common:actions.copyUrl")
+              }
               withArrow
               position="right"
             >
@@ -64,4 +68,3 @@ export function WorkspaceUrlField({ slug }: WorkspaceUrlFieldProps) {
     />
   );
 }
-

@@ -140,14 +140,18 @@ describe('WorkspaceMembersService', () => {
     ]);
     repo.totalOverride = 1500;
 
-    const warnSpy = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+    const warnSpy = vi
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => {});
 
     const result = await service.list(baseWorkspace, 'u-1', 'req-trunc');
 
     expect(result.truncated).toBe(true);
     expect(result.total).toBe(1500);
     expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining('workspace.members.list.truncated workspaceId=ws-123 total=1500 requestId=req-trunc'),
+      expect.stringContaining(
+        'workspace.members.list.truncated workspaceId=ws-123 total=1500 requestId=req-trunc',
+      ),
     );
 
     warnSpy.mockRestore();
@@ -472,4 +476,3 @@ describe('WorkspaceMembersService', () => {
     });
   });
 });
-

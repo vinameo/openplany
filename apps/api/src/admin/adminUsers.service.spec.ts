@@ -143,9 +143,18 @@ describe('AdminUsersService', () => {
 
   it('(1) successful flow executes S2->S3->S4->S5 and returns created user without password', async () => {
     const ctx = setup();
-    const result = await ctx.service.create('admin-id-1', sampleDto, 'req-id-1');
+    const result = await ctx.service.create(
+      'admin-id-1',
+      sampleDto,
+      'req-id-1',
+    );
 
-    expect(ctx.callOrder).toEqual(['findByEmail', 'hash', 'createUser', 'events.created']);
+    expect(ctx.callOrder).toEqual([
+      'findByEmail',
+      'hash',
+      'createUser',
+      'events.created',
+    ]);
     expect(result).toEqual({
       id: 'user-created-uuid-1',
       email: 'an@openplany.dev',
@@ -177,7 +186,9 @@ describe('AdminUsersService', () => {
       password: 'An@OpenPlany.dev',
     };
 
-    await expect(ctx.service.create('admin-id-1', dtoWithSamePassword, 'req-1')).rejects.toThrow(
+    await expect(
+      ctx.service.create('admin-id-1', dtoWithSamePassword, 'req-1'),
+    ).rejects.toThrow(
       expect.objectContaining({
         status: HttpStatus.BAD_REQUEST,
         code: 'VALIDATION_ERROR',
@@ -199,7 +210,9 @@ describe('AdminUsersService', () => {
       return { id: 'existing-user' } as User;
     });
 
-    await expect(ctx.service.create('admin-id-1', sampleDto, 'req-1')).rejects.toThrow(
+    await expect(
+      ctx.service.create('admin-id-1', sampleDto, 'req-1'),
+    ).rejects.toThrow(
       expect.objectContaining({
         status: HttpStatus.CONFLICT,
         code: 'EMAIL_ALREADY_EXISTS',
@@ -219,7 +232,9 @@ describe('AdminUsersService', () => {
     const ctx = setup();
     ctx.createUserMock.mockRejectedValueOnce(new EmailAlreadyExistsError());
 
-    await expect(ctx.service.create('admin-id-1', sampleDto, 'req-1')).rejects.toThrow(
+    await expect(
+      ctx.service.create('admin-id-1', sampleDto, 'req-1'),
+    ).rejects.toThrow(
       expect.objectContaining({
         status: HttpStatus.CONFLICT,
         code: 'EMAIL_ALREADY_EXISTS',
@@ -237,17 +252,25 @@ describe('AdminUsersService', () => {
     const dbError = new Error('Database deadlocked');
     ctx.createUserMock.mockRejectedValueOnce(dbError);
 
-    await expect(ctx.service.create('admin-id-1', sampleDto, 'req-1')).rejects.toBe(dbError);
+    await expect(
+      ctx.service.create('admin-id-1', sampleDto, 'req-1'),
+    ).rejects.toBe(dbError);
     expect(ctx.createdEventMock).not.toHaveBeenCalled();
   });
 
   it('(6) events throws error in S5 -> logs error and still returns created user', async () => {
     const ctx = setup();
-    const errorSpy = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+    const errorSpy = vi
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => {});
     ctx.createdEventMock.mockRejectedValueOnce(new Error('Kafka unreachable'));
 
     try {
-      const result = await ctx.service.create('admin-id-1', sampleDto, 'req-event-fail');
+      const result = await ctx.service.create(
+        'admin-id-1',
+        sampleDto,
+        'req-event-fail',
+      );
 
       expect(result.id).toBe('user-created-uuid-1');
       expect(errorSpy).toHaveBeenCalledWith(
@@ -276,7 +299,11 @@ describe('AdminUsersService', () => {
       password: 'password123',
     };
 
-    const result = await ctx.service.create('admin-id-1', dtoWithoutLast, 'req-1');
+    const result = await ctx.service.create(
+      'admin-id-1',
+      dtoWithoutLast,
+      'req-1',
+    );
 
     expect(result.lastName).toBe('');
     expect(ctx.getCapturedNewUser()?.lastName).toBe('');
@@ -394,7 +421,10 @@ describe('AdminUsersService', () => {
 
   const LOADED_AT = new Date('2026-10-09T09:00:00.000Z');
 
-  function withUsers(ctx: ReturnType<typeof setup>, target: Partial<User> = {}) {
+  function withUsers(
+    ctx: ReturnType<typeof setup>,
+    target: Partial<User> = {},
+  ) {
     const actor = makeUser({
       id: 'actor-kai',
       email: 'kai@openplany.dev',
@@ -441,19 +471,29 @@ describe('AdminUsersService', () => {
           const { actor } = withUsers(ctx);
           Object.assign(actor, actorChange);
           await expect(call(ctx)).rejects.toThrow(
-            expect.objectContaining({ status: HttpStatus.FORBIDDEN, code: 'FORBIDDEN' }),
+            expect.objectContaining({
+              status: HttpStatus.FORBIDDEN,
+              code: 'FORBIDDEN',
+            }),
           );
           expect(ctx.adminUsersRepo.updates).toEqual([]);
         }
       });
 
       it(`${name}: 404 USER_NOT_FOUND when the target is missing, a bot or masked`, async () => {
-        for (const targetChange of [{ isBot: true }, { maskedAt: new Date() }, null]) {
+        for (const targetChange of [
+          { isBot: true },
+          { maskedAt: new Date() },
+          null,
+        ]) {
           const ctx = setup();
           withUsers(ctx, targetChange ?? {});
           if (targetChange === null) ctx.adminUsersRepo.users.pop();
           await expect(call(ctx)).rejects.toThrow(
-            expect.objectContaining({ status: HttpStatus.NOT_FOUND, code: 'USER_NOT_FOUND' }),
+            expect.objectContaining({
+              status: HttpStatus.NOT_FOUND,
+              code: 'USER_NOT_FOUND',
+            }),
           );
           expect(ctx.adminUsersRepo.updates).toEqual([]);
         }
@@ -540,13 +580,18 @@ describe('AdminUsersService', () => {
     it('409 USER_CHANGED_SINCE_LOADED and a conflict log when expectedUpdatedAt differs', async () => {
       const ctx = setup();
       withUsers(ctx);
-      const warnSpy = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+      const warnSpy = vi
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation(() => {});
       try {
         await expect(
           ctx.service.update(
             'actor-kai',
             'u-1',
-            { expectedUpdatedAt: '2026-10-09T09:00:00.001Z', firstName: 'Binh' },
+            {
+              expectedUpdatedAt: '2026-10-09T09:00:00.001Z',
+              firstName: 'Binh',
+            },
             'req-99',
           ),
         ).rejects.toThrow(
@@ -567,7 +612,9 @@ describe('AdminUsersService', () => {
     it('409 EMAIL_ALREADY_EXISTS when another row holds the email, and on a unique violation', async () => {
       const ctx = setup();
       withUsers(ctx);
-      ctx.adminUsersRepo.users.push(makeUser({ id: 'bot-1', email: 'taken@openplany.dev', isBot: true }));
+      ctx.adminUsersRepo.users.push(
+        makeUser({ id: 'bot-1', email: 'taken@openplany.dev', isBot: true }),
+      );
       const expected = expect.objectContaining({
         status: HttpStatus.CONFLICT,
         code: 'EMAIL_ALREADY_EXISTS',
@@ -575,8 +622,13 @@ describe('AdminUsersService', () => {
           email: 'A user with this email already exists.',
         }),
       });
-      const dto = { expectedUpdatedAt: LOADED_AT.toISOString(), email: 'taken@openplany.dev' };
-      await expect(ctx.service.update('actor-kai', 'u-1', dto, 'req-1')).rejects.toThrow(expected);
+      const dto = {
+        expectedUpdatedAt: LOADED_AT.toISOString(),
+        email: 'taken@openplany.dev',
+      };
+      await expect(
+        ctx.service.update('actor-kai', 'u-1', dto, 'req-1'),
+      ).rejects.toThrow(expected);
 
       ctx.adminUsersRepo.failNextUpdateWithUniqueEmail = true;
       await expect(
@@ -597,7 +649,12 @@ describe('AdminUsersService', () => {
     it('rejects changing own password before hashing or locking (RQ INV-10, AC-18)', async () => {
       const ctx = setup();
       await expect(
-        ctx.service.changePassword('actor-kai', 'actor-kai', passwordDto, 'req-1'),
+        ctx.service.changePassword(
+          'actor-kai',
+          'actor-kai',
+          passwordDto,
+          'req-1',
+        ),
       ).rejects.toThrow(
         expect.objectContaining({
           status: HttpStatus.FORBIDDEN,
@@ -613,7 +670,12 @@ describe('AdminUsersService', () => {
       withUsers(ctx, { isPasswordAutoset: true, isPasswordExpired: true });
       ctx.adminUsersRepo.liveSessions.set('u-1', 2);
 
-      await ctx.service.changePassword('actor-kai', 'u-1', passwordDto, 'req-1');
+      await ctx.service.changePassword(
+        'actor-kai',
+        'u-1',
+        passwordDto,
+        'req-1',
+      );
 
       expect(ctx.adminUsersRepo.updates).toEqual([
         {
@@ -640,7 +702,12 @@ describe('AdminUsersService', () => {
       const ctx = setup();
       withUsers(ctx);
       await expect(
-        ctx.service.changePassword('actor-kai', 'u-1', { password: 'AN@OpenPlany.dev' }, 'req-1'),
+        ctx.service.changePassword(
+          'actor-kai',
+          'u-1',
+          { password: 'AN@OpenPlany.dev' },
+          'req-1',
+        ),
       ).rejects.toThrow(
         expect.objectContaining({
           status: HttpStatus.BAD_REQUEST,
@@ -704,8 +771,14 @@ describe('AdminUsersService', () => {
       it('403 REAUTHENTICATION_FAILED when the actor password changed between the check and the lock', async () => {
         const ctx = setup();
         const { actor } = withUsers(ctx, { isSuperuser: true });
-        const lock = ctx.adminUsersRepo.withLockedActorAndTarget.bind(ctx.adminUsersRepo);
-        ctx.adminUsersRepo.withLockedActorAndTarget = (actorId, targetId, work) => {
+        const lock = ctx.adminUsersRepo.withLockedActorAndTarget.bind(
+          ctx.adminUsersRepo,
+        );
+        ctx.adminUsersRepo.withLockedActorAndTarget = (
+          actorId,
+          targetId,
+          work,
+        ) => {
           actor.password = 'hash:ChangedMeanwhile1!';
           return lock(actorId, targetId, work);
         };
@@ -716,14 +789,18 @@ describe('AdminUsersService', () => {
             { ...passwordDto, actorPassword: 'KaiSecret1!' },
             'req-1',
           ),
-        ).rejects.toThrow(expect.objectContaining({ code: 'REAUTHENTICATION_FAILED' }));
+        ).rejects.toThrow(
+          expect.objectContaining({ code: 'REAUTHENTICATION_FAILED' }),
+        );
         expect(ctx.adminUsersRepo.updates).toEqual([]);
       });
 
       it(`429 after ${REAUTH_FAILURE_LIMIT} wrong passwords, counting only failures`, async () => {
         const ctx = setup();
         withUsers(ctx, { isSuperuser: true });
-        const warnSpy = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+        const warnSpy = vi
+          .spyOn(Logger.prototype, 'warn')
+          .mockImplementation(() => {});
         try {
           await ctx.service.changePassword(
             'actor-kai',
@@ -739,7 +816,9 @@ describe('AdminUsersService', () => {
                 { ...passwordDto, actorPassword: `wrong-${i}` },
                 `req-${i}`,
               ),
-            ).rejects.toThrow(expect.objectContaining({ code: 'REAUTHENTICATION_FAILED' }));
+            ).rejects.toThrow(
+              expect.objectContaining({ code: 'REAUTHENTICATION_FAILED' }),
+            );
           }
           await expect(
             ctx.service.changePassword(
@@ -757,9 +836,9 @@ describe('AdminUsersService', () => {
             }),
           );
           const logs = warnSpy.mock.calls.map(([line]) => String(line));
-          expect(logs.filter((l) => l.startsWith('admin.users.reauth_failed'))).toHaveLength(
-            REAUTH_FAILURE_LIMIT,
-          );
+          expect(
+            logs.filter((l) => l.startsWith('admin.users.reauth_failed')),
+          ).toHaveLength(REAUTH_FAILURE_LIMIT);
           expect(logs).toContain(
             'admin.users.rate_limited limiter=reauth userId=actor-kai requestId=req-blocked',
           );
@@ -779,16 +858,22 @@ describe('AdminUsersService', () => {
             { ...passwordDto, actorPassword: 'wrong' },
             'req-1',
           ),
-        ).rejects.toThrow(expect.objectContaining({ code: 'REAUTHENTICATION_FAILED' }));
+        ).rejects.toThrow(
+          expect.objectContaining({ code: 'REAUTHENTICATION_FAILED' }),
+        );
       });
     });
 
     it('tolerates event emission failure without throwing', async () => {
       const ctx = setup();
       withUsers(ctx);
-      ctx.passwordChangedEventMock.mockRejectedValueOnce(new Error('Event bus down'));
+      ctx.passwordChangedEventMock.mockRejectedValueOnce(
+        new Error('Event bus down'),
+      );
 
-      const errorSpy = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+      const errorSpy = vi
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation(() => {});
       try {
         await expect(
           ctx.service.changePassword('actor-kai', 'u-1', passwordDto, 'req-1'),

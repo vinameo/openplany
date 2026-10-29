@@ -48,17 +48,23 @@ describe('Workspaces (e2e)', () => {
 
   it('1. returns 401 UNAUTHENTICATED on all endpoints without session cookie', async () => {
     await http().get('/api/workspaces/slug-check?slug=acme').expect(401);
-    await http().post('/api/workspaces').set('Origin', ORIGIN).send({
-      name: 'Acme',
-      slug: 'acme',
-      organizationSize: 'Just myself',
-    }).expect(401);
+    await http()
+      .post('/api/workspaces')
+      .set('Origin', ORIGIN)
+      .send({
+        name: 'Acme',
+        slug: 'acme',
+        organizationSize: 'Just myself',
+      })
+      .expect(401);
     await http().get('/api/workspaces').expect(401);
     await http().get('/api/workspaces/acme').expect(401);
   });
 
   it('2. returns 403 PASSWORD_RESET_REQUIRED when session is reset-only', async () => {
-    await createUser('reset@openplany.dev', 'UTC', { is_password_reset_required: true });
+    await createUser('reset@openplany.dev', 'UTC', {
+      is_password_reset_required: true,
+    });
     const cookie = await signInCookie('reset@openplany.dev');
 
     const res = await http()
@@ -102,18 +108,20 @@ describe('Workspaces (e2e)', () => {
     expect(res.body.id).toBeDefined();
 
     // Verify DB state
-    const workspaces = await e2e.dataSource.query<{ id: string; created_by_id: string; timezone: string }[]>(
-      'SELECT id, created_by_id, timezone FROM workspaces WHERE slug = $1',
-      ['acme-corp'],
-    );
+    const workspaces = await e2e.dataSource.query<
+      { id: string; created_by_id: string; timezone: string }[]
+    >('SELECT id, created_by_id, timezone FROM workspaces WHERE slug = $1', [
+      'acme-corp',
+    ]);
     expect(workspaces).toHaveLength(1);
     expect(workspaces[0]!.created_by_id).toBe(userId);
     expect(workspaces[0]!.timezone).toBe('Asia/Ho_Chi_Minh');
 
-    const members = await e2e.dataSource.query<{ role: string; member_id: string }[]>(
-      'SELECT role, member_id FROM workspace_members WHERE workspace_id = $1',
-      [workspaces[0]!.id],
-    );
+    const members = await e2e.dataSource.query<
+      { role: string; member_id: string }[]
+    >('SELECT role, member_id FROM workspace_members WHERE workspace_id = $1', [
+      workspaces[0]!.id,
+    ]);
     expect(members).toHaveLength(1);
     expect(members[0]!.role).toBe('admin');
     expect(members[0]!.member_id).toBe(userId);
@@ -205,7 +213,9 @@ describe('Workspaces (e2e)', () => {
 
     const conflictRes = res1.status === 409 ? res1 : res2;
     expect(conflictRes.body.code).toBe('SLUG_ALREADY_EXISTS');
-    expect(conflictRes.body.fields?.slug).toBe('This URL is already taken. Choose another one.');
+    expect(conflictRes.body.fields?.slug).toBe(
+      'This URL is already taken. Choose another one.',
+    );
 
     // Exactly 1 workspace and 1 member created
     const count = await e2e.dataSource.query<{ count: string }[]>(
@@ -325,20 +335,29 @@ describe('Workspaces (e2e)', () => {
       .post('/api/workspaces')
       .set('Cookie', cookie)
       .set('Origin', ORIGIN)
-      .send({ name: 'Active Org', slug: 'active-org', organizationSize: '2-10' })
+      .send({
+        name: 'Active Org',
+        slug: 'active-org',
+        organizationSize: '2-10',
+      })
       .expect(201);
 
     const createRes2 = await http()
       .post('/api/workspaces')
       .set('Cookie', cookie)
       .set('Origin', ORIGIN)
-      .send({ name: 'Soft Deleted', slug: 'soft-deleted', organizationSize: '2-10' })
+      .send({
+        name: 'Soft Deleted',
+        slug: 'soft-deleted',
+        organizationSize: '2-10',
+      })
       .expect(201);
 
     // Soft delete the second workspace
-    await e2e.dataSource.query('UPDATE workspaces SET deleted_at = now() WHERE id = $1', [
-      createRes2.body.id,
-    ]);
+    await e2e.dataSource.query(
+      'UPDATE workspaces SET deleted_at = now() WHERE id = $1',
+      [createRes2.body.id],
+    );
 
     const listRes = await http()
       .get('/api/workspaces')
@@ -361,7 +380,11 @@ describe('Workspaces (e2e)', () => {
       .post('/api/workspaces')
       .set('Cookie', cookieA)
       .set('Origin', ORIGIN)
-      .send({ name: 'Secret A', slug: 'secret-a', organizationSize: 'Just myself' })
+      .send({
+        name: 'Secret A',
+        slug: 'secret-a',
+        organizationSize: 'Just myself',
+      })
       .expect(201);
 
     const resB = await http()
@@ -391,13 +414,18 @@ describe('Workspaces (e2e)', () => {
       .post('/api/workspaces')
       .set('Cookie', cookie)
       .set('Origin', ORIGIN)
-      .send({ name: 'OpenPlany Org', slug: 'openplany-org', organizationSize: '2-10' })
+      .send({
+        name: 'OpenPlany Org',
+        slug: 'openplany-org',
+        organizationSize: '2-10',
+      })
       .expect(201);
 
     // Reset last_workspace_id to null
-    await e2e.dataSource.query('UPDATE users SET last_workspace_id = NULL WHERE id = $1', [
-      userId,
-    ]);
+    await e2e.dataSource.query(
+      'UPDATE users SET last_workspace_id = NULL WHERE id = $1',
+      [userId],
+    );
 
     const getRes = await http()
       .get('/api/workspaces/openplany-org')
@@ -425,12 +453,17 @@ describe('Workspaces (e2e)', () => {
       .post('/api/workspaces')
       .set('Cookie', cookie)
       .set('Origin', ORIGIN)
-      .send({ name: 'Old Company', slug: 'old-company', organizationSize: 'Just myself' })
+      .send({
+        name: 'Old Company',
+        slug: 'old-company',
+        organizationSize: 'Just myself',
+      })
       .expect(201);
 
-    await e2e.dataSource.query('UPDATE workspaces SET deleted_at = now() WHERE id = $1', [
-      createRes.body.id,
-    ]);
+    await e2e.dataSource.query(
+      'UPDATE workspaces SET deleted_at = now() WHERE id = $1',
+      [createRes.body.id],
+    );
 
     const res = await http()
       .get('/api/workspaces/slug-check?slug=old-company')
@@ -475,7 +508,10 @@ describe('Workspaces (e2e)', () => {
     }
 
     it('1. owner updates name -> 200, has permissions, updatedAt, DB updated, slug preserved', async () => {
-      const { ownerId, cookie } = await seedWorkspace('owner1@openplany.dev', 'openstudy');
+      const { ownerId, cookie } = await seedWorkspace(
+        'owner1@openplany.dev',
+        'openstudy',
+      );
 
       const res = await http()
         .patch('/api/workspaces/openstudy')
@@ -499,17 +535,21 @@ describe('Workspaces (e2e)', () => {
       ]);
       expect(res.body.updatedAt).toBeDefined();
 
-      const rows = await e2e.dataSource.query<{ name: string; slug: string; updated_by_id: string }[]>(
-        'SELECT name, slug, updated_by_id FROM workspaces WHERE slug = $1',
-        ['openstudy'],
-      );
+      const rows = await e2e.dataSource.query<
+        { name: string; slug: string; updated_by_id: string }[]
+      >('SELECT name, slug, updated_by_id FROM workspaces WHERE slug = $1', [
+        'openstudy',
+      ]);
       expect(rows[0]!.name).toBe('OpenStudy Team');
       expect(rows[0]!.slug).toBe('openstudy');
       expect(rows[0]!.updated_by_id).toBe(ownerId);
     });
 
     it('2. empty name, 81 chars, https://... -> 400 fields.name', async () => {
-      const { cookie } = await seedWorkspace('owner2@openplany.dev', 'ws-validation');
+      const { cookie } = await seedWorkspace(
+        'owner2@openplany.dev',
+        'ws-validation',
+      );
 
       // Empty name
       const resEmpty = await http()
@@ -541,7 +581,10 @@ describe('Workspaces (e2e)', () => {
     });
 
     it('3. body with forbidden fields (slug, ownerId) -> 400, DB unchanged', async () => {
-      const { cookie } = await seedWorkspace('owner3@openplany.dev', 'ws-forbidden-fields');
+      const { cookie } = await seedWorkspace(
+        'owner3@openplany.dev',
+        'ws-forbidden-fields',
+      );
 
       await http()
         .patch('/api/workspaces/ws-forbidden-fields')
@@ -565,7 +608,10 @@ describe('Workspaces (e2e)', () => {
     });
 
     it('4. timezone valid / Mars/Base -> 200 / 400, users.user_timezone unchanged', async () => {
-      const { ownerId, cookie } = await seedWorkspace('owner4@openplany.dev', 'ws-tz');
+      const { ownerId, cookie } = await seedWorkspace(
+        'owner4@openplany.dev',
+        'ws-tz',
+      );
 
       const resValid = await http()
         .patch('/api/workspaces/ws-tz')
@@ -591,7 +637,10 @@ describe('Workspaces (e2e)', () => {
     });
 
     it('5. workspace with seed Asia/Saigon, only update name -> 200, timezone preserved', async () => {
-      const { cookie, workspace } = await seedWorkspace('owner5@openplany.dev', 'ws-saigon');
+      const { cookie, workspace } = await seedWorkspace(
+        'owner5@openplany.dev',
+        'ws-saigon',
+      );
       await e2e.dataSource.query(
         'UPDATE workspaces SET timezone = $1 WHERE id = $2',
         ['Asia/Saigon', workspace.id],
@@ -609,7 +658,10 @@ describe('Workspaces (e2e)', () => {
     });
 
     it('6. body {} -> 400; duplicate values -> 200 without DB row version update', async () => {
-      const { cookie, workspace } = await seedWorkspace('owner6@openplany.dev', 'ws-duplicate');
+      const { cookie, workspace } = await seedWorkspace(
+        'owner6@openplany.dev',
+        'ws-duplicate',
+      );
 
       // Empty body {} -> 400
       const resEmpty = await http()
@@ -621,10 +673,11 @@ describe('Workspaces (e2e)', () => {
       expect(resEmpty.body.code).toBe('VALIDATION_ERROR');
 
       // Snapshot xmin and updated_at
-      const before = await e2e.dataSource.query<{ xmin: string; updated_at: Date }[]>(
-        'SELECT xmin::text, updated_at FROM workspaces WHERE id = $1',
-        [workspace.id],
-      );
+      const before = await e2e.dataSource.query<
+        { xmin: string; updated_at: Date }[]
+      >('SELECT xmin::text, updated_at FROM workspaces WHERE id = $1', [
+        workspace.id,
+      ]);
 
       // Send identical values
       const resDup = await http()
@@ -636,16 +689,22 @@ describe('Workspaces (e2e)', () => {
 
       expect(resDup.body.name).toBe('Original Name');
 
-      const after = await e2e.dataSource.query<{ xmin: string; updated_at: Date }[]>(
-        'SELECT xmin::text, updated_at FROM workspaces WHERE id = $1',
-        [workspace.id],
-      );
+      const after = await e2e.dataSource.query<
+        { xmin: string; updated_at: Date }[]
+      >('SELECT xmin::text, updated_at FROM workspaces WHERE id = $1', [
+        workspace.id,
+      ]);
       expect(after[0]!.xmin).toBe(before[0]!.xmin);
-      expect(after[0]!.updated_at.getTime()).toBe(before[0]!.updated_at.getTime());
+      expect(after[0]!.updated_at.getTime()).toBe(
+        before[0]!.updated_at.getTime(),
+      );
     });
 
     it('7. member (seed) sending PATCH -> 403 FORBIDDEN, even with invalid name', async () => {
-      const { workspace } = await seedWorkspace('owner7@openplany.dev', 'ws-member-test');
+      const { workspace } = await seedWorkspace(
+        'owner7@openplany.dev',
+        'ws-member-test',
+      );
       const memberId = await createUser('member1@openplany.dev');
       const memberCookie = await signInCookie('member1@openplany.dev');
 
@@ -697,7 +756,10 @@ describe('Workspaces (e2e)', () => {
     });
 
     it('9. two admins concurrently update {name} and {timezone} -> both 200 and kept', async () => {
-      const { workspace } = await seedWorkspace('owner9@openplany.dev', 'ws-concurrent');
+      const { workspace } = await seedWorkspace(
+        'owner9@openplany.dev',
+        'ws-concurrent',
+      );
 
       const admin1Id = await createUser('admin1@openplany.dev');
       const admin1Cookie = await signInCookie('admin1@openplany.dev');
@@ -729,16 +791,18 @@ describe('Workspaces (e2e)', () => {
       expect(res1.status).toBe(200);
       expect(res2.status).toBe(200);
 
-      const rows = await e2e.dataSource.query<{ name: string; timezone: string }[]>(
-        'SELECT name, timezone FROM workspaces WHERE id = $1',
-        [workspace.id],
-      );
+      const rows = await e2e.dataSource.query<
+        { name: string; timezone: string }[]
+      >('SELECT name, timezone FROM workspaces WHERE id = $1', [workspace.id]);
       expect(rows[0]!.name).toBe('Concurrent Name');
       expect(rows[0]!.timezone).toBe('Asia/Ho_Chi_Minh');
     });
 
     it('10. 31 requests within 10 minutes -> 31st request gets 429 and Retry-After header', async () => {
-      const { cookie } = await seedWorkspace('owner10@openplany.dev', 'ws-rate-limit');
+      const { cookie } = await seedWorkspace(
+        'owner10@openplany.dev',
+        'ws-rate-limit',
+      );
 
       for (let i = 0; i < 30; i++) {
         // Send requests (even to non-existent slug to count toward user limiter)
@@ -771,7 +835,9 @@ describe('Workspaces (e2e)', () => {
         .expect(401);
 
       // Password reset required
-      await createUser('resetuser@openplany.dev', 'UTC', { is_password_reset_required: true });
+      await createUser('resetuser@openplany.dev', 'UTC', {
+        is_password_reset_required: true,
+      });
       const resetCookie = await signInCookie('resetuser@openplany.dev');
       await http()
         .patch('/api/workspaces/ws-auth-checks')
@@ -791,7 +857,10 @@ describe('Workspaces (e2e)', () => {
     });
 
     it('12. GET /:slug returns permissions and updatedAt for owner and member', async () => {
-      const { workspace, cookie: ownerCookie } = await seedWorkspace('owner12@openplany.dev', 'ws-get-perm');
+      const { workspace, cookie: ownerCookie } = await seedWorkspace(
+        'owner12@openplany.dev',
+        'ws-get-perm',
+      );
       const memberId = await createUser('member12@openplany.dev');
       const memberCookie = await signInCookie('member12@openplany.dev');
       await e2e.dataSource.query(
@@ -828,7 +897,10 @@ describe('Workspaces (e2e)', () => {
     });
 
     it('13. AC-26: workspace permissions read from DB and take immediate effect', async () => {
-      const { workspace, cookie: adminCookie } = await seedWorkspace('admin13@openplany.dev', 'ws-perm-db');
+      const { workspace, cookie: adminCookie } = await seedWorkspace(
+        'admin13@openplany.dev',
+        'ws-perm-db',
+      );
       const memberId = await createUser('member13@openplany.dev');
       const memberCookie = await signInCookie('member13@openplany.dev');
       await e2e.dataSource.query(
@@ -837,7 +909,10 @@ describe('Workspaces (e2e)', () => {
       );
 
       // Default state: Admin has 5 permissions, Member has workspace.members.view
-      let adminRes = await http().get('/api/workspaces/ws-perm-db').set('Cookie', adminCookie).expect(200);
+      let adminRes = await http()
+        .get('/api/workspaces/ws-perm-db')
+        .set('Cookie', adminCookie)
+        .expect(200);
       expect(adminRes.body.permissions).toEqual([
         'workspace.settings.view',
         'workspace.settings.update',
@@ -849,7 +924,10 @@ describe('Workspaces (e2e)', () => {
         'workspace.projects.delete',
         'workspace.states.manage',
       ]);
-      let memberRes = await http().get('/api/workspaces/ws-perm-db').set('Cookie', memberCookie).expect(200);
+      let memberRes = await http()
+        .get('/api/workspaces/ws-perm-db')
+        .set('Cookie', memberCookie)
+        .expect(200);
       expect(memberRes.body.permissions).toEqual([
         'workspace.settings.view',
         'workspace.members.view',
@@ -861,7 +939,10 @@ describe('Workspaces (e2e)', () => {
       );
 
       // Admin immediately loses settings.update permission in GET response
-      adminRes = await http().get('/api/workspaces/ws-perm-db').set('Cookie', adminCookie).expect(200);
+      adminRes = await http()
+        .get('/api/workspaces/ws-perm-db')
+        .set('Cookie', adminCookie)
+        .expect(200);
       expect(adminRes.body.permissions).toEqual([
         'workspace.settings.view',
         'workspace.members.view',
@@ -887,7 +968,10 @@ describe('Workspaces (e2e)', () => {
       );
 
       // Member immediately gets permission in GET response
-      memberRes = await http().get('/api/workspaces/ws-perm-db').set('Cookie', memberCookie).expect(200);
+      memberRes = await http()
+        .get('/api/workspaces/ws-perm-db')
+        .set('Cookie', memberCookie)
+        .expect(200);
       expect(memberRes.body.permissions).toEqual([
         'workspace.settings.view',
         'workspace.settings.update',
@@ -909,7 +993,10 @@ describe('Workspaces (e2e)', () => {
       await e2e.dataSource.query(
         "INSERT INTO role_permissions (scope, role_key, permission_key, created_at) VALUES ('workspace', 'member', 'workspace.unrecognized.custom', now()) ON CONFLICT DO NOTHING",
       );
-      memberRes = await http().get('/api/workspaces/ws-perm-db').set('Cookie', memberCookie).expect(200);
+      memberRes = await http()
+        .get('/api/workspaces/ws-perm-db')
+        .set('Cookie', memberCookie)
+        .expect(200);
       expect(memberRes.body.permissions).toEqual([
         'workspace.settings.view',
         'workspace.settings.update',
@@ -918,4 +1005,3 @@ describe('Workspaces (e2e)', () => {
     });
   });
 });
-

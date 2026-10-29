@@ -1,5 +1,9 @@
 import { createE2eApp, type E2eApp } from './createE2eApp.js';
-import { createUser, DEFAULT_E2E_ORIGIN, signInCookie } from './helpers/e2eUsers.js';
+import {
+  createUser,
+  DEFAULT_E2E_ORIGIN,
+  signInCookie,
+} from './helpers/e2eUsers.js';
 import request from 'supertest';
 
 describe('WorkItemStates Database Constraints and Trigger (e2e)', () => {

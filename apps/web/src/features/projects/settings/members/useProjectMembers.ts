@@ -9,8 +9,7 @@ export function useProjectMembers(slug: string, identifier: string) {
   const { expireSession } = useAuth();
   const query = useQuery({
     queryKey: projectKeys.members(slug, identifier),
-    queryFn: ({ signal }) =>
-      projectMembersApi.list(slug, identifier, signal),
+    queryFn: ({ signal }) => projectMembersApi.list(slug, identifier, signal),
     enabled: Boolean(slug && identifier),
   });
 

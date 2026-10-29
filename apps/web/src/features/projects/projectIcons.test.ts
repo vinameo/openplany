@@ -1,12 +1,6 @@
-import {
-  DEFAULT_PROJECT_ICON,
-  PROJECT_ICON_NAMES,
-} from "@repo/contracts";
+import { DEFAULT_PROJECT_ICON, PROJECT_ICON_NAMES } from "@repo/contracts";
 import { describe, expect, it } from "vitest";
-import {
-  PROJECT_ICON_COMPONENTS,
-  projectIconComponent,
-} from "./projectIcons";
+import { PROJECT_ICON_COMPONENTS, projectIconComponent } from "./projectIcons";
 
 describe("projectIcons", () => {
   it("INV-10: maps all 65 icon names in contracts to valid components", () => {

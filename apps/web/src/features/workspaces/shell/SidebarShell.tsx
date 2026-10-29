@@ -44,10 +44,7 @@ export function SidebarShell({
           }}
         >
           <Drawer.Overlay />
-          <Drawer.Content
-            aria-label={navLabel}
-            id={sidebarState.sidebarId}
-          >
+          <Drawer.Content aria-label={navLabel} id={sidebarState.sidebarId}>
             {sidebar}
           </Drawer.Content>
         </Drawer.Root>

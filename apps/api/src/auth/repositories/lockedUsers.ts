@@ -13,10 +13,7 @@ import { equalsLowercase } from '../../database/findOperators.js';
 import { runTransactionWithRetry } from '../../database/transactionRetry.js';
 import { Session } from '../entities/session.entity.js';
 import { User } from '../entities/user.entity.js';
-import {
-  insertSessionRow,
-  type NewSession,
-} from './sessionsRepository.js';
+import { insertSessionRow, type NewSession } from './sessionsRepository.js';
 
 export const MAX_LOCKED_WRITE_ATTEMPTS = 3;
 

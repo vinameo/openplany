@@ -880,4 +880,3 @@ describe("AddProjectMembersModal", () => {
     ).toBeInTheDocument();
   });
 });
-

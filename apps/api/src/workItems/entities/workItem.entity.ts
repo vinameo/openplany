@@ -41,4 +41,3 @@ export class WorkItem {
   @Column({ name: 'deleted_at', type: 'timestamptz', nullable: true })
   deletedAt!: Date | null;
 }
-

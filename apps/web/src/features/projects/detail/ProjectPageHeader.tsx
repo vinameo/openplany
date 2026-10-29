@@ -18,15 +18,16 @@ export function ProjectPageHeader() {
   const { project } = useCurrentProject();
   const { mode } = useWorkspaceSidebar();
   const pageMeta = useProjectPageMeta();
-  const pageTitle = pageMeta?.titleKey
-    ? t(pageMeta.titleKey)
-    : pageMeta?.title;
+  const pageTitle = pageMeta?.titleKey ? t(pageMeta.titleKey) : pageMeta?.title;
 
   return (
     <header className={headerClasses.pageHeader}>
       <div className={headerClasses.titleGroup}>
         <SidebarExpandButton />
-        <nav aria-label={t("project:detail.breadcrumb")} className={classes.breadcrumbNav}>
+        <nav
+          aria-label={t("project:detail.breadcrumb")}
+          className={classes.breadcrumbNav}
+        >
           <Breadcrumbs
             separator="›"
             separatorMargin={6}

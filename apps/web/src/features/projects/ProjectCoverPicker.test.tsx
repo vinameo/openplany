@@ -73,7 +73,9 @@ describe("ProjectCoverPicker", () => {
 
     expect(handleChange).toHaveBeenCalledWith("cover-03");
     // Popover is closed
-    expect(screen.queryByRole("radiogroup", { name: "Cover" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("radiogroup", { name: "Cover" }),
+    ).not.toBeInTheDocument();
   });
 
   it("supports keyboard navigation with arrow keys and Enter selection", async () => {
@@ -94,7 +96,9 @@ describe("ProjectCoverPicker", () => {
     // Select with Enter
     fireEvent.keyDown(cover2, { key: "Enter" });
     expect(handleChange).toHaveBeenCalledWith("cover-02");
-    expect(screen.queryByRole("radiogroup", { name: "Cover" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("radiogroup", { name: "Cover" }),
+    ).not.toBeInTheDocument();
   });
 
   it("closes on Escape and stops event propagation", async () => {
@@ -108,6 +112,8 @@ describe("ProjectCoverPicker", () => {
     const cover1 = screen.getByRole("radio", { name: "Cover 1" });
     fireEvent.keyDown(cover1, { key: "Escape" });
 
-    expect(screen.queryByRole("radiogroup", { name: "Cover" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("radiogroup", { name: "Cover" }),
+    ).not.toBeInTheDocument();
   });
 });

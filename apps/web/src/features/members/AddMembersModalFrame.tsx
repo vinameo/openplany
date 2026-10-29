@@ -1,4 +1,4 @@
-import { type ReactNode, useReducer, useState } from 'react';
+import { type ReactNode, useReducer, useState } from "react";
 import {
   Alert,
   Button,
@@ -8,12 +8,12 @@ import {
   Select,
   Stack,
   Text,
-} from '@mantine/core';
-import { useMediaQuery } from '@mantine/hooks';
-import { useTranslation } from 'react-i18next';
-import { ADD_MEMBERS_MAX } from '@repo/contracts';
-import { ConfirmDiscardModal } from '../workspaces/ConfirmDiscardModal';
-import { PlusIcon } from '../workspaces/icons';
+} from "@mantine/core";
+import { useMediaQuery } from "@mantine/hooks";
+import { useTranslation } from "react-i18next";
+import { ADD_MEMBERS_MAX } from "@repo/contracts";
+import { ConfirmDiscardModal } from "../workspaces/ConfirmDiscardModal";
+import { PlusIcon } from "../workspaces/icons";
 import {
   addMemberRowsReducer,
   createInitialRow,
@@ -22,15 +22,15 @@ import {
   type AddMemberRowsAction,
   type RowFieldError,
   type RowsContext,
-} from './addMembersRows';
-import type { CandidateBase } from './MemberCandidateCombobox';
-import type { RoleScheme } from './roleScheme';
-import classes from './AddMembersModalFrame.module.css';
+} from "./addMembersRows";
+import type { CandidateBase } from "./MemberCandidateCombobox";
+import type { RoleScheme } from "./roleScheme";
+import classes from "./AddMembersModalFrame.module.css";
 
 export type SubmitOutcome =
-  | { kind: 'done' }
-  | { kind: 'rowErrors'; byRowId: Record<string, RowFieldError> }
-  | { kind: 'alert'; message: string };
+  | { kind: "done" }
+  | { kind: "rowErrors"; byRowId: Record<string, RowFieldError> }
+  | { kind: "alert"; message: string };
 
 export interface AddMembersModalFrameProps<
   R extends string,
@@ -74,7 +74,7 @@ export function AddMembersModalFrame<
 }: AddMembersModalFrameProps<R, C>) {
   const { t } = useTranslation();
   const resolvedTitle = title ?? t("members:modal.title");
-  const isMobile = useMediaQuery('(max-width: 48em)', false, {
+  const isMobile = useMediaQuery("(max-width: 48em)", false, {
     getInitialValueInEffect: false,
   });
 
@@ -102,7 +102,7 @@ export function AddMembersModalFrame<
   const handleForceClose = () => {
     setConfirmDiscardOpened(false);
     setGlobalAlert(null);
-    dispatch({ type: 'reset' });
+    dispatch({ type: "reset" });
     onClose();
   };
 
@@ -115,16 +115,16 @@ export function AddMembersModalFrame<
 
     try {
       const outcome = await onSubmit(body, rowIdByIndex);
-      if (outcome.kind === 'done') {
+      if (outcome.kind === "done") {
         handleForceClose();
-      } else if (outcome.kind === 'rowErrors') {
-        dispatch({ type: 'errors', byRowId: outcome.byRowId });
-      } else if (outcome.kind === 'alert') {
+      } else if (outcome.kind === "rowErrors") {
+        dispatch({ type: "errors", byRowId: outcome.byRowId });
+      } else if (outcome.kind === "alert") {
         setGlobalAlert(outcome.message);
       }
     } catch (err: unknown) {
-      console.error('members.add.submit_failed', err);
-      setGlobalAlert(t('errors:genericError'));
+      console.error("members.add.submit_failed", err);
+      setGlobalAlert(t("errors:genericError"));
     } finally {
       setIsSubmitting(false);
     }
@@ -142,7 +142,7 @@ export function AddMembersModalFrame<
         fullScreen={isMobile}
       >
         <Stack gap="md">
-          {typeof description === 'string' ? (
+          {typeof description === "string" ? (
             <Text size="sm" c="dimmed">
               {description}
             </Text>
@@ -173,7 +173,9 @@ export function AddMembersModalFrame<
               const roleNoticeId = row.roleNotice
                 ? `role-notice-${row.id}`
                 : undefined;
-              const rowNoticeId = rowNotice ? `row-notice-${row.id}` : undefined;
+              const rowNoticeId = rowNotice
+                ? `row-notice-${row.id}`
+                : undefined;
               const roleErrorId = row.roleError
                 ? `role-error-${row.id}`
                 : undefined;
@@ -185,7 +187,7 @@ export function AddMembersModalFrame<
                   <div className={classes.candidateField}>
                     {renderCandidate(row, otherSelectedIds, (candidate) =>
                       dispatch({
-                        type: 'select',
+                        type: "select",
                         id: row.id,
                         candidate,
                       }),
@@ -198,23 +200,19 @@ export function AddMembersModalFrame<
                       data={roleOptions}
                       value={row.role}
                       error={row.roleError}
-                      errorProps={
-                        roleErrorId ? { id: roleErrorId } : undefined
-                      }
+                      errorProps={roleErrorId ? { id: roleErrorId } : undefined}
                       description={noticeText}
-                      descriptionProps={
-                        noticeId ? { id: noticeId } : undefined
-                      }
+                      descriptionProps={noticeId ? { id: noticeId } : undefined}
                       inputWrapperOrder={[
-                        'label',
-                        'input',
-                        'description',
-                        'error',
+                        "label",
+                        "input",
+                        "description",
+                        "error",
                       ]}
                       onChange={(val) => {
                         if (val) {
                           dispatch({
-                            type: 'role',
+                            type: "role",
                             id: row.id,
                             role: val as R,
                           });
@@ -229,9 +227,7 @@ export function AddMembersModalFrame<
                     {rows.length > 1 && (
                       <CloseButton
                         aria-label={t("members:modal.removeRowAriaLabel")}
-                        onClick={() =>
-                          dispatch({ type: 'remove', id: row.id })
-                        }
+                        onClick={() => dispatch({ type: "remove", id: row.id })}
                         disabled={isSubmitting}
                         size="lg"
                       />
@@ -248,7 +244,7 @@ export function AddMembersModalFrame<
                 variant="subtle"
                 size="xs"
                 leftSection={<PlusIcon width={14} height={14} />}
-                onClick={() => dispatch({ type: 'add' })}
+                onClick={() => dispatch({ type: "add" })}
                 disabled={isSubmitting}
               >
                 {t("members:modal.addMore")}

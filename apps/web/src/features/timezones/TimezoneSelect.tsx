@@ -35,7 +35,8 @@ export function TimezoneSelect({
   const effectiveDescription =
     description ?? t("settings.general.timezoneDescription");
   const isFollow = followOption && value === followOption.value;
-  const isUnknownZone = value && !WORKSPACE_TIMEZONE_SET.has(value) && !isFollow;
+  const isUnknownZone =
+    value && !WORKSPACE_TIMEZONE_SET.has(value) && !isFollow;
 
   const options = useMemo(() => {
     if (isUnknownZone) {

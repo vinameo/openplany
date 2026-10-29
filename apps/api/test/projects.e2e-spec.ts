@@ -857,10 +857,10 @@ describe('Projects (e2e)', () => {
     });
 
     it('returns at most PROJECT_MEMBER_PREVIEW_MAX members per project with the real memberCount', async () => {
-      const {
-        workspace,
-        cookie: adminCookie,
-      } = await seedWorkspace('owner-preview@openplany.dev', 'preview-ws');
+      const { workspace, cookie: adminCookie } = await seedWorkspace(
+        'owner-preview@openplany.dev',
+        'preview-ws',
+      );
       const projectId = await insertProject(workspace.id, 'Crowded', 'CROWD');
       const leadId = await createUser('preview-lead@openplany.dev');
       await addWorkspaceMember(workspace.id, leadId, 'member');
@@ -889,10 +889,7 @@ describe('Projects (e2e)', () => {
     });
 
     it('excludes former workspace members from both members preview and memberCount (RQ AC-02, DB-04)', async () => {
-      const {
-        workspace,
-        cookie: adminCookie,
-      } = await seedWorkspace(
+      const { workspace, cookie: adminCookie } = await seedWorkspace(
         'owner-former-mem@openplany.dev',
         'former-mem-ws',
       );

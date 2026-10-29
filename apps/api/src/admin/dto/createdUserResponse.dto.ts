@@ -9,7 +9,9 @@ export interface UserRowForResponse {
   createdAt: Date;
 }
 
-export function toCreatedUserResponse(row: UserRowForResponse): CreatedUserResponse {
+export function toCreatedUserResponse(
+  row: UserRowForResponse,
+): CreatedUserResponse {
   return {
     id: row.id,
     email: row.email,
@@ -20,4 +22,3 @@ export function toCreatedUserResponse(row: UserRowForResponse): CreatedUserRespo
     createdAt: row.createdAt.toISOString(),
   };
 }
-

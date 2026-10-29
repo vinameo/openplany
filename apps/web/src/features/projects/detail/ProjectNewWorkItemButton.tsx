@@ -29,4 +29,3 @@ export function ProjectNewWorkItemButton() {
 
   return <NewWorkItemButton onClick={() => openCreateWorkItem(project)} />;
 }
-

@@ -13,22 +13,22 @@ Open-source project management tool for tracking issues. This is a **pnpm + Turb
 
 ### Tech stack
 
-| Area            | Choice                                                         | Installed version |
-| --------------- | -------------------------------------------------------------- | ----------------- |
-| Runtime         | Node.js LTS (`.nvmrc`)                                         | 24                |
-| Package manager | pnpm workspaces (`nodeLinker: hoisted`)                        | 12.6.0            |
-| Build/orchestration | Turborepo                                                  | 2.x               |
-| Language        | TypeScript (strict)                                            | 6.x (apps), 5.x (`@repo/ui`) |
-| Backend         | NestJS + Express, class-validator/class-transformer            | 12.x              |
-| Database        | PostgreSQL + TypeORM (`@nestjs/typeorm`, `pg`)                 | 17 / 1.x          |
-| Cache           | Redis (container only — no Nest client yet)                    | 8                 |
-| Config          | `@nestjs/config` (dotenv) + class-validator env validation     | —                 |
-| Frontend        | React + Vite + Mantine UI + react-router                       | 19 / 8 / 9 / 8    |
-| Server state    | TanStack Query (`@tanstack/react-query`)                       | 5                 |
-| Auth            | Opaque session cookie, argon2id via `node:crypto` (Node 24+), `helmet`, `cookie-parser` | — |
-| i18n            | i18next (API core), react-i18next (web)                        | 24.x / 15.x       |
-| Testing         | Vitest (API: unit + e2e with Supertest; web/ui: jsdom + React Testing Library) | 4.x (api), 5.x (web/ui) |
-| Linting         | oxlint (API with `--type-aware`, ui), ESLint flat config (web) | —                 |
+| Area                | Choice                                                                                  | Installed version            |
+| ------------------- | --------------------------------------------------------------------------------------- | ---------------------------- |
+| Runtime             | Node.js LTS (`.nvmrc`)                                                                  | 24                           |
+| Package manager     | pnpm workspaces (`nodeLinker: hoisted`)                                                 | 12.6.0                       |
+| Build/orchestration | Turborepo                                                                               | 2.x                          |
+| Language            | TypeScript (strict)                                                                     | 6.x (apps), 5.x (`@repo/ui`) |
+| Backend             | NestJS + Express, class-validator/class-transformer                                     | 12.x                         |
+| Database            | PostgreSQL + TypeORM (`@nestjs/typeorm`, `pg`)                                          | 17 / 1.x                     |
+| Cache               | Redis (container only — no Nest client yet)                                             | 8                            |
+| Config              | `@nestjs/config` (dotenv) + class-validator env validation                              | —                            |
+| Frontend            | React + Vite + Mantine UI + react-router                                                | 19 / 8 / 9 / 8               |
+| Server state        | TanStack Query (`@tanstack/react-query`)                                                | 5                            |
+| Auth                | Opaque session cookie, argon2id via `node:crypto` (Node 24+), `helmet`, `cookie-parser` | —                            |
+| i18n                | i18next (API core), react-i18next (web)                                                 | 24.x / 15.x                  |
+| Testing             | Vitest (API: unit + e2e with Supertest; web/ui: jsdom + React Testing Library)          | 4.x (api), 5.x (web/ui)      |
+| Linting             | oxlint (API with `--type-aware`, ui), ESLint flat config (web)                          | —                            |
 
 ### Workspace layout
 
@@ -234,12 +234,12 @@ export class CreateIssueDto {
 
 ## 6. Testing Strategy
 
-| Layer        | Tool                                  | What to test                                        |
-| ------------ | ------------------------------------- | --------------------------------------------------- |
-| API unit     | Vitest + `@nestjs/testing`            | Services: business rules, edge cases, error paths. Mock repositories. |
-| API e2e      | Vitest + Supertest (`test:e2e`)       | Controllers end-to-end: status codes, validation, auth. |
-| Web/UI component | Vitest + React Testing Library (jsdom) | Render + user interactions; query by role/label, not test IDs. |
-| Web integration | Vitest + RTL                         | Hooks + components together with a mocked API.      |
+| Layer            | Tool                                   | What to test                                                          |
+| ---------------- | -------------------------------------- | --------------------------------------------------------------------- |
+| API unit         | Vitest + `@nestjs/testing`             | Services: business rules, edge cases, error paths. Mock repositories. |
+| API e2e          | Vitest + Supertest (`test:e2e`)        | Controllers end-to-end: status codes, validation, auth.               |
+| Web/UI component | Vitest + React Testing Library (jsdom) | Render + user interactions; query by role/label, not test IDs.        |
+| Web integration  | Vitest + RTL                           | Hooks + components together with a mocked API.                        |
 
 - Web/UI tests match `src/**/*.test.{ts,tsx}`; the setup file `src/test/setup.ts` loads jest-dom matchers and stubs `matchMedia`/`ResizeObserver` for Mantine.
 - Wrap rendered components in `<AppUiProvider>` — Mantine components throw without a `MantineProvider`.
@@ -343,6 +343,7 @@ The `spec-review` skill (user-level, shared across projects) reads this section.
 **Feature workflow skills** (`.claude/skills/`): `write-feature-spec` (grill → five spec files → `spec-reviewer` subagent, which runs the user-level `spec-review` skill with the checks above → tickets), `implement-ticket` (one ticket, and the final self-review and merge) and `implement-feature` (`/implement-feature <docs path>`: every ticket in order through the `deep-coder` subagent, then the branch review and merge).
 
 **Other coding agents (Codex, Antigravity).** `AGENTS.md` is a symlink to this file, and `.agents/skills` and `.agents/agents` are symlinks to `.claude/skills` and `.claude/agents`, so every agent reads the same rules, skills and subagents. In an agent's frontmatter, restrict tools with `disallowedTools`, never `tools:`: Antigravity drops an agent whose `tools:` names Claude Code tools (`agy agents` must list every file in `.claude/agents`). Antigravity gets the hooks from `.agents/hooks.json`, which runs the same `.claude/hooks/requireBranchReview.mjs` (merge gate) and `requireTicketDesignNotes.mjs` (ticket commit gate). When a skill names a Claude Code feature your agent lacks:
+
 - A subagent (`deep-coder`, `spec-reviewer`) your agent cannot start (Codex): read `.claude/agents/<name>.md` and do its job yourself, one ticket at a time, with its preloaded skills as background where you have them.
 - `/code-review` or `/security-review`: review `git diff develop...HEAD` yourself with the feature-review checklist in `implement-ticket`.
 - `$ARGUMENTS`: the path or number the user gave with the request.
@@ -413,15 +414,19 @@ Web variables must be prefixed `VITE_` to reach client code — and are public, 
 Run PostgreSQL + Redis via `docker compose up -d postgres redis`, then `pnpm --filter @repo/api migration:run`.
 
 To bootstrap the first instance admin on a fresh install:
+
 ```bash
 pnpm --filter @repo/api user:create admin@openplany.dev "Admin" --instance-admin
 ```
 
 To promote an existing user to instance admin:
+
 ```bash
 pnpm --filter @repo/api user:promote admin@openplany.dev
 ```
+
 Or with SQL:
+
 ```sql
 UPDATE users SET is_superuser = true, updated_at = now() WHERE lower(email) = lower('admin@openplany.dev') RETURNING id, is_superuser;
 ```

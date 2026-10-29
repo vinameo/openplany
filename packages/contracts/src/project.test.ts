@@ -187,7 +187,9 @@ describe("project contracts", () => {
       expect(effectiveProjectTimezone("America/New_York", "Europe/Paris")).toBe(
         "America/New_York",
       );
-      expect(effectiveProjectTimezone(null, "Europe/Paris")).toBe("Europe/Paris");
+      expect(effectiveProjectTimezone(null, "Europe/Paris")).toBe(
+        "Europe/Paris",
+      );
       expect(effectiveProjectTimezone(null, "UTC")).toBe("UTC");
     });
   });

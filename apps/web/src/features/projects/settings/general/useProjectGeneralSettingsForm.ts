@@ -81,7 +81,6 @@ export function useProjectGeneralSettingsForm(project: ProjectListItem) {
             console.error("project.settings.leave_failed", err),
           );
         return null;
-
       }
       if (error.status === 429) {
         return tooManyChangesMessage(error.retryAfterSeconds ?? null);

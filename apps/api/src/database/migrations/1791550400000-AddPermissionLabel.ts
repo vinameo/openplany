@@ -111,4 +111,3 @@ export class AddPermissionLabel1791550400000 implements MigrationInterface {
     `);
   }
 }
-

@@ -78,21 +78,17 @@ export class AdminRolesService {
       );
     } catch (err: unknown) {
       if (isForeignKeyViolation(err)) {
-        throw new ApiException(
-          HttpStatus.BAD_REQUEST,
-          'VALIDATION_ERROR',
-          { key: 'errors:foreignKeyViolation' },
-        );
+        throw new ApiException(HttpStatus.BAD_REQUEST, 'VALIDATION_ERROR', {
+          key: 'errors:foreignKeyViolation',
+        });
       }
       throw err;
     }
 
     if (planResult.status === 'conflict') {
-      throw new ApiException(
-        HttpStatus.CONFLICT,
-        'ROLE_PERMISSIONS_CHANGED',
-        { key: 'admin:errors.conflictReload' },
-      );
+      throw new ApiException(HttpStatus.CONFLICT, 'ROLE_PERMISSIONS_CHANGED', {
+        key: 'admin:errors.conflictReload',
+      });
     }
 
     if (planResult.status === 'invalid') {

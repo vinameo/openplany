@@ -27,7 +27,9 @@ export function SettingsSectionRoute({
 
   const section = sections.find((s) => s.key === sectionKey);
   if (!section) {
-    throw new Error(`Unknown settings section key "${sectionKey ?? "undefined"}"`);
+    throw new Error(
+      `Unknown settings section key "${sectionKey ?? "undefined"}"`,
+    );
   }
 
   const sectionLabel = section.labelKey

@@ -912,7 +912,9 @@ describe('Migrations (e2e)', () => {
     };
     const migration = new CreateWorkItemStates1791610600000();
     await expect(
-      migration.up(tableExistsRunner as unknown as import('typeorm').QueryRunner),
+      migration.up(
+        tableExistsRunner as unknown as import('typeorm').QueryRunner,
+      ),
     ).rejects.toThrow('Cannot create work_item_states: table already exists.');
 
     const colExistsRunner = {
@@ -925,7 +927,9 @@ describe('Migrations (e2e)', () => {
     };
     await expect(
       migration.up(colExistsRunner as unknown as import('typeorm').QueryRunner),
-    ).rejects.toThrow('Cannot create work_items.state_id: column already exists.');
+    ).rejects.toThrow(
+      'Cannot create work_items.state_id: column already exists.',
+    );
 
     const permExistsRunner = {
       query: vi.fn().mockImplementation((sql: string) => {
@@ -936,7 +940,9 @@ describe('Migrations (e2e)', () => {
       }),
     };
     await expect(
-      migration.up(permExistsRunner as unknown as import('typeorm').QueryRunner),
+      migration.up(
+        permExistsRunner as unknown as import('typeorm').QueryRunner,
+      ),
     ).rejects.toThrow(
       'Cannot add permission workspace.states.manage: permission already exists.',
     );
@@ -989,7 +995,9 @@ describe('Migrations (e2e)', () => {
     await migrationsDs.runMigrations({ transaction: 'each' });
 
     // Verify 5 default rows exist
-    const defaultStates = await migrationsDs.query<{ default_key: string; name: string }[]>(
+    const defaultStates = await migrationsDs.query<
+      { default_key: string; name: string }[]
+    >(
       `SELECT default_key, name FROM work_item_states WHERE level = 'default' ORDER BY default_key`,
     );
     expect(defaultStates).toHaveLength(5);
@@ -1013,4 +1021,3 @@ describe('Migrations (e2e)', () => {
     expect(perm).toHaveLength(1);
   });
 });
-

@@ -1,4 +1,9 @@
-import { useCallback, useState, type MouseEvent, type ReactElement } from "react";
+import {
+  useCallback,
+  useState,
+  type MouseEvent,
+  type ReactElement,
+} from "react";
 import { Popover, Text, Tooltip } from "@mantine/core";
 import { useTimeout } from "@mantine/hooks";
 import { useTranslation } from "react-i18next";

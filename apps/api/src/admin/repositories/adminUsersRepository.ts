@@ -13,9 +13,7 @@ import {
   LockedUsersRepository,
 } from '../../auth/repositories/lockedUsers.js';
 import { isUniqueViolation } from '../../common/databaseErrors.js';
-import {
-  containsIgnoringCaseAndAccentsSql,
-} from '../../database/findOperators.js';
+import { containsIgnoringCaseAndAccentsSql } from '../../database/findOperators.js';
 import { matchesWhere } from '../../database/matchesWhere.js';
 import { addOrderByEmptyAndNullLast } from '../../database/sortHelpers.js';
 import {
@@ -47,8 +45,6 @@ export const isListedUser = (user: User): boolean =>
 
 export const isActiveInstanceAdmin = (user: User): boolean =>
   matchesWhere(user, ACTIVE_INSTANCE_ADMIN);
-
-
 
 export interface NewUser {
   email: string;
@@ -177,7 +173,9 @@ export class TypeOrmAdminUsersRepository extends AdminUsersRepository {
           subQb
             .where(containsIgnoringCaseAndAccentsSql('u.firstName', paramName))
             .orWhere(containsIgnoringCaseAndAccentsSql('u.lastName', paramName))
-            .orWhere(containsIgnoringCaseAndAccentsSql('u.displayName', paramName))
+            .orWhere(
+              containsIgnoringCaseAndAccentsSql('u.displayName', paramName),
+            )
             .orWhere(containsIgnoringCaseAndAccentsSql('u.email', paramName));
         }),
         { [paramName]: term },

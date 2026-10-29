@@ -124,7 +124,8 @@ describe("CreateWorkspaceForm", () => {
 
     const { user } = renderForm();
 
-    const slugInput = await screen.findByPlaceholderText(/type or paste a url/i);
+    const slugInput =
+      await screen.findByPlaceholderText(/type or paste a url/i);
     await user.type(slugInput, "admin");
 
     expect(
@@ -149,7 +150,8 @@ describe("CreateWorkspaceForm", () => {
 
     const { user } = renderForm();
 
-    const slugInput = await screen.findByPlaceholderText(/type or paste a url/i);
+    const slugInput =
+      await screen.findByPlaceholderText(/type or paste a url/i);
     await user.type(slugInput, "existing-slug");
 
     expect(
@@ -169,7 +171,8 @@ describe("CreateWorkspaceForm", () => {
 
     const { user } = renderForm();
 
-    const slugInput = await screen.findByPlaceholderText(/type or paste a url/i);
+    const slugInput =
+      await screen.findByPlaceholderText(/type or paste a url/i);
     await user.click(slugInput);
     await user.paste("https://app.openplany.dev/acme/");
 
@@ -183,7 +186,8 @@ describe("CreateWorkspaceForm", () => {
 
     const { user } = renderForm();
 
-    const slugInput = await screen.findByPlaceholderText(/type or paste a url/i);
+    const slugInput =
+      await screen.findByPlaceholderText(/type or paste a url/i);
 
     // Too short (2 chars)
     await user.type(slugInput, "ab");

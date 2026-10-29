@@ -1,13 +1,13 @@
-import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { AppUiProvider } from '@repo/ui';
-import { Notifications, notifications } from '@mantine/notifications';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { AuthProvider } from '../../auth/AuthProvider';
-import { makeSession } from '../../../test/authFixtures';
-import { jsonResponse, mockFetch } from '../../../test/fetchMock';
-import { CreateUserModal } from './CreateUserModal';
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { AppUiProvider } from "@repo/ui";
+import { Notifications, notifications } from "@mantine/notifications";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { AuthProvider } from "../../auth/AuthProvider";
+import { makeSession } from "../../../test/authFixtures";
+import { jsonResponse, mockFetch } from "../../../test/fetchMock";
+import { CreateUserModal } from "./CreateUserModal";
 
 function renderModal(props: {
   opened: boolean;
@@ -23,14 +23,14 @@ function renderModal(props: {
   });
 
   mockFetch({
-    'GET /api/auth/session': () =>
+    "GET /api/auth/session": () =>
       jsonResponse(
         200,
         makeSession({
           user: { ...makeSession().user, isInstanceAdmin: true },
         }),
       ),
-    'GET /api/workspaces': () =>
+    "GET /api/workspaces": () =>
       jsonResponse(200, { workspaces: [], lastWorkspaceSlug: null }),
     ...props.extraMocks,
   });
@@ -61,17 +61,17 @@ afterEach(() => {
   notifications.clean();
 });
 
-describe('CreateUserModal', () => {
-  it('does not render when opened is false', () => {
+describe("CreateUserModal", () => {
+  it("does not render when opened is false", () => {
     renderModal({ opened: false });
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it('renders modal when opened is true', async () => {
+  it("renders modal when opened is true", async () => {
     renderModal({ opened: true });
 
     expect(
-      await screen.findByRole('heading', { name: 'Create user' }),
+      await screen.findByRole("heading", { name: "Create user" }),
     ).toBeInTheDocument();
     expect(screen.getByLabelText(/first name/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/last name/i)).toBeInTheDocument();
@@ -80,10 +80,10 @@ describe('CreateUserModal', () => {
     expect(screen.getByLabelText(/^password/i)).toBeInTheDocument();
   });
 
-  it('closes immediately on Cancel when form is pristine (AC-29)', async () => {
+  it("closes immediately on Cancel when form is pristine (AC-29)", async () => {
     const { user, onClose } = renderModal({ opened: true });
 
-    const cancelButton = await screen.findByRole('button', { name: /cancel/i });
+    const cancelButton = await screen.findByRole("button", { name: /cancel/i });
     await user.click(cancelButton);
 
     expect(onClose).toHaveBeenCalledTimes(1);
@@ -92,79 +92,73 @@ describe('CreateUserModal', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('triggers discard guard when user has typed in the form (AC-29)', async () => {
+  it("triggers discard guard when user has typed in the form (AC-29)", async () => {
     const { user, onClose } = renderModal({ opened: true });
 
     const firstNameInput = await screen.findByLabelText(/first name/i);
-    await user.type(firstNameInput, 'An');
+    await user.type(firstNameInput, "An");
 
-    const cancelButton = screen.getByRole('button', { name: /cancel/i });
+    const cancelButton = screen.getByRole("button", { name: /cancel/i });
     await user.click(cancelButton);
 
     // onClose should NOT have been called yet
     expect(onClose).not.toHaveBeenCalled();
 
     // Discard footer is visible
-    expect(
-      screen.getByText(/discard changes\?/i),
-    ).toBeInTheDocument();
-    const keepEditingButton = screen.getByRole('button', {
+    expect(screen.getByText(/discard changes\?/i)).toBeInTheDocument();
+    const keepEditingButton = screen.getByRole("button", {
       name: /keep editing/i,
     });
 
     // Click "Keep editing"
     await user.click(keepEditingButton);
-    expect(
-      screen.queryByText(/discard changes\?/i),
-    ).not.toBeInTheDocument();
-    expect(firstNameInput).toHaveValue('An');
+    expect(screen.queryByText(/discard changes\?/i)).not.toBeInTheDocument();
+    expect(firstNameInput).toHaveValue("An");
 
     // Click cancel again (re-queried because DOM element was remounted by discard guard)
-    const cancelAgain = screen.getByRole('button', { name: /cancel/i });
+    const cancelAgain = screen.getByRole("button", { name: /cancel/i });
     await user.click(cancelAgain);
-    expect(
-      screen.getByText(/discard changes\?/i),
-    ).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /^discard$/i }));
+    expect(screen.getByText(/discard changes\?/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /^discard$/i }));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('submits form, shows notification, and closes on success (AC-28)', async () => {
+  it("submits form, shows notification, and closes on success (AC-28)", async () => {
     let createCalled = false;
     const { user, onClose, onCreated } = renderModal({
       opened: true,
       extraMocks: {
-        'POST /api/admin/users': () => {
+        "POST /api/admin/users": () => {
           createCalled = true;
           return jsonResponse(201, {
-            id: 'user-new-1',
-            firstName: 'An',
-            lastName: 'Nguyen',
-            displayName: 'An Nguyen',
-            email: 'an@openplany.dev',
+            id: "user-new-1",
+            firstName: "An",
+            lastName: "Nguyen",
+            displayName: "An Nguyen",
+            email: "an@openplany.dev",
             isInstanceAdmin: false,
-            createdAt: '2026-10-10T12:00:00.000Z',
+            createdAt: "2026-10-10T12:00:00.000Z",
           });
         },
       },
     });
 
     const firstNameInput = await screen.findByLabelText(/first name/i);
-    await user.type(firstNameInput, 'An');
+    await user.type(firstNameInput, "An");
 
     const lastNameInput = screen.getByLabelText(/last name/i);
-    await user.type(lastNameInput, 'Nguyen');
+    await user.type(lastNameInput, "Nguyen");
 
     const emailInput = screen.getByLabelText(/email/i);
-    await user.type(emailInput, 'an@openplany.dev');
+    await user.type(emailInput, "an@openplany.dev");
 
     const passwordInput = screen.getByLabelText(/^password/i);
-    await user.type(passwordInput, 'ValidPassword123');
+    await user.type(passwordInput, "ValidPassword123");
 
     const confirmPasswordInput = screen.getByLabelText(/confirm password/i);
-    await user.type(confirmPasswordInput, 'ValidPassword123');
+    await user.type(confirmPasswordInput, "ValidPassword123");
 
-    const submitButton = screen.getByRole('button', { name: /create user/i });
+    const submitButton = screen.getByRole("button", { name: /create user/i });
     expect(submitButton).toBeEnabled();
     await user.click(submitButton);
 

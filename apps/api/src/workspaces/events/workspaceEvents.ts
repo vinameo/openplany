@@ -77,4 +77,3 @@ export abstract class WorkspaceEvents {
     event: WorkspaceMemberRoleLastAdminEvent,
   ): Promise<void>;
 }
-

@@ -14,7 +14,11 @@ import { useSettingsNavigation } from "./useSettingsNavigation";
 
 interface SettingsSidebarProps {
   sections?: readonly WorkspaceSettingsSection[];
-  groups?: readonly { key: WorkspaceSettingsGroup; label?: string; labelKey?: MessageKey }[];
+  groups?: readonly {
+    key: WorkspaceSettingsGroup;
+    label?: string;
+    labelKey?: MessageKey;
+  }[];
 }
 
 export function SettingsSidebar({ sections, groups }: SettingsSidebarProps) {

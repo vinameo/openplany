@@ -865,8 +865,7 @@ export const vi: TranslatedCatalog = {
     "create.discard": "Huỷ bỏ",
     "create.save": "Lưu",
     "create.created": "Đã tạo {{key}}",
-    "create.noPermission":
-      "Bạn không có quyền tạo công việc trong dự án này.",
+    "create.noPermission": "Bạn không có quyền tạo công việc trong dự án này.",
     "errors.titleRequired": "Hãy nhập tiêu đề",
     "errors.titleTooLong": "Tiêu đề tối đa {{max}} ký tự",
     "errors.titleHiddenChars":

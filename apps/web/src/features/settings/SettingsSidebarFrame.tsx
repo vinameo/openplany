@@ -55,11 +55,7 @@ export function SettingsSidebarFrame({
 
       {card}
 
-      <ScrollArea
-        type="hover"
-        scrollbarSize={6}
-        className={classes.scrollArea}
-      >
+      <ScrollArea type="hover" scrollbarSize={6} className={classes.scrollArea}>
         <div className={classes.scrollContent}>
           <div className={classes.groupsWrapper}>
             {groups.map((group, groupIndex) => {

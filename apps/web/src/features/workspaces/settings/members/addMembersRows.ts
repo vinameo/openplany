@@ -1,1 +1,1 @@
-export * from '../../../members/addMembersRows';
+export * from "../../../members/addMembersRows";

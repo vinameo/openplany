@@ -77,4 +77,3 @@ export class CreateWorkspaceTables1791465600000 implements MigrationInterface {
     await queryRunner.query(`DROP TABLE IF EXISTS workspaces`);
   }
 }
-
